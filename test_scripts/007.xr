@@ -1,0 +1,7 @@
+fn assert<T>(cond:bool, on_ok: T) -> T {
+    if(cond, on_ok, panic('assertion failed'))
+}
+
+fn main()->bool{
+    assert(assert(true, 55), 55);
+}

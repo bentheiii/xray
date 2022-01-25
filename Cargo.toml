@@ -1,0 +1,16 @@
+[package]
+name = "xray"
+version = "0.1.0"
+authors = ["ben avrahami <dontcallme@illcall.you>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+pest = "2.0"
+pest_derive = "2.0"
+ordinal = "0.2.3"
+num = "0.4"
+regex = "1"
+lazy_static = "1.4.0"
+derivative = "2.2.0"

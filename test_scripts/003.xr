@@ -1,0 +1,8 @@
+fn double(x: int) -> int{
+    return x+x;
+}
+
+fn main() -> bool {
+    let x = 5;
+    assert(double(x) == 10)
+}

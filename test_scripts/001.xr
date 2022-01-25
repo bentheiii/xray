@@ -1,0 +1,4 @@
+fn main() -> bool {
+    let x = 5;
+    assert(5 == x)
+}

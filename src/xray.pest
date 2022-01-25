@@ -1,0 +1,119 @@
+header = {SOI ~ top_level_execution ~ EOI}
+eval = {SOI ~ expression ~ EOI}
+
+top_level_execution = {import* ~ execution}
+execution = {declaration*}
+declaration = {value | function | struct_def}
+expression = {
+    expression1 ~ (BINARY_OP ~ expression1)*
+}
+expression1 = {
+    (UNARY_OP)* ~ expression2
+}
+expression2 = {
+    expression3 ~ (generic_args ~ call_args)? ~ call_args*
+}
+ call_args = {
+    "(" ~ container_elements? ~ ","? ~ ")"
+ }
+ generic_args = {
+    "<" ~ complete_type* ~ ">"
+ }
+expression3 = {
+    expression4 ~ ("." ~ CNAME)*
+}
+expression4 = _{
+    SIGNED_NUMBER
+    | STRING
+    | bool
+    | CNAME
+    | container
+    | map
+    | "(" ~ expression ~ ")"
+}
+ container = {container_type? ~ "[" ~ container_elements? ~ ","? ~ "]"}
+  container_elements = {expression ~ (","~expression)*}
+  container_type = {"array" | "set"}
+ map = {"{" ~ map_pairs? ~ ","? ~ "}"}
+  map_pairs = {map_pair ~ (","~map_pair)*}
+  map_pair = {expression ~ ":"~ expression}
+ bool = @{"true"|"false"}
+
+UNARY_OP = _{UNARY_PLUS | UNARY_MINUS | UNARY_NOT}
+ UNARY_PLUS = {"+"}
+ UNARY_MINUS = {"-"}
+ UNARY_NOT = {"!"}
+BINARY_OP = _{BINARY_ADD | BINARY_SUB | BINARY_MUL | BINARY_DIV | BINARY_MOD | BINARY_AND | BINARY_OR | BINARY_EQ
+             | BINARY_NE | BINARY_LT | BINARY_GT | BINARY_LE | BINARY_GE | BINARY_BIT_AND | BINARY_BIT_OR
+             | BINARY_BIT_XOR}
+ BINARY_ADD = {"+"}
+ BINARY_SUB = {"-"}
+ BINARY_MUL = {"*"}
+ BINARY_DIV = {"/"}
+ BINARY_POW = {"**"}
+ BINARY_AND = {"&&"}
+ BINARY_OR = {"||"}
+ BINARY_LT = {"<"}
+ BINARY_GT = {">"}
+ BINARY_LE = {"<="}
+ BINARY_GE = {">="}
+ BINARY_EQ = {"=="}
+ BINARY_NE = {"!="}
+ BINARY_MOD = {"%"}
+ BINARY_BIT_AND = {"&"}
+ BINARY_BIT_OR = {"|"}
+ BINARY_BIT_XOR = {"^"}
+
+pub_opt = {"public"?}
+
+import = {pub_opt ~ "import " ~ import_spec ~ ";"}
+ import_spec = {CNAME ~ ("::" ~ CNAME)* ~ ("::" ~ import_group)?}
+ import_group = {"{" ~ CNAME ~ (", " ~ CNAME)* ~ ","? ~ "}"| "{" ~ ("*"|"**") ~ ","? ~ "}" }
+
+value = {pub_opt ~ "let " ~ CNAME ~ explicit_type? ~ "=" ~ expression ~ ";"}
+ explicit_type = {":" ~ complete_type}
+
+function = {pub_opt ~"fn " ~ CNAME ~ generic_signature_opt ~ "(" ~ function_parameters_opt ~ ","? ~ ")" ~ "->" ~ complete_type ~ function_body}
+ generic_signature_opt = { generic_signature? }
+ function_body = {"{"~execution~expression~"}" }
+ generic_signature = {"<" ~ generic_parameter ~ ("," ~ generic_parameter)* ~ ">"}
+ generic_parameter = {CNAME ~ generic_constraint?}
+ generic_constraint = {":" ~ complete_type}
+
+ function_parameters_opt = { function_parameters? }
+ function_parameters = {(parameter ~ ",")* ~ parameter}
+ parameter = {CNAME ~ ":" ~ complete_type ~ default_value?}
+ default_value = {"?="~expression}
+
+struct_def = {pub_opt ~ "struct " ~ CNAME ~ generic_signature_opt ~ "(" ~ struct_parameters ~ ")"}
+ struct_parameters = {(struct_parameter ~ ",")* ~ struct_parameter}
+ struct_parameter = {CNAME ~ ":" ~ complete_type}
+
+complete_type = {
+  CNAME ~ generic_arguments?
+  | signature
+ }
+ generic_arguments = {"<" ~ (complete_type ~ ",")* ~ complete_type ~ ">"}
+ signature = {"(" ~ signature_params ~ ")" ~ "->" ~ "(" ~ complete_type ~ ")"}
+ signature_params = { param_spec ~ "," ~ optional_param_specs| param_specs | optional_param_specs? }
+ param_specs = {(param_spec ~ ",")* ~ param_spec}
+ param_spec = {CNAME~ ":" ~ complete_type}
+ optional_param_specs = {(optional_param_spec ~ ",")* ~ optional_param_spec}
+ optional_param_spec = {CNAME~ ":" ~ complete_type ~ "?"}
+
+CNAME = @{("_" | ASCII_ALPHA) ~ ("_" | ASCII_ALPHANUMERIC)*}
+
+SIGNED_NUMBER = @{num | hexnum | binnum}
+num = { int ~ ("." ~ num_digit*)? ~ (^"e" ~ int)? }
+ int = { ("+" | "-")? ~ num_digit+ }
+ num_digit = {ASCII_DIGIT|"_"}
+hexnum = {("+" | "-")? ~ "0x" ~ hex_digit+}
+ hex_digit = {ASCII_HEX_DIGIT|"_"}
+binnum = {("+" | "-")? ~ "0b" ~ bin_digit+}
+ bin_digit = {"0"|"1"|"_"}
+
+STRING = {PUSH("#"*) ~ "'" ~ inner_string ~ "'" ~ POP}
+ inner_string = @{(!("'" ~ PEEK)~ ANY)*}
+
+WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
+COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" | "//" ~ (!NEWLINE ~ ANY)}
