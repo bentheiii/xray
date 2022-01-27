@@ -22,10 +22,10 @@ use pest::Parser;
 use pest::prec_climber::{Operator, PrecClimber};
 use pest::prec_climber::Assoc::{Left, Right};
 use crate::builtins::{*};
-use crate::xexpr::XStaticExpr;
+use crate::xexpr::{XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
 use crate::xtype::{XFuncSpec, XStructFieldSpec, XStructSpec, XType};
-use crate::xvalue::{XExplicitArgSpec, XExplicitFuncSpec, XFunction};
+use crate::xvalue::{XFunction};
 
 #[derive(Parser)]
 #[grammar = "xray.pest"]
@@ -33,10 +33,10 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    fn fib(n: int, a: int, b:int)->int{
-        if(n==0, a, fib(n-1, b, a+b))
+    fn is_even(x: int) -> bool {
+        x>=0 && (x==0 || is_even(x-2))
     }
-    let z = fib(51, 0, 1);
+    let z = is_even(1000);
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -50,12 +50,15 @@ fn main() {
     add_int_eq(&mut root_scope).unwrap();
     add_int_sub(&mut root_scope).unwrap();
     add_int_lt(&mut root_scope).unwrap();
+    add_int_ge(&mut root_scope).unwrap();
     add_int_to_str(&mut root_scope).unwrap();
 
     add_str_type(&mut root_scope).unwrap();
     add_str_eq(&mut root_scope).unwrap();
 
     add_bool_type(&mut root_scope).unwrap();
+    add_and(&mut root_scope).unwrap();
+    add_or(&mut root_scope).unwrap();
 
     add_if(&mut root_scope).unwrap();
     add_panic(&mut root_scope).unwrap();
@@ -108,9 +111,9 @@ impl<'p, 's: 'p> XCompilationScope<'p, 's> {
                         let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names)?;
                         let default = param_iter.next().map(|d| {
                             let e_scope = XEvaluationScope::root(); // todo fix
-                            to_expr(d, &self).compile(&self).and_then(|c| c.eval(&e_scope))
+                            to_expr(d, &self).compile(&self).and_then(|c| c.eval(&e_scope, false).map(|r| r.unwrap_value()))
                         }).transpose()?;
-                        Ok(XExplicitArgSpec { name: name.to_string(), type_: type_, default })
+                        Ok(XExplicitArgSpec { name: name.to_string(), type_, default })
                     }).collect::<Result<Vec<_>, String>>()?
                 };
                 let rtype = self.get_complete_type(inners.next().unwrap(), &gen_param_names)?;
@@ -131,7 +134,7 @@ impl<'p, 's: 'p> XCompilationScope<'p, 's> {
                 if out_type != spec.ret {
                     return Err(format!("Function output type {} does not match expected type {}", out_type, spec.ret));
                 }
-                let func = XFunction::UserFunction(
+                let func = XStaticFunction::UserFunction(
                     spec,
                     declarations,
                     output,

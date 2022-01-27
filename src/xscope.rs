@@ -4,7 +4,7 @@ use std::iter::from_fn;
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
-use crate::xexpr::XExpr;
+use crate::xexpr::{XExpr, XStaticFunction};
 use crate::XStaticExpr;
 use crate::xtype::{XFuncSpec, XStructSpec, XType};
 use crate::xvalue::{XFunction, XValue};
@@ -15,7 +15,7 @@ pub struct XCompilationScope<'p, 's: 'p> {
     pub values: HashMap<String, XType>,
     pub types: HashMap<String, XType>,
     pub structs: HashMap<String, XStructSpec>,
-    pub functions: HashMap<String, Vec<XFunction<'s>>>,
+    pub functions: HashMap<String, Vec<XStaticFunction<'s>>>,
     pub parent: Option<&'p XCompilationScope<'p, 's>>,
     pub recourse: Option<(String, XFuncSpec)>,
 }
@@ -25,7 +25,7 @@ pub enum XCompilationScopeItem<'a> {
     Value(XType),
     NativeType(XType),
     Struct(XStructSpec),
-    Overload(Vec<XFunction<'a>>),
+    Overload(Vec<XStaticFunction<'a>>),
 }
 
 impl<'p, 's: 'p> XCompilationScope<'p, 's>{
@@ -69,7 +69,7 @@ impl<'p, 's: 'p> XCompilationScope<'p, 's>{
         let mut overloads = self.functions.get(name).map_or_else(|| vec![], |x| x.clone());
         match &self.recourse {
             Some((rec_name, spec)) if rec_name == name => {
-                overloads.push(XFunction::Recourse(spec.clone()));
+                overloads.push(XStaticFunction::Recourse(spec.clone()));
             },
             _ => (),
         }
@@ -113,7 +113,7 @@ impl<'p, 's: 'p> XCompilationScope<'p, 's>{
         }
     }
 
-    pub fn add_func(&mut self, name: &str, func: XFunction<'s>)-> Result<Declaration<'s>, String> {
+    pub fn add_func(&mut self, name: &str, func: XStaticFunction<'s>)-> Result<Declaration<'s>, String> {
         // todo ensure no shadowing
         self.functions.entry(name.to_string()).or_insert_with(|| vec![]).push( func.clone());
         Ok(Declaration::UserFunction(name.to_string(), func))
@@ -140,7 +140,7 @@ impl<'p, 's: 'p> XCompilationScope<'p, 's>{
 pub enum Declaration<'a> {
     Value(String, XExpr<'a>),
     Struct(XStructSpec),
-    UserFunction(String, XFunction<'a>),
+    UserFunction(String, XStaticFunction<'a>),
 }
 
 impl Hash for Declaration<'_> {
@@ -158,7 +158,7 @@ impl Hash for Declaration<'_> {
 pub struct XEvaluationScope<'p, 's: 'p>{
     _marker: PhantomData<&'s ()>,
 
-    pub values: HashMap<String, XValue<'s>>,
+    pub values: HashMap<String, Rc<XValue<'s>>>,
     pub recourse: Option<&'p XFunction<'s>>,
     parent: Option<&'p XEvaluationScope<'p, 's>>,
 }
@@ -182,11 +182,11 @@ impl<'p, 's> XEvaluationScope<'p, 's>{
         }
     }
 
-    pub fn get(&self, name: &str) -> Option<&XValue<'s>> {
-        self.values.get(name).or_else(|| self.parent.as_ref().and_then(|parent| parent.get(name)))
+    pub fn get(&self, name: &str) -> Option<Rc<XValue<'s>>> {
+        self.values.get(name).cloned().or_else(|| self.parent.as_ref().and_then(|parent| parent.get(name)))
     }
 
-    pub fn add(&mut self, name: &str, value: XValue<'s>) {
+    pub fn add(&mut self, name: &str, value: Rc<XValue<'s>>) {
         self.values.insert(name.to_string(), value);
     }
 
@@ -194,7 +194,7 @@ impl<'p, 's> XEvaluationScope<'p, 's>{
         for decl in other {
             match decl {
                 Declaration::Value(name, expr) => {
-                    let value = expr.eval(self)?;
+                    let value = expr.eval(self, false)?.unwrap_value();
                     self.add(&name, value);
                 }
                 _=>{}
