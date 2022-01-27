@@ -83,16 +83,21 @@ macro_rules! add_int_binop {
 add_int_binop!(add_int_add, add, |a,b| Ok(XValue::Int(a + b).into()));
 add_int_binop!(add_int_sub, sub, |a,b| Ok(XValue::Int(a - b).into()));
 add_int_binop!(add_int_mul, mul, |a,b| Ok(XValue::Int(a * b).into()));
-add_int_binop!(add_int_mod, mod, |a,b| Ok(XValue::Int(a % b).into()));
+add_int_binop!(add_int_mod, mod, |a: &BigInt, b : &BigInt| {
+        if b.is_zero() {
+            Err(String::from("Modulo by zero"))
+        } else {
+            Ok(XValue::Int(a % b).into())
+        }
+    });
 add_int_binop!(add_int_bit_or, bit_or, |a,b| Ok(XValue::Int(a | b).into()));
 add_int_binop!(add_int_bit_and, bit_and, |a,b| Ok(XValue::Int(a & b).into()));
 add_int_binop!(add_int_bit_xor, bit_xor, |a,b| Ok(XValue::Int(a ^ b).into()));
 add_binop!(add_int_div, div, X_INT, XValue::Int, X_RATIONAL, |a: &BigInt, b : &BigInt| {
-        let denom = b.clone();
-        if denom == Zero::zero() {
+        if b.is_zero() {
             Err(String::from("Division by zero"))
         } else {
-            Ok(XValue::Rational(BigRational::new(a.clone(), denom)).into())
+            Ok(XValue::Rational(BigRational::new(a.clone(), b.clone())).into())
         }
     }
 );
@@ -258,6 +263,40 @@ pub fn add_if(scope: &mut XCompilationScope) -> Result<(), String> {
 }
 // endregion
 
+// region rational
+pub fn add_rational_type(scope: &mut XCompilationScope) -> Result<(), String> {
+    scope.add_native_type("rational", X_RATIONAL)
+}
+
+macro_rules! add_rational_binop {
+    ($fn_name:ident, $name:ident, $func:expr) => {add_binop!($fn_name, $name, X_RATIONAL, XValue::Rational, X_RATIONAL, $func);};
+}
+
+add_rational_binop!(add_rational_add, add, |a,b| Ok(XValue::Rational(a + b).into()));
+add_rational_binop!(add_rational_sub, sub, |a,b| Ok(XValue::Rational(a - b).into()));
+add_rational_binop!(add_rational_mul, mul, |a,b| Ok(XValue::Rational(a * b).into()));
+add_rational_binop!(add_rational_mod, mod, |a: &BigRational,b: &BigRational| {
+    if b.is_zero() {
+        Err("modulo by zero".to_string())
+    }
+    else {
+        Ok(XValue::Rational(a % b).into())
+    }
+});
+add_rational_binop!(add_rational_div, div, |a: &BigRational,b: &BigRational| {
+    if b.is_zero() {
+        Err("division by zero".to_string())
+    }
+    else {
+        Ok(XValue::Rational(a / b).into())
+    }
+});
+
+add_ufunc!(add_rational_floor, floor, X_RATIONAL, XValue::Rational, X_INT, |a:&BigRational| Ok(XValue::Rational(a.floor()).into()));
+add_ufunc!(add_rational_ceil, ceil, X_RATIONAL, XValue::Rational, X_INT, |a:&BigRational| Ok(XValue::Rational(a.ceil()).into()));
+add_ufunc!(add_rational_trunc, trunc, X_RATIONAL, XValue::Rational, X_INT, |a:&BigRational| Ok(XValue::Rational(a.trunc()).into()));
+
+// endregion
 
 // region general
 // endregion

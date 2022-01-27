@@ -15,8 +15,10 @@ extern crate pest_derive;
 use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
+use std::iter;
 use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
+use itertools::Itertools;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest::prec_climber::{Operator, PrecClimber};
@@ -33,10 +35,14 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    fn is_even(x: int) -> bool {
-        x>=0 && (x==0 || is_even(x-2))
+    fn collatz_step(n: int)->int{
+        (n%2 == 0).if(
+            (n/2).floor(),
+            3*n+1
+        )
     }
-    let z = is_even(1000);
+
+    let z = collatz_step(5);
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -59,6 +65,8 @@ fn main() {
     add_bool_type(&mut root_scope).unwrap();
     add_and(&mut root_scope).unwrap();
     add_or(&mut root_scope).unwrap();
+
+    add_rational_floor(&mut root_scope).unwrap();
 
     add_if(&mut root_scope).unwrap();
     add_panic(&mut root_scope).unwrap();
@@ -313,6 +321,21 @@ fn to_expr(input: Pair<Rule>, xscope: &XCompilationScope) -> XStaticExpr {
             }
             ret
         }
+        Rule::expression4 => {
+            let mut iter = input.into_inner();
+            let mut ret = to_expr(iter.next().unwrap(), xscope);
+            for meth_call in &iter.chunks(2) {
+                let mut meth_call_iter = meth_call.into_iter();
+                let method = XStaticExpr::Ident(meth_call_iter.next().unwrap().as_str().to_string());
+                let args = match meth_call_iter.next().unwrap().into_inner().next() {
+                    None => vec![ret],
+                    Some(c) => iter::once(ret).chain(c.into_inner().map(|p| to_expr(p, xscope))).collect()
+                };
+                ret = XStaticExpr::Call(Box::new(method), args);
+            };
+            ret
+        }
+
         Rule::SIGNED_NUMBER => {
             return XStaticExpr::LiteralInt(input.as_str().parse::<i64>().unwrap());
         }

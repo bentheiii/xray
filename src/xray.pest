@@ -20,9 +20,12 @@ expression2 = {
     "<" ~ complete_type* ~ ">"
  }
 expression3 = {
-    expression4 ~ ("." ~ CNAME)*
+    expression4 ~ ("::" ~ CNAME)*
 }
-expression4 = _{
+expression4 = {
+    expression5 ~ ("." ~ CNAME ~ call_args)*
+}
+expression5 = _{
     CNAME
     | STRING
     | bool
