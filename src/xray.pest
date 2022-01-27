@@ -23,10 +23,10 @@ expression3 = {
     expression4 ~ ("." ~ CNAME)*
 }
 expression4 = _{
-    SIGNED_NUMBER
+    CNAME
     | STRING
     | bool
-    | CNAME
+    | SIGNED_NUMBER
     | container
     | map
     | "(" ~ expression ~ ")"

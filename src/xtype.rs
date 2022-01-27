@@ -10,9 +10,11 @@ pub enum XType {
     Rational,
     String,
     XUnknown,
+    /*
     XSeq(Box<XType>),
     XSet(Box<XType>),
     XMap(Box<XType>, Box<XType>),
+     */
     XStruct(XStructSpec,
             #[derivative(Hash="ignore")]
             HashMap<String, XType>
@@ -133,6 +135,7 @@ impl XType {
             (XType::Int, XType::Int) => Some(HashMap::new()),
             (XType::Rational, XType::Rational) => Some(HashMap::new()),
             (XType::String, XType::String) => Some(HashMap::new()),
+            /*
             (XType::XSeq(ref a), XType::XSeq(ref b)) => a.bind_in_assignment(b),
             (XType::XSet(ref a), XType::XSet(ref b)) => a.bind_in_assignment(b),
             (XType::XMap(ref a, ref b), XType::XMap(ref c, ref d)) => a.bind_in_assignment(c).and_then(|mut ns| {
@@ -142,7 +145,11 @@ impl XType {
                     None
                 }
             }),
+             */
             (XType::XStruct(a, ref bind_a), XType::XStruct(b, ref bind_b)) => {
+                if a != b {
+                    return None;
+                }
                 let mut bind = HashMap::new();
                 for p_type in a.fields.iter().map(|f| f.type_.as_ref()) {
                     if let Some(binds) = p_type.resolve_bind(bind_a).bind_in_assignment(&p_type.resolve_bind(bind_b)) {
@@ -186,9 +193,11 @@ impl XType {
     }
     pub fn resolve_bind(&self, bind: &HashMap<String, XType>) -> XType {
         match self {
+            /*
             XType::XSeq(ref a) => XType::XSeq(Box::new(a.resolve_bind(bind))),
             XType::XSet(ref a) => XType::XSet(Box::new(a.resolve_bind(bind))),
             XType::XMap(ref a, ref b) => XType::XMap(Box::new(a.resolve_bind(bind)), Box::new(b.resolve_bind(bind))),
+             */
             XType::XGeneric(ref a) => bind.get(a).map(|b| b.clone()).unwrap_or(self.clone()),
             other => other.clone(),
         }
@@ -202,9 +211,11 @@ impl PartialEq<XType> for XType {
             (XType::Int, XType::Int) => true,
             (XType::Rational, XType::Rational) => true,
             (XType::String, XType::String) => true,
+            /*
             (XType::XSeq(ref a), XType::XSeq(ref b)) => a.eq(b),
             (XType::XSet(ref a), XType::XSet(ref b)) => a.eq(b),
             (XType::XMap(ref a, ref b), XType::XMap(ref c, ref d)) => a.eq(c) && b.eq(d),
+             */
             (XType::XStruct(ref a, ref a_b), XType::XStruct(ref b, ref b_b)) => a.name == b.name && a_b == b_b,
             (XType::XFunc(ref a), XType::XFunc(ref b)) => a.generic_params == b.generic_params && a.params.len() == b.params.len() && a.params.iter().zip(b.params.iter()).all(|(a, b)| a.type_.eq(&b.type_)),
             (XType::XUnknown, XType::XUnknown) => true,
@@ -221,9 +232,11 @@ impl Display for XType {
             XType::Int => write!(f, "int"),
             XType::Rational => write!(f, "rational"),
             XType::String => write!(f, "string"),
+            /*
             XType::XSeq(ref a) => write!(f, "Array<{}>", a),
             XType::XSet(ref a) => write!(f, "Set<{}>", a),
             XType::XMap(ref a, ref b) => write!(f, "Map<{},{}>", a, b),
+             */
             XType::XStruct(ref a, ref b) => write!(f, "{}<{:?}>", a.name, b),
             XType::XFunc(ref a) => {
                 write!(f, "(")?;

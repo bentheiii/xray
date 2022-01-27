@@ -12,63 +12,33 @@ use crate::xscope::{Declaration, XEvaluationScope};
 use crate::xtype::{common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec, XType};
 
 #[derive(Hash, Debug, Clone, Eq, PartialEq)]
-pub enum XValue {
+pub enum XValue<'c> {
     Int(BigInt),
     Rational(BigRational),
     String(String),
     Bool(bool),
-    Sequence(Vec<XValue>),
-    Function(XFunction),
+    Function(XFunction<'c>),
+    /*Sequence(Vec<XValue>),
     Set(XHashSet),
-    Map(XHashMap),
-    StructInstance(Vec<XValue>),
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct XHashSet(pub HashSet<XValue>);
-
-impl Hash for XHashSet {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        let mut p_hash: u64 = 0;  // todo improve?
-        for element in &self.0 {
-            let mut p_hasher = DefaultHasher::new();
-            element.hash(&mut p_hasher);
-            p_hash ^= p_hasher.finish();
-        }
-        p_hash.hash(state);
-    }
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct XHashMap(pub HashMap<XValue, XValue>);
-
-impl Hash for XHashMap {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        let mut p_hash: u64 = 0;  // todo improve?
-        for pair in &self.0 {
-            let mut p_hasher = DefaultHasher::new();
-            pair.hash(&mut p_hasher);
-            p_hash ^= p_hasher.finish();
-        }
-        p_hash.hash(state);
-    }
+    Map(XHashMap),*/
+    StructInstance(Vec<XValue<'c>>),
 }
 
 #[derive(Hash, Debug, Clone, Eq, PartialEq)]
-pub struct XExplicitFuncSpec {
+pub struct XExplicitFuncSpec<'c> {
     pub generic_params: Option<Vec<String>>,
-    pub args: Vec<XExplicitArgSpec>,
+    pub args: Vec<XExplicitArgSpec<'c>>,
     pub ret: XType,
 }
 
 #[derive(Hash, Debug, Clone, Eq, PartialEq)]
-pub struct XExplicitArgSpec {
+pub struct XExplicitArgSpec<'c> {
     pub name: String,
     pub type_: XType,
-    pub default: Option<XValue>,
+    pub default: Option<XValue<'c>>,
 }
 
-impl XExplicitFuncSpec {
+impl XExplicitFuncSpec<'_> {
     pub fn to_spec(&self) -> XFuncSpec {
         XFuncSpec {
             generic_params: self.generic_params.clone(),
@@ -84,13 +54,13 @@ impl XExplicitFuncSpec {
 }
 
 #[derive(Clone)]
-pub enum XFunction {
-    Native(XFuncSpec, fn(Vec<XExpr>, &XEvaluationScope) -> Result<XValue, String>),
-    UserFunction(XExplicitFuncSpec, Vec<Declaration>, Box<XExpr>),
+pub enum XFunction<'c> {
+    Native(XFuncSpec, fn(&Vec<XExpr<'c>>, &XEvaluationScope<'_, 'c>) -> Result<XValue<'c>, String>),
+    UserFunction(XExplicitFuncSpec<'c>, Vec<Declaration<'c>>, Box<XExpr<'c>>),
     Recourse(XFuncSpec),
 }
 
-impl XFunction {
+impl<'c> XFunction<'c> {
     pub fn bind(&self, args: Vec<XType>) -> Option<HashMap<String, XType>> {
         match self {
             XFunction::Native(spec, _) | XFunction::Recourse(spec) => spec.bind(args),
@@ -116,14 +86,14 @@ impl XFunction {
         }
     }
 
-    pub fn eval<'s>(&self, args: &Vec<XExpr>, parent_scope: &XEvaluationScope<'s>) -> Result<XValue, String> {
+    pub fn eval<'p>(&'p self, args: &Vec<XExpr<'c>>, parent_scope: &XEvaluationScope<'p, 'c>) -> Result<XValue<'c>, String> {
         match self {
             XFunction::Native(_, native) => {
-                native(args.clone(), parent_scope)
+                native(args, parent_scope)
             }
             XFunction::UserFunction(specs, declarations, output) => {
                 let arguments = args.iter().map(|x| x.eval(parent_scope)).collect::<Result<Vec<_>, _>>()?;
-                let mut scope = XEvaluationScope::from_parent(parent_scope.clone(), &self);
+                let mut scope = XEvaluationScope::from_parent(parent_scope, &self);
                 for (spec, arg) in specs.args.iter().zip(arguments.iter()) {
                     scope.add(&spec.name, arg.clone());
                 }
@@ -132,14 +102,14 @@ impl XFunction {
                         scope.add(&name, expr.eval(&scope)?);
                     }
                 }
-                output.eval(&scope)
+                output.eval(&scope).clone()
             }
             XFunction::Recourse(_) => parent_scope.recourse.unwrap().eval(args, parent_scope),
         }
     }
 }
 
-impl Debug for XFunction {
+impl Debug for XFunction<'_> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             XFunction::Native(spec, _) => {
@@ -155,15 +125,15 @@ impl Debug for XFunction {
     }
 }
 
-impl PartialEq for XFunction {
+impl PartialEq for XFunction<'_> {
     fn eq(&self, other: &Self) -> bool {
         return false
     }
 }
 
-impl Eq for XFunction {}
+impl Eq for XFunction<'_> {}
 
-impl Hash for XFunction {
+impl Hash for XFunction<'_> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             XFunction::Native(spec, _) => {

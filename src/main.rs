@@ -33,11 +33,10 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    fn double(a: int) -> bool {
-        a * 2
+    fn fib(n: int, a: int, b:int)->int{
+        if(n==0, a, fib(n-1, b, a+b))
     }
-
-    let z = double(2);
+    let z = fib(51, 0, 1);
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -61,16 +60,19 @@ fn main() {
     add_if(&mut root_scope).unwrap();
     add_panic(&mut root_scope).unwrap();
 
+    let decals = root_scope.feed(body).unwrap();
+    println!("compiled!");
+
     let mut eval_scope = XEvaluationScope::root();
     eval_scope.add_from(
-        root_scope.feed(body).unwrap()
+        &decals
     ).unwrap();
-    println!("{:?}", root_scope.get("z"));
+    //println!("{:?}", root_scope.get("z"));
     println!("z={:?}", eval_scope.get("z"));
 }
 
-impl<'a> XCompilationScope<'a> {
-    fn feed(&mut self, input: Pair<Rule>) -> Result<Vec<Declaration>, String> {
+impl<'p, 's: 'p> XCompilationScope<'p, 's> {
+    fn feed(&mut self, input: Pair<Rule>) -> Result<Vec<Declaration<'s>>, String> {
         match input.as_rule() {
             Rule::header | Rule::top_level_execution | Rule::execution | Rule::declaration => {
                 let mut declarations = Vec::new();
@@ -108,7 +110,7 @@ impl<'a> XCompilationScope<'a> {
                             let e_scope = XEvaluationScope::root(); // todo fix
                             to_expr(d, &self).compile(&self).and_then(|c| c.eval(&e_scope))
                         }).transpose()?;
-                        Ok(XExplicitArgSpec { name: name.to_string(), type_, default })
+                        Ok(XExplicitArgSpec { name: name.to_string(), type_: type_, default })
                     }).collect::<Result<Vec<_>, String>>()?
                 };
                 let rtype = self.get_complete_type(inners.next().unwrap(), &gen_param_names)?;
@@ -129,7 +131,7 @@ impl<'a> XCompilationScope<'a> {
                 if out_type != spec.ret {
                     return Err(format!("Function output type {} does not match expected type {}", out_type, spec.ret));
                 }
-                let mut func = XFunction::UserFunction(
+                let func = XFunction::UserFunction(
                     spec,
                     declarations,
                     output,

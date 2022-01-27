@@ -1,12 +1,13 @@
 use num::{BigInt, BigRational, ToPrimitive, Zero};
 use crate::{XCompilationScope, XType};
+use crate::xexpr::XExpr;
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::XType::XUnknown;
 use crate::xvalue::{XFunction, XValue};
 
 macro_rules! add_binop {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:path, $return_type:ident, $func:expr) => {
-        pub fn $fn_name(scope: &mut XCompilationScope) -> Result<(), String> {
+        pub fn $fn_name(scope: &mut XCompilationScope<'_, '_>) -> Result<(), String> {
             scope.add_func(
                 stringify!($name), XFunction::Native(XFuncSpec {
                     generic_params: None,
@@ -22,8 +23,8 @@ macro_rules! add_binop {
                     ],
                     ret: Box::new($return_type),
                 }, |args, ns| {
-                    let a = args[0].eval(ns)?;
-                    let b = args[1].eval(ns)?;
+                    let a = args[0].eval(&ns)?;
+                    let b = args[1].eval(&ns)?;
                     match (a, b) {
                         ($operand_variant(a), $operand_variant(b)) => $func(a,b),
                         _ => unreachable!(),
@@ -48,7 +49,7 @@ macro_rules! add_ufunc {
                     ],
                     ret: Box::new($return_type),
                 }, |args, ns| {
-                    let a = args[0].eval(ns)?;
+                    let a = args[0].eval(&ns)?;
                     match (a) {
                         ($operand_variant(a)) => $func(a),
                         _ => unreachable!(),
@@ -173,11 +174,11 @@ pub fn add_and(scope: &mut XCompilationScope) -> Result<(), String> {
             ],
             ret: Box::new(X_BOOL),
         }, |args, ns| {
-            let lhs = args[0].eval(ns)?;
+            let lhs = args[0].eval(&ns)?;
             if let XValue::Bool(true) = lhs{
-                return Ok(args[1].eval(ns)?)
+                return Ok(args[1].eval(&ns)?)
             }
-            Ok(lhs)
+            Ok(lhs.clone())
         }))?;
     Ok(())
 }
@@ -198,9 +199,9 @@ pub fn add_or(scope: &mut XCompilationScope) -> Result<(), String> {
             ],
             ret: Box::new(X_BOOL),
         }, |args, ns| {
-            let lhs = args[0].eval(ns)?;
+            let lhs = args[0].eval(&ns)?;
             if let XValue::Bool(false) = lhs{
-                return Ok(args[1].eval(ns)?)
+                return Ok(args[1].eval(&ns)?)
             }
             Ok(lhs)
         }))?;
@@ -229,10 +230,10 @@ pub fn add_if(scope: &mut XCompilationScope) -> Result<(), String> {
             ],
             ret: Box::new(XType::XGeneric("T".to_string())),
         }, |args, ns| {
-            let cond = args[0].eval(ns)?;
+            let cond = args[0].eval(&ns)?;
             match cond {
-                XValue::Bool(true) => args[1].eval(ns),
-                XValue::Bool(false) => args[2].eval(ns),
+                XValue::Bool(true) => args[1].eval(&ns),
+                XValue::Bool(false) => args[2].eval(&ns),
                 _ => unreachable!(),
             }
         }))?;
