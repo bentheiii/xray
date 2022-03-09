@@ -26,15 +26,16 @@ expression4 = {
     expression5 ~ ("." ~ CNAME ~ call_args)*
 }
 expression5 = _{
-    CNAME
-    | STRING
+    STRING
     | bool
-    | SIGNED_NUMBER
+    | NUMBER_ANY
+    | CNAME
     | container
     | map
     | "(" ~ expression ~ ")"
 }
- container = {container_type? ~ "[" ~ container_elements? ~ ","? ~ "]"}
+ container = {container_type_opt ~ "[" ~ container_elements? ~ ","? ~ "]"}
+  container_type_opt = { container_type? }
   container_elements = {expression ~ (","~expression)*}
   container_type = {"array" | "set"}
  map = {"{" ~ map_pairs? ~ ","? ~ "}"}
@@ -106,13 +107,13 @@ complete_type = {
 
 CNAME = @{("_" | ASCII_ALPHA) ~ ("_" | ASCII_ALPHANUMERIC)*}
 
-SIGNED_NUMBER = @{num | hexnum | binnum}
+NUMBER_ANY = @{num | hexnum | binnum}
 num = { int ~ ("." ~ num_digit*)? ~ (^"e" ~ int)? }
- int = { ("+" | "-")? ~ num_digit+ }
+ int = { num_digit+ }
  num_digit = {ASCII_DIGIT|"_"}
-hexnum = {("+" | "-")? ~ "0x" ~ hex_digit+}
+hexnum = { "0x" ~ hex_digit+ }
  hex_digit = {ASCII_HEX_DIGIT|"_"}
-binnum = {("+" | "-")? ~ "0b" ~ bin_digit+}
+binnum = { "0b" ~ bin_digit+ }
  bin_digit = {"0"|"1"|"_"}
 
 STRING = {PUSH("#"*) ~ "'" ~ inner_string ~ "'" ~ POP}

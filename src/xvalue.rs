@@ -1,40 +1,36 @@
-use std::borrow::BorrowMut;
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
-use std::collections::hash_map::DefaultHasher;
 use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
-use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 use num::{BigInt, BigRational};
-use crate::xexpr::{TailedEvalResult, XExplicitFuncSpec, XExpr, XStaticExpr, XStaticFunction};
+use crate::native_types::XNativeValue;
+use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
 use crate::xscope::{Declaration, XEvaluationScope};
-use crate::xtype::{common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec, XType};
 
-#[derive(Hash, Debug, Clone, Eq, PartialEq)]
-pub enum XValue<'c> {
+#[derive(Hash, Debug, Eq, PartialEq)]
+pub enum XValue {
     Int(BigInt),
     Rational(BigRational),
     String(String),
     Bool(bool),
-    Function(XFunction<'c>),
+    Function(XFunction),
     /*Sequence(Vec<XValue>),
     Set(XHashSet),
     Map(XHashMap),*/
-    StructInstance(Vec<Rc<XValue<'c>>>),
+    StructInstance(Vec<Rc<XValue>>),
+    Native(Box<dyn XNativeValue>),
 }
 
-pub type NativeCallable<'c> = fn(&Vec<XExpr<'c>>, &XEvaluationScope<'_, 'c>, bool) -> Result<TailedEvalResult<'c>, String>;
+pub type NativeCallable = fn(&Vec<XExpr>, &XEvaluationScope<'_>, bool) -> Result<TailedEvalResult, String>;
 
 #[derive(Clone)]
-pub enum XFunction<'c> {
-    Native(NativeCallable<'c>),
-    UserFunction(Vec<String>, Vec<Declaration<'c>>, Box<XExpr<'c>>),
+pub enum XFunction {
+    Native(NativeCallable),
+    UserFunction(Vec<String>, Vec<(String, XExpr)>, Box<XExpr>),
     Recourse(),
 }
 
-impl<'c> XFunction<'c> {
-    pub fn eval<'p>(&'p self, args: &Vec<XExpr<'c>>, parent_scope: &XEvaluationScope<'p, 'c>, tail_available: bool) -> Result<TailedEvalResult<'c>, String> {
+impl XFunction {
+    pub fn eval<'p>(&'p self, args: &Vec<XExpr>, parent_scope: &XEvaluationScope<'p>, tail_available: bool) -> Result<TailedEvalResult, String> {
         match self {
             XFunction::Native(native) => {
                 native(args, parent_scope, tail_available)
@@ -46,12 +42,10 @@ impl<'c> XFunction<'c> {
                     for (name, arg) in params.iter().zip(arguments.iter()) {
                         scope.add(name, arg.clone());
                     }
-                    for declaration in declarations {
-                        if let Declaration::Value(name, expr) = declaration {
-                            scope.add(&name, expr.eval(&scope, false)?.unwrap_value());
-                        }
+                    for (name, expr) in declarations {
+                        scope.add(&name, expr.eval(&scope, false)?.unwrap_value());
                     }
-                    match output.eval(&scope, true)?{
+                    match output.eval(&scope, true)? {
                         TailedEvalResult::Value(value) => return Ok(value.into()),
                         TailedEvalResult::TailCall(new_args) => {
                             arguments = new_args;
@@ -60,27 +54,35 @@ impl<'c> XFunction<'c> {
                 }
             }
             XFunction::Recourse() => {
-                if tail_available{
+                if tail_available {
                     let arguments = args.iter().map(|x| x.eval(parent_scope, false).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
                     return Ok(TailedEvalResult::TailCall(arguments));
                 }
                 parent_scope.recourse.unwrap().eval(args, parent_scope, tail_available)
-            },
+            }
         }
     }
 }
 
-impl<'c> From<XStaticFunction<'c>> for XFunction<'c>{
-    fn from(stat: XStaticFunction<'c>) -> Self {
+impl<'c> From<XStaticFunction> for XFunction {
+    fn from(stat: XStaticFunction) -> Self {
         match stat {
             XStaticFunction::Native(_, native) => XFunction::Native(native),
-            XStaticFunction::UserFunction(specs, declarations, output) => XFunction::UserFunction(specs.args.iter().map(|p| p.name.clone()).collect(), declarations, output),
+            XStaticFunction::UserFunction(specs, declarations, output) => XFunction::UserFunction(specs.args.iter().map(|p| p.name.clone()).collect(),
+                                                                                                  declarations.iter().filter_map(|decl|{
+                                                                                                      if let Declaration::Value(name, expr) = decl {
+                                                                                                          Some((name.clone(), expr.clone()))
+                                                                                                      } else {
+                                                                                                          None
+                                                                                                      }
+                                                                                                  }).collect(),
+                                                                                                  output),
             XStaticFunction::Recourse(_) => XFunction::Recourse(),
         }
     }
 }
 
-impl Debug for XFunction<'_> {
+impl Debug for XFunction {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             XFunction::Native(_) => {
@@ -96,15 +98,15 @@ impl Debug for XFunction<'_> {
     }
 }
 
-impl PartialEq for XFunction<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        return false
+impl PartialEq for XFunction {
+    fn eq(&self, _: &Self) -> bool {
+        return false;
     }
 }
 
-impl Eq for XFunction<'_> {}
+impl Eq for XFunction {}
 
-impl Hash for XFunction<'_> {
+impl Hash for XFunction {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             XFunction::Native(_) => {

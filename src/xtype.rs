@@ -1,9 +1,10 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
+use std::sync::Arc;
 use derivative::Derivative;
+use crate::native_types::NativeType;
 
-#[derive(Clone, Debug, Eq, Derivative)]
-#[derivative(Hash)]
+#[derive(Debug, Eq)]
 pub enum XType {
     Bool,
     Int,
@@ -15,13 +16,13 @@ pub enum XType {
     XSet(Box<XType>),
     XMap(Box<XType>, Box<XType>),
      */
-    XStruct(XStructSpec,
-            #[derivative(Hash="ignore")]
-            HashMap<String, XType>
-    ),
+    XStruct(XStructSpec, Bind),
     XFunc(XFuncSpec),
     XGeneric(String),
+    XNative(Box::<dyn NativeType>, Bind),
 }
+
+pub type Bind = HashMap<String, Arc<XType>>;
 
 #[derive(Clone, Hash, Debug, Eq, PartialEq)]
 pub struct XStructSpec {
@@ -44,7 +45,7 @@ impl XStructSpec {
         }
     }
 
-    pub fn bind(&self, args: Vec<XType>) -> Option<HashMap<String, XType>> {
+    pub fn bind(&self, args: Vec<Arc<XType>>) -> Option<Bind> {
         if args.len() != self.fields.len() {
             return None;
         }
@@ -56,17 +57,21 @@ impl XStructSpec {
     }
 }
 
-#[derive(Clone, Hash, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Derivative)]
+#[derivative(Hash)]
 pub struct XStructFieldSpec {
     pub name: String,
-    pub type_: Box<XType>,
+    #[derivative(Hash = "ignore")]
+    pub type_: Arc<XType>,
 }
 
-#[derive(Clone, Hash, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Derivative)]
+#[derivative(Hash)]
 pub struct XFuncSpec {
     pub generic_params: Option<Vec<String>>,
     pub params: Vec<XFuncParamSpec>,
-    pub ret: Box<XType>,
+    #[derivative(Hash = "ignore")]
+    pub ret: Arc<XType>,
 }
 
 impl XFuncSpec {
@@ -76,7 +81,7 @@ impl XFuncSpec {
         (min, max)
     }
 
-    pub fn bind(&self, args: Vec<XType>) -> Option<HashMap<String, XType>> {
+    pub fn bind(&self, args: Vec<Arc<XType>>) -> Option<Bind> {
         let (min, max) = self.arg_len_range();
         if args.len() < min || args.len() > max {
             return None;
@@ -88,37 +93,39 @@ impl XFuncSpec {
         Some(ret)
     }
 
-    pub fn rtype(&self, bind: &HashMap<String, XType>) -> XType {
-        return self.ret.resolve_bind(bind);
+    pub fn rtype(&self, bind: &Bind) -> Arc<XType> {
+        self.ret.clone().resolve_bind(bind)
     }
 
-    pub fn xtype(&self, bind: &HashMap<String, XType>) -> XType {
-        XType::XFunc(
+    pub fn xtype(&self, bind: &Bind) -> Arc<XType> {
+        Arc::new(XType::XFunc(
             XFuncSpec {
                 generic_params: None,
                 params: self.params.iter().map(|p| {
                     XFuncParamSpec {
-                        type_: Box::new(p.type_.resolve_bind(bind)),
+                        type_: p.type_.clone().resolve_bind(bind),
                         required: p.required,
                     }
                 }).collect(),
-                ret: Box::new(self.ret.resolve_bind(bind)),
+                ret: self.ret.clone().resolve_bind(bind),
             }
-        )
+        ))
     }
 }
 
-#[derive(Clone, Hash, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Derivative)]
+#[derivative(Hash)]
 pub struct XFuncParamSpec {
-    pub type_: Box<XType>,
+    #[derivative(Hash = "ignore")]
+    pub type_: Arc<XType>,
     pub required: bool,
 }
 
-fn mix_binds(binds1: &mut HashMap<String, XType>, binds2: HashMap<String, XType>) -> Option<HashMap<String, XType>> {
+fn mix_binds(binds1: &mut Bind, binds2: Bind) -> Option<Bind> {
     let mut binds = binds1.clone();
     for (k, v) in binds2.iter() {
         if binds.contains_key(k) {
-            if &binds[k] != v {
+            if *binds[k] != **v {
                 return None;
             }
         } else {
@@ -129,8 +136,8 @@ fn mix_binds(binds1: &mut HashMap<String, XType>, binds2: HashMap<String, XType>
 }
 
 impl XType {
-    pub fn bind_in_assignment(&self, other: &XType) -> Option<HashMap<String, XType>> {
-        match (self, other) {
+    pub fn bind_in_assignment(&self, other: &Arc<XType>) -> Option<Bind> {
+        match (self, other.as_ref()) {
             (XType::Bool, XType::Bool) => Some(HashMap::new()),
             (XType::Int, XType::Int) => Some(HashMap::new()),
             (XType::Rational, XType::Rational) => Some(HashMap::new()),
@@ -151,8 +158,8 @@ impl XType {
                     return None;
                 }
                 let mut bind = HashMap::new();
-                for p_type in a.fields.iter().map(|f| f.type_.as_ref()) {
-                    if let Some(binds) = p_type.resolve_bind(bind_a).bind_in_assignment(&p_type.resolve_bind(bind_b)) {
+                for p_type in a.fields.iter().map(|f| f.type_.clone()) {
+                    if let Some(binds) = p_type.clone().resolve_bind(bind_a).bind_in_assignment(&p_type.resolve_bind(bind_b)) {
                         bind = mix_binds(&mut bind, binds)?;
                     } else {
                         return None;
@@ -181,8 +188,27 @@ impl XType {
                 }
                 Some(total_binds)
             }
+            (XType::XNative(a, a_bind), XType::XNative(b, b_bind)) => {
+                if a != b {
+                    return None;
+                }
+                let mut bind = HashMap::new();
+                for (k, a_v) in a_bind.iter() {
+                    // since the types are equal we can assume they have the same keys at binding
+                    let b_v = b_bind.get(k).unwrap();
+                    if let Some(binds) = a_v.bind_in_assignment(b_v) {
+                        bind = mix_binds(&mut bind, binds)?;
+                    } else {
+                        return None;
+                    }
+                }
+                Some(bind)
+            }
             (_, XType::XUnknown) => Some(HashMap::new()),
-            (XType::XGeneric(ref a), other) => {
+            (XType::XGeneric(ref a), XType::XGeneric(ref b)) if a == b => {
+                Some(HashMap::new())
+            },
+            (XType::XGeneric(ref a), _) => {
                 Some(HashMap::from([
                     (a.clone(), other.clone()),
                 ]))
@@ -191,15 +217,22 @@ impl XType {
             _ => None,
         }
     }
-    pub fn resolve_bind(&self, bind: &HashMap<String, XType>) -> XType {
-        match self {
+    pub fn resolve_bind(self: Arc<XType>, bind: &Bind) -> Arc<XType> {
+        match self.as_ref() {
             /*
             XType::XSeq(ref a) => XType::XSeq(Box::new(a.resolve_bind(bind))),
             XType::XSet(ref a) => XType::XSet(Box::new(a.resolve_bind(bind))),
             XType::XMap(ref a, ref b) => XType::XMap(Box::new(a.resolve_bind(bind)), Box::new(b.resolve_bind(bind))),
              */
+            XType::XNative(a, ref a_bind) => {
+                let mut new_bind = HashMap::new();
+                for (k, a_v) in a_bind.iter() {
+                    new_bind.insert(k.clone(), a_v.clone().resolve_bind(a_bind).resolve_bind(bind));
+                }
+                XType::XNative(a.clone(), new_bind).into()
+            },
             XType::XGeneric(ref a) => bind.get(a).map(|b| b.clone()).unwrap_or(self.clone()),
-            other => other.clone(),
+            _ => self,
         }
     }
 }
@@ -220,6 +253,7 @@ impl PartialEq<XType> for XType {
             (XType::XFunc(ref a), XType::XFunc(ref b)) => a.generic_params == b.generic_params && a.params.len() == b.params.len() && a.params.iter().zip(b.params.iter()).all(|(a, b)| a.type_.eq(&b.type_)),
             (XType::XUnknown, XType::XUnknown) => true,
             (XType::XGeneric(ref a), XType::XGeneric(ref b)) => a == b,
+            (XType::XNative(a, ref a_bind), XType::XNative(b, ref b_bind)) => a == b && a_bind == b_bind,
             _ => false,
         }
     }
@@ -249,20 +283,22 @@ impl Display for XType {
                 write!(f, ") -> {}", a.ret)
             }
             XType::XGeneric(ref a) => write!(f, "{}", a),
+            XType::XNative(ref a, bind) => write!(f, "{}<{:?}>", a.name(), bind),
             XType::XUnknown => write!(f, "?"),
         }
     }
 }
+lazy_static!(
+    pub static ref X_BOOL: Arc<XType> = Arc::new(XType::Bool);
+    pub static ref X_INT: Arc<XType> = Arc::new(XType::Int);
+    pub static ref X_RATIONAL: Arc<XType> = Arc::new(XType::Rational);
+    pub static ref X_STRING: Arc<XType> = Arc::new(XType::String);
+    pub static ref X_UNKNOWN: Arc<XType> = Arc::new(XType::XUnknown);
+);
 
-pub const X_BOOL: XType = XType::Bool;
-pub const X_INT: XType = XType::Int;
-pub const X_RATIONAL: XType = XType::Rational;
-pub const X_STRING: XType = XType::String;
-pub const X_UNKNOWN: XType = XType::XUnknown;
-
-pub fn common_type<T: Iterator<Item=Result<XType, String>>>(mut values: T) -> Result<XType, String> {
+pub fn common_type<T: Iterator<Item=Result<Arc<XType>, String>>>(mut values: T) -> Result<Arc<XType>, String> {
     let ret = match values.next() {
-        None => return Ok(X_UNKNOWN),
+        None => return Ok(X_UNKNOWN.clone()),
         Some(v) => v?
     };
     for res in values.by_ref() {

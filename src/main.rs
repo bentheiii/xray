@@ -1,33 +1,36 @@
+#![feature(trait_upcasting)]
 #[macro_use]
 extern crate lazy_static;
 extern crate derivative;
+extern crate mopa;
+extern crate dyn_clone;
 
 mod xscope;
 mod xtype;
 mod xvalue;
 mod xexpr;
 mod builtins;
+mod native_types;
 
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
+extern crate core;
 
-use std::borrow::BorrowMut;
-use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::iter;
-use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
+use std::sync::Arc;
 use itertools::Itertools;
 use pest::iterators::Pair;
 use pest::Parser;
 use pest::prec_climber::{Operator, PrecClimber};
 use pest::prec_climber::Assoc::{Left, Right};
+use std::iter::FromIterator;
+use num::BigRational;
 use crate::builtins::{*};
 use crate::xexpr::{XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
-use crate::xtype::{XFuncSpec, XStructFieldSpec, XStructSpec, XType};
-use crate::xvalue::{XFunction};
+use crate::xtype::{Bind, XFuncSpec, XStructFieldSpec, XStructSpec, XType};
 
 #[derive(Parser)]
 #[grammar = "xray.pest"]
@@ -35,14 +38,28 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    fn collatz_step(n: int)->int{
-        (n%2 == 0).if(
-            (n/2).floor(),
-            3*n+1
+    fn mults_helper(m: int, n: int, ret: Array<int>) -> Array<int> {
+        (n==0).if(
+            ret,
+            mults_helper(m, n-1, [m*n] + ret)
+        )
+    }
+    fn multiples(m: int, cols: int) -> Array<int> {
+        mults_helper(m, cols, [])
+    }
+
+    fn mt_h(x:int, y:int, ret:Array<Array<int>>) -> Array<Array<int>> {
+        (x==0).if(
+            ret,
+            mt_h(x-1, y, [multiples(x,y)] + ret)
         )
     }
 
-    let z = collatz_step(5);
+    fn mlt_table(x:int)->Array<Array<int>> {
+        mt_h(x, x, [])
+    }
+
+    let z = mlt_table(5);
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -57,7 +74,15 @@ fn main() {
     add_int_sub(&mut root_scope).unwrap();
     add_int_lt(&mut root_scope).unwrap();
     add_int_ge(&mut root_scope).unwrap();
+    add_int_gt(&mut root_scope).unwrap();
+    add_int_neg(&mut root_scope).unwrap();
     add_int_to_str(&mut root_scope).unwrap();
+
+    add_rational_type(&mut root_scope).unwrap();
+    add_rational_add(&mut root_scope).unwrap();
+    add_rational_mul(&mut root_scope).unwrap();
+    add_rational_floor(&mut root_scope).unwrap();
+    add_rational_to_str(&mut root_scope).unwrap();
 
     add_str_type(&mut root_scope).unwrap();
     add_str_eq(&mut root_scope).unwrap();
@@ -65,11 +90,17 @@ fn main() {
     add_bool_type(&mut root_scope).unwrap();
     add_and(&mut root_scope).unwrap();
     add_or(&mut root_scope).unwrap();
+    add_bool_not(&mut root_scope).unwrap();
 
-    add_rational_floor(&mut root_scope).unwrap();
 
     add_if(&mut root_scope).unwrap();
     add_panic(&mut root_scope).unwrap();
+
+    add_array_type(&mut root_scope).unwrap();
+    add_array_get(&mut root_scope).unwrap();
+    add_array_len(&mut root_scope).unwrap();
+    add_array_add(&mut root_scope).unwrap();
+    add_array_pop(&mut root_scope).unwrap();
 
     let decals = root_scope.feed(body).unwrap();
     println!("compiled!");
@@ -82,8 +113,8 @@ fn main() {
     println!("z={:?}", eval_scope.get("z"));
 }
 
-impl<'p, 's: 'p> XCompilationScope<'p, 's> {
-    fn feed(&mut self, input: Pair<Rule>) -> Result<Vec<Declaration<'s>>, String> {
+impl<'p> XCompilationScope<'p> {
+    fn feed(&mut self, input: Pair<Rule>) -> Result<Vec<Declaration>, String> {
         match input.as_rule() {
             Rule::header | Rule::top_level_execution | Rule::execution | Rule::declaration => {
                 let mut declarations = Vec::new();
@@ -165,7 +196,7 @@ impl<'p, 's: 'p> XCompilationScope<'p, 's> {
                     let mut param_iter = p.into_inner();
                     let name = param_iter.next().unwrap().as_str();
                     let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names)?;
-                    Ok(XStructFieldSpec { name: name.to_string(), type_: Box::new(type_) })
+                    Ok(XStructFieldSpec { name: name.to_string(), type_})
                 }).collect::<Result<Vec<_>, String>>()?;
                 let struct_ = XStructSpec::new(var_name.to_string(), params);
                 Ok(vec![self.add_struct(&var_name, struct_.clone())?])
@@ -178,27 +209,42 @@ impl<'p, 's: 'p> XCompilationScope<'p, 's> {
         }
     }
 
-    fn get_complete_type(&self, input: Pair<Rule>, generic_param_names: &HashSet<String>) -> Result<XType, String> {
+    fn get_complete_type(&self, input: Pair<Rule>, generic_param_names: &HashSet<String>) -> Result<Arc<XType>, String> {
         match input.as_rule() {
             Rule::complete_type => {
                 let mut inners = input.into_inner();
-                let mut part1 = inners.next().unwrap();
+                let part1 = inners.next().unwrap();
                 match part1.as_rule() {
                     Rule::signature => todo!(),
                     _ => {
                         // cname
                         let name = part1.as_str();
-                        let _generic_params = inners.next();
+                        let gen_params = inners.next().map_or_else(|| Ok(vec![]),|p| {
+                            p.into_inner().map(|p| {
+                                self.get_complete_type(p, generic_param_names)
+                            }).collect::<Result<Vec<_>, _>>()
+                        })?;
                         let t = self.get(name);
                         if t.is_none() {
                             if generic_param_names.contains(name) {
-                                return Ok(XType::XGeneric(name.to_string()));
+                                return Ok(Arc::new(XType::XGeneric(name.to_string())));
                             }
                             return Err(format!("type {} not found", name));
                         }
                         match t.unwrap() {
-                            XCompilationScopeItem::NativeType(t) => Ok(t),
-                            XCompilationScopeItem::Struct(t) => Ok(XType::XStruct(t, HashMap::new())),
+                            XCompilationScopeItem::NativeType(t) => {
+                                if let XType::XNative(t, _) = t.as_ref() {
+                                    if gen_params.len() != t.generic_names().len() {
+                                        return Err(format!("Generic parameter count mismatch for type {}, expected {}, got {}", name, t.generic_names().len(), gen_params.len()));
+                                    }
+                                    let bind: Bind = HashMap::from_iter(t.generic_names().into_iter().zip(gen_params.clone().into_iter()));
+                                    return Ok(Arc::new(XType::XNative(t.clone(), bind)));
+                                }
+                                else {
+                                    Ok(t)
+                                }
+                            },
+                            XCompilationScopeItem::Struct(t) => Ok(Arc::new(XType::XStruct(t, HashMap::new()))),
                             other => Err(format!("{:?} is not a type", other))
                         }
                     }
@@ -335,15 +381,36 @@ fn to_expr(input: Pair<Rule>, xscope: &XCompilationScope) -> XStaticExpr {
             };
             ret
         }
-
-        Rule::SIGNED_NUMBER => {
-            return XStaticExpr::LiteralInt(input.as_str().parse::<i64>().unwrap());
+        Rule::NUMBER_ANY => {
+            if let Ok(whole) = input.as_str().parse::<i64>(){
+                return XStaticExpr::LiteralInt(whole);
+            }
+            if let Ok(float) = input.as_str().parse::<f64>(){
+                return XStaticExpr::LiteralRational(BigRational::from_float(float).unwrap());
+            }
+            panic!("{} is not a number",input.as_str());
         }
         Rule::CNAME => {
             return XStaticExpr::Ident(input.as_str().to_string());
         }
         Rule::STRING => {
             return XStaticExpr::LiteralString(input.into_inner().next().unwrap().as_str().to_string());
+        }
+        Rule::bool => {
+            return XStaticExpr::LiteralBool(input.as_str() == "true");
+        }
+        Rule::container => {
+            let mut iter = input.into_inner();
+            let container_type = iter.next().unwrap().into_inner().next().map_or("array", |c| c.as_str());
+            let parts = iter.next().map_or_else(
+                || vec![],
+                |c| c.into_inner().map(|p| to_expr(p, xscope)).collect()
+            );
+            match container_type {
+                "array" => XStaticExpr::Array(parts),
+                "set" => todo!(),
+                _ => unreachable!()
+            }
         }
         _ => {
             panic!("not an expression {:?}", input);
