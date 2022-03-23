@@ -27,8 +27,15 @@ use pest::prec_climber::{Operator, PrecClimber};
 use pest::prec_climber::Assoc::{Left, Right};
 use std::iter::FromIterator;
 use num::BigRational;
-use crate::builtins::{*};
-use crate::native_types::XSetType;
+
+use crate::builtin::int::{*};
+use crate::builtin::array::{*};
+use crate::builtin::str::{*};
+use crate::builtin::bool::{*};
+use crate::builtin::rational::{*};
+use crate::builtin::generic::{*};
+use crate::builtin::set::{*};
+
 use crate::xexpr::{XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
 use crate::xtype::{Bind, XFuncSpec, XStructFieldSpec, XStructSpec, XType};

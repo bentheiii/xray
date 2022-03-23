@@ -1,5 +1,10 @@
-use crate::XCompilationScope;
-use crate::xtype::X_INT;
+use std::rc;
+use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, XCompilationScope, XStaticFunction, XType};
+use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
+use crate::xvalue::{XValue};
+use rc::Rc;
+use std::sync::Arc;
 
 pub fn add_int_type(scope: &mut XCompilationScope) -> Result<(), String> {
     scope.add_native_type("int", X_INT.clone())

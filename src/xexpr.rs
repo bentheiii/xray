@@ -3,7 +3,8 @@ use std::fmt::{Debug, Error, Formatter};
 use std::rc::Rc;
 use std::sync::Arc;
 use num::{BigInt, BigRational};
-use crate::native_types::{XSequence, XSequenceType, XSet, XSetType};
+use crate::builtin::array::{XArray, XArrayType};
+use crate::builtin::set::{XSet, XSetType};
 use crate::XFuncSpec;
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
 use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XStructSpec, XType};
@@ -274,7 +275,7 @@ impl XExpr {
             XExpr::LiteralString(_) => Ok(X_STRING.clone()),
             XExpr::Array(exprs) => {
                 let element_type = common_type(exprs.iter().map(|x| x.xtype()))?;
-                Ok(XType::XNative(Box::new(XSequenceType {}), [("T".to_string(), element_type)].into()).into())
+                Ok(XType::XNative(Box::new(XArrayType {}), [("T".to_string(), element_type)].into()).into())
             }
             XExpr::Set(exprs) => {
                 let element_type = common_type(exprs.iter().map(|x| x.xtype()))?;
@@ -320,7 +321,7 @@ impl XExpr {
             XExpr::LiteralRational(r) => Ok(XValue::Rational(r.clone()).into()),
             XExpr::LiteralString(s) => Ok(XValue::String(s.clone()).into()),
             XExpr::Array(exprs) => {
-                Ok(XValue::Native(Box::new(XSequence::new(
+                Ok(XValue::Native(Box::new(XArray::new(
                     exprs.iter().map(|x| x.eval(namespace, false).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?))).into()
                 )
             }
