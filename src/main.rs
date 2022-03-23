@@ -9,7 +9,7 @@ mod xscope;
 mod xtype;
 mod xvalue;
 mod xexpr;
-mod builtins;
+mod builtin;
 mod native_types;
 
 extern crate pest;
@@ -28,6 +28,7 @@ use pest::prec_climber::Assoc::{Left, Right};
 use std::iter::FromIterator;
 use num::BigRational;
 use crate::builtins::{*};
+use crate::native_types::XSetType;
 use crate::xexpr::{XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
 use crate::xtype::{Bind, XFuncSpec, XStructFieldSpec, XStructSpec, XType};
@@ -38,28 +39,7 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    fn mults_helper(m: int, n: int, ret: Array<int>) -> Array<int> {
-        (n==0).if(
-            ret,
-            mults_helper(m, n-1, [m*n] + ret)
-        )
-    }
-    fn multiples(m: int, cols: int) -> Array<int> {
-        mults_helper(m, cols, [])
-    }
-
-    fn mt_h(x:int, y:int, ret:Array<Array<int>>) -> Array<Array<int>> {
-        (x==0).if(
-            ret,
-            mt_h(x-1, y, [multiples(x,y)] + ret)
-        )
-    }
-
-    fn mlt_table(x:int)->Array<Array<int>> {
-        mt_h(x, x, [])
-    }
-
-    let z = mlt_table(5);
+    let z = set[2,3,5,7,11,13];
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -408,7 +388,7 @@ fn to_expr(input: Pair<Rule>, xscope: &XCompilationScope) -> XStaticExpr {
             );
             match container_type {
                 "array" => XStaticExpr::Array(parts),
-                "set" => todo!(),
+                "set" => XStaticExpr::Set(parts),
                 _ => unreachable!()
             }
         }

@@ -3,7 +3,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::rc::Rc;
 use std::sync::Arc;
 use num::{BigInt, BigRational};
-use crate::native_types::{XSequence, XSequenceType};
+use crate::native_types::{XSequence, XSequenceType, XSet, XSetType};
 use crate::XFuncSpec;
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
 use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XStructSpec, XType};
@@ -17,8 +17,8 @@ pub enum XStaticExpr {
     LiteralRational(BigRational),
     LiteralString(String),
     Array(Vec<XStaticExpr>),
-    /*
     Set(Vec<XStaticExpr>),
+    /*
     Map(Vec<(XStaticExpr, XStaticExpr)>),
     */
     Call(Box<XStaticExpr>, Vec<XStaticExpr>),
@@ -43,6 +43,7 @@ impl XStaticExpr {
                 items.iter().map(|(x, y)| Ok((x.compile(namespace)?, y.compile(namespace)?))).collect::<Result<Vec<_>, String>>()?,
             )),*/
             XStaticExpr::Array(items) => Ok(XExpr::Array(items.iter().map(|x| x.compile(namespace)).collect::<Result<Vec<_>, _>>()?)),
+            XStaticExpr::Set(items) => Ok(XExpr::Set(items.iter().map(|x| x.compile(namespace)).collect::<Result<Vec<_>, _>>()?)),
             XStaticExpr::Call(func, args) => {
                 let compiled_args = args.iter().map(|x| x.compile(namespace)).collect::<Result<Vec<_>, _>>()?;
                 if let XStaticExpr::Ident(name) = func.as_ref() {
@@ -130,8 +131,8 @@ pub enum XExpr {
     LiteralRational(BigRational),
     LiteralString(String),
     Array(Vec<XExpr>),
-    /*
     Set(Vec<XExpr>),
+    /*
     Map(Vec<(XExpr, XExpr)>),
      */
     Call(Box<XExpr>, Vec<XExpr>),
@@ -275,10 +276,11 @@ impl XExpr {
                 let element_type = common_type(exprs.iter().map(|x| x.xtype()))?;
                 Ok(XType::XNative(Box::new(XSequenceType {}), [("T".to_string(), element_type)].into()).into())
             }
-            /*
             XExpr::Set(exprs) => {
-                Ok(XType::XSet(Box::new(common_type(exprs.iter().map(|x| x.xtype()))?)))
+                let element_type = common_type(exprs.iter().map(|x| x.xtype()))?;
+                Ok(XType::XNative(Box::new(XSetType {}), [("T".to_string(), element_type)].into()).into())
             }
+            /*
             XExpr::Map(exprs) => {
                 Ok(XType::XMap(Box::new(common_type(exprs.iter().map(|x| x.0.xtype()))?),
                                Box::new(common_type(exprs.iter().map(|x| x.1.xtype()))?)))
@@ -322,12 +324,12 @@ impl XExpr {
                     exprs.iter().map(|x| x.eval(namespace, false).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?))).into()
                 )
             }
-            /*
             XExpr::Set(exprs) => {
-                Ok(XValue::Set(XHashSet(
-                    exprs.iter().map(|x| x.eval(namespace)).collect::<Result<HashSet<_>, _>>()?
-                )))
+                Ok(XValue::Native(Box::new(XSet::new(
+                    exprs.iter().map(|x| x.eval(namespace, false).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?))).into()
+                )
             }
+            /*
             XExpr::Map(exprs) => {
                 Ok(XValue::Map(XHashMap(
                     exprs.iter().map(|(k,v)| Ok((k.eval(namespace)?, v.eval(namespace)?))).collect::<Result<HashMap<_,_>, String>>()?

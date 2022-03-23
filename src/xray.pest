@@ -29,8 +29,8 @@ expression5 = _{
     STRING
     | bool
     | NUMBER_ANY
-    | CNAME
     | container
+    | CNAME
     | map
     | "(" ~ expression ~ ")"
 }

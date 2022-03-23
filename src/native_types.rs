@@ -1,10 +1,11 @@
 use std::any::Any;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::sync::Arc;
 use dyn_clone::DynClone;
+use derivative::Derivative;
 use crate::XType;
 use crate::xvalue::XValue;
 
@@ -83,6 +84,23 @@ impl NativeType for XSequenceType {
     fn name(&self) -> String { "Sequence".to_string() }
 }
 
+#[derive(Debug, Clone)]
+pub struct XSetType {}
+
+impl XSetType {
+    pub fn xtype(t: Arc<XType>) -> Arc<XType> {
+        Arc::new(XType::XNative(Box::new(Self {}),
+                                HashMap::from([('T'.to_string(), t)])))
+    }
+}
+
+impl NativeType for XSetType {
+    fn generic_names(&self) -> Vec<String> {
+        vec!["T".to_string()]
+    }
+    fn name(&self) -> String { "Set".to_string() }
+}
+
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub struct XSequence {
     pub value: Vec<Rc<XValue>>,
@@ -95,3 +113,18 @@ impl XSequence {
 }
 
 impl XNativeValue for XSequence {}
+
+#[derive(Debug, Eq, PartialEq, Derivative)]
+#[derivative(Hash)]
+pub struct XSet {
+    #[derivative(Hash = "ignore")]
+    pub value: HashSet<Rc<XValue>>,
+}
+
+impl XSet {
+    pub fn new(value: Vec<Rc<XValue>>) -> Self {
+        Self { value: value.into_iter().collect() }
+    }
+}
+
+impl XNativeValue for XSet {}
