@@ -34,8 +34,8 @@ pub struct XSet {
 }
 
 impl XSet {
-    pub fn new(value: Vec<Rc<XValue>>) -> Self {
-        Self { value: value.into_iter().collect() }
+    pub fn new(value: HashSet<Rc<XValue>>) -> Self {
+        Self { value }
     }
 }
 
@@ -67,9 +67,9 @@ pub fn add_set_bitor(scope: &mut XCompilationScope) -> Result<(), String> {
             let s1 = args[0].eval(&ns, false)?.unwrap_value();
             let s2 = args[1].eval(&ns, false)?.unwrap_value();
             match (s1.as_ref(), s2.as_ref()) {
-                (XValue::Native(b), XValue::Native(idx)) => {
-                    let s1 = &b.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
-                    let s2 = &b.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
+                (XValue::Native(b1), XValue::Native(b2)) => {
+                    let s1 = &b1.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
+                    let s2 = &b2.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
 
                     Ok(XValue::Native(Box::new(XSet::new(s1.union(s2).cloned().collect()))).into())
                 }
@@ -101,9 +101,9 @@ pub fn add_set_bitand(scope: &mut XCompilationScope) -> Result<(), String> {
             let s1 = args[0].eval(&ns, false)?.unwrap_value();
             let s2 = args[1].eval(&ns, false)?.unwrap_value();
             match (s1.as_ref(), s2.as_ref()) {
-                (XValue::Native(b), XValue::Native(idx)) => {
-                    let s1 = &b.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
-                    let s2 = &b.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
+                (XValue::Native(b1), XValue::Native(b2)) => {
+                    let s1 = &b1.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
+                    let s2 = &b2.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
 
                     Ok(XValue::Native(Box::new(XSet::new(s1.intersection(s2).cloned().collect()))).into())
                 }
@@ -135,9 +135,9 @@ pub fn add_set_bitxor(scope: &mut XCompilationScope) -> Result<(), String> {
             let s1 = args[0].eval(&ns, false)?.unwrap_value();
             let s2 = args[1].eval(&ns, false)?.unwrap_value();
             match (s1.as_ref(), s2.as_ref()) {
-                (XValue::Native(b), XValue::Native(idx)) => {
-                    let s1 = &b.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
-                    let s2 = &b.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
+                (XValue::Native(b1), XValue::Native(b2)) => {
+                    let s1 = &b1.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
+                    let s2 = &b2.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
 
                     Ok(XValue::Native(Box::new(XSet::new(s1.symmetric_difference(s2).cloned().collect()))).into())
                 }
@@ -169,9 +169,9 @@ pub fn add_set_sub(scope: &mut XCompilationScope) -> Result<(), String> {
             let s1 = args[0].eval(&ns, false)?.unwrap_value();
             let s2 = args[1].eval(&ns, false)?.unwrap_value();
             match (s1.as_ref(), s2.as_ref()) {
-                (XValue::Native(b), XValue::Native(idx)) => {
-                    let s1 = &b.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
-                    let s2 = &b.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
+                (XValue::Native(b1), XValue::Native(b2)) => {
+                    let s1 = &b1.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
+                    let s2 = &b2.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
 
                     Ok(XValue::Native(Box::new(XSet::new(s1.difference(s2).cloned().collect()))).into())
                 }

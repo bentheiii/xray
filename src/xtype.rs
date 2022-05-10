@@ -24,6 +24,8 @@ pub enum XType {
 
 pub type Bind = HashMap<String, Arc<XType>>;
 
+
+
 #[derive(Clone, Hash, Debug, Eq, PartialEq)]
 pub struct XStructSpec {
     pub name: String,

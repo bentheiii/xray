@@ -1,4 +1,4 @@
-use std::collections::{HashMap};
+use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -327,7 +327,7 @@ impl XExpr {
             }
             XExpr::Set(exprs) => {
                 Ok(XValue::Native(Box::new(XSet::new(
-                    exprs.iter().map(|x| x.eval(namespace, false).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?))).into()
+                    exprs.iter().map(|x| x.eval(namespace, false).map(|r| r.unwrap_value())).collect::<Result<HashSet<_>, _>>()?))).into()
                 )
             }
             /*

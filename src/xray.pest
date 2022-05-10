@@ -11,24 +11,22 @@ expression1 = {
     (UNARY_OP)* ~ expression2
 }
 expression2 = {
-    expression3 ~ (generic_args ~ call_args)? ~ call_args*
+    expression3 ~ ("." ~ CNAME ~ call_args)*
 }
  call_args = {
     "(" ~ container_elements? ~ ","? ~ ")"
- }
- generic_args = {
-    "<" ~ complete_type* ~ ">"
  }
 expression3 = {
     expression4 ~ ("::" ~ CNAME)*
 }
 expression4 = {
-    expression5 ~ ("." ~ CNAME ~ call_args)*
+    expression5 ~ call_args? ~ call_args*
 }
 expression5 = _{
     STRING
     | bool
     | NUMBER_ANY
+    | null
     | container
     | CNAME
     | map
@@ -98,12 +96,18 @@ complete_type = {
   | signature
  }
  generic_arguments = {"<" ~ (complete_type ~ ",")* ~ complete_type ~ ">"}
- signature = {"(" ~ signature_params ~ ")" ~ "->" ~ "(" ~ complete_type ~ ")"}
+ signature = {"(" ~ param_specs? ~ ")" ~ "->" ~ "(" ~ complete_type ~ ")"}
  signature_params = { param_spec ~ "," ~ optional_param_specs| param_specs | optional_param_specs? }
- param_specs = {(param_spec ~ ",")* ~ param_spec}
- param_spec = {CNAME~ ":" ~ complete_type}
- optional_param_specs = {(optional_param_spec ~ ",")* ~ optional_param_spec}
- optional_param_spec = {CNAME~ ":" ~ complete_type ~ "?"}
+ param_specs = {
+    (param_spec ~ ",")* ~ param_spec
+    | (param_spec ~ ",")* ~ optional_param_specs
+    |  optional_param_specs
+ }
+ param_spec = { complete_type | complete_type ~ "?"}
+ optional_param_specs = {
+    (optional_param_spec ~ ",")* ~ optional_param_spec
+ }
+ optional_param_spec = { complete_type ~ "?"}
 
 CNAME = @{("_" | ASCII_ALPHA) ~ ("_" | ASCII_ALPHANUMERIC)*}
 
@@ -118,6 +122,8 @@ binnum = { "0b" ~ bin_digit+ }
 
 STRING = {PUSH("#"*) ~ "'" ~ inner_string ~ "'" ~ POP}
  inner_string = @{(!("'" ~ PEEK)~ ANY)*}
+
+null = {"null"}
 
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 COMMENT = _{ "/*" ~ (!"*/" ~ ANY)* ~ "*/" | "//" ~ (!NEWLINE ~ ANY)}
