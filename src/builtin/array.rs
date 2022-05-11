@@ -6,6 +6,7 @@ use crate::xvalue::{XValue};
 use rc::Rc;
 use std::collections::HashMap;
 use std::sync::Arc;
+use crate::builtin::stack::{XStack, XStackType};
 use crate::native_types::{NativeType, XNativeValue};
 
 #[derive(Debug, Clone)]
@@ -294,7 +295,7 @@ pub fn add_array_pop(scope: &mut XCompilationScope) -> Result<(), String> {
                     let idx = value_to_idx(arr, idx)?;
                     let mut ret: Vec<Rc<_>> = vec![];
                     ret.extend(arr.iter().take(idx).map(|x| x.clone()));
-                    ret.extend(arr.iter().skip(idx+1).map(|x| x.clone()));
+                    ret.extend(arr.iter().skip(idx + 1).map(|x| x.clone()));
                     Ok(XValue::Native(Box::new(XArray::new(ret))).into())
                 }
                 _ => unreachable!(),
@@ -386,10 +387,40 @@ pub fn add_array_swap(scope: &mut XCompilationScope) -> Result<(), String> {
                     let mut ret = vec![];
                     ret.extend(arr.iter().take(idx0).map(|x| x.clone()));
                     ret.push(arr[idx1].clone());
-                    ret.extend(arr.iter().skip(idx0+1).take(idx1-idx0-1).map(|x| x.clone()));
+                    ret.extend(arr.iter().skip(idx0 + 1).take(idx1 - idx0 - 1).map(|x| x.clone()));
                     ret.push(arr[idx0].clone());
-                    ret.extend(arr.iter().skip(idx1+1).map(|x| x.clone()));
+                    ret.extend(arr.iter().skip(idx1 + 1).map(|x| x.clone()));
                     Ok(XValue::Native(Box::new(XArray::new(ret))).into())
+                }
+                _ => unreachable!(),
+            }
+        }))?;
+    Ok(())
+}
+
+pub fn add_array_to_stack(scope: &mut XCompilationScope) -> Result<(), String> {
+    let t = Arc::new(XType::XGeneric("T".to_string()));
+
+    scope.add_func(
+        "to_stack", XStaticFunction::Native(XFuncSpec {
+            generic_params: Some(vec!["T".to_string()]),
+            params: vec![
+                XFuncParamSpec {
+                    type_: XArrayType::xtype(t.clone()),
+                    required: true,
+                },
+            ],
+            ret: XStackType::xtype(t.clone()),
+        }, |args, ns, _tca| {
+            let arr = args[0].eval(&ns, false)?.unwrap_value();
+            match arr.as_ref() {
+                XValue::Native(b) => {
+                    let arr = &b.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
+                    let mut ret = XStack::new();
+                    for x in arr {
+                        ret = ret.push(x.clone());
+                    }
+                    Ok(XValue::Native(Box::new(ret)).into())
                 }
                 _ => unreachable!(),
             }

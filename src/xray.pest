@@ -41,7 +41,7 @@ expression5 = _{
   map_pairs = {map_pair ~ (","~map_pair)*}
   map_pair = {expression ~ ":"~ expression}
  bool = @{"true"|"false"}
- specialized_cname = {CNAME ~ "::<" ~ complete_type ~ (","~complete_type)+ ~ ">"}
+ specialized_cname = {CNAME ~ "::<" ~ complete_type ~ (","~complete_type)* ~ ">"}
 
 UNARY_OP = _{UNARY_PLUS | UNARY_MINUS | UNARY_NOT}
  UNARY_PLUS = {"+"}
@@ -98,18 +98,9 @@ complete_type = {
   | signature
  }
  generic_arguments = {"<" ~ (complete_type ~ ",")* ~ complete_type ~ ">"}
- signature = {"(" ~ param_specs? ~ ")" ~ "->" ~ "(" ~ complete_type ~ ")"}
- signature_params = { param_spec ~ "," ~ optional_param_specs| param_specs | optional_param_specs? }
- param_specs = {
-    (param_spec ~ ",")* ~ param_spec
-    | (param_spec ~ ",")* ~ optional_param_specs
-    |  optional_param_specs
- }
- param_spec = { complete_type | complete_type ~ "?"}
- optional_param_specs = {
-    (optional_param_spec ~ ",")* ~ optional_param_spec
- }
- optional_param_spec = { complete_type ~ "?"}
+ signature = {"(" ~ param_specs_opt ~ ")" ~ "->" ~ "(" ~ complete_type ~ ")"}
+ param_specs_opt = { param_specs? }
+ param_specs = {(complete_type ~ ",")* ~ complete_type}
 
 CNAME = @{("_" | ASCII_ALPHA) ~ ("_" | ASCII_ALPHANUMERIC)*}
 

@@ -11,7 +11,8 @@ use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFunc
 use crate::xvalue::{NativeCallable, XValue};
 use derivative::Derivative;
 
-#[derive(Hash, Debug, Clone)]
+#[derive(Debug, Clone, Derivative)]
+#[derivative(Hash)]
 pub enum XStaticExpr {
     LiteralBool(bool),
     LiteralInt(i64),
@@ -25,6 +26,9 @@ pub enum XStaticExpr {
     Call(Box<XStaticExpr>, Vec<XStaticExpr>),
     Member(Box<XStaticExpr>, String),
     Ident(String),
+    SpecializedIdent(String,
+                     #[derivative(Hash = "ignore")]
+                     Vec<Arc<XType>>),
 }
 
 impl XStaticExpr {
@@ -33,6 +37,20 @@ impl XStaticExpr {
     }
 
     pub fn compile<'p, 's: 'p>(&self, namespace: &'p XCompilationScope<'p>) -> Result<XExpr, String> {
+        fn resolve_overload(overloads: Vec<XStaticFunction>, arg_types: &Vec<Arc<XType>>) -> Option<XExpr> {
+            let mut called = None;
+            for overload in overloads {
+                if let Some(bind) = overload.bind(arg_types.clone()) {
+                    let is_generic = overload.is_generic();
+                    called = Some(XExpr::KnownOverload(overload, bind));
+                    if !is_generic {
+                        break;
+                    }
+                }
+            }
+            called
+        }
+
         match self {
             XStaticExpr::LiteralBool(v) => Ok(XExpr::LiteralBool(*v)),
             XStaticExpr::LiteralInt(v) => Ok(XExpr::LiteralInt(*v)),
@@ -47,39 +65,53 @@ impl XStaticExpr {
             XStaticExpr::Set(items) => Ok(XExpr::Set(items.iter().map(|x| x.compile(namespace)).collect::<Result<Vec<_>, _>>()?)),
             XStaticExpr::Call(func, args) => {
                 let compiled_args = args.iter().map(|x| x.compile(namespace)).collect::<Result<Vec<_>, _>>()?;
-                if let XStaticExpr::Ident(name) = func.as_ref() {
-                    match namespace.get(name) {
-                        Some(XCompilationScopeItem::Overload(overloads)) => {
-                            let arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
-                            let mut called = None;
-                            for overload in overloads {
-                                if let Some(bind) = overload.bind(arg_types.clone()) {
-                                    let is_generic = overload.is_generic();
-                                    called = Some(XExpr::KnownOverload(overload, bind));
-                                    if !is_generic {
-                                        break;
-                                    }
+                match func.as_ref() {
+                    XStaticExpr::Ident(name) => {
+                        match namespace.get(name) {
+                            Some(XCompilationScopeItem::Overload(overloads)) => {
+                                let arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
+                                let called = resolve_overload(overloads, &arg_types);
+                                return match called {
+                                    Some(x) => Ok(XExpr::Call(Box::new(x), compiled_args)),
+                                    None => Err(format!("No overload for {} with arguments {:?}", name, arg_types))
+                                };
+                            }
+                            Some(XCompilationScopeItem::Struct(spec)) => {
+                                let arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
+                                if arg_types.len() != spec.fields.len() {
+                                    return Err(format!("Struct {} takes {} arguments, but {} were given", spec.name, spec.fields.len(), arg_types.len()));
+                                }
+                                return if let Some(bind) = spec.bind(arg_types.clone()) {
+                                    Ok(XExpr::Construct(spec.clone(), bind, compiled_args))
+                                } else {
+                                    Err(format!("Struct {} does not take arguments {:?}", spec.name, arg_types))
+                                };
+                            }
+                            _ => {}
+                        }
+                    }
+                    XStaticExpr::SpecializedIdent(name, arg_types) =>{
+                        let actual_arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
+                        if arg_types != &actual_arg_types {
+                            return Err(format!("Specialized function {} takes arguments {:?}, but {:?} were given", name, arg_types, actual_arg_types));
+                        }
+                        return match namespace.get(name) {
+                            Some(XCompilationScopeItem::Overload(overloads)) => {
+                                let called = resolve_overload(overloads, arg_types);
+                                match called {
+                                    Some(x) => Ok(XExpr::Call(Box::new(x), compiled_args)),
+                                    None => Err(format!("No overload for {} with arguments {:?}", name, arg_types))
                                 }
                             }
-                            return match called {
-                                Some(x) => Ok(XExpr::Call(Box::new(x), compiled_args)),
-                                None => Err(format!("No overload for {} with arguments {:?}", name, arg_types))
-                            };
-                        }
-                        Some(XCompilationScopeItem::Struct(spec)) => {
-                            let arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
-                            if arg_types.len() != spec.fields.len() {
-                                return Err(format!("Struct {} takes {} arguments, but {} were given", spec.name, spec.fields.len(), arg_types.len()));
+                            Some(_) => {
+                                Err(format!("Non-function {} cannot be specialized", name))
                             }
-                            return if let Some(bind) = spec.bind(arg_types.clone()) {
-                                Ok(XExpr::Construct(spec.clone(), bind, compiled_args))
+                            None => {
+                                Err(format!("No such function {}", name))
                             }
-                            else {
-                                Err(format!("Struct {} does not take arguments {:?}", spec.name, arg_types))
-                            };
                         }
-                        _ => {}
                     }
+                    _ => {}
                 }
                 let func_compiled = func.compile(namespace)?;
                 Ok(XExpr::Call(Box::new(func_compiled), compiled_args))
@@ -119,6 +151,19 @@ impl XStaticExpr {
                             _ => unreachable!()
                         }
                     }
+                }
+            }
+            XStaticExpr::SpecializedIdent(name, arg_types) => {
+                match namespace.get(name) {
+                    Some(XCompilationScopeItem::Overload(overloads)) => {
+                        let called = resolve_overload(overloads, arg_types);
+                        match called {
+                            Some(overload) => Ok(overload),
+                            None => Err(format!("No overload found for {} with types {:?}", name, arg_types))
+                        }
+                    }
+                    None => Err(format!("Undefined identifier: {}", name)),
+                    Some(_) => Err(format!("Non-function {} cannot be specialized", name)),
                 }
             }
         }
@@ -168,13 +213,13 @@ impl Debug for XStaticFunction {
 
 impl PartialEq for XStaticFunction {
     fn eq(&self, _: &Self) -> bool {
-        return false
+        return false;
     }
 }
 
 impl Eq for XStaticFunction {}
 
-#[derive( Debug, Clone, Eq, PartialEq, Derivative)]
+#[derive(Debug, Clone, Eq, PartialEq, Derivative)]
 #[derivative(Hash)]
 pub struct XExplicitFuncSpec {
     pub generic_params: Option<Vec<String>>,
@@ -183,7 +228,7 @@ pub struct XExplicitFuncSpec {
     pub ret: Arc<XType>,
 }
 
-#[derive( Debug, Clone, Eq, PartialEq, Derivative)]
+#[derive(Debug, Clone, Eq, PartialEq, Derivative)]
 #[derivative(Hash)]
 pub struct XExplicitArgSpec {
     pub name: String,
@@ -254,6 +299,7 @@ impl TailedEvalResult {
         }
     }
 }
+
 impl From<Rc<XValue>> for TailedEvalResult {
     fn from(v: Rc<XValue>) -> Self {
         TailedEvalResult::Value(v)
@@ -281,15 +327,12 @@ impl XExpr {
                 let element_type = common_type(exprs.iter().map(|x| x.xtype()))?;
                 Ok(XType::XNative(Box::new(XSetType {}), [("T".to_string(), element_type)].into()).into())
             }
-            /*
-            XExpr::Map(exprs) => {
-                Ok(XType::XMap(Box::new(common_type(exprs.iter().map(|x| x.0.xtype()))?),
-                               Box::new(common_type(exprs.iter().map(|x| x.1.xtype()))?)))
-            }
-             */
             XExpr::Call(func, _) => {
                 if let XExpr::KnownOverload(func, bind) = func.as_ref() {
                     return Ok(func.rtype(bind));
+                }
+                if let XType::XCallable(spec) = func.xtype()?.as_ref() {
+                    return Ok(spec.return_type.clone());
                 }
                 if let XType::XFunc(func) = func.xtype()?.as_ref() {
                     return Ok(func.rtype(&HashMap::new()));
@@ -308,13 +351,13 @@ impl XExpr {
             XExpr::Ident(_, item) => {
                 match item.as_ref() {
                     IdentItem::Value(xtype) => Ok(xtype.clone()),
-                    IdentItem::Function(func) => Ok(func.rtype(&HashMap::new())),
+                    IdentItem::Function(func) => Ok(func.xtype(&HashMap::new())),
                 }
             }
         }
     }
 
-    pub fn eval<'p>(&self, namespace: &XEvaluationScope<'p>, tail_available: bool) -> Result<TailedEvalResult, String>{
+    pub fn eval<'p>(&self, namespace: &XEvaluationScope<'p>, tail_available: bool) -> Result<TailedEvalResult, String> {
         match &self {
             XExpr::LiteralBool(b) => Ok(XValue::Bool(*b).into()),
             XExpr::LiteralInt(i) => Ok(XValue::Int(BigInt::from(*i)).into()),
@@ -341,14 +384,13 @@ impl XExpr {
                 let ret;
                 if let XValue::Function(xfunc) = callable.as_ref() {
                     ret = xfunc.eval(args, namespace, tail_available)?;
-                }
-                else {
-                    return Err(format!("Expected function, got {:?}", callable))
+                } else {
+                    return Err(format!("Expected function, got {:?}", callable));
                 }
                 return Ok(ret);
             }
             XExpr::Construct(_, _, args) => {
-                let items = args.iter().map(|x| x.eval(namespace, false).map(|r|r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
+                let items = args.iter().map(|x| x.eval(namespace, false).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
                 Ok(XValue::StructInstance(items).into())
             }
             XExpr::Member(obj, idx) => {

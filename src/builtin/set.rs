@@ -8,6 +8,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use crate::native_types::{NativeType, XNativeValue};
 use derivative::Derivative;
+use crate::builtin::stack::{XStack, XStackType};
 
 #[derive(Debug, Clone)]
 pub struct XSetType {}
@@ -174,6 +175,36 @@ pub fn add_set_sub(scope: &mut XCompilationScope) -> Result<(), String> {
                     let s2 = &b2.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
 
                     Ok(XValue::Native(Box::new(XSet::new(s1.difference(s2).cloned().collect()))).into())
+                }
+                _ => unreachable!(),
+            }
+        }))?;
+    Ok(())
+}
+
+pub fn add_set_to_stack(scope: &mut XCompilationScope) -> Result<(), String> {
+    let t = Arc::new(XType::XGeneric("T".to_string()));
+
+    scope.add_func(
+        "to_stack", XStaticFunction::Native(XFuncSpec {
+            generic_params: Some(vec!["T".to_string()]),
+            params: vec![
+                XFuncParamSpec {
+                    type_: XSetType::xtype(t.clone()),
+                    required: true,
+                },
+            ],
+            ret: XStackType::xtype(t.clone()),
+        }, |args, ns, _tca| {
+            let arr = args[0].eval(&ns, false)?.unwrap_value();
+            match arr.as_ref() {
+                XValue::Native(b) => {
+                    let arr = &b.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
+                    let mut ret = XStack::new();
+                    for x in arr {
+                        ret = ret.push(x.clone());
+                    }
+                    Ok(XValue::Native(Box::new(ret)).into())
                 }
                 _ => unreachable!(),
             }

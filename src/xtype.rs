@@ -12,7 +12,8 @@ pub enum XType {
     String,
     XUnknown,
     XStruct(XStructSpec, Bind),
-    //XFunc(XFuncSpec),
+    XCallable(XCallableSpec),
+    XFunc(XFuncSpec),
     XGeneric(String),
     XNative(Box::<dyn NativeType>, Bind),
 }
@@ -60,6 +61,15 @@ pub struct XStructFieldSpec {
     pub name: String,
     #[derivative(Hash = "ignore")]
     pub type_: Arc<XType>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Derivative)]
+#[derivative(Hash)]
+pub struct XCallableSpec {
+    #[derivative(Hash = "ignore")]
+    pub param_types: Vec<Arc<XType>>,
+    #[derivative(Hash = "ignore")]
+    pub return_type: Arc<XType>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Derivative)]
@@ -139,17 +149,6 @@ impl XType {
             (XType::Int, XType::Int) => Some(HashMap::new()),
             (XType::Rational, XType::Rational) => Some(HashMap::new()),
             (XType::String, XType::String) => Some(HashMap::new()),
-            /*
-            (XType::XSeq(ref a), XType::XSeq(ref b)) => a.bind_in_assignment(b),
-            (XType::XSet(ref a), XType::XSet(ref b)) => a.bind_in_assignment(b),
-            (XType::XMap(ref a, ref b), XType::XMap(ref c, ref d)) => a.bind_in_assignment(c).and_then(|mut ns| {
-                if let Some(binds) = b.bind_in_assignment(d) {
-                    mix_binds(&mut ns, binds)
-                } else {
-                    None
-                }
-            }),
-             */
             (XType::XStruct(a, ref bind_a), XType::XStruct(b, ref bind_b)) => {
                 if a != b {
                     return None;
@@ -164,6 +163,22 @@ impl XType {
                 }
                 Some(bind)
             },
+            (XType::XCallable(ref a), XType::XCallable(ref b)) => {
+                let mut total_binds = HashMap::new();
+                for (a_type, b_type) in a.param_types.iter().zip(b.param_types.iter()) {
+                    if let Some(binds) = a_type.bind_in_assignment(&b_type) {
+                        total_binds = mix_binds(&mut total_binds, binds)?;
+                    } else {
+                        return None;
+                    }
+                }
+                if let Some(binds) = a.return_type.bind_in_assignment(&b.return_type) {
+                    total_binds = mix_binds(&mut total_binds, binds)?;
+                } else {
+                    return None;
+                }
+                Some(total_binds)
+            }
             (XType::XFunc(ref a), XType::XFunc(ref b)) => {
                 let (a_min, a_max) = a.arg_len_range();
                 let (b_min, b_max) = b.arg_len_range();
@@ -179,6 +194,26 @@ impl XType {
                     }
                 }
                 if let Some(binds) = a.ret.bind_in_assignment(&b.ret) {
+                    total_binds = mix_binds(&mut total_binds, binds)?;
+                } else {
+                    return None;
+                }
+                Some(total_binds)
+            }
+            (XType::XCallable(ref a), XType::XFunc(ref b)) => {
+                let (b_min, b_max) = b.arg_len_range();
+                if a.param_types.len() < b_min || a.param_types.len() > b_max {
+                    return None;
+                }
+                let mut total_binds = HashMap::new();
+                for (a_type, b_arg) in a.param_types.iter().zip(b.params.iter()) {
+                    if let Some(binds) = a_type.bind_in_assignment(&b_arg.type_) {
+                        total_binds = mix_binds(&mut total_binds, binds)?;
+                    } else {
+                        return None;
+                    }
+                }
+                if let Some(binds) = a.return_type.bind_in_assignment(&b.ret) {
                     total_binds = mix_binds(&mut total_binds, binds)?;
                 } else {
                     return None;
@@ -241,12 +276,8 @@ impl PartialEq<XType> for XType {
             (XType::Int, XType::Int) => true,
             (XType::Rational, XType::Rational) => true,
             (XType::String, XType::String) => true,
-            /*
-            (XType::XSeq(ref a), XType::XSeq(ref b)) => a.eq(b),
-            (XType::XSet(ref a), XType::XSet(ref b)) => a.eq(b),
-            (XType::XMap(ref a, ref b), XType::XMap(ref c, ref d)) => a.eq(c) && b.eq(d),
-             */
             (XType::XStruct(ref a, ref a_b), XType::XStruct(ref b, ref b_b)) => a.name == b.name && a_b == b_b,
+            (XType::XCallable(ref a), XType::XCallable(ref b)) => a.eq(b),
             (XType::XFunc(ref a), XType::XFunc(ref b)) => a.generic_params == b.generic_params && a.params.len() == b.params.len() && a.params.iter().zip(b.params.iter()).all(|(a, b)| a.type_.eq(&b.type_)),
             (XType::XUnknown, XType::XUnknown) => true,
             (XType::XGeneric(ref a), XType::XGeneric(ref b)) => a == b,
@@ -263,12 +294,8 @@ impl Display for XType {
             XType::Int => write!(f, "int"),
             XType::Rational => write!(f, "rational"),
             XType::String => write!(f, "string"),
-            /*
-            XType::XSeq(ref a) => write!(f, "Array<{}>", a),
-            XType::XSet(ref a) => write!(f, "Set<{}>", a),
-            XType::XMap(ref a, ref b) => write!(f, "Map<{},{}>", a, b),
-             */
             XType::XStruct(ref a, ref b) => write!(f, "{}<{:?}>", a.name, b),
+            XType::XCallable(ref a) => write!(f, "{:?}->{}", a.param_types, a.return_type),
             XType::XFunc(ref a) => {
                 write!(f, "(")?;
                 for (i, arg) in a.params.iter().enumerate() {

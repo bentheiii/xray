@@ -10,7 +10,7 @@ use crate::native_types::{NativeType, XNativeValue};
 use derivative::Derivative;
 
 #[derive(Debug, Clone)]
-struct XStackType {}
+pub struct XStackType {}
 
 impl XStackType {
     pub fn xtype(t: Arc<XType>) -> Arc<XType> {
@@ -30,7 +30,7 @@ impl NativeType for XStackType {
 
 #[derive(Debug, Eq, PartialEq, Derivative)]
 #[derivative(Hash)]
-struct StackNode {
+pub struct StackNode {
     value: Rc<XValue>,
     #[derivative(Hash = "ignore")]
     next: Option<Rc<StackNode>>,
@@ -46,20 +46,20 @@ impl StackNode {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]
-struct XStack {
+pub struct XStack {
     pub head: Option<Rc<StackNode>>,
     pub length: usize,
 }
 
 impl XStack {
-    fn new() -> XStack {
+    pub fn new() -> XStack {
         XStack {
             head: None,
             length: 0,
         }
     }
 
-    fn push(&self, value: Rc<XValue>) -> Self {
+    pub fn push(&self, value: Rc<XValue>) -> Self {
         match self.head {
             None => {
                 let node = StackNode::first(value);
@@ -78,14 +78,16 @@ impl XStack {
         }
     }
 
-    fn to_vec(&self) -> Vec<Rc<XValue>> {
+    fn to_vec(&self, reversed: bool) -> Vec<Rc<XValue>> {
         let mut vec = Vec::new();
         let mut node = &self.head;
         while let Some(ref n) = node {
             vec.push(n.value.clone());
             node = &n.next;
         }
-        vec.reverse();
+        if !reversed {
+            vec.reverse();
+        }
         vec
     }
 
@@ -169,7 +171,34 @@ pub fn add_stack_to_array(scope: &mut XCompilationScope) -> Result<(), String> {
             match v0.as_ref() {
                 XValue::Native(b0) => {
                     let stk = b0.as_ref()._as_any().downcast_ref::<XStack>().unwrap();
-                    Ok(XValue::Native(Box::new(XArray::new(stk.to_vec()))).into())
+                    Ok(XValue::Native(Box::new(XArray::new(stk.to_vec(false)))).into())
+                }
+                _ => unreachable!(),
+            }
+        }))?;
+    Ok(())
+}
+
+pub fn add_stack_to_array_reversed(scope: &mut XCompilationScope) -> Result<(), String> {
+    let t = Arc::new(XType::XGeneric("T".to_string()));
+    let t_stk = XStackType::xtype(t.clone());
+
+    scope.add_func(
+        "to_array_reversed", XStaticFunction::Native(XFuncSpec {
+            generic_params: Some(vec!["T".to_string()]),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_stk.clone(),
+                    required: true,
+                },
+            ],
+            ret: XArrayType::xtype(t.clone()),
+        }, |args, ns, _tca| {
+            let v0 = args[0].eval(&ns, false)?.unwrap_value();
+            match v0.as_ref() {
+                XValue::Native(b0) => {
+                    let stk = b0.as_ref()._as_any().downcast_ref::<XStack>().unwrap();
+                    Ok(XValue::Native(Box::new(XArray::new(stk.to_vec(true)))).into())
                 }
                 _ => unreachable!(),
             }
