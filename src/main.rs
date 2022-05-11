@@ -47,22 +47,14 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    fn map<T, V>(xs: Array<T>, f: (T) -> (V)) -> Array<V> {
-        fn helper(input_idx: int, output: Stack<V>)->Stack<V> {
-            (input_idx == xs.len()).if(
-                output,
-                helper(input_idx+1, output.push(f(xs.get(input_idx))))
-                )
+    fn incr(x: int) -> (int)->(int) {
+        fn incr_inner(y: int) -> int {
+            y + x
         }
-        let output_stk = stack();
-        helper(0, output_stk).to_array()
+        incr_inner
     }
 
-    fn inverse(x: int) -> rational {
-        1 / x
-    }
-
-    let z: Array<rational> = map([1, 2, 3], inverse);
+    let z = [1, 2, 3].map(incr(1));
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -105,6 +97,7 @@ fn main() {
     add_array_add(&mut root_scope).unwrap();
     add_array_pop(&mut root_scope).unwrap();
     add_array_to_stack(&mut root_scope).unwrap();
+    add_array_map(&mut root_scope).unwrap();
 
     add_set_type(&mut root_scope).unwrap();
     add_set_bitor(&mut root_scope).unwrap();

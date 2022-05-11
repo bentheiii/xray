@@ -8,7 +8,7 @@ use crate::builtin::set::{XSet, XSetType};
 use crate::XFuncSpec;
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
 use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XStructSpec, XType};
-use crate::xvalue::{NativeCallable, XValue};
+use crate::xvalue::{NativeCallable, XFunction, XValue};
 use derivative::Derivative;
 
 #[derive(Debug, Clone, Derivative)]
@@ -186,6 +186,9 @@ pub enum XExpr {
     Member(Box<XExpr>, usize),
     KnownOverload(XStaticFunction, Bind),
     Ident(String, Box<IdentItem>),
+    // this dummy exists for calling native functions with arguments that were already
+    // evaluated
+    Dummy(Rc<XValue>),
 }
 
 #[derive(Clone)]
@@ -193,6 +196,24 @@ pub enum XStaticFunction {
     Native(XFuncSpec, NativeCallable),
     UserFunction(XExplicitFuncSpec, Vec<Declaration>, Box<XExpr>),
     Recourse(XFuncSpec),
+}
+
+impl XStaticFunction {
+    pub fn to_function(self, closure: HashMap<String, Rc<XValue>>) -> XFunction {
+        match self {
+            XStaticFunction::Native(_, native) => XFunction::Native(native),
+            XStaticFunction::UserFunction(specs, declarations, output) => XFunction::UserFunction(specs.args.iter().map(|p| p.name.clone()).collect(),
+                                                                                                  declarations.iter().filter_map(|decl|{
+                                                                                                      if let Declaration::Value(name, expr) = decl {
+                                                                                                          Some((name.clone(), expr.clone()))
+                                                                                                      } else {
+                                                                                                          None
+                                                                                                      }
+                                                                                                  }).collect(),
+                                                                                                  output, closure),
+            XStaticFunction::Recourse(_) => XFunction::Recourse(),
+        }
+    }
 }
 
 impl Debug for XStaticFunction {
@@ -354,6 +375,7 @@ impl XExpr {
                     IdentItem::Function(func) => Ok(func.xtype(&HashMap::new())),
                 }
             }
+            XExpr::Dummy(_) => unreachable!(),
         }
     }
 
@@ -373,12 +395,6 @@ impl XExpr {
                     exprs.iter().map(|x| x.eval(namespace, false).map(|r| r.unwrap_value())).collect::<Result<HashSet<_>, _>>()?))).into()
                 )
             }
-            /*
-            XExpr::Map(exprs) => {
-                Ok(XValue::Map(XHashMap(
-                    exprs.iter().map(|(k,v)| Ok((k.eval(namespace)?, v.eval(namespace)?))).collect::<Result<HashMap<_,_>, String>>()?
-                )))
-            }*/
             XExpr::Call(func, args) => {
                 let callable = func.eval(namespace, false)?.unwrap_value().clone();
                 let ret;
@@ -402,15 +418,16 @@ impl XExpr {
                 }
             }
             XExpr::KnownOverload(func, _) => {
-                Ok(XValue::Function(func.clone().into()).into())
+                Ok(XValue::Function(func.clone().to_function(namespace.to_closure())).into())
             }
             XExpr::Ident(name, item) => {
                 if let IdentItem::Function(func) = item.as_ref() {
-                    Ok(XValue::Function(func.clone().into()).into())
+                    Ok(XValue::Function(func.clone().to_function(namespace.to_closure())).into())
                 } else {
                     Ok(namespace.get(&name).ok_or_else(|| format!("Undefined identifier: {}", name))?.clone().into())
                 }
             }
+            XExpr::Dummy(val) => Ok(val.clone().into()),
         }
     }
 }

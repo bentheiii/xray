@@ -279,6 +279,8 @@ impl PartialEq<XType> for XType {
             (XType::XStruct(ref a, ref a_b), XType::XStruct(ref b, ref b_b)) => a.name == b.name && a_b == b_b,
             (XType::XCallable(ref a), XType::XCallable(ref b)) => a.eq(b),
             (XType::XFunc(ref a), XType::XFunc(ref b)) => a.generic_params == b.generic_params && a.params.len() == b.params.len() && a.params.iter().zip(b.params.iter()).all(|(a, b)| a.type_.eq(&b.type_)),
+            (XType::XCallable(ref a), XType::XFunc(ref b)) => b.generic_params.is_none() && a.param_types == b.params.iter().map(|p| p.type_.clone()).collect::<Vec<_>>() && a.return_type.eq(&b.ret),
+            (XType::XFunc(_), XType::XCallable(_)) => other == self,
             (XType::XUnknown, XType::XUnknown) => true,
             (XType::XGeneric(ref a), XType::XGeneric(ref b)) => a == b,
             (XType::XNative(a, ref a_bind), XType::XNative(b, ref b_bind)) => a == b && a_bind == b_bind,

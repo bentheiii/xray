@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
@@ -25,7 +26,8 @@ pub type NativeCallable = fn(&Vec<XExpr>, &XEvaluationScope<'_>, bool) -> Result
 #[derive(Clone)]
 pub enum XFunction {
     Native(NativeCallable),
-    UserFunction(Vec<String>, Vec<(String, XExpr)>, Box<XExpr>),
+    // params, declarations, output, closure
+    UserFunction(Vec<String>, Vec<(String, XExpr)>, Box<XExpr>, HashMap<String, Rc<XValue>>),
     Recourse(),
 }
 
@@ -35,23 +37,9 @@ impl XFunction {
             XFunction::Native(native) => {
                 native(args, parent_scope, tail_available)
             }
-            XFunction::UserFunction(params, declarations, output) => {
+            XFunction::UserFunction(..) => {
                 let mut arguments = args.iter().map(|x| x.eval(parent_scope, false).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
-                loop {
-                    let mut scope = XEvaluationScope::from_parent(parent_scope, &self);
-                    for (name, arg) in params.iter().zip(arguments.iter()) {
-                        scope.add(name, arg.clone());
-                    }
-                    for (name, expr) in declarations {
-                        scope.add(&name, expr.eval(&scope, false)?.unwrap_value());
-                    }
-                    match output.eval(&scope, true)? {
-                        TailedEvalResult::Value(value) => return Ok(value.into()),
-                        TailedEvalResult::TailCall(new_args) => {
-                            arguments = new_args;
-                        }
-                    }
-                }
+                self.eval_values(arguments, parent_scope).map(|r| r.into())
             }
             XFunction::Recourse() => {
                 if tail_available {
@@ -62,8 +50,43 @@ impl XFunction {
             }
         }
     }
-}
 
+    pub fn eval_values<'p>(&'p self, mut args: Vec<Rc<XValue>>, parent_scope: &XEvaluationScope<'p>) -> Result<Rc<XValue>, String> {
+        match self {
+            XFunction::Native(native) => {
+                // we need to wrap all the values with dummy expressions, so that native functions can handle them
+                let args = args.iter().map(|x| XExpr::Dummy(x.clone())).collect::<Vec<_>>();
+                native(&args, parent_scope, false).map(|r| r.unwrap_value())
+            }
+            XFunction::UserFunction(params, declarations, output, closure) => {
+                loop {
+                    let mut scope = XEvaluationScope::from_parent(parent_scope, &self);
+                    for (name, arg) in params.iter().zip(args.iter()) {
+                        scope.add(name, arg.clone());
+                    }
+                    for (name, expr) in declarations {
+                        scope.add(&name, expr.eval(&scope, false)?.unwrap_value());
+                    }
+                    // use closure TODO FIX
+                    let mut scope = XEvaluationScope::from_parent(&scope, &self);
+                    for (name, value) in closure {
+                        scope.add(&name, value.clone());
+                    }
+                    match output.eval(&scope, true)? {
+                        TailedEvalResult::Value(value) => return Ok(value),
+                        TailedEvalResult::TailCall(new_args) => {
+                            args = new_args;
+                        }
+                    }
+                }
+            }
+            XFunction::Recourse() => {
+                parent_scope.recourse.unwrap().eval_values(args, parent_scope)
+            }
+        }
+    }
+}
+/*
 impl<'c> From<XStaticFunction> for XFunction {
     fn from(stat: XStaticFunction) -> Self {
         match stat {
@@ -81,6 +104,7 @@ impl<'c> From<XStaticFunction> for XFunction {
         }
     }
 }
+ */
 
 impl Debug for XFunction {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
@@ -88,7 +112,7 @@ impl Debug for XFunction {
             XFunction::Native(_) => {
                 write!(f, "Native()")
             }
-            XFunction::UserFunction(params, _, _) => {
+            XFunction::UserFunction(params, ..) => {
                 write!(f, "UserFunction({:?})", params)
             }
             XFunction::Recourse() => {
@@ -112,7 +136,7 @@ impl Hash for XFunction {
             XFunction::Native(_) => {
                 0.hash(state)
             }
-            XFunction::UserFunction(args, _, _) => {
+            XFunction::UserFunction(args, ..) => {
                 args.hash(state)
             }
             XFunction::Recourse() => {

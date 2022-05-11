@@ -192,4 +192,16 @@ impl<'p> XEvaluationScope<'p>{
         };
         Ok(())
     }
+
+    pub fn to_closure(&self) -> HashMap<String, Rc<XValue>>
+    {
+        if let Some(parent) = self.parent {
+            let mut values = parent.to_closure();
+            values.extend(self.values.iter().map(|(k, v)| (k.clone(), v.clone())));
+            values
+        }
+        else {
+            self.values.clone()
+        }
+    }
 }

@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, XCompilationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, XCallableSpec, XCompilationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue};
 use rc::Rc;
@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use crate::builtin::stack::{XStack, XStackType};
 use crate::native_types::{NativeType, XNativeValue};
+use crate::XType::XCallable;
 
 #[derive(Debug, Clone)]
 pub struct XArrayType {}
@@ -421,6 +422,45 @@ pub fn add_array_to_stack(scope: &mut XCompilationScope) -> Result<(), String> {
                         ret = ret.push(x.clone());
                     }
                     Ok(XValue::Native(Box::new(ret)).into())
+                }
+                _ => unreachable!(),
+            }
+        }))?;
+    Ok(())
+}
+
+pub fn add_array_map(scope: &mut XCompilationScope) -> Result<(), String> {
+    let input_t = Arc::new(XType::XGeneric("T_IN".to_string()));
+    let output_t = Arc::new(XType::XGeneric("T_OUT".to_string()));
+
+    scope.add_func(
+        "map", XStaticFunction::Native(XFuncSpec {
+            generic_params: Some(vec!["T".to_string()]),
+            params: vec![
+                XFuncParamSpec {
+                    type_: XArrayType::xtype(input_t.clone()),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![input_t.clone()],
+                        return_type: output_t.clone(),
+                    })),
+                    required: true,
+                },
+            ],
+            ret: XArrayType::xtype(output_t.clone()),
+        }, |args, ns, _tca| {
+            let arr_val = args[0].eval(&ns, false)?.unwrap_value();
+            let func = args[1].eval(&ns, false)?.unwrap_value();
+            match (arr_val.as_ref(), func.as_ref()) {
+                (XValue::Native(b), XValue::Function(f)) => {
+                    let arr = &b.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
+
+                    let ret = arr.iter().map(|x| {
+                        f.eval_values(vec![x.clone()], &ns)
+                    }).collect::<Result<_,_>>()?;
+                    Ok(XValue::Native(Box::new(XArray::new(ret))).into())
                 }
                 _ => unreachable!(),
             }
