@@ -11,13 +11,8 @@ pub enum XType {
     Rational,
     String,
     XUnknown,
-    /*
-    XSeq(Box<XType>),
-    XSet(Box<XType>),
-    XMap(Box<XType>, Box<XType>),
-     */
     XStruct(XStructSpec, Bind),
-    XFunc(XFuncSpec),
+    //XFunc(XFuncSpec),
     XGeneric(String),
     XNative(Box::<dyn NativeType>, Bind),
 }

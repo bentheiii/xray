@@ -47,8 +47,8 @@ impl StackNode {
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 struct XStack {
-    head: Option<Rc<StackNode>>,
-    length: usize,
+    pub head: Option<Rc<StackNode>>,
+    pub length: usize,
 }
 
 impl XStack {
@@ -197,6 +197,96 @@ pub fn add_stack_to_set(scope: &mut XCompilationScope) -> Result<(), String> {
                 XValue::Native(b0) => {
                     let stk = b0.as_ref()._as_any().downcast_ref::<XStack>().unwrap();
                     Ok(XValue::Native(Box::new(XSet::new(stk.to_set()))).into())
+                }
+                _ => unreachable!(),
+            }
+        }))?;
+    Ok(())
+}
+
+pub fn add_stack_len(scope: &mut XCompilationScope) -> Result<(), String> {
+    let t = Arc::new(XType::XGeneric("T".to_string()));
+    let t_stk = XStackType::xtype(t.clone());
+
+    scope.add_func(
+        "len", XStaticFunction::Native(XFuncSpec {
+            generic_params: Some(vec!["T".to_string()]),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_stk.clone(),
+                    required: true,
+                },
+            ],
+            ret: X_INT.clone(),
+        }, |args, ns, _tca| {
+            let v0 = args[0].eval(&ns, false)?.unwrap_value();
+            match v0.as_ref() {
+                XValue::Native(b0) => {
+                    let stk = b0.as_ref()._as_any().downcast_ref::<XStack>().unwrap();
+                    Ok(XValue::Int(stk.length.into()).into())
+                }
+                _ => unreachable!(),
+            }
+        }))?;
+    Ok(())
+}
+
+pub fn add_stack_head(scope: &mut XCompilationScope) -> Result<(), String> {
+    let t = Arc::new(XType::XGeneric("T".to_string()));
+    let t_stk = XStackType::xtype(t.clone());
+
+    scope.add_func(
+        "head", XStaticFunction::Native(XFuncSpec {
+            generic_params: Some(vec!["T".to_string()]),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_stk.clone(),
+                    required: true,
+                },
+            ],
+            ret: t.clone(),
+        }, |args, ns, _tca| {
+            let v0 = args[0].eval(&ns, false)?.unwrap_value();
+            match v0.as_ref() {
+                XValue::Native(b0) => {
+                    let stk = b0.as_ref()._as_any().downcast_ref::<XStack>().unwrap();
+                    match &stk.head {
+                        Some(v) => Ok(v.value.clone().into()),
+                        None => Err("stack is empty".to_string()),
+                    }
+                }
+                _ => unreachable!(),
+            }
+        }))?;
+    Ok(())
+}
+
+pub fn add_stack_tail(scope: &mut XCompilationScope) -> Result<(), String> {
+    let t = Arc::new(XType::XGeneric("T".to_string()));
+    let t_stk = XStackType::xtype(t.clone());
+
+    scope.add_func(
+        "tail", XStaticFunction::Native(XFuncSpec {
+            generic_params: Some(vec!["T".to_string()]),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_stk.clone(),
+                    required: true,
+                },
+            ],
+            ret: t_stk.clone(),
+        }, |args, ns, _tca| {
+            let v0 = args[0].eval(&ns, false)?.unwrap_value();
+            match v0.as_ref() {
+                XValue::Native(b0) => {
+                    let stk = b0.as_ref()._as_any().downcast_ref::<XStack>().unwrap();
+                    match &stk.head {
+                        Some(v) => Ok(XValue::Native(Box::new(XStack {
+                            head: v.next.clone(),
+                            length: stk.length - 1,
+                        })).into()),
+                        None => Err("stack is empty".to_string()),
+                    }
                 }
                 _ => unreachable!(),
             }
