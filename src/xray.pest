@@ -74,8 +74,9 @@ import = {pub_opt ~ "import " ~ import_spec ~ ";"}
  import_spec = {CNAME ~ ("::" ~ CNAME)* ~ ("::" ~ import_group)?}
  import_group = {"{" ~ CNAME ~ (", " ~ CNAME)* ~ ","? ~ "}"| "{" ~ ("*"|"**") ~ ","? ~ "}" }
 
-value = {pub_opt ~ "let " ~ CNAME ~ explicit_type? ~ "=" ~ expression ~ ";"}
- explicit_type = {":" ~ complete_type}
+value = {pub_opt ~ "let " ~ CNAME ~ explicit_type_opt ~ "=" ~ expression ~ ";"}
+ explicit_type_opt = {explicit_type?}
+ explicit_type = _{":" ~ complete_type}
 
 function = {pub_opt ~"fn " ~ CNAME ~ generic_signature_opt ~ "(" ~ function_parameters_opt ~ ","? ~ ")" ~ "->" ~ complete_type ~ function_body}
  generic_signature_opt = { generic_signature? }

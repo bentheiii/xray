@@ -62,7 +62,7 @@ fn main() {
         1 / x
     }
 
-    let z = map([1, 2, 3], inverse);
+    let z: Array<rational> = map([1, 2, 3], inverse);
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -118,7 +118,7 @@ fn main() {
     add_stack_head(&mut root_scope).unwrap();
     add_stack_tail(&mut root_scope).unwrap();
 
-    let decals = root_scope.feed(body).unwrap();
+    let decals = root_scope.feed(body, &HashSet::new()).unwrap();
     println!("compiled!");
 
     let mut eval_scope = XEvaluationScope::root();
@@ -130,12 +130,12 @@ fn main() {
 }
 
 impl<'p> XCompilationScope<'p> {
-    fn feed(&mut self, input: Pair<Rule>) -> Result<Vec<Declaration>, String> {
+    fn feed(&mut self, input: Pair<Rule>, parent_gen_param_names: &HashSet<String>) -> Result<Vec<Declaration>, String> {
         match input.as_rule() {
             Rule::header | Rule::top_level_execution | Rule::execution | Rule::declaration => {
                 let mut declarations = Vec::new();
                 for inner in input.into_inner() {
-                    declarations.extend(self.feed(inner)?);
+                    declarations.extend(self.feed(inner, parent_gen_param_names)?);
                 }
                 Ok(declarations)
             }
@@ -143,8 +143,16 @@ impl<'p> XCompilationScope<'p> {
                 let mut inners = input.into_inner();
                 let _pub_opt = inners.next().unwrap();
                 let var_name = inners.next().unwrap().as_str();
+                let explicit_type_opt = inners.next().unwrap();
+                let complete_type = explicit_type_opt.into_inner().next().map(|et| self.get_complete_type(et, parent_gen_param_names)).transpose()?;
                 let expr = to_expr(inners.next().unwrap(), &self)?;
                 let compiled = expr.compile(&self)?;
+                if let Some(complete_type) = complete_type {
+                    let comp_xtype = compiled.xtype()?;
+                    if complete_type != comp_xtype {
+                        return Err(format!("type mismatch: expected {:?}, got {:?}", complete_type, comp_xtype));
+                    }
+                }
                 Ok(vec![self.add_var(&var_name, compiled)?])
             }
             Rule::function => {
@@ -152,7 +160,7 @@ impl<'p> XCompilationScope<'p> {
                 let _pub_opt = inners.next().unwrap();
                 let var_name = inners.next().unwrap().as_str();
                 let gen_params = inners.next().unwrap();
-                let mut gen_param_names = HashSet::new();
+                let mut gen_param_names = parent_gen_param_names.clone();
                 if let Some(gen_params) = gen_params.into_inner().next() {
                     for param in gen_params.into_inner() {
                         gen_param_names.insert(param.as_str().to_string());
@@ -183,7 +191,7 @@ impl<'p> XCompilationScope<'p> {
                     subscope.add_param(&param.name, param.type_.clone())?;
                 }
                 let mut body_iter = body.into_inner();
-                let declarations = subscope.feed(body_iter.next().unwrap())?;
+                let declarations = subscope.feed(body_iter.next().unwrap(), &gen_param_names)?;
                 let output = Box::new(to_expr(body_iter.next().unwrap(), &self)?.compile(&subscope)?);
                 let out_type = output.xtype()?;
                 if out_type != spec.ret {

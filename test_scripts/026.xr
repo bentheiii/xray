@@ -1,5 +1,5 @@
 fn map<T, V>(xs: Array<T>, f: (T) -> (V)) -> Array<V> {
-    fn helper<T, V>(input_idx: int, output: Stack<V>)->Stack<V> {
+    fn helper(input_idx: int, output: Stack<V>)->Stack<V> {
         (input_idx == xs.len()).if(
             output,
             helper(input_idx+1, output.push(f(xs.get(input_idx))))
