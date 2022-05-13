@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::iter::from_fn;
 use std::rc::Rc;
@@ -12,8 +12,11 @@ pub struct XCompilationScope<'p> {
     pub types: HashMap<String, Arc<XType>>,
     pub structs: HashMap<String, XStructSpec>,
     pub functions: HashMap<String, Vec<XStaticFunction>>,
-    pub parent: Option<&'p XCompilationScope<'p>>,
     pub recourse: Option<(String, XFuncSpec)>,
+    pub closure_variables: HashSet<String>,
+    pub parent: Option<&'p XCompilationScope<'p>>,
+
+    pub height: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -24,7 +27,7 @@ pub enum XCompilationScopeItem {
     Overload(Vec<XStaticFunction>),
 }
 
-impl<'p> XCompilationScope<'p>{
+impl<'p> XCompilationScope<'p> {
     pub fn root() -> Self {
         XCompilationScope {
             values: HashMap::new(),
@@ -33,6 +36,8 @@ impl<'p> XCompilationScope<'p>{
             functions: HashMap::new(),
             parent: None,
             recourse: None,
+            closure_variables: HashSet::new(),
+            height: 0,
         }
     }
 
@@ -45,6 +50,8 @@ impl<'p> XCompilationScope<'p>{
             functions: HashMap::new(),
             parent: Some(parent),
             recourse: Some((recourse_name, recourse_spec)),
+            closure_variables: HashSet::new(),
+            height: parent.height + 1,
         }
     }
 
@@ -55,7 +62,7 @@ impl<'p> XCompilationScope<'p>{
                 scope = parent;
                 return Some(parent);
             }
-            return None
+            return None;
         });
     }
 
@@ -64,7 +71,7 @@ impl<'p> XCompilationScope<'p>{
         match &self.recourse {
             Some((rec_name, spec)) if rec_name == name => {
                 overloads.push(XStaticFunction::Recourse(spec.clone()));
-            },
+            }
             _ => (),
         }
         if overloads.len() > 0 {
@@ -87,11 +94,41 @@ impl<'p> XCompilationScope<'p>{
         self.parent.as_ref().and_then(|parent| parent.get(name))
     }
 
+    pub fn get_with_depth(&self, name: &str) -> Option<(XCompilationScopeItem, usize)> {
+        fn helper(scope: &XCompilationScope<'_>, name: &str, depth: usize) -> Option<(XCompilationScopeItem, usize)> {
+            let mut overloads = scope.functions.get(name).map_or_else(|| vec![], |x| x.clone());
+            match &scope.recourse {
+                Some((rec_name, spec)) if rec_name == name => {
+                    overloads.push(XStaticFunction::Recourse(spec.clone()));
+                }
+                _ => (),
+            }
+            if overloads.len() > 0 {
+                for ancestor in scope.ancestors() {
+                    if let Some(ancestor_overloads) = ancestor.functions.get(name) {
+                        overloads.append(&mut ancestor_overloads.clone());
+                    }
+                }
+                return Some((XCompilationScopeItem::Overload(overloads), depth));
+            }
+            if let Some(value) = scope.values.get(name) {
+                return Some((XCompilationScopeItem::Value(value.clone()), depth));
+            }
+            if let Some(struct_spec) = scope.structs.get(name) {
+                return Some((XCompilationScopeItem::Struct(struct_spec.clone()), depth));
+            }
+            if let Some(type_spec) = scope.types.get(name) {
+                return Some((XCompilationScopeItem::NativeType(type_spec.clone()), depth));
+            }
+            scope.parent.as_ref().and_then(|parent| helper(parent, name, depth + 1))
+        }
+        helper(self, name, 0)
+    }
+
     pub fn add_param(&mut self, name: &str, type_: Arc<XType>) -> Result<(), String> {
         if self.get(name).is_some() {
             Err(format!("Variable {} already defined", name))
-        }
-        else {
+        } else {
             self.values.insert(name.to_string(), type_);
             Ok(())
         }
@@ -100,20 +137,19 @@ impl<'p> XCompilationScope<'p>{
     pub fn add_var(&mut self, name: &str, expr: XExpr) -> Result<Declaration, String> {
         if self.get(name).is_some() {
             Err(format!("Variable {} already defined", name))
-        }
-        else {
+        } else {
             self.values.insert(name.to_string(), expr.xtype()?);
             Ok(Declaration::Value(name.to_string(), expr))
         }
     }
 
-    pub fn add_func(&mut self, name: &str, func: XStaticFunction)-> Result<Declaration, String> {
+    pub fn add_func(&mut self, name: &str, func: XStaticFunction) -> Result<Declaration, String> {
         // todo ensure no shadowing
-        self.functions.entry(name.to_string()).or_insert_with(|| vec![]).push( func.clone());
+        self.functions.entry(name.to_string()).or_insert_with(|| vec![]).push(func.clone());
         Ok(Declaration::UserFunction(name.to_string(), func))
     }
 
-    pub fn add_struct(&mut self, name: &str, struct_spec: XStructSpec)-> Result<Declaration, String> {
+    pub fn add_struct(&mut self, name: &str, struct_spec: XStructSpec) -> Result<Declaration, String> {
         // todo ensure no shadowing
         self.structs.insert(name.to_string(), struct_spec.clone());
         Ok(Declaration::Struct(struct_spec))
@@ -122,8 +158,7 @@ impl<'p> XCompilationScope<'p>{
     pub fn add_native_type(&mut self, name: &str, type_: Arc<XType>) -> Result<(), String> {
         if self.get(name).is_some() {
             Err(format!("Native type {} already defined", name))
-        }
-        else {
+        } else {
             self.types.insert(name.to_string(), type_);
             Ok(())
         }
@@ -149,13 +184,13 @@ impl Hash for Declaration {
     }
 }
 
-pub struct XEvaluationScope<'p>{
+pub struct XEvaluationScope<'p> {
     pub values: HashMap<String, Rc<XValue>>,
     pub recourse: Option<&'p XFunction>,
     parent: Option<&'p XEvaluationScope<'p>>,
 }
 
-impl<'p> XEvaluationScope<'p>{
+impl<'p> XEvaluationScope<'p> {
     pub fn root() -> Self {
         XEvaluationScope {
             values: HashMap::new(),
@@ -180,14 +215,14 @@ impl<'p> XEvaluationScope<'p>{
         self.values.insert(name.to_string(), value);
     }
 
-    pub fn add_from(&mut self, other: &Vec<Declaration>)-> Result<(), String> {
+    pub fn add_from(&mut self, other: &Vec<Declaration>) -> Result<(), String> {
         for decl in other {
             match decl {
                 Declaration::Value(name, expr) => {
                     let value = expr.eval(self, false)?.unwrap_value();
                     self.add(&name, value);
                 }
-                _=>{}
+                _ => {}
             }
         };
         Ok(())
@@ -199,8 +234,7 @@ impl<'p> XEvaluationScope<'p>{
             let mut values = parent.to_closure();
             values.extend(self.values.iter().map(|(k, v)| (k.clone(), v.clone())));
             values
-        }
-        else {
+        } else {
             self.values.clone()
         }
     }

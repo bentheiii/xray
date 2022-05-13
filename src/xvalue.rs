@@ -60,17 +60,25 @@ impl XFunction {
             }
             XFunction::UserFunction(params, declarations, output, closure) => {
                 loop {
-                    let mut scope = XEvaluationScope::from_parent(parent_scope, &self);
+                    let closure_scope = if !closure.is_empty() {
+                        let mut scope = XEvaluationScope::from_parent(&parent_scope, &self);
+                        for (name, value) in closure {
+                            scope.add(&name, value.clone());
+                        }
+                        Some(Box::new(scope))
+                    } else {
+                        None
+                    };
+                    let mut scope = XEvaluationScope::from_parent(match closure_scope {
+                        Some(ref scope) => scope,
+                        None => &parent_scope,
+                    }, &self);
+                    //closure scope
                     for (name, arg) in params.iter().zip(args.iter()) {
                         scope.add(name, arg.clone());
                     }
                     for (name, expr) in declarations {
                         scope.add(&name, expr.eval(&scope, false)?.unwrap_value());
-                    }
-                    // use closure TODO FIX
-                    let mut scope = XEvaluationScope::from_parent(&scope, &self);
-                    for (name, value) in closure {
-                        scope.add(&name, value.clone());
                     }
                     match output.eval(&scope, true)? {
                         TailedEvalResult::Value(value) => return Ok(value),

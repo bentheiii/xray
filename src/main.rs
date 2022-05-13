@@ -17,6 +17,7 @@ extern crate pest;
 extern crate pest_derive;
 extern crate core;
 
+use std::borrow::BorrowMut;
 use std::collections::{HashMap, HashSet};
 use std::iter;
 use std::sync::Arc;
@@ -37,7 +38,7 @@ use crate::builtin::generic::{*};
 use crate::builtin::set::{*};
 use crate::builtin::stack::{add_stack_head, add_stack_len, add_stack_new, add_stack_push, add_stack_tail, add_stack_to_array, add_stack_to_array_reversed, add_stack_type};
 
-use crate::xexpr::{XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
+use crate::xexpr::{CompilationResult, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
 use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XStructFieldSpec, XStructSpec, XType};
 
@@ -47,14 +48,17 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    fn incr(x: int) -> (int)->(int) {
-        fn incr_inner(y: int) -> int {
-            y + x
-        }
-        incr_inner
+    /* some nonsense */
+    /* let x = 2; */
+    let x = 1;  // something else
+
+    fn foo() -> int {
+        let y = 2; // some more nonsense
+        //let y = 3;
+        x + y  // some more nonsense
     }
 
-    let z = [1, 2, 3].map(incr(1));
+    let z /* hi! */ = foo();
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -139,13 +143,14 @@ impl<'p> XCompilationScope<'p> {
                 let explicit_type_opt = inners.next().unwrap();
                 let complete_type = explicit_type_opt.into_inner().next().map(|et| self.get_complete_type(et, parent_gen_param_names)).transpose()?;
                 let expr = to_expr(inners.next().unwrap(), &self)?;
-                let compiled = expr.compile(&self)?;
+                let CompilationResult{expr: compiled, closure_vars: cvars} = expr.compile(&self)?;
                 if let Some(complete_type) = complete_type {
                     let comp_xtype = compiled.xtype()?;
                     if complete_type != comp_xtype {
                         return Err(format!("type mismatch: expected {:?}, got {:?}", complete_type, comp_xtype));
                     }
                 }
+                self.closure_variables.extend(cvars);
                 Ok(vec![self.add_var(&var_name, compiled)?])
             }
             Rule::function => {
@@ -167,7 +172,8 @@ impl<'p> XCompilationScope<'p> {
                         let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names)?;
                         let default = param_iter.next().map(|d| {
                             let e_scope = XEvaluationScope::root(); // todo fix
-                            to_expr(d, &self)?.compile(&self).and_then(|c| c.eval(&e_scope, false).map(|r| r.unwrap_value()))
+                            to_expr(d, &self)?.compile(&self).and_then(|c| {
+                                c.expr.eval(&e_scope, false).map(|r| r.unwrap_value())})
                         }).transpose()?;
                         Ok(XExplicitArgSpec { name: name.to_string(), type_, default })
                     }).collect::<Result<Vec<_>, String>>()?
@@ -185,15 +191,18 @@ impl<'p> XCompilationScope<'p> {
                 }
                 let mut body_iter = body.into_inner();
                 let declarations = subscope.feed(body_iter.next().unwrap(), &gen_param_names)?;
-                let output = Box::new(to_expr(body_iter.next().unwrap(), &self)?.compile(&subscope)?);
+                let compiled_output = to_expr(body_iter.next().unwrap(), &self)?.compile(&subscope)?;
+                let output = Box::new(compiled_output.expr);
                 let out_type = output.xtype()?;
                 if out_type != spec.ret {
                     return Err(format!("Function output type {} does not match expected type {}", out_type, spec.ret));
                 }
+                let cvars = subscope.closure_variables.iter().chain(compiled_output.closure_vars.iter()).cloned().collect::<HashSet<_>>();
                 let func = XStaticFunction::UserFunction(
                     spec,
                     declarations,
                     output,
+                    cvars,
                 );
                 Ok(vec![self.add_func(&var_name, func.clone())?])
             }
