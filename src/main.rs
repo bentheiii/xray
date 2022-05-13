@@ -49,9 +49,12 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    let x = null();
-    let y = x.map(neg::<int>);
-    let z = some(15) || cast::<Optional<int>>(error(''));
+    let g = 10;
+    fn foo(a: int, b: int ?= g*10, c: bool) -> int {
+        a + b
+    }
+
+    let z = foo(1,21);
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -173,17 +176,22 @@ impl<'p> XCompilationScope<'p> {
                         let name = param_iter.next().unwrap().as_str();
                         let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names)?;
                         let default = param_iter.next().map(|d| {
-                            let e_scope = XEvaluationScope::root(); // todo fix
+                            let d = d.into_inner().next().unwrap();
+                            let e_scope = self.to_eval_scope()?;
                             to_expr(d, &self)?.compile(&self).and_then(|c| {
                                 c.expr.eval(&e_scope, false).map(|r| r.unwrap_value())})
                         }).transpose()?;
                         Ok(XExplicitArgSpec { name: name.to_string(), type_, default })
                     }).collect::<Result<Vec<_>, String>>()?
                 };
+                // check that there are no required params after optional ones
+                if let Some(out_of_order_param) = params.iter().skip_while(|p| p.default.is_none()).find(|p| p.default.is_none()) {
+                    return Err(format!("required parameter '{}' cannot follow optional parameters", out_of_order_param.name));
+                }
                 let rtype = self.get_complete_type(inners.next().unwrap(), &gen_param_names)?;
                 let body = inners.next().unwrap();
                 let spec = XExplicitFuncSpec {
-                    generic_params: None,
+                    generic_params: None, // todo generic params
                     args: params,
                     ret: rtype,
                 };

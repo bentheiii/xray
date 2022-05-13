@@ -26,8 +26,11 @@ pub type NativeCallable = fn(&Vec<XExpr>, &XEvaluationScope<'_>, bool) -> Result
 #[derive(Clone)]
 pub enum XFunction {
     Native(NativeCallable),
-    // params, declarations, output, closure
-    UserFunction(Vec<String>, Vec<(String, XExpr)>, Box<XExpr>, HashMap<String, Rc<XValue>>),
+    // params, default_values, declarations, output, closure
+    // the default values are always at the end so if we have a function:
+    // f(a, b = 1, c = 2)
+    // then the params are [a,b,c] and default values are [1, 2]
+    UserFunction(Vec<String>, Vec<Rc<XValue>>, Vec<(String, XExpr)>, Box<XExpr>, HashMap<String, Rc<XValue>>),
     Recourse(),
 }
 
@@ -58,7 +61,7 @@ impl XFunction {
                 let args = args.iter().map(|x| XExpr::Dummy(x.clone())).collect::<Vec<_>>();
                 native(&args, parent_scope, false).map(|r| r.unwrap_value())
             }
-            XFunction::UserFunction(params, declarations, output, closure) => {
+            XFunction::UserFunction(params ,defaults, declarations, output, closure) => {
                 loop {
                     let closure_scope = if !closure.is_empty() {
                         let mut scope = XEvaluationScope::from_parent(&parent_scope, &self);
@@ -73,9 +76,14 @@ impl XFunction {
                         Some(ref scope) => scope,
                         None => &parent_scope,
                     }, &self);
-                    //closure scope
+                    // explicit params
                     for (name, arg) in params.iter().zip(args.iter()) {
                         scope.add(name, arg.clone());
+                    }
+                    //default params
+                    // we only want the defaults that haven't been specified
+                    for (value, name) in defaults.iter().rev().zip(params.iter().skip(args.len()).rev()).rev() {
+                        scope.add(name, value.clone());
                     }
                     for (name, expr) in declarations {
                         scope.add(&name, expr.eval(&scope, false)?.unwrap_value());

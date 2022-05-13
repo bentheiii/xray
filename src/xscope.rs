@@ -9,6 +9,7 @@ use crate::xvalue::{XFunction, XValue};
 
 pub struct XCompilationScope<'p> {
     pub values: HashMap<String, Arc<XType>>,
+    pub known_values: HashMap<String, XExpr>,
     pub types: HashMap<String, Arc<XType>>,
     pub structs: HashMap<String, XStructSpec>,
     pub functions: HashMap<String, Vec<XStaticFunction>>,
@@ -31,6 +32,7 @@ impl<'p> XCompilationScope<'p> {
     pub fn root() -> Self {
         XCompilationScope {
             values: HashMap::new(),
+            known_values: HashMap::new(),
             types: HashMap::new(),
             structs: HashMap::new(),
             functions: HashMap::new(),
@@ -45,6 +47,7 @@ impl<'p> XCompilationScope<'p> {
                        recourse_spec: XFuncSpec) -> Self {
         XCompilationScope {
             values: HashMap::new(),
+            known_values: HashMap::new(),
             types: HashMap::new(),
             structs: HashMap::new(),
             functions: HashMap::new(),
@@ -139,6 +142,7 @@ impl<'p> XCompilationScope<'p> {
             Err(format!("Variable {} already defined", name))
         } else {
             self.values.insert(name.to_string(), expr.xtype()?);
+            self.known_values.insert(name.to_string(), expr.clone());
             Ok(Declaration::Value(name.to_string(), expr))
         }
     }
@@ -162,6 +166,27 @@ impl<'p> XCompilationScope<'p> {
             self.types.insert(name.to_string(), type_);
             Ok(())
         }
+    }
+
+    pub fn to_eval_scope(&self) -> Result<XEvaluationScope, String>{
+        let mut ret = XEvaluationScope::root();
+        let mut current_scope = Some(self);
+        while let Some(s) = current_scope {
+            for (name, expr) in &s.known_values {
+                let evaluated = expr.eval(&ret, false);
+                let value = match evaluated {
+                    Ok(value) => value.unwrap_value(),
+                    Err(_) => {
+                        // we actually allow this error to happen, since some expressions might depend on params or other unknown values
+                        // todo find some way to report this
+                        continue
+                    }
+                };
+                ret.add(name, value);
+            }
+            current_scope = s.parent;
+        }
+        Ok(ret)
     }
 }
 

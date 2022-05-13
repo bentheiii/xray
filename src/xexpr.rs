@@ -271,6 +271,7 @@ impl XStaticFunction {
             XStaticFunction::UserFunction(specs, declarations, output, closure_vars) => {
                 let closure = closure_vars.iter().map(|name| (name.clone(), closure.get(name).unwrap().clone())).collect();
                 XFunction::UserFunction(specs.args.iter().map(|p| p.name.clone()).collect(),
+                                        specs.args.iter().skip_while(|p| p.default.is_none()).map(|p| p.default.clone().unwrap()).collect(),
                                         declarations.iter().filter_map(|decl| {
                                             if let Declaration::Value(name, expr) = decl {
                                                 Some((name.clone(), expr.clone()))
