@@ -36,3 +36,23 @@ pub fn add_if(scope: &mut XCompilationScope) -> Result<(), String> {
         }))?;
     Ok(())
 }
+
+add_ufunc!(add_error, error, X_STRING, XValue::String, X_UNKNOWN, |a: &String| Err(a.clone()));
+
+pub fn add_cast(scope: &mut XCompilationScope) -> Result<(), String> {
+    let t = Arc::new(XType::XGeneric("T".to_string()));
+    scope.add_func(
+        "cast", XStaticFunction::Native(XFuncSpec {
+            generic_params: Some(vec!["T".to_string()]),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t.clone(),
+                    required: true,
+                },
+            ],
+            ret: t,
+        }, |args, ns, tca| {
+            args[0].eval(&ns, true)
+        }))?;
+    Ok(())
+}

@@ -26,7 +26,6 @@ expression5 = _{
     STRING
     | bool
     | NUMBER_ANY
-    | null
     | container
     | specialized_cname
     | CNAME
@@ -116,8 +115,6 @@ binnum = { "0b" ~ bin_digit+ }
 
 STRING = {PUSH("#"*) ~ "'" ~ inner_string ~ "'" ~ POP}
  inner_string = @{(!("'" ~ PEEK)~ ANY)*}
-
-null = {"null"}
 
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 COMMENT = _{ ("/*" ~ (!"*/" ~ ANY)* ~ "*/") | ("//" ~ (!NEWLINE ~ ANY)* ~ NEWLINE) }

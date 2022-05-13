@@ -1,0 +1,24 @@
+let main()->bool{
+    assert(some(15).map(neg) == some(-15))
+    && assert(null().map(neg) == null())
+    && assert(some(15).map_or(neg, 16) != -15)
+    && assert(null.map_or(neg, 16) == 16)
+    && assert(some(15).map_or(neg, error('') == -15)
+
+    && assert(some(15) || 16 == 15)
+    && assert(some(15) || cast::<int>(error('')) == 15)
+    && assert(null() || 16 == 16)
+
+    && assert(some(15) || some(16) == some(15))
+    && assert(some(15) || cast::<Optional<int>>(error('')) == some(15))
+    && assert(some(15) || null() == some(15))
+    && assert(null() || some(16) == some(16))
+
+    && assert(some(15) && some(16) == some(16))
+    && assert(some(15) && null() == null())
+    && assert(null() && error('') == null())
+
+    && assert(some(15).has_value())
+    && assert(!null().has_value())
+    && assert(some(15).value() == 15)
+}

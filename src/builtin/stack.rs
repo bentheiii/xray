@@ -111,7 +111,7 @@ pub fn add_stack_type(scope: &mut XCompilationScope) -> Result<(), String> {
 pub fn add_stack_new(scope: &mut XCompilationScope) -> Result<(), String> {
     scope.add_func(
         "stack", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: None,
             params: vec![],
             ret: XStackType::xtype(X_UNKNOWN.clone()),
         }, |args, ns, _tca| {

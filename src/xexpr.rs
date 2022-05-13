@@ -8,7 +8,7 @@ use crate::builtin::array::{XArray, XArrayType};
 use crate::builtin::set::{XSet, XSetType};
 use crate::XFuncSpec;
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
-use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XStructSpec, XType};
+use crate::xtype::{Bind, common_type, mix_binds, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XStructSpec, XType};
 use crate::xvalue::{NativeCallable, XFunction, XValue};
 use derivative::Derivative;
 use itertools::Itertools;
@@ -75,18 +75,31 @@ impl XStaticExpr {
     }
 
     pub fn compile<'p>(&self, namespace: &'p XCompilationScope<'p>) -> Result<CompilationResult, String> {
-        fn resolve_overload(overloads: Vec<XStaticFunction>, arg_types: &Vec<Arc<XType>>) -> Option<XExpr> {
-            let mut called = None;
+        fn resolve_overload(overloads: Vec<XStaticFunction>, arg_types: &Vec<Arc<XType>>, name: &str) -> Result<XExpr, String> {
+            let mut exact_matches = vec![];
+            let mut generic_matches = vec![];
             for overload in overloads {
                 if let Some(bind) = overload.bind(arg_types.clone()) {
-                    let is_generic = overload.is_generic();
-                    called = Some(XExpr::KnownOverload(overload, bind));
-                    if !is_generic {
-                        break;
-                    }
+                    if overload.is_generic() {
+                        &mut generic_matches
+                    } else {
+                        &mut exact_matches
+                    }.push(XExpr::KnownOverload(overload, bind));
                 }
             }
-            called
+            if exact_matches.len() == 1 {
+                return Ok(exact_matches[0].clone());
+            }
+            if exact_matches.len() > 1 {
+                return Err(format!("ambiguous call to overloaded function {}", name));
+            }
+            if generic_matches.len() == 1 {
+                return Ok(generic_matches[0].clone());
+            }
+            if generic_matches.len() > 1 {
+                return Err(format!("ambiguous generic call to overloaded function {}", name));
+            }
+            Err(format!("no overload found for {} with param types: {:?}", name, arg_types))
         }
 
         fn compile_many<'p>(exprs: &Vec<XStaticExpr>, namespace: &'p XCompilationScope<'p>) -> Result<(Vec<XExpr>, Vec<String>), String> {
@@ -112,11 +125,10 @@ impl XStaticExpr {
                         match namespace.get(name) {
                             Some(XCompilationScopeItem::Overload(overloads)) => {
                                 let arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
-                                let called = resolve_overload(overloads, &arg_types);
-                                return match called {
-                                    Some(x) => Ok(CompilationResult::new(XExpr::Call(Box::new(x), compiled_args), cvars)),
-                                    None => Err(format!("No overload for {} with arguments {:?}", name, arg_types))
-                                };
+                                return Ok(CompilationResult::new(
+                                    XExpr::Call(Box::new(resolve_overload(overloads, &arg_types, name)?), compiled_args),
+                                    cvars,
+                                ));
                             }
                             Some(XCompilationScopeItem::Struct(spec)) => {
                                 let arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
@@ -134,16 +146,23 @@ impl XStaticExpr {
                     }
                     XStaticExpr::SpecializedIdent(name, arg_types) => {
                         let actual_arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
-                        if arg_types != &actual_arg_types {
-                            return Err(format!("Specialized function {} takes arguments {:?}, but {:?} were given", name, arg_types, actual_arg_types));
+                        let mut bind = Bind::new();
+                        for (arg_type, actual_type) in arg_types.iter().zip(actual_arg_types.iter()) {
+                            match arg_type.bind_in_assignment(actual_type){
+                                Some(new_bind) => {
+                                    mix_binds(&mut bind, new_bind);
+                                }
+                                None => {
+                                    return Err(format!("Specialized function {} takes argument of type {}, but {} was given", name, arg_type, actual_type));
+                                }
+                            }
                         }
                         return match namespace.get(name) {
                             Some(XCompilationScopeItem::Overload(overloads)) => {
-                                let called = resolve_overload(overloads, arg_types);
-                                match called {
-                                    Some(x) => Ok(CompilationResult::new(XExpr::Call(Box::new(x), compiled_args), cvars)),
-                                    None => Err(format!("No overload for {} with arguments {:?}", name, arg_types))
-                                }
+                                Ok(CompilationResult::new(
+                                    XExpr::Call(Box::new(resolve_overload(overloads, arg_types, name)?), compiled_args),
+                                    cvars,
+                                ))
                             }
                             Some(_) => {
                                 Err(format!("Non-function {} cannot be specialized", name))
@@ -204,14 +223,10 @@ impl XStaticExpr {
             XStaticExpr::SpecializedIdent(name, arg_types) => {
                 match namespace.get_with_depth(name) {
                     Some((XCompilationScopeItem::Overload(overloads), depth)) => {
-                        let called = resolve_overload(overloads, arg_types);
                         let cvars = if depth != 0 && depth != namespace.height {
                             vec![name.clone()]
                         } else { vec![] };
-                        match called {
-                            Some(overload) => Ok(CompilationResult::new(overload, cvars)),
-                            None => Err(format!("No overload found for {} with types {:?}", name, arg_types))
-                        }
+                        Ok(CompilationResult::new(resolve_overload(overloads, arg_types, name)?, cvars))
                     }
                     None => Err(format!("Undefined identifier: {}", name)),
                     Some(_) => Err(format!("Non-function {} cannot be specialized", name)),

@@ -128,7 +128,7 @@ pub struct XFuncParamSpec {
     pub required: bool,
 }
 
-fn mix_binds(binds1: &mut Bind, binds2: Bind) -> Option<Bind> {
+pub fn mix_binds(binds1: &mut Bind, binds2: Bind) -> Option<Bind> {
     let mut binds = binds1.clone();
     for (k, v) in binds2.iter() {
         if binds.contains_key(k) {

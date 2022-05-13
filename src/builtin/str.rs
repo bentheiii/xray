@@ -14,7 +14,6 @@ add_binop!(add_str_eq, pow, X_STRING, XValue::String, X_BOOL, |a,b|
     Ok(XValue::Bool(a == b).into())
 );
 
-add_ufunc!(add_panic, panic, X_STRING, XValue::String, X_UNKNOWN, |a: &String| Err(a.clone()));
 add_ufunc_ref!(add_str_display, display, X_STRING, X_STRING, |a: Rc<XValue>| {
     if let XValue::String(s) = a.as_ref(){
         println!("{}", s);

@@ -35,8 +35,9 @@ use crate::builtin::str::{*};
 use crate::builtin::bool::{*};
 use crate::builtin::rational::{*};
 use crate::builtin::generic::{*};
+use crate::builtin::optional::{*};
 use crate::builtin::set::{*};
-use crate::builtin::stack::{add_stack_head, add_stack_len, add_stack_new, add_stack_push, add_stack_tail, add_stack_to_array, add_stack_to_array_reversed, add_stack_type};
+use crate::builtin::stack::{*};
 
 use crate::xexpr::{CompilationResult, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
@@ -48,17 +49,9 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    /* some nonsense */
-    /* let x = 2; */
-    let x = 1;  // something else
-
-    fn foo() -> int {
-        let y = 2; // some more nonsense
-        //let y = 3;
-        x + y  // some more nonsense
-    }
-
-    let z /* hi! */ = foo();
+    let x = null();
+    let y = x.map(neg::<int>);
+    let z = some(15) || cast::<Optional<int>>(error(''));
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -93,7 +86,8 @@ fn main() {
 
 
     add_if(&mut root_scope).unwrap();
-    add_panic(&mut root_scope).unwrap();
+    add_error(&mut root_scope).unwrap();
+    add_cast(&mut root_scope).unwrap();
 
     add_array_type(&mut root_scope).unwrap();
     add_array_get(&mut root_scope).unwrap();
@@ -114,6 +108,14 @@ fn main() {
     add_stack_len(&mut root_scope).unwrap();
     add_stack_head(&mut root_scope).unwrap();
     add_stack_tail(&mut root_scope).unwrap();
+
+    add_optional_type(&mut root_scope).unwrap();
+    add_optional_some(&mut root_scope).unwrap();
+    add_optional_null(&mut root_scope).unwrap();
+    add_optional_map(&mut root_scope).unwrap();
+    add_optional_or_unwrap(&mut root_scope).unwrap();
+    add_optional_or(&mut root_scope).unwrap();
+    add_optional_and(&mut root_scope).unwrap();
 
     let decals = root_scope.feed(body, &HashSet::new()).unwrap();
     println!("compiled!");
