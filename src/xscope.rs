@@ -8,8 +8,7 @@ use crate::xtype::{XFuncSpec, XStructSpec, XType};
 use crate::xvalue::{XFunction, XValue};
 
 pub struct XCompilationScope<'p> {
-    pub values: HashMap<String, Arc<XType>>,
-    pub known_values: HashMap<String, XExpr>,
+    pub values: HashMap<String, (Option<XExpr>, Arc<XType>)>,
     pub types: HashMap<String, Arc<XType>>,
     pub structs: HashMap<String, XStructSpec>,
     pub functions: HashMap<String, Vec<Rc<XStaticFunction>>>,
@@ -32,7 +31,6 @@ impl<'p> XCompilationScope<'p> {
     pub fn root() -> Self {
         XCompilationScope {
             values: HashMap::new(),
-            known_values: HashMap::new(),
             types: HashMap::new(),
             structs: HashMap::new(),
             functions: HashMap::new(),
@@ -47,7 +45,6 @@ impl<'p> XCompilationScope<'p> {
                        recourse_spec: XFuncSpec) -> Self {
         XCompilationScope {
             values: HashMap::new(),
-            known_values: HashMap::new(),
             types: HashMap::new(),
             structs: HashMap::new(),
             functions: HashMap::new(),
@@ -85,7 +82,7 @@ impl<'p> XCompilationScope<'p> {
             }
             return Some(XCompilationScopeItem::Overload(overloads));
         }
-        if let Some(value) = self.values.get(name) {
+        if let Some((_, value)) = self.values.get(name) {
             return Some(XCompilationScopeItem::Value(value.clone()));
         }
         if let Some(struct_spec) = self.structs.get(name) {
@@ -114,7 +111,7 @@ impl<'p> XCompilationScope<'p> {
                 }
                 return Some((XCompilationScopeItem::Overload(overloads), depth));
             }
-            if let Some(value) = scope.values.get(name) {
+            if let Some((_, value)) = scope.values.get(name) {
                 return Some((XCompilationScopeItem::Value(value.clone()), depth));
             }
             if let Some(struct_spec) = scope.structs.get(name) {
@@ -132,7 +129,7 @@ impl<'p> XCompilationScope<'p> {
         if self.get(name).is_some() {
             Err(format!("Variable {} already defined", name))
         } else {
-            self.values.insert(name.to_string(), type_);
+            self.values.insert(name.to_string(), (None, type_));
             Ok(())
         }
     }
@@ -141,8 +138,7 @@ impl<'p> XCompilationScope<'p> {
         if self.get(name).is_some() {
             Err(format!("Variable {} already defined", name))
         } else {
-            self.values.insert(name.to_string(), expr.xtype()?);
-            self.known_values.insert(name.to_string(), expr.clone());
+            self.values.insert(name.to_string(), (Some(expr.clone()), expr.xtype()?));
             Ok(Declaration::Value(name.to_string(), expr))
         }
     }
@@ -169,21 +165,26 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    pub fn to_eval_scope(&self) -> Result<XEvaluationScope, String>{
+    pub fn to_eval_scope(&self) -> Result<XEvaluationScope, String> {
         let mut ret = XEvaluationScope::root();
         let mut current_scope = Some(self);
         while let Some(s) = current_scope {
-            for (name, expr) in &s.known_values {
-                let evaluated = expr.eval(&ret, false);
-                let value = match evaluated {
-                    Ok(value) => value.unwrap_value(),
-                    Err(_) => {
-                        // we actually allow this error to happen, since some expressions might depend on params or other unknown values
-                        // todo find some way to report this
-                        continue
+            for (name, (expr, _)) in &s.values {
+                match expr {
+                    None => {}
+                    Some(expr) => {
+                        let evaluated = expr.eval(&ret, false);
+                        let value = match evaluated {
+                            Ok(value) => value.unwrap_value(),
+                            Err(_) => {
+                                // we actually allow this error to happen, since some expressions might depend on params or other unknown values
+                                // todo find some way to report this
+                                continue;
+                            }
+                        };
+                        ret.add(name, value);
                     }
-                };
-                ret.add(name, value);
+                }
             }
             current_scope = s.parent;
         }
