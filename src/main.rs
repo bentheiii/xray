@@ -39,8 +39,9 @@ use crate::builtin::optional::{*};
 use crate::builtin::set::{*};
 use crate::builtin::stack::{*};
 
-use crate::xexpr::{CompilationResult, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
+use crate::xexpr::{CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
+use crate::XStaticFunction::UserFunction;
 use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XStructFieldSpec, XStructSpec, XType};
 
 #[derive(Parser)]
@@ -150,7 +151,7 @@ impl<'p> XCompilationScope<'p> {
                 let explicit_type_opt = inners.next().unwrap();
                 let complete_type = explicit_type_opt.into_inner().next().map(|et| self.get_complete_type(et, parent_gen_param_names)).transpose()?;
                 let expr = to_expr(inners.next().unwrap(), &self)?;
-                let CompilationResult{expr: compiled, closure_vars: cvars} = expr.compile(&self)?;
+                let CompilationResult { expr: compiled, closure_vars: cvars } = expr.compile(&self)?;
                 if let Some(complete_type) = complete_type {
                     let comp_xtype = compiled.xtype()?;
                     if complete_type != comp_xtype {
@@ -174,8 +175,7 @@ impl<'p> XCompilationScope<'p> {
                         gen_param_names.insert(param.as_str().to_string());
                     }
                     specific_gen_params = Some(_names);
-                }
-                else {
+                } else {
                     specific_gen_params = None;
                 }
                 let params = match inners.next().unwrap().into_inner().next() {
@@ -188,7 +188,8 @@ impl<'p> XCompilationScope<'p> {
                             let d = d.into_inner().next().unwrap();
                             let e_scope = self.to_eval_scope()?;
                             to_expr(d, &self)?.compile(&self).and_then(|c| {
-                                c.expr.eval(&e_scope, false).map(|r| r.unwrap_value())})
+                                c.expr.eval(&e_scope, false).map(|r| r.unwrap_value())
+                            })
                         }).transpose()?;
                         Ok(XExplicitArgSpec { name: name.to_string(), type_, default })
                     }).collect::<Result<Vec<_>, String>>()?
@@ -218,10 +219,12 @@ impl<'p> XCompilationScope<'p> {
                 }
                 let cvars = subscope.closure_variables.iter().chain(compiled_output.closure_vars.iter()).cloned().collect::<HashSet<_>>();
                 let func = XStaticFunction::UserFunction(
-                    spec,
-                    declarations,
-                    output,
-                    cvars,
+                    UfData::new(
+                        spec,
+                        declarations,
+                        output,
+                        cvars,
+                    )
                 );
                 Ok(vec![self.add_func(&var_name, func.clone())?])
             }

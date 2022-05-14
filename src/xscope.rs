@@ -12,7 +12,7 @@ pub struct XCompilationScope<'p> {
     pub known_values: HashMap<String, XExpr>,
     pub types: HashMap<String, Arc<XType>>,
     pub structs: HashMap<String, XStructSpec>,
-    pub functions: HashMap<String, Vec<XStaticFunction>>,
+    pub functions: HashMap<String, Vec<Rc<XStaticFunction>>>,
     pub recourse: Option<(String, XFuncSpec)>,
     pub closure_variables: HashSet<String>,
     pub parent: Option<&'p XCompilationScope<'p>>,
@@ -25,7 +25,7 @@ pub enum XCompilationScopeItem {
     Value(Arc<XType>),
     NativeType(Arc<XType>),
     Struct(XStructSpec),
-    Overload(Vec<XStaticFunction>),
+    Overload(Vec<Rc<XStaticFunction>>),
 }
 
 impl<'p> XCompilationScope<'p> {
@@ -73,7 +73,7 @@ impl<'p> XCompilationScope<'p> {
         let mut overloads = self.functions.get(name).map_or_else(|| vec![], |x| x.clone());
         match &self.recourse {
             Some((rec_name, spec)) if rec_name == name => {
-                overloads.push(XStaticFunction::Recourse(spec.clone()));
+                overloads.push(Rc::new(XStaticFunction::Recourse(spec.clone())));
             }
             _ => (),
         }
@@ -102,7 +102,7 @@ impl<'p> XCompilationScope<'p> {
             let mut overloads = scope.functions.get(name).map_or_else(|| vec![], |x| x.clone());
             match &scope.recourse {
                 Some((rec_name, spec)) if rec_name == name => {
-                    overloads.push(XStaticFunction::Recourse(spec.clone()));
+                    overloads.push(Rc::new(XStaticFunction::Recourse(spec.clone())));
                 }
                 _ => (),
             }
@@ -149,8 +149,9 @@ impl<'p> XCompilationScope<'p> {
 
     pub fn add_func(&mut self, name: &str, func: XStaticFunction) -> Result<Declaration, String> {
         // todo ensure no shadowing
-        self.functions.entry(name.to_string()).or_insert_with(|| vec![]).push(func.clone());
-        Ok(Declaration::UserFunction(name.to_string(), func))
+        let item = Rc::new(func);
+        self.functions.entry(name.to_string()).or_insert_with(|| vec![]).push(item.clone());
+        Ok(Declaration::UserFunction(name.to_string(), item))
     }
 
     pub fn add_struct(&mut self, name: &str, struct_spec: XStructSpec) -> Result<Declaration, String> {
@@ -194,7 +195,7 @@ impl<'p> XCompilationScope<'p> {
 pub enum Declaration {
     Value(String, XExpr),
     Struct(XStructSpec),
-    UserFunction(String, XStaticFunction),
+    UserFunction(String, Rc<XStaticFunction>),
 }
 
 impl Hash for Declaration {

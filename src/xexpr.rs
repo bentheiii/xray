@@ -75,7 +75,7 @@ impl XStaticExpr {
     }
 
     pub fn compile<'p>(&self, namespace: &'p XCompilationScope<'p>) -> Result<CompilationResult, String> {
-        fn resolve_overload(overloads: Vec<XStaticFunction>, arg_types: &Vec<Arc<XType>>, name: &str) -> Result<XExpr, String> {
+        fn resolve_overload(overloads: Vec<Rc<XStaticFunction>>, arg_types: &Vec<Arc<XType>>, name: &str) -> Result<XExpr, String> {
             let mut exact_matches = vec![];
             let mut generic_matches = vec![];
             for overload in overloads {
@@ -148,7 +148,7 @@ impl XStaticExpr {
                         let actual_arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
                         let mut bind = Bind::new();
                         for (arg_type, actual_type) in arg_types.iter().zip(actual_arg_types.iter()) {
-                            match arg_type.bind_in_assignment(actual_type){
+                            match arg_type.bind_in_assignment(actual_type) {
                                 Some(new_bind) => {
                                     mix_binds(&mut bind, new_bind);
                                 }
@@ -250,36 +250,59 @@ pub enum XExpr {
     Call(Box<XExpr>, Vec<XExpr>),
     Construct(XStructSpec, Bind, Vec<XExpr>),
     Member(Box<XExpr>, usize),
-    KnownOverload(XStaticFunction, Bind),
+    KnownOverload(Rc<XStaticFunction>, Bind),
     Ident(String, Box<IdentItem>),
     // this dummy exists for calling native functions with arguments that were already
     // evaluated
     Dummy(Rc<XValue>),
 }
 
-#[derive(Clone)]
+#[derive(Clone)]  // todo why clone?
 pub enum XStaticFunction {
     Native(XFuncSpec, NativeCallable),
-    UserFunction(XExplicitFuncSpec, Vec<Declaration>, Box<XExpr>, HashSet<String>),
+    UserFunction(UfData),
     Recourse(XFuncSpec),
 }
 
+#[derive(Clone, Debug)] // todo better debug
+pub struct UfData {
+    pub spec: XExplicitFuncSpec,
+    pub declarations: Vec<Declaration>,
+    pub output: Box<XExpr>,
+    pub cvars: HashSet<String>,
+
+    pub param_names: Vec<String>,
+    pub defaults: Vec<Rc<XValue>>,
+    pub variable_declarations: Vec<(String, XExpr)>,
+}
+
+impl UfData {
+    pub fn new(spec: XExplicitFuncSpec, declarations: Vec<Declaration>, output: Box<XExpr>, cvars: HashSet<String>) -> UfData {
+        UfData {
+            param_names: (&spec.args).iter().map(|p| p.name.clone()).collect(),
+            defaults: (&spec.args).iter().skip_while(|p| p.default.is_none()).map(|p| p.default.clone().unwrap()).collect(),
+            spec,
+            output,
+            cvars,
+            variable_declarations: declarations.iter().filter_map(|decl| {
+                if let Declaration::Value(name, expr) = decl {
+                    Some((name.clone(), expr.clone()))
+                } else {
+                    None
+                }
+            }).collect(),
+            declarations,
+        }
+    }
+}
+
 impl XStaticFunction {
-    pub fn to_function(self, closure: &XEvaluationScope<'_>) -> XFunction {
-        match self {
-            XStaticFunction::Native(_, native) => XFunction::Native(native),
-            XStaticFunction::UserFunction(specs, declarations, output, closure_vars) => {
-                let closure = closure_vars.iter().map(|name| (name.clone(), closure.get(name).unwrap().clone())).collect();
-                XFunction::UserFunction(specs.args.iter().map(|p| p.name.clone()).collect(),
-                                        specs.args.iter().skip_while(|p| p.default.is_none()).map(|p| p.default.clone().unwrap()).collect(),
-                                        declarations.iter().filter_map(|decl| {
-                                            if let Declaration::Value(name, expr) = decl {
-                                                Some((name.clone(), expr.clone()))
-                                            } else {
-                                                None
-                                            }
-                                        }).collect(),
-                                        output, closure)
+    pub fn to_function(self: Rc<Self>, closure: &XEvaluationScope<'_>) -> XFunction {
+        match self.as_ref() {
+            XStaticFunction::Native(_, native) => XFunction::Native(*native),
+            XStaticFunction::UserFunction(uf) => {
+                let closure = uf.cvars.iter().map(|name| (name.clone(), closure.get(name).unwrap().clone())).collect();
+                XFunction::UserFunction(self.clone(), closure)
             }
             XStaticFunction::Recourse(_) => XFunction::Recourse(),
         }
@@ -347,25 +370,25 @@ impl XStaticFunction {
     pub fn bind(&self, args: Vec<Arc<XType>>) -> Option<Bind> {
         match self {
             XStaticFunction::Native(spec, _) | XStaticFunction::Recourse(spec) => spec.bind(args),
-            XStaticFunction::UserFunction(spec, ..) => spec.to_spec().bind(args),
+            XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().bind(args),
         }
     }
     pub fn rtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
             XStaticFunction::Native(spec, _) | XStaticFunction::Recourse(spec) => spec.rtype(bind),
-            XStaticFunction::UserFunction(spec, ..) => spec.to_spec().rtype(bind),
+            XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().rtype(bind),
         }
     }
     pub fn is_generic(&self) -> bool {
         match self {
             XStaticFunction::Native(spec, _) | XStaticFunction::Recourse(spec) => spec.generic_params.is_some(),
-            XStaticFunction::UserFunction(spec, ..) => spec.generic_params.is_some(),
+            XStaticFunction::UserFunction(ud, ..) => ud.spec.generic_params.is_some(),
         }
     }
     pub fn xtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
             XStaticFunction::Native(spec, _) | XStaticFunction::Recourse(spec) => spec.xtype(bind),
-            XStaticFunction::UserFunction(spec, ..) => spec.to_spec().xtype(bind),
+            XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().xtype(bind),
         }
     }
 }
@@ -373,7 +396,7 @@ impl XStaticFunction {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum IdentItem {
     Value(Arc<XType>),
-    Function(XStaticFunction),
+    Function(Rc<XStaticFunction>),
 }
 
 #[derive(Debug)]
