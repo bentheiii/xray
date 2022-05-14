@@ -49,12 +49,13 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    let g = 10;
-    fn foo(a: int, b: int ?= g*10, c: bool) -> int {
-        a + b
+    fn foo<T>(x: T) -> int {
+        0
     }
-
-    let z = foo(1,21);
+    fn foo(x: int) -> int {
+        1
+    }
+    let z = foo(12);
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -72,6 +73,7 @@ fn main() {
     add_int_gt(&mut root_scope).unwrap();
     add_int_neg(&mut root_scope).unwrap();
     add_int_to_str(&mut root_scope).unwrap();
+    add_int_digits(&mut root_scope).unwrap();
 
     add_rational_type(&mut root_scope).unwrap();
     add_rational_add(&mut root_scope).unwrap();
@@ -163,11 +165,18 @@ impl<'p> XCompilationScope<'p> {
                 let _pub_opt = inners.next().unwrap();
                 let var_name = inners.next().unwrap().as_str();
                 let gen_params = inners.next().unwrap();
+                let specific_gen_params;
                 let mut gen_param_names = parent_gen_param_names.clone();
                 if let Some(gen_params) = gen_params.into_inner().next() {
+                    let mut _names = vec![];
                     for param in gen_params.into_inner() {
+                        _names.push(param.as_str().to_string());
                         gen_param_names.insert(param.as_str().to_string());
                     }
+                    specific_gen_params = Some(_names);
+                }
+                else {
+                    specific_gen_params = None;
                 }
                 let params = match inners.next().unwrap().into_inner().next() {
                     None => vec![],
@@ -191,7 +200,7 @@ impl<'p> XCompilationScope<'p> {
                 let rtype = self.get_complete_type(inners.next().unwrap(), &gen_param_names)?;
                 let body = inners.next().unwrap();
                 let spec = XExplicitFuncSpec {
-                    generic_params: None, // todo generic params
+                    generic_params: specific_gen_params,
                     args: params,
                     ret: rtype,
                 };

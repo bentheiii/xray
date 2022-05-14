@@ -1,6 +1,6 @@
 use std::rc;
-use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, XCompilationScope, XStaticFunction, XType};
+use num::{BigInt, BigRational, Integer, Signed, ToPrimitive, Zero};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, XArray, XArrayType, XCompilationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue};
 use rc::Rc;
@@ -74,3 +74,47 @@ add_ufunc!(add_int_display, display, X_INT, XValue::Int, X_STRING, |a:&BigInt| {
     println!("{}", a);
     Ok(XValue::String(a.to_string()).into())
 });
+
+pub fn add_int_digits(scope: &mut XCompilationScope) -> Result<(), String> {
+
+    scope.add_func(
+        "digits", XStaticFunction::Native(XFuncSpec {
+            generic_params: Some(vec!["T".to_string()]),
+            params: vec![
+                XFuncParamSpec {
+                    type_: X_INT.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: X_INT.clone(),
+                    required: false,
+                },
+            ],
+            ret: XArrayType::xtype(X_INT.clone()),
+        }, |args, ns, _tca| {
+            let n = args[0].eval(&ns, false)?.unwrap_value();
+            let b_evaled = args.get(1).map(|v|v.eval(&ns, false)).transpose()?.map(|v|v.unwrap_value().clone());
+            let b;
+            if b_evaled.is_some() {
+                b = match b_evaled.unwrap().as_ref() {
+                    XValue::Int(i) => i.clone(),
+                    _ => unreachable!()
+                };
+            } else {
+                b = BigInt::from(10 as i64);
+            }
+            match n.as_ref() {
+                XValue::Int(n) => {
+                    let mut digits = Vec::new();
+                    let mut n = n.clone();
+                    while !n.is_zero() {
+                        digits.push(n.mod_floor(&b));
+                        n = n.div_floor(&b);
+                    }
+                    Ok(XValue::Native(Box::new(XArray::new(digits.into_iter().map(|v| Rc::new(XValue::Int(v))).collect()))).into())
+                },
+                _ => unreachable!(),
+            }
+        }))?;
+    Ok(())
+}
