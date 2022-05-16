@@ -274,13 +274,12 @@ pub enum XExpr {
 pub enum XStaticFunction {
     Native(XFuncSpec, NativeCallable),
     UserFunction(UfData),
-    Recourse(XFuncSpec),
+    Recourse(Rc<XFuncSpec>),
 }
 
 #[derive(Clone, Debug)] // todo better debug
 pub struct UfData {
     pub spec: XExplicitFuncSpec,
-    pub declarations: Vec<Declaration>,
     pub output: Box<XExpr>,
     pub cvars: HashSet<DefaultSymbol>,
 
@@ -297,14 +296,13 @@ impl UfData {
             spec,
             output,
             cvars,
-            variable_declarations: declarations.iter().filter_map(|decl| {
+            variable_declarations: declarations.into_iter().filter_map(|decl| {
                 if let Declaration::Value(name, expr) = decl {
                     Some((name.clone(), expr.clone()))
                 } else {
                     None
                 }
             }).collect(),
-            declarations,
         }
     }
 }
@@ -382,25 +380,29 @@ impl XExplicitFuncSpec {
 impl XStaticFunction {
     pub fn bind(&self, args: &Vec<Arc<XType>>) -> Option<Bind> {
         match self {
-            XStaticFunction::Native(spec, _) | XStaticFunction::Recourse(spec) => spec.bind(args),
+            XStaticFunction::Native(spec, _) => spec.bind(args),
+            XStaticFunction::Recourse(spec) => spec.bind(args),
             XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().bind(args),
         }
     }
     pub fn rtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
-            XStaticFunction::Native(spec, _) | XStaticFunction::Recourse(spec) => spec.rtype(bind),
+            XStaticFunction::Native(spec, _) => spec.rtype(bind),
+            XStaticFunction::Recourse(spec) => spec.rtype(bind),
             XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().rtype(bind),
         }
     }
     pub fn is_generic(&self) -> bool {
         match self {
-            XStaticFunction::Native(spec, _) | XStaticFunction::Recourse(spec) => spec.generic_params.is_some(),
+            XStaticFunction::Native(spec, _) => spec.generic_params.is_some(),
+            XStaticFunction::Recourse(spec) => spec.generic_params.is_some(),
             XStaticFunction::UserFunction(ud, ..) => ud.spec.generic_params.is_some(),
         }
     }
     pub fn xtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
-            XStaticFunction::Native(spec, _) | XStaticFunction::Recourse(spec) => spec.xtype(bind),
+            XStaticFunction::Native(spec, _) => spec.xtype(bind),
+            XStaticFunction::Recourse(spec) => spec.xtype(bind),
             XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().xtype(bind),
         }
     }
@@ -419,9 +421,9 @@ pub enum TailedEvalResult {
 }
 
 impl TailedEvalResult {
-    pub fn unwrap_value(&self) -> Rc<XValue> {
+    pub fn unwrap_value(self) -> Rc<XValue> {
         match self {
-            TailedEvalResult::Value(v) => v.clone(),
+            TailedEvalResult::Value(v) => v,
             TailedEvalResult::TailCall(_) => panic!("TailedEvalResult::unwrap_value called on a tail call")
         }
     }
@@ -466,7 +468,7 @@ impl XExpr {
                 }
                 Err(format!("Expected function type, got {:?}", func.xtype()?))
             }
-            XExpr::Construct(spec, binding, _) => Ok(Arc::new(XType::XStruct(spec.clone(), binding.clone()))),
+            XExpr::Construct(spec, binding, ..) => Ok(Arc::new(XType::XStruct(spec.clone(), binding.clone()))),
             XExpr::Member(obj, idx) => {
                 if let XType::XStruct(spec, bind) = obj.xtype()?.as_ref() {
                     Ok(spec.fields[*idx].type_.clone().resolve_bind(&bind))

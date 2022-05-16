@@ -15,7 +15,7 @@ pub struct XCompilationScope<'p> {
     pub types: HashMap<Identifier, Arc<XType>>,
     pub structs: HashMap<Identifier, Arc<XStructSpec>>,
     pub functions: HashMap<Identifier, Vec<Rc<XStaticFunction>>>,
-    pub recourse: Option<(Identifier, XFuncSpec)>,
+    pub recourse: Option<(Identifier, Rc<XFuncSpec>)>,
     pub closure_variables: HashSet<Identifier>,
     pub parent: Option<&'p XCompilationScope<'p>>,
 
@@ -52,7 +52,7 @@ impl<'p> XCompilationScope<'p> {
             structs: HashMap::new(),
             functions: HashMap::new(),
             parent: Some(parent),
-            recourse: Some((recourse_name, recourse_spec)),
+            recourse: Some((recourse_name, Rc::new(recourse_spec))),
             closure_variables: HashSet::new(),
             height: parent.height + 1,
         }
@@ -85,7 +85,7 @@ impl<'p> XCompilationScope<'p> {
             if overloads.len() > 0 {
                 for ancestor in scope.ancestors() {
                     if let Some(ancestor_overloads) = ancestor.functions.get(&name) {
-                        overloads.append(&mut ancestor_overloads.clone());
+                        overloads.extend(ancestor_overloads.iter().cloned());
                     }
                 }
                 return Some((XCompilationScopeItem::Overload(overloads), depth));
@@ -242,16 +242,5 @@ impl<'p> XEvaluationScope<'p> {
             }
         };
         Ok(())
-    }
-
-    pub fn to_closure(&self) -> HashMap<DefaultSymbol, Rc<XValue>>
-    {
-        if let Some(parent) = self.parent {
-            let mut values = parent.to_closure();
-            values.extend(self.values.iter().map(|(k, v)| (k.clone(), v.clone())));
-            values
-        } else {
-            self.values.clone()
-        }
     }
 }
