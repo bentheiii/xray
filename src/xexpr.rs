@@ -222,7 +222,7 @@ impl XStaticExpr {
                                     if overload.is_generic() {
                                         Err(format!("Cannot use generic overload {:?} as a variable", name))
                                     } else {
-                                        Ok(CompilationResult::new(XExpr::Ident(*name, Box::new(IdentItem::Function(overload.clone().into()))), cvars))
+                                        Ok(CompilationResult::new(XExpr::Ident(*name, Box::new(IdentItem::Function(overload.clone()))), cvars))
                                     }
                                 } else {
                                     Err(format!("Ambiguous identifier: {:?}", name))
