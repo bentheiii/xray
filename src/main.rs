@@ -51,13 +51,13 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    fn foo<T>(x: T) -> int {
-        0
-    }
     fn foo(x: int) -> int {
-        1
+        if(x == 0,
+            1,
+            foo(x - 1)
+        )
     }
-    let z = foo(12);
+    let z = foo(3000);
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -229,7 +229,7 @@ impl<'p> XCompilationScope<'p> {
                         cvars,
                     )
                 );
-                Ok(vec![self.add_func(name, func.clone())?])
+                Ok(vec![self.add_func(name, func)?])
             }
             Rule::struct_def => {
                 let mut inners = input.into_inner();
@@ -251,7 +251,7 @@ impl<'p> XCompilationScope<'p> {
                 }).collect::<Result<Vec<_>, String>>()?;
                 let symbol = interner.get_or_intern(var_name);
                 let struct_ = XStructSpec::new(symbol, params);
-                Ok(vec![self.add_struct(symbol, struct_.clone())?])
+                Ok(vec![self.add_struct(symbol, struct_)?])
             }
             Rule::EOI => Ok(Vec::new()),
             _ => {

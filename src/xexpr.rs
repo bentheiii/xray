@@ -1,6 +1,7 @@
 use std::borrow::BorrowMut;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
+use std::mem::take;
 use std::rc::Rc;
 use std::sync::Arc;
 use num::{BigInt, BigRational};
@@ -84,7 +85,7 @@ impl XStaticExpr {
             let mut exact_matches = vec![];
             let mut generic_matches = vec![];
             for overload in overloads {
-                if let Some(bind) = overload.bind(arg_types.clone()) {
+                if let Some(bind) = overload.bind(arg_types) {
                     if overload.is_generic() {
                         &mut generic_matches
                     } else {
@@ -93,14 +94,14 @@ impl XStaticExpr {
                 }
             }
             if exact_matches.len() == 1 {
-                return Ok(exact_matches[0].clone());
+                return Ok(exact_matches.swap_remove(0));
             }
             if exact_matches.len() > 1 {
                 // todo fix
                 return Err(format!("ambiguous call to overloaded function {:?}", name));
             }
             if generic_matches.len() == 1 {
-                return Ok(generic_matches[0].clone());
+                return Ok(generic_matches.swap_remove(0));
             }
             if generic_matches.len() > 1 {
                 // todo fix
@@ -143,7 +144,7 @@ impl XStaticExpr {
                                     // todo
                                     return Err(format!("Struct {:?} takes {} arguments, but {} were given", spec.name, spec.fields.len(), arg_types.len()));
                                 }
-                                return if let Some(bind) = spec.bind(arg_types.clone()) {
+                                return if let Some(bind) = spec.bind(&arg_types) {
                                     Ok(CompilationResult::new(XExpr::Construct(spec.clone(), bind, compiled_args), cvars))
                                 } else {
                                     // todo
@@ -260,7 +261,7 @@ pub enum XExpr {
     Map(Vec<(XExpr, XExpr)>),
      */
     Call(Box<XExpr>, Vec<XExpr>),
-    Construct(XStructSpec, Bind, Vec<XExpr>),
+    Construct(Arc<XStructSpec>, Bind, Vec<XExpr>),
     Member(Box<XExpr>, usize),
     KnownOverload(Rc<XStaticFunction>, Bind),
     Ident(DefaultSymbol, Box<IdentItem>),
@@ -379,7 +380,7 @@ impl XExplicitFuncSpec {
 }
 
 impl XStaticFunction {
-    pub fn bind(&self, args: Vec<Arc<XType>>) -> Option<Bind> {
+    pub fn bind(&self, args: &Vec<Arc<XType>>) -> Option<Bind> {
         match self {
             XStaticFunction::Native(spec, _) | XStaticFunction::Recourse(spec) => spec.bind(args),
             XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().bind(args),

@@ -4,6 +4,7 @@ use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, XCallableSpec, XCompilati
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue};
 use rc::Rc;
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 use string_interner::StringInterner;
@@ -41,14 +42,13 @@ impl XArray {
 impl XNativeValue for XArray {}
 
 fn value_to_idx(arr: &Vec<Rc<XValue>>, i: &BigInt) -> Result<usize, String> {
-    let i = if i.is_negative() {
-        i + arr.len()
-    } else {
-        i.clone()
-    };
+    let mut i = Cow::Borrowed(i);
     if i.is_negative() {
-        return Err("index too low".to_string());
-    }
+        i = Cow::Owned(i.as_ref() + arr.len());
+        if i.is_negative() {
+            return Err("index too low".to_string());
+        }
+    };
     let idx = i.to_usize().ok_or("index too large")?;
     if idx >= arr.len() {
         return Err("index out of bounds".to_string());

@@ -14,7 +14,7 @@ pub enum XType {
     Rational,
     String,
     XUnknown,
-    XStruct(XStructSpec, Bind),
+    XStruct(Arc<XStructSpec>, Bind),
     XCallable(XCallableSpec),
     XFunc(XFuncSpec),
     XGeneric(Identifier),
@@ -46,7 +46,7 @@ impl XStructSpec {
         }
     }
 
-    pub fn bind(&self, args: Vec<Arc<XType>>) -> Option<Bind> {
+    pub fn bind(&self, args: &Vec<Arc<XType>>) -> Option<Bind> {
         if args.len() != self.fields.len() {
             return None;
         }
@@ -91,14 +91,14 @@ impl XFuncSpec {
         (min, max)
     }
 
-    pub fn bind(&self, args: Vec<Arc<XType>>) -> Option<Bind> {
+    pub fn bind(&self, args: &Vec<Arc<XType>>) -> Option<Bind> {
         let (min, max) = self.arg_len_range();
         if args.len() < min || args.len() > max {
             return None;
         }
         let mut ret = HashMap::new();
         for (arg, param) in args.into_iter().zip(self.params.iter()) {
-            ret = mix_binds(&mut ret, param.type_.bind_in_assignment(&arg)?)?;
+            ret = mix_binds(&mut ret, param.type_.bind_in_assignment(arg)?)?;
         }
         Some(ret)
     }

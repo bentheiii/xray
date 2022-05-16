@@ -13,7 +13,7 @@ pub type Identifier = DefaultSymbol;
 pub struct XCompilationScope<'p> {
     pub values: HashMap<Identifier, (Option<XExpr>, Arc<XType>)>,
     pub types: HashMap<Identifier, Arc<XType>>,
-    pub structs: HashMap<Identifier, XStructSpec>,
+    pub structs: HashMap<Identifier, Arc<XStructSpec>>,
     pub functions: HashMap<Identifier, Vec<Rc<XStaticFunction>>>,
     pub recourse: Option<(Identifier, XFuncSpec)>,
     pub closure_variables: HashSet<Identifier>,
@@ -26,7 +26,7 @@ pub struct XCompilationScope<'p> {
 pub enum XCompilationScopeItem {
     Value(Arc<XType>),
     NativeType(Arc<XType>),
-    Struct(XStructSpec),
+    Struct(Arc<XStructSpec>),
     Overload(Vec<Rc<XStaticFunction>>),
 }
 
@@ -137,7 +137,7 @@ impl<'p> XCompilationScope<'p> {
 
     pub fn add_struct(&mut self, name: DefaultSymbol, struct_spec: XStructSpec) -> Result<Declaration, String> {
         // todo ensure no shadowing
-        self.structs.insert(name, struct_spec.clone());
+        self.structs.insert(name, Arc::new(struct_spec.clone()));
         Ok(Declaration::Struct(struct_spec))
     }
 
