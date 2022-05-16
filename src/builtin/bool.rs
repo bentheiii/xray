@@ -5,9 +5,10 @@ use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpe
 use crate::xvalue::{XValue};
 use rc::Rc;
 use std::sync::Arc;
+use string_interner::StringInterner;
 
-pub fn add_bool_type(scope: &mut XCompilationScope) -> Result<(), String> {
-    scope.add_native_type("bool", X_BOOL.clone())
+pub fn add_bool_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    scope.add_native_type(interner.get_or_intern_static("bool"), X_BOOL.clone())
 }
 
 add_binop!(add_bool_eq, pow, X_BOOL, XValue::Bool, X_BOOL, |a,b|
@@ -31,8 +32,8 @@ add_ufunc!(add_bool_not, not, X_BOOL, XValue::Bool, X_BOOL, |a:&bool| {
     Ok(XValue::Bool(!a).into())
 });
 
-pub fn add_and(scope: &mut XCompilationScope) -> Result<(), String> {
-    scope.add_func(
+pub fn add_and(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    scope.add_func_intern(
         "and", XStaticFunction::Native(XFuncSpec {
             generic_params: None,
             params: vec![
@@ -52,12 +53,12 @@ pub fn add_and(scope: &mut XCompilationScope) -> Result<(), String> {
                 return Ok(args[1].eval(&ns, tca)?);
             }
             Ok(lhs.into())
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_or(scope: &mut XCompilationScope) -> Result<(), String> {
-    scope.add_func(
+pub fn add_or(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    scope.add_func_intern(
         "or", XStaticFunction::Native(XFuncSpec {
             generic_params: None,
             params: vec![
@@ -77,7 +78,7 @@ pub fn add_or(scope: &mut XCompilationScope) -> Result<(), String> {
                 return Ok(args[1].eval(&ns, tca)?);
             }
             Ok(lhs.into())
-        }))?;
+        }), interner)?;
     Ok(())
 }
 

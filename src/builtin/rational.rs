@@ -5,9 +5,11 @@ use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpe
 use crate::xvalue::{XValue};
 use rc::Rc;
 use std::sync::Arc;
+use string_interner::StringInterner;
+use crate::XType::Int;
 
-pub fn add_rational_type(scope: &mut XCompilationScope) -> Result<(), String> {
-    scope.add_native_type("rational", X_RATIONAL.clone())
+pub fn add_rational_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    scope.add_native_type(interner.get_or_intern_static("rational"), X_RATIONAL.clone())
 }
 
 macro_rules! add_rational_binop {

@@ -5,7 +5,7 @@ use std::rc::Rc;
 use num::{BigInt, BigRational};
 use crate::native_types::XNativeValue;
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
-use crate::xscope::{Declaration, XEvaluationScope};
+use crate::xscope::{Declaration, Identifier, XEvaluationScope};
 
 #[derive(Hash, Debug, Eq, PartialEq)]
 pub enum XValue {
@@ -30,7 +30,7 @@ pub enum XFunction {
     // the default values are always at the end so if we have a function:
     // f(a, b = 1, c = 2)
     // then the params are [a,b,c] and default values are [1, 2]
-    UserFunction(Rc<XStaticFunction>, HashMap<String, Rc<XValue>>),
+    UserFunction(Rc<XStaticFunction>, HashMap<Identifier, Rc<XValue>>),
     Recourse(),
 }
 
@@ -69,8 +69,8 @@ impl XFunction {
                 loop {
                     let closure_scope = if !closure.is_empty() {
                         let mut scope = XEvaluationScope::from_parent(&parent_scope, &self);
-                        for (name, value) in closure {
-                            scope.add(&name, value.clone());
+                        for (&name, value) in closure {
+                            scope.add(name, value.clone());
                         }
                         Some(Box::new(scope))
                     } else {
@@ -81,16 +81,16 @@ impl XFunction {
                         None => &parent_scope,
                     }, &self);
                     // explicit params
-                    for (name, arg) in uf.param_names.iter().zip(args.iter()) {
+                    for (&name, arg) in uf.param_names.iter().zip(args.iter()) {
                         scope.add(name, arg.clone());
                     }
                     //default params
                     // we only want the defaults that haven't been specified
-                    for (value, name) in uf.defaults.iter().rev().zip(uf.param_names.iter().skip(args.len()).rev()).rev() {
+                    for (value, &name) in uf.defaults.iter().rev().zip(uf.param_names.iter().skip(args.len()).rev()).rev() {
                         scope.add(name, value.clone());
                     }
                     for (name, expr) in &uf.variable_declarations {
-                        scope.add(&name, expr.eval(&scope, false)?.unwrap_value());
+                        scope.add(*name, expr.eval(&scope, false)?.unwrap_value());
                     }
                     match uf.output.eval(&scope, true)? {
                         TailedEvalResult::Value(value) => return Ok(value),

@@ -8,6 +8,8 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use crate::native_types::{NativeType, XNativeValue};
 use derivative::Derivative;
+use itertools::interleave;
+use string_interner::StringInterner;
 use crate::builtin::stack::{XStack, XStackType};
 
 #[derive(Debug, Clone)]
@@ -16,7 +18,7 @@ pub struct XSetType {}
 impl XSetType {
     pub fn xtype(t: Arc<XType>) -> Arc<XType> {
         Arc::new(XType::XNative(Box::new(Self {}),
-                                HashMap::from([('T'.to_string(), t)])))
+                                vec![t.clone()]))
     }
 }
 
@@ -42,17 +44,17 @@ impl XSet {
 
 impl XNativeValue for XSet {}
 
-pub fn add_set_type(scope: &mut XCompilationScope) -> Result<(), String> {
-    scope.add_native_type("Set", XSetType::xtype(XType::XGeneric("T".to_string()).into()))
+pub fn add_set_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    scope.add_native_type_intern("Set", XSetType::xtype(XType::generic_from_name("T", interner)), interner)
 }
 
-pub fn add_set_bitor(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_set_bitor(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let set_t = XSetType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "bit_or", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: set_t.clone(),
@@ -76,17 +78,17 @@ pub fn add_set_bitor(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_set_bitand(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_set_bitand(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let set_t = XSetType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "bit_and", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: set_t.clone(),
@@ -110,17 +112,17 @@ pub fn add_set_bitand(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_set_bitxor(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_set_bitxor(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let set_t = XSetType::xtype(t);
 
-    scope.add_func(
+    scope.add_func_intern(
         "bit_xor", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: set_t.clone(),
@@ -144,17 +146,17 @@ pub fn add_set_bitxor(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_set_sub(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_set_sub(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let set_t = XSetType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "bit_sub", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: set_t.clone(),
@@ -178,16 +180,16 @@ pub fn add_set_sub(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_set_to_stack(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_set_to_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
 
-    scope.add_func(
+    scope.add_func_intern(
         "to_stack", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: XSetType::xtype(t.clone()),
@@ -208,6 +210,6 @@ pub fn add_set_to_stack(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }

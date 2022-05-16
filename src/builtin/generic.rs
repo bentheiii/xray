@@ -5,12 +5,14 @@ use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpe
 use crate::xvalue::{XValue};
 use rc::Rc;
 use std::sync::Arc;
+use mopa::Any;
+use string_interner::StringInterner;
 
-pub fn add_if(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_if(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     scope.add_func(
-        "if", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+        interner.get_or_intern_static("if"), XStaticFunction::Native(XFuncSpec {
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: X_BOOL.clone(),
@@ -39,11 +41,11 @@ pub fn add_if(scope: &mut XCompilationScope) -> Result<(), String> {
 
 add_ufunc!(add_error, error, X_STRING, XValue::String, X_UNKNOWN, |a: &String| Err(a.clone()));
 
-pub fn add_cast(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
-    scope.add_func(
+pub fn add_cast(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
+    scope.add_func_intern(
         "cast", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t.clone(),
@@ -53,6 +55,6 @@ pub fn add_cast(scope: &mut XCompilationScope) -> Result<(), String> {
             ret: t,
         }, |args, ns, tca| {
             args[0].eval(&ns, true)
-        }))?;
+        }), interner)?;
     Ok(())
 }

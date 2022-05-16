@@ -5,9 +5,10 @@ use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpe
 use crate::xvalue::{XValue};
 use rc::Rc;
 use std::sync::Arc;
+use string_interner::StringInterner;
 
-pub fn add_str_type(scope: &mut XCompilationScope) -> Result<(), String> {
-    scope.add_native_type("str", X_STRING.clone())
+pub fn add_str_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    scope.add_native_type(interner.get_or_intern_static("str"), X_STRING.clone())
 }
 
 add_binop!(add_str_eq, pow, X_STRING, XValue::String, X_BOOL, |a,b|

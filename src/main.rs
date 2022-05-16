@@ -27,7 +27,9 @@ use pest::Parser;
 use pest::prec_climber::{Operator, PrecClimber};
 use pest::prec_climber::Assoc::{Left, Right};
 use std::iter::FromIterator;
+use std::ptr::eq;
 use num::BigRational;
+use string_interner::StringInterner;
 
 use crate::builtin::int::{*};
 use crate::builtin::array::{*};
@@ -41,7 +43,6 @@ use crate::builtin::stack::{*};
 
 use crate::xexpr::{CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
-use crate::XStaticFunction::UserFunction;
 use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XStructFieldSpec, XStructSpec, XType};
 
 #[derive(Parser)]
@@ -61,86 +62,86 @@ fn main() {
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
     let mut root_scope = XCompilationScope::root();
+    let mut interner = StringInterner::default();
 
-    add_int_type(&mut root_scope).unwrap();
-    add_int_add(&mut root_scope).unwrap();
-    add_int_mul(&mut root_scope).unwrap();
-    add_int_mod(&mut root_scope).unwrap();
-    add_int_div(&mut root_scope).unwrap();
-    add_int_eq(&mut root_scope).unwrap();
-    add_int_sub(&mut root_scope).unwrap();
-    add_int_lt(&mut root_scope).unwrap();
-    add_int_ge(&mut root_scope).unwrap();
-    add_int_gt(&mut root_scope).unwrap();
-    add_int_neg(&mut root_scope).unwrap();
-    add_int_to_str(&mut root_scope).unwrap();
-    add_int_digits(&mut root_scope).unwrap();
+    add_int_type(&mut root_scope, &mut interner).unwrap();
+    add_int_add(&mut root_scope, &mut interner).unwrap();
+    add_int_mul(&mut root_scope, &mut interner).unwrap();
+    add_int_mod(&mut root_scope, &mut interner).unwrap();
+    add_int_div(&mut root_scope, &mut interner).unwrap();
+    add_int_eq(&mut root_scope, &mut interner).unwrap();
+    add_int_sub(&mut root_scope, &mut interner).unwrap();
+    add_int_lt(&mut root_scope, &mut interner).unwrap();
+    add_int_ge(&mut root_scope, &mut interner).unwrap();
+    add_int_gt(&mut root_scope, &mut interner).unwrap();
+    add_int_neg(&mut root_scope, &mut interner).unwrap();
+    add_int_to_str(&mut root_scope, &mut interner).unwrap();
+    add_int_digits(&mut root_scope, &mut interner).unwrap();
 
-    add_rational_type(&mut root_scope).unwrap();
-    add_rational_add(&mut root_scope).unwrap();
-    add_rational_mul(&mut root_scope).unwrap();
-    add_rational_floor(&mut root_scope).unwrap();
-    add_rational_to_str(&mut root_scope).unwrap();
+    add_rational_type(&mut root_scope, &mut interner).unwrap();
+    add_rational_add(&mut root_scope, &mut interner).unwrap();
+    add_rational_mul(&mut root_scope, &mut interner).unwrap();
+    add_rational_floor(&mut root_scope, &mut interner).unwrap();
+    add_rational_to_str(&mut root_scope, &mut interner).unwrap();
 
-    add_str_type(&mut root_scope).unwrap();
-    add_str_eq(&mut root_scope).unwrap();
+    add_str_type(&mut root_scope, &mut interner).unwrap();
+    add_str_eq(&mut root_scope, &mut interner).unwrap();
 
-    add_bool_type(&mut root_scope).unwrap();
-    add_and(&mut root_scope).unwrap();
-    add_or(&mut root_scope).unwrap();
-    add_bool_not(&mut root_scope).unwrap();
+    add_bool_type(&mut root_scope, &mut interner).unwrap();
+    add_and(&mut root_scope, &mut interner).unwrap();
+    add_or(&mut root_scope, &mut interner).unwrap();
+    add_bool_not(&mut root_scope, &mut interner).unwrap();
 
 
-    add_if(&mut root_scope).unwrap();
-    add_error(&mut root_scope).unwrap();
-    add_cast(&mut root_scope).unwrap();
+    add_if(&mut root_scope, &mut interner).unwrap();
+    add_error(&mut root_scope, &mut interner).unwrap();
+    add_cast(&mut root_scope, &mut interner).unwrap();
 
-    add_array_type(&mut root_scope).unwrap();
-    add_array_get(&mut root_scope).unwrap();
-    add_array_len(&mut root_scope).unwrap();
-    add_array_add(&mut root_scope).unwrap();
-    add_array_pop(&mut root_scope).unwrap();
-    add_array_to_stack(&mut root_scope).unwrap();
-    add_array_map(&mut root_scope).unwrap();
+    add_array_type(&mut root_scope, &mut interner).unwrap();
+    add_array_get(&mut root_scope, &mut interner).unwrap();
+    add_array_len(&mut root_scope, &mut interner).unwrap();
+    add_array_add(&mut root_scope, &mut interner).unwrap();
+    add_array_pop(&mut root_scope, &mut interner).unwrap();
+    add_array_to_stack(&mut root_scope, &mut interner).unwrap();
+    add_array_map(&mut root_scope, &mut interner).unwrap();
 
-    add_set_type(&mut root_scope).unwrap();
-    add_set_bitor(&mut root_scope).unwrap();
+    add_set_type(&mut root_scope, &mut interner).unwrap();
+    add_set_bitor(&mut root_scope, &mut interner).unwrap();
 
-    add_stack_type(&mut root_scope).unwrap();
-    add_stack_new(&mut root_scope).unwrap();
-    add_stack_push(&mut root_scope).unwrap();
-    add_stack_to_array(&mut root_scope).unwrap();
-    add_stack_to_array_reversed(&mut root_scope).unwrap();
-    add_stack_len(&mut root_scope).unwrap();
-    add_stack_head(&mut root_scope).unwrap();
-    add_stack_tail(&mut root_scope).unwrap();
+    add_stack_type(&mut root_scope, &mut interner).unwrap();
+    add_stack_new(&mut root_scope, &mut interner).unwrap();
+    add_stack_push(&mut root_scope, &mut interner).unwrap();
+    add_stack_to_array(&mut root_scope, &mut interner).unwrap();
+    add_stack_to_array_reversed(&mut root_scope, &mut interner).unwrap();
+    add_stack_len(&mut root_scope, &mut interner).unwrap();
+    add_stack_head(&mut root_scope, &mut interner).unwrap();
+    add_stack_tail(&mut root_scope, &mut interner).unwrap();
 
-    add_optional_type(&mut root_scope).unwrap();
-    add_optional_some(&mut root_scope).unwrap();
-    add_optional_null(&mut root_scope).unwrap();
-    add_optional_map(&mut root_scope).unwrap();
-    add_optional_or_unwrap(&mut root_scope).unwrap();
-    add_optional_or(&mut root_scope).unwrap();
-    add_optional_and(&mut root_scope).unwrap();
+    add_optional_type(&mut root_scope, &mut interner).unwrap();
+    add_optional_some(&mut root_scope, &mut interner).unwrap();
+    add_optional_null(&mut root_scope, &mut interner).unwrap();
+    add_optional_map(&mut root_scope, &mut interner).unwrap();
+    add_optional_or_unwrap(&mut root_scope, &mut interner).unwrap();
+    add_optional_or(&mut root_scope, &mut interner).unwrap();
+    add_optional_and(&mut root_scope, &mut interner).unwrap();
 
-    let decals = root_scope.feed(body, &HashSet::new()).unwrap();
+    let decals = root_scope.feed(body, &HashSet::new(), &mut interner).unwrap();
     println!("compiled!");
 
     let mut eval_scope = XEvaluationScope::root();
     eval_scope.add_from(
         &decals
     ).unwrap();
-    //println!("{:?}", root_scope.get("z"));
-    println!("z={:?}", eval_scope.get("z"));
+    println!("z={:?}", eval_scope.get(interner.get_or_intern_static("z")));
 }
 
 impl<'p> XCompilationScope<'p> {
-    fn feed(&mut self, input: Pair<Rule>, parent_gen_param_names: &HashSet<String>) -> Result<Vec<Declaration>, String> {
+    fn feed(&mut self, input: Pair<Rule>, parent_gen_param_names: &HashSet<String>, interner: &mut StringInterner) -> Result<Vec<Declaration>, String> {
         match input.as_rule() {
             Rule::header | Rule::top_level_execution | Rule::execution | Rule::declaration => {
                 let mut declarations = Vec::new();
                 for inner in input.into_inner() {
-                    declarations.extend(self.feed(inner, parent_gen_param_names)?);
+                    declarations.extend(self.feed(inner, parent_gen_param_names, interner)?);
                 }
                 Ok(declarations)
             }
@@ -149,8 +150,8 @@ impl<'p> XCompilationScope<'p> {
                 let _pub_opt = inners.next().unwrap();
                 let var_name = inners.next().unwrap().as_str();
                 let explicit_type_opt = inners.next().unwrap();
-                let complete_type = explicit_type_opt.into_inner().next().map(|et| self.get_complete_type(et, parent_gen_param_names)).transpose()?;
-                let expr = to_expr(inners.next().unwrap(), &self)?;
+                let complete_type = explicit_type_opt.into_inner().next().map(|et| self.get_complete_type(et, parent_gen_param_names, interner)).transpose()?;
+                let expr = to_expr(inners.next().unwrap(), &self, interner)?;
                 let CompilationResult { expr: compiled, closure_vars: cvars } = expr.compile(&self)?;
                 if let Some(complete_type) = complete_type {
                     let comp_xtype = compiled.xtype()?;
@@ -159,7 +160,7 @@ impl<'p> XCompilationScope<'p> {
                     }
                 }
                 self.closure_variables.extend(cvars);
-                Ok(vec![self.add_var(&var_name, compiled)?])
+                Ok(vec![self.add_var(interner.get_or_intern(var_name), compiled)?])
             }
             Rule::function => {
                 let mut inners = input.into_inner();
@@ -171,7 +172,7 @@ impl<'p> XCompilationScope<'p> {
                 if let Some(gen_params) = gen_params.into_inner().next() {
                     let mut _names = vec![];
                     for param in gen_params.into_inner() {
-                        _names.push(param.as_str().to_string());
+                        _names.push(interner.get_or_intern(param.as_str()));
                         gen_param_names.insert(param.as_str().to_string());
                     }
                     specific_gen_params = Some(_names);
@@ -183,35 +184,37 @@ impl<'p> XCompilationScope<'p> {
                     Some(param_pairs) => param_pairs.into_inner().map(|p| {
                         let mut param_iter = p.into_inner();
                         let name = param_iter.next().unwrap().as_str();
-                        let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names)?;
+                        let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner)?;
                         let default = param_iter.next().map(|d| {
                             let d = d.into_inner().next().unwrap();
                             let e_scope = self.to_eval_scope()?;
-                            to_expr(d, &self)?.compile(&self).and_then(|c| {
+                            to_expr(d, &self, interner)?.compile(&self).and_then(|c| {
                                 c.expr.eval(&e_scope, false).map(|r| r.unwrap_value())
                             })
                         }).transpose()?;
-                        Ok(XExplicitArgSpec { name: name.to_string(), type_, default })
+                        Ok(XExplicitArgSpec { name: interner.get_or_intern(name), type_, default })
                     }).collect::<Result<Vec<_>, String>>()?
                 };
                 // check that there are no required params after optional ones
                 if let Some(out_of_order_param) = params.iter().skip_while(|p| p.default.is_none()).find(|p| p.default.is_none()) {
-                    return Err(format!("required parameter '{}' cannot follow optional parameters", out_of_order_param.name));
+                    // todo
+                    return Err(format!("required parameter '{:?}' cannot follow optional parameters", out_of_order_param.name));
                 }
-                let rtype = self.get_complete_type(inners.next().unwrap(), &gen_param_names)?;
+                let rtype = self.get_complete_type(inners.next().unwrap(), &gen_param_names, interner)?;
                 let body = inners.next().unwrap();
                 let spec = XExplicitFuncSpec {
                     generic_params: specific_gen_params,
                     args: params,
                     ret: rtype,
                 };
-                let mut subscope = XCompilationScope::from_parent(self, var_name.to_string(), spec.to_spec());
+                let name = interner.get_or_intern(var_name);
+                let mut subscope = XCompilationScope::from_parent(self, name, spec.to_spec());
                 for param in &spec.args {
-                    subscope.add_param(&param.name, param.type_.clone())?;
+                    subscope.add_param(param.name, param.type_.clone())?;
                 }
                 let mut body_iter = body.into_inner();
-                let declarations = subscope.feed(body_iter.next().unwrap(), &gen_param_names)?;
-                let compiled_output = to_expr(body_iter.next().unwrap(), &self)?.compile(&subscope)?;
+                let declarations = subscope.feed(body_iter.next().unwrap(), &gen_param_names, interner)?;
+                let compiled_output = to_expr(body_iter.next().unwrap(), &self, interner)?.compile(&subscope)?;
                 let output = Box::new(compiled_output.expr);
                 let out_type = output.xtype()?;
                 if out_type != spec.ret {
@@ -226,7 +229,7 @@ impl<'p> XCompilationScope<'p> {
                         cvars,
                     )
                 );
-                Ok(vec![self.add_func(&var_name, func.clone())?])
+                Ok(vec![self.add_func(name, func.clone())?])
             }
             Rule::struct_def => {
                 let mut inners = input.into_inner();
@@ -243,11 +246,12 @@ impl<'p> XCompilationScope<'p> {
                 let params = param_pairs.into_inner().map(|p| {
                     let mut param_iter = p.into_inner();
                     let name = param_iter.next().unwrap().as_str();
-                    let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names)?;
+                    let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner)?;
                     Ok(XStructFieldSpec { name: name.to_string(), type_ })
                 }).collect::<Result<Vec<_>, String>>()?;
-                let struct_ = XStructSpec::new(var_name.to_string(), params);
-                Ok(vec![self.add_struct(&var_name, struct_.clone())?])
+                let symbol = interner.get_or_intern(var_name);
+                let struct_ = XStructSpec::new(symbol, params);
+                Ok(vec![self.add_struct(symbol, struct_.clone())?])
             }
             Rule::EOI => Ok(Vec::new()),
             _ => {
@@ -257,7 +261,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    fn get_complete_type(&self, input: Pair<Rule>, generic_param_names: &HashSet<String>) -> Result<Arc<XType>, String> {
+    fn get_complete_type(&self, input: Pair<Rule>, generic_param_names: &HashSet<String>, interner: &mut StringInterner) -> Result<Arc<XType>, String> {
         match input.as_rule() {
             Rule::complete_type => {
                 let mut inners = input.into_inner();
@@ -267,9 +271,9 @@ impl<'p> XCompilationScope<'p> {
                         let mut sig_inners = part1.into_inner();
                         let param_spec_opt = sig_inners.next().unwrap();
                         let param_types = param_spec_opt.into_inner().next().map(|p| {
-                            p.into_inner().map(|i| self.get_complete_type(i, generic_param_names)).collect::<Result<Vec<_>, _>>()
+                            p.into_inner().map(|i| self.get_complete_type(i, generic_param_names, interner)).collect::<Result<Vec<_>, _>>()
                         }).transpose()?.unwrap_or_default();
-                        let return_type = self.get_complete_type(sig_inners.next().unwrap(), generic_param_names)?;
+                        let return_type = self.get_complete_type(sig_inners.next().unwrap(), generic_param_names, interner)?;
                         Ok(Arc::new(XType::XCallable(XCallableSpec {
                             param_types,
                             return_type,
@@ -280,13 +284,14 @@ impl<'p> XCompilationScope<'p> {
                         let name = part1.as_str();
                         let gen_params = inners.next().map_or_else(|| Ok(vec![]), |p| {
                             p.into_inner().map(|p| {
-                                self.get_complete_type(p, generic_param_names)
+                                self.get_complete_type(p, generic_param_names, interner)
                             }).collect::<Result<Vec<_>, _>>()
                         })?;
-                        let t = self.get(name);
+                        let symbol = interner.get_or_intern(name);
+                        let t = self.get(symbol);
                         if t.is_none() {
                             if generic_param_names.contains(name) {
-                                return Ok(Arc::new(XType::XGeneric(name.to_string())));
+                                return Ok(Arc::new(XType::XGeneric(symbol)));
                             }
                             return Err(format!("type {} not found", name));
                         }
@@ -296,8 +301,7 @@ impl<'p> XCompilationScope<'p> {
                                     if gen_params.len() != t.generic_names().len() {
                                         return Err(format!("Generic parameter count mismatch for type {}, expected {}, got {}", name, t.generic_names().len(), gen_params.len()));
                                     }
-                                    let bind: Bind = HashMap::from_iter(t.generic_names().into_iter().zip(gen_params.clone().into_iter()));
-                                    return Ok(Arc::new(XType::XNative(t.clone(), bind)));
+                                    return Ok(Arc::new(XType::XNative(t.clone(), gen_params)));
                                 } else {
                                     Ok(t)
                                 }
@@ -342,39 +346,40 @@ lazy_static! {
     };
 }
 
-fn to_expr(input: Pair<Rule>, xscope: &XCompilationScope) -> Result<XStaticExpr, String> {
+fn to_expr(input: Pair<Rule>, xscope: &XCompilationScope, interner: &mut StringInterner) -> Result<XStaticExpr, String> {
     match input.as_rule() {
         Rule::expression => {
-            CLIMBER.climb(input.into_inner(), |pair| to_expr(pair, xscope),
+            let (add_symbol, sub_symbol, mul_symbol, div_symbol, mod_symbol, pow_symbol, and_symbol, or_symbol, lt_symbol, gt_symbol, eq_symbol, ne_symbol, le_symbol, ge_symbol, bit_or_symbol, bit_and_symbol, bit_xor_symbol, ) = (interner.get_or_intern_static("add"), interner.get_or_intern_static("sub"), interner.get_or_intern_static("mul"), interner.get_or_intern_static("div"), interner.get_or_intern_static("mod"), interner.get_or_intern_static("pow"), interner.get_or_intern_static("and"), interner.get_or_intern_static("or"), interner.get_or_intern_static("lt"), interner.get_or_intern_static("gt"), interner.get_or_intern_static("eq"), interner.get_or_intern_static("ne"), interner.get_or_intern_static("le"), interner.get_or_intern_static("ge"), interner.get_or_intern_static("bit_or"), interner.get_or_intern_static("bit_and"), interner.get_or_intern_static("bit_xor"), );
+            CLIMBER.climb(input.into_inner(), |pair| to_expr(pair, xscope, interner),
                           |lhs, op, rhs| {
                               let lhs = lhs?;
                               let rhs = rhs?;
                               let func = match op.as_rule() {
-                                  Rule::BINARY_ADD => "add",
-                                  Rule::BINARY_SUB => "sub",
-                                  Rule::BINARY_MUL => "mul",
-                                  Rule::BINARY_DIV => "div",
-                                  Rule::BINARY_MOD => "mod",
-                                  Rule::BINARY_POW => "pow",
-                                  Rule::BINARY_AND => "and",
-                                  Rule::BINARY_OR => "or",
-                                  Rule::BINARY_LT => "lt",
-                                  Rule::BINARY_GT => "gt",
-                                  Rule::BINARY_EQ => "eq",
-                                  Rule::BINARY_NE => "ne",
-                                  Rule::BINARY_LE => "le",
-                                  Rule::BINARY_GE => "ge",
-                                  Rule::BINARY_BIT_OR => "bit_or",
-                                  Rule::BINARY_BIT_AND => "bit_and",
-                                  Rule::BINARY_BIT_XOR => "bit_xor",
+                                  Rule::BINARY_ADD => add_symbol,
+                                  Rule::BINARY_SUB => sub_symbol,
+                                  Rule::BINARY_MUL => mul_symbol,
+                                  Rule::BINARY_DIV => div_symbol,
+                                  Rule::BINARY_MOD => mod_symbol,
+                                  Rule::BINARY_POW => pow_symbol,
+                                  Rule::BINARY_AND => and_symbol,
+                                  Rule::BINARY_OR => or_symbol,
+                                  Rule::BINARY_LT => lt_symbol,
+                                  Rule::BINARY_GT => gt_symbol,
+                                  Rule::BINARY_EQ => eq_symbol,
+                                  Rule::BINARY_NE => ne_symbol,
+                                  Rule::BINARY_LE => le_symbol,
+                                  Rule::BINARY_GE => ge_symbol,
+                                  Rule::BINARY_BIT_OR => bit_or_symbol,
+                                  Rule::BINARY_BIT_AND => bit_and_symbol,
+                                  Rule::BINARY_BIT_XOR => bit_xor_symbol,
                                   _ => unreachable!(),
                               };
-                              Ok(XStaticExpr::new_call(func, vec![lhs, rhs]))
+                              Ok(XStaticExpr::new_call_sym(func, vec![lhs, rhs]))
                           })
         }
         Rule::expression1 => {
             let mut iter = input.into_inner().rev();
-            let mut expr = to_expr(iter.next().unwrap(), xscope)?;
+            let mut expr = to_expr(iter.next().unwrap(), xscope, interner)?;
             for inner in iter {
                 let func = match inner.as_rule() {
                     Rule::UNARY_PLUS => "pos",
@@ -382,19 +387,20 @@ fn to_expr(input: Pair<Rule>, xscope: &XCompilationScope) -> Result<XStaticExpr,
                     Rule::UNARY_NOT => "not",
                     _ => unreachable!(),
                 };
-                expr = XStaticExpr::new_call(func, vec![expr]);
+
+                expr = XStaticExpr::new_call(func, vec![expr], interner);
             }
             Ok(expr)
         }
         Rule::expression2 => {
             let mut iter = input.into_inner();
-            let mut ret = to_expr(iter.next().unwrap(), xscope)?;
+            let mut ret = to_expr(iter.next().unwrap(), xscope, interner)?;
             for meth_call in &iter.chunks(2) {
                 let mut meth_call_iter = meth_call.into_iter();
-                let method = XStaticExpr::Ident(meth_call_iter.next().unwrap().as_str().to_string());
+                let method = XStaticExpr::Ident(interner.get_or_intern(meth_call_iter.next().unwrap().as_str()));
                 let args = match meth_call_iter.next().unwrap().into_inner().next() {
                     None => Ok(vec![ret]),
-                    Some(c) => iter::once(Ok(ret)).chain(c.into_inner().map(|p| to_expr(p, xscope))).collect()
+                    Some(c) => iter::once(Ok(ret)).chain(c.into_inner().map(|p| to_expr(p, xscope, interner))).collect()
                 }?;
                 ret = XStaticExpr::Call(Box::new(method), args);
             };
@@ -402,7 +408,7 @@ fn to_expr(input: Pair<Rule>, xscope: &XCompilationScope) -> Result<XStaticExpr,
         }
         Rule::expression3 => {
             let mut iter = input.into_inner();
-            let mut ret = to_expr(iter.next().unwrap(), xscope)?;
+            let mut ret = to_expr(iter.next().unwrap(), xscope, interner)?;
             for next_args in iter {
                 let member = next_args.as_str();
                 ret = XStaticExpr::Member(Box::new(ret), member.to_string());
@@ -413,19 +419,19 @@ fn to_expr(input: Pair<Rule>, xscope: &XCompilationScope) -> Result<XStaticExpr,
             let mut iter = input.into_inner();
             let raw_callable = iter.next().unwrap();
             match iter.next() {
-                None => to_expr(raw_callable, xscope),
+                None => to_expr(raw_callable, xscope, interner),
                 Some(raw_first_args) => {
                     let args = raw_first_args.into_inner().next().map_or_else(|| Ok(vec![]), |c| {
-                        c.into_inner().map(|p| to_expr(p, xscope)).collect()
+                        c.into_inner().map(|p| to_expr(p, xscope, interner)).collect()
                     })?;
                     let mut ret;
                     if raw_callable.as_rule() == Rule::CNAME {}
-                    let callable = Box::new(to_expr(raw_callable, xscope)?);
+                    let callable = Box::new(to_expr(raw_callable, xscope, interner)?);
                     ret = XStaticExpr::Call(callable, args);
 
                     for next_args in iter {
                         let args = next_args.into_inner().next().map_or_else(|| Ok(vec![]), |c| {
-                            c.into_inner().map(|p| to_expr(p, xscope)).collect()
+                            c.into_inner().map(|p| to_expr(p, xscope, interner)).collect()
                         })?;
                         ret = XStaticExpr::Call(Box::new(ret), args);
                     }
@@ -443,7 +449,7 @@ fn to_expr(input: Pair<Rule>, xscope: &XCompilationScope) -> Result<XStaticExpr,
             panic!("{} is not a number", input.as_str());
         }
         Rule::CNAME => {
-            return Ok(XStaticExpr::Ident(input.as_str().to_string()));
+            return Ok(XStaticExpr::Ident(interner.get_or_intern(input.as_str())));
         }
         Rule::STRING => {
             return Ok(XStaticExpr::LiteralString(input.into_inner().next().unwrap().as_str().to_string()));
@@ -456,7 +462,7 @@ fn to_expr(input: Pair<Rule>, xscope: &XCompilationScope) -> Result<XStaticExpr,
             let container_type = iter.next().unwrap().into_inner().next().map_or("array", |c| c.as_str());
             let parts = iter.next().map_or_else(
                 || Ok(vec![]),
-                |c| c.into_inner().map(|p| to_expr(p, xscope)).collect(),
+                |c| c.into_inner().map(|p| to_expr(p, xscope, interner)).collect(),
             )?;
             Ok(match container_type {
                 "array" => XStaticExpr::Array(parts),
@@ -467,8 +473,8 @@ fn to_expr(input: Pair<Rule>, xscope: &XCompilationScope) -> Result<XStaticExpr,
         Rule::specialized_cname => {
             let mut iter = input.into_inner();
             let cname = iter.next().unwrap().as_str();
-            let args = iter.map(|p| xscope.get_complete_type(p, &HashSet::new())).collect::<Result<Vec<_>, _>>()?;
-            Ok(XStaticExpr::SpecializedIdent(cname.to_string(), args))
+            let args = iter.map(|p| xscope.get_complete_type(p, &HashSet::new(), interner)).collect::<Result<Vec<_>, _>>()?;
+            Ok(XStaticExpr::SpecializedIdent(interner.get_or_intern(cname), args))
         }
         _ => {
             panic!("not an expression {:?}", input);

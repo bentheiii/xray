@@ -7,11 +7,12 @@ use num::{BigInt, BigRational};
 use crate::builtin::array::{XArray, XArrayType};
 use crate::builtin::set::{XSet, XSetType};
 use crate::XFuncSpec;
-use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
+use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
 use crate::xtype::{Bind, common_type, mix_binds, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XStructSpec, XType};
 use crate::xvalue::{NativeCallable, XFunction, XValue};
 use derivative::Derivative;
 use itertools::Itertools;
+use string_interner::{DefaultSymbol, StringInterner};
 
 #[derive(Debug, Clone, Derivative)]
 #[derivative(Hash)]
@@ -24,15 +25,15 @@ pub enum XStaticExpr {
     Set(Vec<XStaticExpr>),
     Call(Box<XStaticExpr>, Vec<XStaticExpr>),
     Member(Box<XStaticExpr>, String),
-    Ident(String),
-    SpecializedIdent(String,
+    Ident(DefaultSymbol),
+    SpecializedIdent(DefaultSymbol,
                      #[derivative(Hash = "ignore")]
                      Vec<Arc<XType>>),
 }
 
 pub struct CompilationResult {
     pub expr: XExpr,
-    pub closure_vars: Vec<String>,
+    pub closure_vars: Vec<DefaultSymbol>,
 }
 
 impl From<XExpr> for CompilationResult {
@@ -45,37 +46,41 @@ impl From<XExpr> for CompilationResult {
 }
 
 impl CompilationResult {
-    pub fn new(expr: XExpr, closure_vars: Vec<String>) -> Self {
+    pub fn new(expr: XExpr, closure_vars: Vec<DefaultSymbol>) -> Self {
         CompilationResult {
             expr: expr,
             closure_vars,
         }
     }
-    fn join(results: Vec<Self>) -> (Vec<XExpr>, Vec<String>) {
+    fn join(results: Vec<Self>) -> (Vec<XExpr>, Vec<DefaultSymbol>) {
         let mut exprs = vec![];
         let mut closure_vars = vec![];
         for result in results {
             exprs.push(result.expr);
-            closure_vars.extend(result.closure_vars.iter().map(|s| s.to_string()));
+            closure_vars.extend(result.closure_vars.iter().map(|s| s.clone()));
         }
         (exprs, closure_vars)
     }
     fn map(self, f: impl FnOnce(XExpr) -> XExpr) -> Self {
         Self::new(f(self.expr), self.closure_vars)
     }
-    fn from_multi(other: (Vec<XExpr>, Vec<String>), f: impl FnOnce(Vec<XExpr>) -> XExpr) -> Self {
+    fn from_multi(other: (Vec<XExpr>, Vec<DefaultSymbol>), f: impl FnOnce(Vec<XExpr>) -> XExpr) -> Self {
         Self::new(f(other.0), other.1)
     }
 }
 
 
 impl XStaticExpr {
-    pub fn new_call(name: &str, args: Vec<XStaticExpr>) -> XStaticExpr {
-        XStaticExpr::Call(Box::new(XStaticExpr::Ident(name.to_string())), args)
+    pub fn new_call(name: &'static str, args: Vec<XStaticExpr>, interner: &mut StringInterner) -> XStaticExpr {
+        XStaticExpr::Call(Box::new(XStaticExpr::Ident(interner.get_or_intern_static(name))), args)
+    }
+
+    pub fn new_call_sym(name: Identifier, args: Vec<XStaticExpr>) -> XStaticExpr {
+        XStaticExpr::Call(Box::new(XStaticExpr::Ident(name)), args)
     }
 
     pub fn compile<'p>(&self, namespace: &'p XCompilationScope<'p>) -> Result<CompilationResult, String> {
-        fn resolve_overload(overloads: Vec<Rc<XStaticFunction>>, arg_types: &Vec<Arc<XType>>, name: &str) -> Result<XExpr, String> {
+        fn resolve_overload(overloads: Vec<Rc<XStaticFunction>>, arg_types: &Vec<Arc<XType>>, name: DefaultSymbol) -> Result<XExpr, String> {
             let mut exact_matches = vec![];
             let mut generic_matches = vec![];
             for overload in overloads {
@@ -91,18 +96,20 @@ impl XStaticExpr {
                 return Ok(exact_matches[0].clone());
             }
             if exact_matches.len() > 1 {
-                return Err(format!("ambiguous call to overloaded function {}", name));
+                // todo fix
+                return Err(format!("ambiguous call to overloaded function {:?}", name));
             }
             if generic_matches.len() == 1 {
                 return Ok(generic_matches[0].clone());
             }
             if generic_matches.len() > 1 {
-                return Err(format!("ambiguous generic call to overloaded function {}", name));
+                // todo fix
+                return Err(format!("ambiguous generic call to overloaded function {:?}", name));
             }
-            Err(format!("no overload found for {} with param types: {:?}", name, arg_types))
+            Err(format!("no overload found for {:?} with param types: {:?}", name, arg_types))
         }
 
-        fn compile_many<'p>(exprs: &Vec<XStaticExpr>, namespace: &'p XCompilationScope<'p>) -> Result<(Vec<XExpr>, Vec<String>), String> {
+        fn compile_many<'p>(exprs: &Vec<XStaticExpr>, namespace: &'p XCompilationScope<'p>) -> Result<(Vec<XExpr>, Vec<DefaultSymbol>), String> {
             let mut ret = vec![];
             for item in exprs {
                 let item = item.compile(namespace)?;
@@ -122,23 +129,25 @@ impl XStaticExpr {
                 let (compiled_args, mut cvars) = compile_many(args, namespace)?;
                 match func.as_ref() {
                     XStaticExpr::Ident(name) => {
-                        match namespace.get(name) {
+                        match namespace.get(*name) {
                             Some(XCompilationScopeItem::Overload(overloads)) => {
                                 let arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
                                 return Ok(CompilationResult::new(
-                                    XExpr::Call(Box::new(resolve_overload(overloads, &arg_types, name)?), compiled_args),
+                                    XExpr::Call(Box::new(resolve_overload(overloads, &arg_types, *name)?), compiled_args),
                                     cvars,
                                 ));
                             }
                             Some(XCompilationScopeItem::Struct(spec)) => {
                                 let arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
                                 if arg_types.len() != spec.fields.len() {
-                                    return Err(format!("Struct {} takes {} arguments, but {} were given", spec.name, spec.fields.len(), arg_types.len()));
+                                    // todo
+                                    return Err(format!("Struct {:?} takes {} arguments, but {} were given", spec.name, spec.fields.len(), arg_types.len()));
                                 }
                                 return if let Some(bind) = spec.bind(arg_types.clone()) {
                                     Ok(CompilationResult::new(XExpr::Construct(spec.clone(), bind, compiled_args), cvars))
                                 } else {
-                                    Err(format!("Struct {} does not take arguments {:?}", spec.name, arg_types))
+                                    // todo
+                                    Err(format!("Struct {:?} does not take arguments {:?}", spec.name, arg_types))
                                 };
                             }
                             _ => {}
@@ -153,22 +162,25 @@ impl XStaticExpr {
                                     mix_binds(&mut bind, new_bind);
                                 }
                                 None => {
-                                    return Err(format!("Specialized function {} takes argument of type {}, but {} was given", name, arg_type, actual_type));
+                                    // todo
+                                    return Err(format!("Specialized function {:?} takes argument of type {}, but {} was given", name, arg_type, actual_type));
                                 }
                             }
                         }
-                        return match namespace.get(name) {
+                        return match namespace.get(*name) {
                             Some(XCompilationScopeItem::Overload(overloads)) => {
                                 Ok(CompilationResult::new(
-                                    XExpr::Call(Box::new(resolve_overload(overloads, arg_types, name)?), compiled_args),
+                                    XExpr::Call(Box::new(resolve_overload(overloads, arg_types, *name)?), compiled_args),
                                     cvars,
                                 ))
                             }
                             Some(_) => {
-                                Err(format!("Non-function {} cannot be specialized", name))
+                                // todo
+                                Err(format!("Non-function {:?} cannot be specialized", name))
                             }
                             None => {
-                                Err(format!("No such function {}", name))
+                                // todo
+                                Err(format!("No such function {:?}", name))
                             }
                         };
                     }
@@ -192,27 +204,27 @@ impl XStaticExpr {
                 }
             }
             XStaticExpr::Ident(name) => {
-                match namespace.get_with_depth(name) {
-                    None => Err(format!("Undefined identifier: {}", name)),
-                    Some((XCompilationScopeItem::Struct(_), _)) => Err(format!("Struct {} cannot be used as a variable", name)),
+                match namespace.get_with_depth(*name) {
+                    None => Err(format!("Undefined identifier: {:?}", name)),
+                    Some((XCompilationScopeItem::Struct(_), _)) => Err(format!("Struct {:?} cannot be used as a variable", name)),
                     Some((item, depth)) => {
                         let cvars = if depth != 0 && depth != namespace.height {
                             vec![name.clone()]
                         } else { vec![] };
                         match &item {
                             XCompilationScopeItem::Value(t) => {
-                                Ok(CompilationResult::new(XExpr::Ident(name.to_string(), Box::new(IdentItem::Value(t.clone()))), cvars))
+                                Ok(CompilationResult::new(XExpr::Ident(*name, Box::new(IdentItem::Value(t.clone()))), cvars))
                             }
                             XCompilationScopeItem::Overload(overloads) => {
                                 if overloads.len() == 1 {
                                     let overload = &overloads[0];
                                     if overload.is_generic() {
-                                        Err(format!("Cannot use generic overload {} as a variable", name))
+                                        Err(format!("Cannot use generic overload {:?} as a variable", name))
                                     } else {
-                                        Ok(CompilationResult::new(XExpr::Ident(name.to_string(), Box::new(IdentItem::Function(overload.clone().into()))), cvars))
+                                        Ok(CompilationResult::new(XExpr::Ident(*name, Box::new(IdentItem::Function(overload.clone().into()))), cvars))
                                     }
                                 } else {
-                                    Err(format!("Ambiguous identifier: {}", name))
+                                    Err(format!("Ambiguous identifier: {:?}", name))
                                 }
                             }
                             _ => unreachable!()
@@ -221,15 +233,15 @@ impl XStaticExpr {
                 }
             }
             XStaticExpr::SpecializedIdent(name, arg_types) => {
-                match namespace.get_with_depth(name) {
+                match namespace.get_with_depth(*name) {
                     Some((XCompilationScopeItem::Overload(overloads), depth)) => {
                         let cvars = if depth != 0 && depth != namespace.height {
                             vec![name.clone()]
                         } else { vec![] };
-                        Ok(CompilationResult::new(resolve_overload(overloads, arg_types, name)?, cvars))
+                        Ok(CompilationResult::new(resolve_overload(overloads, arg_types, *name)?, cvars))
                     }
-                    None => Err(format!("Undefined identifier: {}", name)),
-                    Some(_) => Err(format!("Non-function {} cannot be specialized", name)),
+                    None => Err(format!("Undefined identifier: {:?}", name)),
+                    Some(_) => Err(format!("Non-function {:?} cannot be specialized", name)),
                 }
             }
         }
@@ -251,7 +263,7 @@ pub enum XExpr {
     Construct(XStructSpec, Bind, Vec<XExpr>),
     Member(Box<XExpr>, usize),
     KnownOverload(Rc<XStaticFunction>, Bind),
-    Ident(String, Box<IdentItem>),
+    Ident(DefaultSymbol, Box<IdentItem>),
     // this dummy exists for calling native functions with arguments that were already
     // evaluated
     Dummy(Rc<XValue>),
@@ -269,17 +281,17 @@ pub struct UfData {
     pub spec: XExplicitFuncSpec,
     pub declarations: Vec<Declaration>,
     pub output: Box<XExpr>,
-    pub cvars: HashSet<String>,
+    pub cvars: HashSet<DefaultSymbol>,
 
-    pub param_names: Vec<String>,
+    pub param_names: Vec<DefaultSymbol>,
     pub defaults: Vec<Rc<XValue>>,
-    pub variable_declarations: Vec<(String, XExpr)>,
+    pub variable_declarations: Vec<(DefaultSymbol, XExpr)>,
 }
 
 impl UfData {
-    pub fn new(spec: XExplicitFuncSpec, declarations: Vec<Declaration>, output: Box<XExpr>, cvars: HashSet<String>) -> UfData {
+    pub fn new(spec: XExplicitFuncSpec, declarations: Vec<Declaration>, output: Box<XExpr>, cvars: HashSet<DefaultSymbol>) -> UfData {
         UfData {
-            param_names: (&spec.args).iter().map(|p| p.name.clone()).collect(),
+            param_names: (&spec.args).iter().map(|p| p.name).collect(),
             defaults: (&spec.args).iter().skip_while(|p| p.default.is_none()).map(|p| p.default.clone().unwrap()).collect(),
             spec,
             output,
@@ -301,7 +313,7 @@ impl XStaticFunction {
         match self.as_ref() {
             XStaticFunction::Native(_, native) => XFunction::Native(*native),
             XStaticFunction::UserFunction(uf) => {
-                let closure = uf.cvars.iter().map(|name| (name.clone(), closure.get(name).unwrap().clone())).collect();
+                let closure = uf.cvars.iter().map(|&name| (name, closure.get(name).unwrap().clone())).collect();
                 XFunction::UserFunction(self.clone(), closure)
             }
             XStaticFunction::Recourse(_) => XFunction::Recourse(),
@@ -336,7 +348,7 @@ impl Eq for XStaticFunction {}
 #[derive(Debug, Clone, Eq, PartialEq, Derivative)]
 #[derivative(Hash)]
 pub struct XExplicitFuncSpec {
-    pub generic_params: Option<Vec<String>>,
+    pub generic_params: Option<Vec<DefaultSymbol>>,
     pub args: Vec<XExplicitArgSpec>,
     #[derivative(Hash = "ignore")]
     pub ret: Arc<XType>,
@@ -345,7 +357,7 @@ pub struct XExplicitFuncSpec {
 #[derive(Debug, Clone, Eq, PartialEq, Derivative)]
 #[derivative(Hash)]
 pub struct XExplicitArgSpec {
-    pub name: String,
+    pub name: DefaultSymbol,
     #[derivative(Hash = "ignore")]
     pub type_: Arc<XType>,
     pub default: Option<Rc<XValue>>,
@@ -435,11 +447,11 @@ impl XExpr {
             XExpr::LiteralString(_) => Ok(X_STRING.clone()),
             XExpr::Array(exprs) => {
                 let element_type = common_type(exprs.iter().map(|x| x.xtype()))?;
-                Ok(XType::XNative(Box::new(XArrayType {}), [("T".to_string(), element_type)].into()).into())
+                Ok(XType::XNative(Box::new(XArrayType {}), vec![element_type]).into())
             }
             XExpr::Set(exprs) => {
                 let element_type = common_type(exprs.iter().map(|x| x.xtype()))?;
-                Ok(XType::XNative(Box::new(XSetType {}), [("T".to_string(), element_type)].into()).into())
+                Ok(XType::XNative(Box::new(XSetType {}), vec![element_type]).into())
             }
             XExpr::Call(func, _) => {
                 if let XExpr::KnownOverload(func, bind) = func.as_ref() {
@@ -517,7 +529,7 @@ impl XExpr {
                 if let IdentItem::Function(func) = item.as_ref() {
                     Ok(XValue::Function(func.clone().to_function(namespace)).into())
                 } else {
-                    Ok(namespace.get(&name).ok_or_else(|| format!("Undefined identifier during evaluation: {}", name))?.clone().into())
+                    Ok(namespace.get(*name).ok_or_else(|| format!("Undefined identifier during evaluation: {:?}", name))?.clone().into())
                 }
             }
             XExpr::Dummy(val) => Ok(val.clone().into()),

@@ -8,14 +8,14 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use crate::native_types::{NativeType, XNativeValue};
 use derivative::Derivative;
+use string_interner::StringInterner;
 
 #[derive(Debug, Clone)]
 pub struct XStackType {}
 
 impl XStackType {
     pub fn xtype(t: Arc<XType>) -> Arc<XType> {
-        Arc::new(XType::XNative(Box::new(Self {}),
-                                HashMap::from([('T'.to_string(), t)])))
+        Arc::new(XType::XNative(Box::new(Self {}), vec![t]))
     }
 }
 
@@ -104,29 +104,29 @@ impl XStack {
 
 impl XNativeValue for XStack {}
 
-pub fn add_stack_type(scope: &mut XCompilationScope) -> Result<(), String> {
-    scope.add_native_type("Stack", XStackType::xtype(XType::XGeneric("T".to_string()).into()))
+pub fn add_stack_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    scope.add_native_type_intern("Stack", XStackType::xtype(XType::generic_from_name("T", interner)), interner)
 }
 
-pub fn add_stack_new(scope: &mut XCompilationScope) -> Result<(), String> {
-    scope.add_func(
+pub fn add_stack_new(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    scope.add_func_intern(
         "stack", XStaticFunction::Native(XFuncSpec {
             generic_params: None,
             params: vec![],
             ret: XStackType::xtype(X_UNKNOWN.clone()),
         }, |args, ns, _tca| {
             Ok(XValue::Native(Box::new(XStack::new())).into())
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_stack_push(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_stack_push(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "push", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t_stk.clone(),
@@ -148,17 +148,17 @@ pub fn add_stack_push(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_stack_to_array(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_stack_to_array(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "to_array", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t_stk.clone(),
@@ -175,17 +175,17 @@ pub fn add_stack_to_array(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_stack_to_array_reversed(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_stack_to_array_reversed(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "to_array_reversed", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t_stk.clone(),
@@ -202,17 +202,17 @@ pub fn add_stack_to_array_reversed(scope: &mut XCompilationScope) -> Result<(), 
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_stack_to_set(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_stack_to_set(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "to_set", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t_stk.clone(),
@@ -229,17 +229,17 @@ pub fn add_stack_to_set(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_stack_len(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_stack_len(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "len", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t_stk.clone(),
@@ -256,17 +256,17 @@ pub fn add_stack_len(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_stack_head(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_stack_head(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "head", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t_stk.clone(),
@@ -286,17 +286,17 @@ pub fn add_stack_head(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_stack_tail(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_stack_tail(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "tail", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t_stk.clone(),
@@ -319,6 +319,6 @@ pub fn add_stack_tail(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }

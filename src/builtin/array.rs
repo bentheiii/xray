@@ -6,6 +6,7 @@ use crate::xvalue::{XValue};
 use rc::Rc;
 use std::collections::HashMap;
 use std::sync::Arc;
+use string_interner::StringInterner;
 use crate::builtin::stack::{XStack, XStackType};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::XType::XCallable;
@@ -15,8 +16,7 @@ pub struct XArrayType {}
 
 impl XArrayType {
     pub fn xtype(t: Arc<XType>) -> Arc<XType> {
-        Arc::new(XType::XNative(Box::new(Self {}),
-                                HashMap::from([('T'.to_string(), t)])))
+        Arc::new(XType::XNative(Box::new(Self {}),vec![t.clone()]))
     }
 }
 
@@ -56,16 +56,16 @@ fn value_to_idx(arr: &Vec<Rc<XValue>>, i: &BigInt) -> Result<usize, String> {
     Ok(idx)
 }
 
-pub fn add_array_type(scope: &mut XCompilationScope) -> Result<(), String> {
-    scope.add_native_type("Array", XArrayType::xtype(XType::XGeneric("T".to_string()).into()))
+pub fn add_array_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    scope.add_native_type_intern("Array", XArrayType::xtype(XType::generic_from_name("T", interner)), interner)
 }
 
-pub fn add_array_get(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_array_get(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
 
-    scope.add_func(
+    scope.add_func_intern(
         "get", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: XArrayType::xtype(t.clone()),
@@ -88,16 +88,16 @@ pub fn add_array_get(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_array_len(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_array_len(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
 
-    scope.add_func(
+    scope.add_func_intern(
         "len", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: XArrayType::xtype(t.clone()),
@@ -114,17 +114,17 @@ pub fn add_array_len(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_array_add(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_array_add(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "add", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t_arr.clone(),
@@ -155,17 +155,17 @@ pub fn add_array_add(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_array_push(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_array_push(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "push", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t_arr.clone(),
@@ -189,17 +189,17 @@ pub fn add_array_push(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_array_rpush(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_array_rpush(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "rpush", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t.clone(),
@@ -223,17 +223,17 @@ pub fn add_array_rpush(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_array_insert(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_array_insert(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "insert", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t_arr.clone(),
@@ -265,17 +265,17 @@ pub fn add_array_insert(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_array_pop(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_array_pop(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "pop", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t_arr.clone(),
@@ -301,17 +301,17 @@ pub fn add_array_pop(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_array_set(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_array_set(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "set", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t_arr.clone(),
@@ -344,17 +344,17 @@ pub fn add_array_set(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_array_swap(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_array_swap(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
-    scope.add_func(
+    scope.add_func_intern(
         "swap", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: t_arr.clone(),
@@ -395,16 +395,16 @@ pub fn add_array_swap(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_array_to_stack(scope: &mut XCompilationScope) -> Result<(), String> {
-    let t = Arc::new(XType::XGeneric("T".to_string()));
+pub fn add_array_to_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let t = XType::generic_from_name("T", interner);
 
-    scope.add_func(
+    scope.add_func_intern(
         "to_stack", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: XArrayType::xtype(t.clone()),
@@ -425,17 +425,17 @@ pub fn add_array_to_stack(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }
 
-pub fn add_array_map(scope: &mut XCompilationScope) -> Result<(), String> {
-    let input_t = Arc::new(XType::XGeneric("T_IN".to_string()));
-    let output_t = Arc::new(XType::XGeneric("T_OUT".to_string()));
+pub fn add_array_map(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    let input_t = XType::generic_from_name("T_IN", interner);
+    let output_t = XType::generic_from_name("T_OUT", interner);
 
-    scope.add_func(
+    scope.add_func_intern(
         "map", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
             params: vec![
                 XFuncParamSpec {
                     type_: XArrayType::xtype(input_t.clone()),
@@ -464,6 +464,6 @@ pub fn add_array_map(scope: &mut XCompilationScope) -> Result<(), String> {
                 }
                 _ => unreachable!(),
             }
-        }))?;
+        }), interner)?;
     Ok(())
 }

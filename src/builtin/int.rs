@@ -5,9 +5,10 @@ use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpe
 use crate::xvalue::{XValue};
 use rc::Rc;
 use std::sync::Arc;
+use string_interner::StringInterner;
 
-pub fn add_int_type(scope: &mut XCompilationScope) -> Result<(), String> {
-    scope.add_native_type("int", X_INT.clone())
+pub fn add_int_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+    scope.add_native_type(interner.get_or_intern_static("int"), X_INT.clone())
 }
 
 macro_rules! add_int_binop {
@@ -75,11 +76,11 @@ add_ufunc!(add_int_display, display, X_INT, XValue::Int, X_STRING, |a:&BigInt| {
     Ok(XValue::String(a.to_string()).into())
 });
 
-pub fn add_int_digits(scope: &mut XCompilationScope) -> Result<(), String> {
+pub fn add_int_digits(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
 
     scope.add_func(
-        "digits", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T".to_string()]),
+        interner.get_or_intern_static("digits"), XStaticFunction::Native(XFuncSpec {
+            generic_params: None,
             params: vec![
                 XFuncParamSpec {
                     type_: X_INT.clone(),
