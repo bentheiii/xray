@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Integer, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, XArray, XArrayType, XCompilationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, Bind, XArray, XArrayType, XCompilationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue};
 use rc::Rc;
@@ -65,13 +65,13 @@ add_binop!(add_int_ge, ge, X_INT, XValue::Int, X_BOOL, |a,b|
     Ok(XValue::Bool(a >= b).into())
 );
 
-add_ufunc!(add_int_neg, neg, X_INT, XValue::Int, X_INT, |a:&BigInt| {
+add_ufunc!(add_int_neg, neg, X_INT, Int, X_INT, |a:&BigInt| {
     Ok(XValue::Int(-a).into())
 });
 
-add_ufunc!(add_int_to_str, to_str, X_INT, XValue::Int, X_STRING, |a:&BigInt| Ok(XValue::String(a.to_string()).into()));
+add_ufunc!(add_int_to_str, to_str, X_INT, Int, X_STRING, |a:&BigInt| Ok(XValue::String(a.to_string()).into()));
 
-add_ufunc!(add_int_display, display, X_INT, XValue::Int, X_STRING, |a:&BigInt| {
+add_ufunc!(add_int_display, display, X_INT, Int, X_STRING, |a:&BigInt| {
     println!("{}", a);
     Ok(XValue::String(a.to_string()).into())
 });

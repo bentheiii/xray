@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, XCallableSpec, XCompilationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, intern, to_native, to_primitive, XCallableSpec, XCompilationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue};
 use rc::Rc;
@@ -17,7 +17,7 @@ pub struct XArrayType {}
 
 impl XArrayType {
     pub fn xtype(t: Arc<XType>) -> Arc<XType> {
-        Arc::new(XType::XNative(Box::new(Self {}),vec![t.clone()]))
+        Arc::new(XType::XNative(Box::new(Self {}), vec![t.clone()]))
     }
 }
 
@@ -65,7 +65,7 @@ pub fn add_array_get(scope: &mut XCompilationScope, interner: &mut StringInterne
 
     scope.add_func_intern(
         "get", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: XArrayType::xtype(t.clone()),
@@ -78,16 +78,11 @@ pub fn add_array_get(scope: &mut XCompilationScope, interner: &mut StringInterne
             ],
             ret: t,
         }, |args, ns, _tca| {
-            let arr = args[0].eval(&ns, false)?.unwrap_value();
-            let idx = args[1].eval(&ns, false)?.unwrap_value();
-            match (arr.as_ref(), idx.as_ref()) {
-                (XValue::Native(b), XValue::Int(idx)) => {
-                    let arr = &b.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
-                    let idx = value_to_idx(&arr, idx)?;
-                    Ok(arr[idx].clone().into())
-                }
-                _ => unreachable!(),
-            }
+            let (a0, a1) = eval!(args, ns, 0,1);
+            let arr = &to_native!(a0, XArray).value;
+            let idx = to_primitive!(a1, Int);
+            let idx = value_to_idx(&arr, idx)?;
+            Ok(arr[idx].clone().into())
         }), interner)?;
     Ok(())
 }
@@ -97,7 +92,7 @@ pub fn add_array_len(scope: &mut XCompilationScope, interner: &mut StringInterne
 
     scope.add_func_intern(
         "len", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: XArrayType::xtype(t.clone()),
@@ -106,14 +101,9 @@ pub fn add_array_len(scope: &mut XCompilationScope, interner: &mut StringInterne
             ],
             ret: X_INT.clone(),
         }, |args, ns, _tca| {
-            let arr = args[0].eval(&ns, false)?.unwrap_value();
-            match arr.as_ref() {
-                XValue::Native(b) => {
-                    let arr = &b.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
-                    Ok(XValue::Int(arr.len().into()).into())
-                }
-                _ => unreachable!(),
-            }
+            let (a0,) = eval!(args, ns, 0);
+            let arr = &to_native!(a0, XArray).value;
+            Ok(XValue::Int(arr.len().into()).into())
         }), interner)?;
     Ok(())
 }
@@ -124,7 +114,7 @@ pub fn add_array_add(scope: &mut XCompilationScope, interner: &mut StringInterne
 
     scope.add_func_intern(
         "add", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: t_arr.clone(),
@@ -136,25 +126,20 @@ pub fn add_array_add(scope: &mut XCompilationScope, interner: &mut StringInterne
                 },
             ],
             ret: t_arr.clone(),
-        }, |args, ns, _tca| {
-            let v0 = args[0].eval(&ns, false)?.unwrap_value();
-            let v1 = args[1].eval(&ns, false)?.unwrap_value();
-            match (v0.as_ref(), v1.as_ref()) {
-                (XValue::Native(b0), XValue::Native(b1)) => {
-                    let arr0 = &b0.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
-                    let arr1 = &b1.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
-                    if arr0.is_empty() {
-                        return Ok(v1.clone().into());
-                    }
-                    if arr1.is_empty() {
-                        return Ok(v0.clone().into());
-                    }
-                    let mut arr = arr0.clone();
-                    arr.append(&mut arr1.clone());
-                    Ok(XValue::Native(Box::new(XArray::new(arr))).into())
-                }
-                _ => unreachable!(),
+        }, |args, ns, tca| {
+            let (a0,) = eval!(args, ns, 0);
+            let vec0 = &to_native!(a0, XArray).value;
+            if vec0.is_empty() {
+                return Ok(args[1].eval(&ns, tca)?);
             }
+            let (a1,) = eval!(args, ns, 1);
+            let vec1 = &to_native!(a1, XArray).value;
+            if vec1.is_empty() {
+                return Ok(a0.clone().into());
+            }
+            let mut arr = vec0.clone();
+            arr.extend(vec1.iter().cloned());
+            Ok(XValue::Native(Box::new(XArray::new(arr))).into())
         }), interner)?;
     Ok(())
 }
@@ -165,7 +150,7 @@ pub fn add_array_push(scope: &mut XCompilationScope, interner: &mut StringIntern
 
     scope.add_func_intern(
         "push", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: t_arr.clone(),
@@ -178,17 +163,11 @@ pub fn add_array_push(scope: &mut XCompilationScope, interner: &mut StringIntern
             ],
             ret: t_arr.clone(),
         }, |args, ns, _tca| {
-            let v0 = args[0].eval(&ns, false)?.unwrap_value();
-            let el = args[1].eval(&ns, false)?.unwrap_value();
-            match v0.as_ref() {
-                XValue::Native(b0) => {
-                    let arr = &b0.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
-                    let mut arr = arr.clone();
-                    arr.push(el.clone());
-                    Ok(XValue::Native(Box::new(XArray::new(arr))).into())
-                }
-                _ => unreachable!(),
-            }
+            let (a0, a1) = eval!(args, ns, 0, 1);
+            let vec0 = &to_native!(a0, XArray).value;
+            let mut arr = vec0.clone();
+            arr.push(a1.clone());
+            Ok(XValue::Native(Box::new(XArray::new(arr))).into())
         }), interner)?;
     Ok(())
 }
@@ -199,30 +178,24 @@ pub fn add_array_rpush(scope: &mut XCompilationScope, interner: &mut StringInter
 
     scope.add_func_intern(
         "rpush", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
-                    type_: t.clone(),
+                    type_: t_arr.clone(),
                     required: true,
                 },
                 XFuncParamSpec {
-                    type_: t_arr.clone(),
+                    type_: t.clone(),
                     required: true,
                 },
             ],
             ret: t_arr.clone(),
         }, |args, ns, _tca| {
-            let el = args[0].eval(&ns, false)?.unwrap_value();
-            let v0 = args[1].eval(&ns, false)?.unwrap_value();
-            match v0.as_ref() {
-                XValue::Native(b0) => {
-                    let arr_ = &b0.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
-                    let mut arr = vec![el.clone()];
-                    arr.extend(arr_.clone());
-                    Ok(XValue::Native(Box::new(XArray::new(arr))).into())
-                }
-                _ => unreachable!(),
-            }
+            let (a0, a1) = eval!(args, ns, 0, 1);
+            let vec0 = &to_native!(a0, XArray).value;
+            let mut arr = vec![a1.clone()];
+            arr.extend(vec0.iter().cloned());
+            Ok(XValue::Native(Box::new(XArray::new(arr))).into())
         }), interner)?;
     Ok(())
 }
@@ -233,7 +206,7 @@ pub fn add_array_insert(scope: &mut XCompilationScope, interner: &mut StringInte
 
     scope.add_func_intern(
         "insert", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: t_arr.clone(),
@@ -250,21 +223,15 @@ pub fn add_array_insert(scope: &mut XCompilationScope, interner: &mut StringInte
             ],
             ret: t_arr.clone(),
         }, |args, ns, _tca| {
-            let arr = args[0].eval(&ns, false)?.unwrap_value();
-            let idx = args[1].eval(&ns, false)?.unwrap_value();
-            let el = args[2].eval(&ns, false)?.unwrap_value();
-            match (arr.as_ref(), idx.as_ref()) {
-                (XValue::Native(b), XValue::Int(idx)) => {
-                    let arr = &b.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
-                    let idx = value_to_idx(arr, idx)?;
-                    let mut ret: Vec<Rc<_>> = vec![];
-                    ret.extend(arr.iter().take(idx - 1).map(|x| x.clone()));
-                    ret.push(el.clone());
-                    ret.extend(arr.iter().skip(idx - 1).map(|x| x.clone()));
-                    Ok(XValue::Native(Box::new(XArray::new(ret))).into())
-                }
-                _ => unreachable!(),
-            }
+            let (a0, a1, a2) = eval!(args, ns, 0,1,2);
+            let arr = &to_native!(a0, XArray).value;
+            let idx = to_primitive!(a1, Int);
+            let idx = value_to_idx(arr, idx)?;
+            let mut ret: Vec<Rc<_>> = vec![];
+            ret.extend(arr.iter().take(idx - 1).map(|x| x.clone()));
+            ret.push(a2.clone());
+            ret.extend(arr.iter().skip(idx - 1).map(|x| x.clone()));
+            Ok(XValue::Native(Box::new(XArray::new(ret))).into())
         }), interner)?;
     Ok(())
 }
@@ -275,7 +242,7 @@ pub fn add_array_pop(scope: &mut XCompilationScope, interner: &mut StringInterne
 
     scope.add_func_intern(
         "pop", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: t_arr.clone(),
@@ -288,19 +255,14 @@ pub fn add_array_pop(scope: &mut XCompilationScope, interner: &mut StringInterne
             ],
             ret: t_arr.clone(),
         }, |args, ns, _tca| {
-            let arr = args[0].eval(&ns, false)?.unwrap_value();
-            let idx = args[1].eval(&ns, false)?.unwrap_value();
-            match (arr.as_ref(), idx.as_ref()) {
-                (XValue::Native(b), XValue::Int(idx)) => {
-                    let arr = &b.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
-                    let idx = value_to_idx(arr, idx)?;
-                    let mut ret: Vec<Rc<_>> = vec![];
-                    ret.extend(arr.iter().take(idx).map(|x| x.clone()));
-                    ret.extend(arr.iter().skip(idx + 1).map(|x| x.clone()));
-                    Ok(XValue::Native(Box::new(XArray::new(ret))).into())
-                }
-                _ => unreachable!(),
-            }
+            let (a0, a1) = eval!(args, ns, 0,1);
+            let arr = &to_native!(a0, XArray).value;
+            let idx = to_primitive!(a1, Int);
+            let idx = value_to_idx(&arr, idx)?;
+            let mut ret: Vec<Rc<_>> = vec![];
+            ret.extend(arr.iter().take(idx).cloned());
+            ret.extend(arr.iter().skip(idx + 1).cloned());
+            Ok(XValue::Native(Box::new(XArray::new(ret))).into())
         }), interner)?;
     Ok(())
 }
@@ -311,7 +273,7 @@ pub fn add_array_set(scope: &mut XCompilationScope, interner: &mut StringInterne
 
     scope.add_func_intern(
         "set", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: t_arr.clone(),
@@ -328,22 +290,15 @@ pub fn add_array_set(scope: &mut XCompilationScope, interner: &mut StringInterne
             ],
             ret: t_arr.clone(),
         }, |args, ns, _tca| {
-            let arr = args[0].eval(&ns, false)?.unwrap_value();
-            let idx = args[1].eval(&ns, false)?.unwrap_value();
-            let el = args[2].eval(&ns, false)?.unwrap_value();
-            match (arr.as_ref(), idx.as_ref()) {
-                (XValue::Native(b), XValue::Int(idx)) => {
-                    let mut idx = idx.clone();
-                    let arr = &b.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
-                    let idx = value_to_idx(arr, &idx)?;
-                    let mut ret = vec![];
-                    ret.extend(arr.iter().take(idx - 1).map(|x| x.clone()));
-                    ret.push(el.clone());
-                    ret.extend(arr.iter().skip(idx).map(|x| x.clone()));
-                    Ok(XValue::Native(Box::new(XArray::new(ret))).into())
-                }
-                _ => unreachable!(),
-            }
+            let (a0, a1, a2) = eval!(args, ns, 0,1,2);
+            let arr = &to_native!(a0, XArray).value;
+            let idx = to_primitive!(a1, Int);
+            let idx = value_to_idx(arr, idx)?;
+            let mut ret: Vec<Rc<_>> = vec![];
+            ret.extend(arr.iter().take(idx - 1).map(|x| x.clone()));
+            ret.push(a2.clone());
+            ret.extend(arr.iter().skip(idx).map(|x| x.clone()));
+            Ok(XValue::Native(Box::new(XArray::new(ret))).into())
         }), interner)?;
     Ok(())
 }
@@ -354,7 +309,7 @@ pub fn add_array_swap(scope: &mut XCompilationScope, interner: &mut StringIntern
 
     scope.add_func_intern(
         "swap", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: t_arr.clone(),
@@ -371,30 +326,25 @@ pub fn add_array_swap(scope: &mut XCompilationScope, interner: &mut StringIntern
             ],
             ret: t_arr.clone(),
         }, |args, ns, _tca| {
-            let arr_val = args[0].eval(&ns, false)?.unwrap_value();
-            let idx0 = args[1].eval(&ns, false)?.unwrap_value();
-            let idx1 = args[2].eval(&ns, false)?.unwrap_value();
-            match (arr_val.as_ref(), idx0.as_ref(), idx1.as_ref()) {
-                (XValue::Native(b), XValue::Int(idx0), XValue::Int(idx1)) => {
-                    let arr = &b.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
-                    let mut idx0 = value_to_idx(arr, idx0)?;
-                    let mut idx1 = value_to_idx(arr, idx1)?;
-                    if idx0 == idx1 {
-                        return Ok(arr_val.clone().into());
-                    }
-                    if idx0 > idx1 {
-                        std::mem::swap(&mut idx0, &mut idx1);
-                    }
-                    let mut ret = vec![];
-                    ret.extend(arr.iter().take(idx0).map(|x| x.clone()));
-                    ret.push(arr[idx1].clone());
-                    ret.extend(arr.iter().skip(idx0 + 1).take(idx1 - idx0 - 1).map(|x| x.clone()));
-                    ret.push(arr[idx0].clone());
-                    ret.extend(arr.iter().skip(idx1 + 1).map(|x| x.clone()));
-                    Ok(XValue::Native(Box::new(XArray::new(ret))).into())
-                }
-                _ => unreachable!(),
+            let (a0, a1, a2) = eval!(args, ns, 0,1,2);
+            let arr = &to_native!(a0, XArray).value;
+            let idx1 = to_primitive!(a1, Int);
+            let idx2 = to_primitive!(a2, Int);
+            let mut idx1 = value_to_idx(arr, idx1)?;
+            let mut idx2 = value_to_idx(arr, idx2)?;
+            if idx1 == idx2 {
+                return Ok(a0.clone().into());
             }
+            if idx1 > idx2 {
+                (idx1, idx2) = (idx2, idx1);
+            }
+            let mut ret = vec![];
+            ret.extend(arr.iter().take(idx1).cloned());
+            ret.push(arr[idx2].clone());
+            ret.extend(arr.iter().skip(idx1 + 1).take(idx1 - idx2 - 1).cloned());
+            ret.push(arr[idx1].clone());
+            ret.extend(arr.iter().skip(idx2 + 1).cloned());
+            Ok(XValue::Native(Box::new(XArray::new(ret))).into())
         }), interner)?;
     Ok(())
 }
@@ -404,7 +354,7 @@ pub fn add_array_to_stack(scope: &mut XCompilationScope, interner: &mut StringIn
 
     scope.add_func_intern(
         "to_stack", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: XArrayType::xtype(t.clone()),
@@ -413,18 +363,13 @@ pub fn add_array_to_stack(scope: &mut XCompilationScope, interner: &mut StringIn
             ],
             ret: XStackType::xtype(t.clone()),
         }, |args, ns, _tca| {
-            let arr = args[0].eval(&ns, false)?.unwrap_value();
-            match arr.as_ref() {
-                XValue::Native(b) => {
-                    let arr = &b.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
-                    let mut ret = XStack::new();
-                    for x in arr {
-                        ret = ret.push(x.clone());
-                    }
-                    Ok(XValue::Native(Box::new(ret)).into())
-                }
-                _ => unreachable!(),
+            let (a0,) = eval!(args, ns, 0);
+            let arr = &to_native!(a0, XArray).value;
+            let mut ret = XStack::new();
+            for x in arr {
+                ret = ret.push(x.clone());
             }
+            Ok(XValue::Native(Box::new(ret)).into())
         }), interner)?;
     Ok(())
 }
@@ -435,7 +380,7 @@ pub fn add_array_map(scope: &mut XCompilationScope, interner: &mut StringInterne
 
     scope.add_func_intern(
         "map", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T_IN", "T_OUT")),
             params: vec![
                 XFuncParamSpec {
                     type_: XArrayType::xtype(input_t.clone()),
@@ -451,19 +396,13 @@ pub fn add_array_map(scope: &mut XCompilationScope, interner: &mut StringInterne
             ],
             ret: XArrayType::xtype(output_t.clone()),
         }, |args, ns, _tca| {
-            let arr_val = args[0].eval(&ns, false)?.unwrap_value();
-            let func = args[1].eval(&ns, false)?.unwrap_value();
-            match (arr_val.as_ref(), func.as_ref()) {
-                (XValue::Native(b), XValue::Function(f)) => {
-                    let arr = &b.as_ref()._as_any().downcast_ref::<XArray>().unwrap().value;
-
-                    let ret = arr.iter().map(|x| {
-                        f.eval_values(vec![x.clone()], &ns)
-                    }).collect::<Result<_,_>>()?;
-                    Ok(XValue::Native(Box::new(XArray::new(ret))).into())
-                }
-                _ => unreachable!(),
-            }
+            let (a0, a1) = eval!(args, ns, 0,1);
+            let arr = &to_native!(a0, XArray).value;
+            let f = to_primitive!(a1, Function);
+            let ret = arr.iter().map(|x| {
+                f.eval_values(vec![x.clone()], &ns)
+            }).collect::<Result<_, _>>()?;
+            Ok(XValue::Native(Box::new(XArray::new(ret))).into())
         }), interner)?;
     Ok(())
 }

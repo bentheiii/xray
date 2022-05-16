@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, XCompilationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, to_primitive, XCompilationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue};
 use rc::Rc;
@@ -15,7 +15,7 @@ add_binop!(add_bool_eq, pow, X_BOOL, XValue::Bool, X_BOOL, |a,b|
     Ok(XValue::Bool(a == b).into())
 );
 
-add_ufunc!(add_bool_display, display, X_BOOL, XValue::Bool, X_STRING, |a:&bool| {
+add_ufunc!(add_bool_display, display, X_BOOL, Bool, X_STRING, |a:&bool| {
     println!("{}", a);
     Ok(XValue::String(a.to_string()).into())
 });
@@ -28,7 +28,7 @@ add_ufunc_ref!(add_assert, display, X_BOOL, X_BOOL, |a:Rc<XValue>| {
     }
 });
 
-add_ufunc!(add_bool_not, not, X_BOOL, XValue::Bool, X_BOOL, |a:&bool| {
+add_ufunc!(add_bool_not, not, X_BOOL, Bool, X_BOOL, |a:&bool| {
     Ok(XValue::Bool(!a).into())
 });
 
@@ -48,11 +48,11 @@ pub fn add_and(scope: &mut XCompilationScope, interner: &mut StringInterner) -> 
             ],
             ret: X_BOOL.clone(),
         }, |args, ns, tca| {
-            let lhs = args[0].eval(&ns, false)?.unwrap_value();
-            if let XValue::Bool(true) = lhs.as_ref() {
+            let (a0,) = eval!(args, ns, 0);
+            if *to_primitive!(a0, Bool) {
                 return Ok(args[1].eval(&ns, tca)?);
             }
-            Ok(lhs.into())
+            Ok(a0.into())
         }), interner)?;
     Ok(())
 }
@@ -73,11 +73,11 @@ pub fn add_or(scope: &mut XCompilationScope, interner: &mut StringInterner) -> R
             ],
             ret: X_BOOL.clone(),
         }, |args, ns, tca| {
-            let lhs = args[0].eval(&ns, false)?.unwrap_value();
-            if let XValue::Bool(false) = lhs.as_ref() {
+            let (a0,) = eval!(args, ns, 0);
+            if !*to_primitive!(a0, Bool) {
                 return Ok(args[1].eval(&ns, tca)?);
             }
-            Ok(lhs.into())
+            Ok(a0.into())
         }), interner)?;
     Ok(())
 }

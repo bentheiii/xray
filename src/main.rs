@@ -51,13 +51,13 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    fn foo(x: int) -> int {
+    fn foo(x: int) -> Array<int> {
         if(x == 0,
-            1,
-            foo(x - 1)
+            [1],
+            [] + foo(x - 1)
         )
     }
-    let z = foo(3000);
+    let z = foo(3000).map(neg);
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
