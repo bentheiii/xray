@@ -21,8 +21,48 @@ pub enum XType {
     XNative(Box::<dyn NativeType>, Vec<Arc<XType>>),
 }
 
-pub type Bind = HashMap<Identifier, Arc<XType>>;
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct Bind {
+    bound_generics: HashMap<Identifier, Arc<XType>>,
+}
 
+impl Bind {
+    pub fn new() -> Self {
+        Bind {
+            bound_generics: HashMap::new(),
+        }
+    }
+
+    pub fn from<T: Into<HashMap<Identifier, Arc<XType>>>>(bound_generics: T) -> Self {
+        Bind {
+            bound_generics: bound_generics.into(),
+        }
+    }
+
+
+    pub fn mix(mut self, other: &Bind) -> Option<Self> {
+        let mut bg = &mut self.bound_generics;
+        for (k, v) in other.bound_generics.iter() {
+            if bg.contains_key(k) {
+                if *bg[k] != **v {
+                    return None;
+                }
+            } else {
+                bg.insert(k.clone(), v.clone());
+            }
+        }
+        Some(self)
+    }
+
+    pub fn get(&self, id: &Identifier) -> Option<&Arc<XType>> {
+        self.bound_generics.get(id)
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item=(&Identifier, &Arc<XType>)> {
+        self.bound_generics.iter()
+    }
+
+}
 
 
 #[derive(Clone, Hash, Debug, Eq, PartialEq)]
@@ -50,9 +90,9 @@ impl XStructSpec {
         if args.len() != self.fields.len() {
             return None;
         }
-        let mut ret = HashMap::new();
+        let mut ret = Bind::new();
         for (arg, param) in args.into_iter().zip(self.fields.iter()) {
-            ret = mix_binds(&mut ret, param.type_.bind_in_assignment(&arg)?)?;
+            ret = ret.mix(&param.type_.bind_in_assignment(&arg)?)?;
         }
         Some(ret)
     }
@@ -96,9 +136,9 @@ impl XFuncSpec {
         if args.len() < min || args.len() > max {
             return None;
         }
-        let mut ret = HashMap::new();
+        let mut ret = Bind::new();
         for (arg, param) in args.into_iter().zip(self.params.iter()) {
-            ret = mix_binds(&mut ret, param.type_.bind_in_assignment(arg)?)?;
+            ret = ret.mix(&param.type_.bind_in_assignment(&arg)?)?;
         }
         Some(ret)
     }
@@ -131,20 +171,6 @@ pub struct XFuncParamSpec {
     pub required: bool,
 }
 
-pub fn mix_binds(binds1: &mut Bind, binds2: Bind) -> Option<Bind> {
-    let mut binds = binds1.clone();
-    for (k, v) in binds2.iter() {
-        if binds.contains_key(k) {
-            if *binds[k] != **v {
-                return None;
-            }
-        } else {
-            binds.insert(k.clone(), v.clone());
-        }
-    }
-    Some(binds)
-}
-
 impl XType {
     pub fn generic_from_name(name: &'static str, interner: &mut StringInterner) -> Arc<XType> {
         Arc::new(XType::XGeneric(interner.get_or_intern_static(name)))
@@ -152,35 +178,35 @@ impl XType {
 
     pub fn bind_in_assignment(&self, other: &Arc<XType>) -> Option<Bind> {
         match (self, other.as_ref()) {
-            (XType::Bool, XType::Bool) => Some(HashMap::new()),
-            (XType::Int, XType::Int) => Some(HashMap::new()),
-            (XType::Rational, XType::Rational) => Some(HashMap::new()),
-            (XType::String, XType::String) => Some(HashMap::new()),
+            (XType::Bool, XType::Bool) => Some(Bind::new()),
+            (XType::Int, XType::Int) => Some(Bind::new()),
+            (XType::Rational, XType::Rational) => Some(Bind::new()),
+            (XType::String, XType::String) => Some(Bind::new()),
             (XType::XStruct(a, ref bind_a), XType::XStruct(b, ref bind_b)) => {
                 if a != b {
                     return None;
                 }
-                let mut bind = HashMap::new();
+                let mut bind = Bind::new();
                 for p_type in a.fields.iter().map(|f| f.type_.clone()) {
                     if let Some(binds) = p_type.clone().resolve_bind(bind_a).bind_in_assignment(&p_type.resolve_bind(bind_b)) {
-                        bind = mix_binds(&mut bind, binds)?;
+                        bind = bind.mix(&binds)?;
                     } else {
                         return None;
                     }
                 }
                 Some(bind)
-            },
+            }
             (XType::XCallable(ref a), XType::XCallable(ref b)) => {
-                let mut total_binds = HashMap::new();
+                let mut total_binds = Bind::new();
                 for (a_type, b_type) in a.param_types.iter().zip(b.param_types.iter()) {
                     if let Some(binds) = a_type.bind_in_assignment(&b_type) {
-                        total_binds = mix_binds(&mut total_binds, binds)?;
+                        total_binds = total_binds.mix(&binds)?;
                     } else {
                         return None;
                     }
                 }
                 if let Some(binds) = a.return_type.bind_in_assignment(&b.return_type) {
-                    total_binds = mix_binds(&mut total_binds, binds)?;
+                    total_binds = total_binds.mix(&binds)?;
                 } else {
                     return None;
                 }
@@ -192,16 +218,16 @@ impl XType {
                 if a_min < b_min || a_max > b_max {
                     return None;
                 }
-                let mut total_binds = HashMap::new();
+                let mut total_binds = Bind::new();
                 for (a_arg, b_arg) in a.params.iter().zip(b.params.iter()) {
                     if let Some(binds) = a_arg.type_.bind_in_assignment(&b_arg.type_) {
-                        total_binds = mix_binds(&mut total_binds, binds)?;
+                        total_binds = total_binds.mix(&binds)?;
                     } else {
                         return None;
                     }
                 }
                 if let Some(binds) = a.ret.bind_in_assignment(&b.ret) {
-                    total_binds = mix_binds(&mut total_binds, binds)?;
+                    total_binds = total_binds.mix(&binds)?;
                 } else {
                     return None;
                 }
@@ -212,16 +238,16 @@ impl XType {
                 if a.param_types.len() < b_min || a.param_types.len() > b_max {
                     return None;
                 }
-                let mut total_binds = HashMap::new();
+                let mut total_binds = Bind::new();
                 for (a_type, b_arg) in a.param_types.iter().zip(b.params.iter()) {
                     if let Some(binds) = a_type.bind_in_assignment(&b_arg.type_) {
-                        total_binds = mix_binds(&mut total_binds, binds)?;
+                        total_binds = total_binds.mix(&binds)?;
                     } else {
                         return None;
                     }
                 }
                 if let Some(binds) = a.return_type.bind_in_assignment(&b.ret) {
-                    total_binds = mix_binds(&mut total_binds, binds)?;
+                    total_binds = total_binds.mix(&binds)?;
                 } else {
                     return None;
                 }
@@ -231,26 +257,26 @@ impl XType {
                 if a != b {
                     return None;
                 }
-                let mut bind = HashMap::new();
+                let mut bind = Bind::new();
                 for (a_v, b_v) in a_bind.iter().zip(b_bind.iter()) {
                     // since the types are equal we can assume they have the same keys at binding
                     if let Some(binds) = a_v.bind_in_assignment(b_v) {
-                        bind = mix_binds(&mut bind, binds)?;
+                        bind = bind.mix(&binds)?;
                     } else {
                         return None;
                     }
                 }
                 Some(bind)
             }
-            (_, XType::XUnknown) => Some(HashMap::new()),
+            (_, XType::XUnknown) => Some(Bind::new()),
             (XType::XGeneric(ref a), XType::XGeneric(ref b)) if a == b => {
-                Some(HashMap::new())
-            },
+                Some(Bind::new())
+            }
             (XType::XGeneric(ref a), _) => {
-                Some(HashMap::from([
+                Some(Bind::from([
                     (a.clone(), other.clone()),
                 ]))
-            },
+            }
 
             _ => None,
         }
@@ -262,10 +288,21 @@ impl XType {
                 for (k, a_v) in a.generic_names().iter().zip(a_bind.iter()) {
                     new_bind.insert(k.clone(), a_v.clone().resolve_bind(bind));
                 }
-                XType::XNative(a.clone(), a.generic_names().iter().map(|n| new_bind.get(n).unwrap().clone()).collect()).into()
-            },
+                XType::XNative(a.clone(), a.generic_names().iter().map(|n| new_bind.get(n).unwrap()).cloned().collect()).into()
+            }
             XType::XGeneric(ref a) => bind.get(a).map(|b| b.clone()).unwrap_or(self.clone()),
             _ => self,
+        }
+    }
+
+    pub fn is_unknown(self: &Arc<XType>) -> bool {
+        match self.as_ref() {
+            XType::XUnknown => true,
+            XType::XNative(_, types) => types.iter().cloned().any(|t| t.is_unknown()),
+            XType::XCallable(spec) => spec.param_types.iter().cloned().any(|t| t.is_unknown()) || spec.return_type.is_unknown(),
+            XType::XFunc(spec) => spec.params.iter().any(|t| t.type_.clone().is_unknown()) || spec.ret.is_unknown(),
+            XType::XStruct(_, bind) => bind.iter().any(|(_, t)| t.is_unknown()),
+            _ => false,
         }
     }
 }

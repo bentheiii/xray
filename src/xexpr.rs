@@ -9,7 +9,7 @@ use crate::builtin::array::{XArray, XArrayType};
 use crate::builtin::set::{XSet, XSetType};
 use crate::XFuncSpec;
 use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
-use crate::xtype::{Bind, common_type, mix_binds, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XStructSpec, XType};
+use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XStructSpec, XType};
 use crate::xvalue::{NativeCallable, XFunction, XValue};
 use derivative::Derivative;
 use itertools::Itertools;
@@ -84,9 +84,11 @@ impl XStaticExpr {
         fn resolve_overload(overloads: Vec<Rc<XStaticFunction>>, arg_types: &Vec<Arc<XType>>, name: DefaultSymbol) -> Result<XExpr, String> {
             let mut exact_matches = vec![];
             let mut generic_matches = vec![];
+            let is_unknown = arg_types.iter().any(|t| t.is_unknown());
+            // if the bindings are unknown, then we prefer generic solutions over exact solutions
             for overload in overloads {
                 if let Some(bind) = overload.bind(arg_types) {
-                    if overload.is_generic() {
+                    if overload.is_generic() ^ is_unknown {
                         &mut generic_matches
                     } else {
                         &mut exact_matches
@@ -158,15 +160,9 @@ impl XStaticExpr {
                         let actual_arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
                         let mut bind = Bind::new();
                         for (arg_type, actual_type) in arg_types.iter().zip(actual_arg_types.iter()) {
-                            match arg_type.bind_in_assignment(actual_type) {
-                                Some(new_bind) => {
-                                    mix_binds(&mut bind, new_bind);
-                                }
-                                None => {
-                                    // todo
-                                    return Err(format!("Specialized function {:?} takes argument of type {}, but {} was given", name, arg_type, actual_type));
-                                }
-                            }
+                            bind = arg_type.bind_in_assignment(actual_type)
+                                .and_then(|b| bind.mix(&b))
+                                .ok_or_else(|| format!("Specialized function {:?} takes argument of type {}, but {} was given", name, arg_type, actual_type))?;
                         }
                         return match namespace.get(*name) {
                             Some(XCompilationScopeItem::Overload(overloads)) => {
@@ -464,7 +460,7 @@ impl XExpr {
                     return Ok(spec.return_type.clone());
                 }
                 if let XType::XFunc(func) = func.xtype()?.as_ref() {
-                    return Ok(func.rtype(&HashMap::new()));
+                    return Ok(func.rtype(&Bind::new()));
                 }
                 Err(format!("Expected function type, got {:?}", func.xtype()?))
             }
@@ -480,7 +476,7 @@ impl XExpr {
             XExpr::Ident(_, item) => {
                 match item.as_ref() {
                     IdentItem::Value(xtype) => Ok(xtype.clone()),
-                    IdentItem::Function(func) => Ok(func.xtype(&HashMap::new())),
+                    IdentItem::Function(func) => Ok(func.xtype(&Bind::new())),
                 }
             }
             XExpr::Dummy(_) => unreachable!(),

@@ -11,6 +11,7 @@ mod xvalue;
 mod xexpr;
 mod builtin;
 mod native_types;
+mod limit;
 
 extern crate pest;
 #[macro_use]
@@ -51,13 +52,13 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    fn foo(x: int) -> Array<int> {
-        if(x == 0,
-            [1],
-            [] + foo(x - 1)
-        )
+    fn foo(x: Stack<int>) -> int {
+        0
     }
-    let z = foo(3000).map(neg);
+    fn foo<T>(x: Stack<T>) -> int {
+        1
+    }
+    let z = foo(stack());
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -306,7 +307,7 @@ impl<'p> XCompilationScope<'p> {
                                     Ok(t)
                                 }
                             }
-                            XCompilationScopeItem::Struct(t) => Ok(Arc::new(XType::XStruct(t, HashMap::new()))),
+                            XCompilationScopeItem::Struct(t) => Ok(Arc::new(XType::XStruct(t, Bind::new()))),
                             other => Err(format!("{:?} is not a type", other))
                         }
                     }
