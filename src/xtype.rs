@@ -59,7 +59,6 @@ impl Bind {
     pub fn iter(&self) -> impl Iterator<Item=(&Identifier, &Arc<XType>)> {
         self.bound_generics.iter()
     }
-
 }
 
 
@@ -272,18 +271,14 @@ impl XType {
                 Some(Bind::new())
             }
             (XType::XGeneric(ref a), _) => {
-                Some(if other.is_unknown() {
-                    Bind::new()
-                } else {
-                    Bind::from([
-                        (a.clone(), other.clone()),
-                    ])
-                })
+                Some(Bind::from([
+                    (a.clone(), other.clone()),
+                ]))
             }
 
             _ => {
                 None
-            },
+            }
         }
     }
     pub fn resolve_bind(self: Arc<XType>, bind: &Bind) -> Arc<XType> {

@@ -64,6 +64,7 @@ impl XFunction {
                     XStaticFunction::UserFunction(uf) => uf,
                     _ => unreachable!(),
                 };
+                let mut recursion_depth = 0 as usize;
                 loop {
                     let closure_scope = if !closure.is_empty() {
                         let mut scope = XEvaluationScope::from_parent(&parent_scope, &self, runtime.clone())?;
@@ -94,6 +95,12 @@ impl XFunction {
                         TailedEvalResult::Value(value) => return Ok(value),
                         TailedEvalResult::TailCall(new_args) => {
                             args = new_args;
+                            recursion_depth += 1;
+                            if let Some(recursion_limit) = runtime.borrow().limits.recursion_limit {
+                                if recursion_depth > recursion_limit {
+                                    return Err(format!("Recursion limit of {} exceeded", recursion_limit));
+                                }
+                            }
                         }
                     }
                 }

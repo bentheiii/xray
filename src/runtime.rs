@@ -5,7 +5,7 @@ use std::rc::Rc;
 pub struct RuntimeLimits {
     pub size_limit: Option<usize>,
     pub depth_limit: Option<usize>,
-    pub recursion_limit: usize,
+    pub recursion_limit: Option<usize>,
 }
 
 impl RuntimeLimits {
