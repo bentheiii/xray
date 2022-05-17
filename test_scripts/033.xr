@@ -1,0 +1,22 @@
+union msg(
+    x: Array<int>,
+    y: rational
+)
+
+fn sum(x: Array<int>) -> int {
+    fn helper(i: int, ret: int) -> int {
+        if(i == x.len(),
+            ret,
+            helper(i+1, ret + x.get(i)))
+    }
+    helper(0, 0)
+}
+
+fn do(m: msg) -> int {
+    m::x.map(sum) || m::y.map(floor)
+}
+
+fn main()->bool {
+    assert(do(msg::x([1,15,16]) == 32)
+    && assert(do(msg::y(17/3)) == 5)
+}

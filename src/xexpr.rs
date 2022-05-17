@@ -239,7 +239,7 @@ impl XStaticExpr {
             }
             XStaticExpr::Ident(name) => {
                 match namespace.get_with_depth(*name) {
-                    None => Err(format!("Undefined identifier: {:?}", name)),
+                    None => Err(format!("Undefined root identifier: {:?}", name)),
                     Some((XCompilationScopeItem::Struct(_), _)) => Err(format!("Struct {:?} cannot be used as a variable", name)),
                     Some((item, depth)) => {
                         let cvars = if depth != 0 && depth != namespace.height {
@@ -274,7 +274,7 @@ impl XStaticExpr {
                         } else { vec![] };
                         Ok(CompilationResult::new(resolve_overload(overloads, arg_types, *name)?, cvars))
                     }
-                    None => Err(format!("Undefined identifier: {:?}", name)),
+                    None => Err(format!("Undefined specialized identifier: {:?}", name)),
                     Some(_) => Err(format!("Non-function {:?} cannot be specialized", name)),
                 }
             }

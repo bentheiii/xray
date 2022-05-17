@@ -181,7 +181,8 @@ impl XType {
             (XType::Int, XType::Int) => Some(Bind::new()),
             (XType::Rational, XType::Rational) => Some(Bind::new()),
             (XType::String, XType::String) => Some(Bind::new()),
-            (XType::XStruct(a, ref bind_a), XType::XStruct(b, ref bind_b)) => {
+            (XType::XStruct(a, ref bind_a), XType::XStruct(b, ref bind_b))|
+            (XType::XUnion(a, ref bind_a), XType::XUnion(b, ref bind_b))=> {
                 if a != b {
                     return None;
                 }

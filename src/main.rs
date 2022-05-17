@@ -50,12 +50,25 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    union A (
-        a: int,
-        b: bool
+    union msg(
+        x: Array<int>,
+        y: rational
     )
-    let t = A::b(true);
-    let z = t::b.map(not);
+
+    fn sum(x: Array<int>) -> int {
+        fn helper(i: int, ret: int) -> int {
+            if(i == x.len(),
+                ret,
+                helper(i+1, ret + x.get(i)))
+        }
+        helper(0, 0)
+    }
+
+    fn do(m: msg) -> int {
+        (m::x.map(sum) || m::y.map(floor)).value()
+    }
+
+    let z = do(msg::x([1,15,16]));
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -123,6 +136,7 @@ fn main() {
     add_optional_or_unwrap(&mut root_scope, &mut interner).unwrap();
     add_optional_or(&mut root_scope, &mut interner).unwrap();
     add_optional_and(&mut root_scope, &mut interner).unwrap();
+    add_optional_value(&mut root_scope, &mut interner).unwrap();
 
     let limits = RuntimeLimits{..RuntimeLimits::default()
     };
@@ -332,7 +346,9 @@ impl<'p> XCompilationScope<'p> {
                                     Ok(t)
                                 }
                             }
+                            // todo gen params
                             XCompilationScopeItem::Struct(t) => Ok(Arc::new(XType::XStruct(t, Bind::new()))),
+                            XCompilationScopeItem::Union(t) => Ok(Arc::new(XType::XUnion(t, Bind::new()))),
                             other => Err(format!("{:?} is not a type", other))
                         }
                     }

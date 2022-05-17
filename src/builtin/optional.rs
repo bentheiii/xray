@@ -75,23 +75,24 @@ pub fn add_optional_some(scope: &mut XCompilationScope, interner: &mut StringInt
 }
 
 pub fn add_optional_map(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
-    let t = XType::generic_from_name("T", interner);
+    let t_in = XType::generic_from_name("T_IN", interner);
+    let t_out = XType::generic_from_name("T_OUT", interner);
     scope.add_func_intern(
         "map", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(intern!(interner, "T")),
+            generic_params: Some(intern!(interner, "T_IN", "T_OUT")),
             params: vec![
                 XFuncParamSpec {
-                    type_: XOptionalType::xtype(t.clone()),
+                    type_: XOptionalType::xtype(t_in.clone()),
                     required: true,
                 },
                 XFuncParamSpec {
                     type_: Arc::new(XCallable(XCallableSpec {
-                        param_types: vec![t.clone()],
-                        return_type: t.clone(),
+                        param_types: vec![t_in.clone()],
+                        return_type: t_out.clone(),
                     })),
                     required: true,
                 }],
-            ret: XOptionalType::xtype(t),
+            ret: XOptionalType::xtype(t_out),
         }, |args, ns, _tca, rt| {
             let (a0, ) = eval!(args, ns, rt, 0);
             let opt0 = &to_native!(a0, XOptional).value;
