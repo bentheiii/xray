@@ -5,6 +5,7 @@ use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpe
 use crate::xvalue::{XValue};
 use rc::Rc;
 use std::collections::{HashMap, HashSet};
+use std::mem::size_of;
 use std::sync::Arc;
 use crate::native_types::{NativeType, XNativeValue};
 use derivative::Derivative;
@@ -34,7 +35,11 @@ struct XOptional {
     pub value: Option<Rc<XValue>>,
 }
 
-impl XNativeValue for XOptional {}
+impl XNativeValue for XOptional {
+    fn size(&self) -> usize {
+        1
+    }
+}
 
 pub fn add_optional_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
     scope.add_native_type_intern("Optional", XOptionalType::xtype(XType::generic_from_name("T", interner)), interner)

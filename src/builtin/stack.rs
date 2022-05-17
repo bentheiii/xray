@@ -5,6 +5,7 @@ use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpe
 use crate::xvalue::{XValue};
 use rc::Rc;
 use std::collections::{HashMap, HashSet};
+use std::mem::size_of;
 use std::sync::Arc;
 use crate::native_types::{NativeType, XNativeValue};
 use derivative::Derivative;
@@ -70,14 +71,14 @@ impl XStack {
         }
     }
 
-    fn to_vec<const Rev: bool>(&self) -> Vec<Rc<XValue>> {
+    fn to_vec<const REV: bool>(&self) -> Vec<Rc<XValue>> {
         let mut vec = Vec::with_capacity(self.length);
         let mut node = &self.head;
         while let Some(ref n) = node {
             vec.push(n.value.clone());
             node = &n.next;
         }
-        if !Rev {
+        if !REV {
             vec.reverse();
         }
         vec
@@ -94,7 +95,11 @@ impl XStack {
     }
 }
 
-impl XNativeValue for XStack {}
+impl XNativeValue for XStack {
+    fn size(&self) -> usize {
+        self.length * size_of::<usize>()
+    }
+}
 
 pub fn add_stack_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
     scope.add_native_type_intern("Stack", XStackType::xtype(XType::generic_from_name("T", interner)), interner)

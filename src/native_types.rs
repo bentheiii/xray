@@ -44,7 +44,9 @@ impl<S: 'static + PartialEq> RuntimeEquatable for S {
     }
 }
 
-pub trait XNativeValue: Debug + RuntimeEquatable {}
+pub trait XNativeValue: Debug + RuntimeEquatable {
+    fn size(&self) -> usize;
+}
 
 impl PartialEq for dyn XNativeValue {
     fn eq(&self, that: &dyn XNativeValue) -> bool {

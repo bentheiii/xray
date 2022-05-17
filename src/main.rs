@@ -11,15 +11,14 @@ mod xvalue;
 mod xexpr;
 mod builtin;
 mod native_types;
-mod limit;
+mod runtime;
 
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 extern crate core;
 
-use std::borrow::BorrowMut;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashSet};
 use std::iter;
 use std::sync::Arc;
 use itertools::Itertools;
@@ -27,8 +26,6 @@ use pest::iterators::Pair;
 use pest::Parser;
 use pest::prec_climber::{Operator, PrecClimber};
 use pest::prec_climber::Assoc::{Left, Right};
-use std::iter::FromIterator;
-use std::ptr::eq;
 use num::BigRational;
 use string_interner::StringInterner;
 

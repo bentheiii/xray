@@ -5,6 +5,7 @@ use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpe
 use crate::xvalue::{XValue};
 use rc::Rc;
 use std::collections::{HashMap, HashSet};
+use std::mem::size_of;
 use std::sync::Arc;
 use crate::native_types::{NativeType, XNativeValue};
 use derivative::Derivative;
@@ -42,7 +43,11 @@ impl XSet {
     }
 }
 
-impl XNativeValue for XSet {}
+impl XNativeValue for XSet {
+    fn size(&self) -> usize {
+        self.value.len() * size_of::<usize>()
+    }
+}
 
 pub fn add_set_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
     scope.add_native_type_intern("Set", XSetType::xtype(XType::generic_from_name("T", interner)), interner)

@@ -6,6 +6,7 @@ use crate::xvalue::{XValue};
 use rc::Rc;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::mem::size_of;
 use std::sync::Arc;
 use string_interner::StringInterner;
 use crate::builtin::stack::{XStack, XStackType};
@@ -39,7 +40,11 @@ impl XArray {
     }
 }
 
-impl XNativeValue for XArray {}
+impl XNativeValue for XArray {
+    fn size(&self) -> usize {
+        self.value.len() * size_of::<usize>()
+    }
+}
 
 fn value_to_idx(arr: &Vec<Rc<XValue>>, i: &BigInt) -> Result<usize, String> {
     let mut i = Cow::Borrowed(i);

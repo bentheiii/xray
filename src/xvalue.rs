@@ -1,9 +1,13 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::hash::{Hash, Hasher};
+use std::mem::size_of;
+use std::ops::Deref;
 use std::rc::Rc;
 use num::{BigInt, BigRational};
 use crate::native_types::XNativeValue;
+use crate::runtime::Runtime;
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
 use crate::xscope::{Declaration, Identifier, XEvaluationScope};
 
@@ -14,9 +18,6 @@ pub enum XValue {
     String(String),
     Bool(bool),
     Function(XFunction),
-    /*Sequence(Vec<XValue>),
-    Set(XHashSet),
-    Map(XHashMap),*/
     StructInstance(Vec<Rc<XValue>>),
     Native(Box<dyn XNativeValue>),
 }
@@ -26,10 +27,6 @@ pub type NativeCallable = fn(&Vec<XExpr>, &XEvaluationScope<'_>, bool) -> Result
 #[derive(Clone)]
 pub enum XFunction {
     Native(NativeCallable),
-    // params, default_values, declarations, output, closure
-    // the default values are always at the end so if we have a function:
-    // f(a, b = 1, c = 2)
-    // then the params are [a,b,c] and default values are [1, 2]
     UserFunction(Rc<XStaticFunction>, HashMap<Identifier, Rc<XValue>>),
     Recourse(),
 }
@@ -106,25 +103,6 @@ impl XFunction {
         }
     }
 }
-/*
-impl<'c> From<XStaticFunction> for XFunction {
-    fn from(stat: XStaticFunction) -> Self {
-        match stat {
-            XStaticFunction::Native(_, native) => XFunction::Native(native),
-            XStaticFunction::UserFunction(specs, declarations, output) => XFunction::UserFunction(specs.args.iter().map(|p| p.name.clone()).collect(),
-                                                                                                  declarations.iter().filter_map(|decl|{
-                                                                                                      if let Declaration::Value(name, expr) = decl {
-                                                                                                          Some((name.clone(), expr.clone()))
-                                                                                                      } else {
-                                                                                                          None
-                                                                                                      }
-                                                                                                  }).collect(),
-                                                                                                  output),
-            XStaticFunction::Recourse(_) => XFunction::Recourse(),
-        }
-    }
-}
- */
 
 impl Debug for XFunction {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
@@ -163,5 +141,56 @@ impl Hash for XFunction {
                 2.hash(state)
             }
         }
+    }
+}
+
+impl XValue{
+    pub fn size(&self) -> usize {
+        match self {
+            XValue::Int(i) => (i.bits() / 8) as usize,
+            XValue::Rational(r) => ((r.numer().bits() + r.denom().bits()) / 8) as usize,
+            XValue::String(s) => s.len(),
+            XValue::Bool(_) => 1,
+            XValue::Function(XFunction::Native(_)) => size_of::<usize>(),
+            XValue::Function(XFunction::UserFunction(_, closure)) => size_of::<usize>() + closure.len() * size_of::<usize>(),
+            XValue::Function(XFunction::Recourse()) => size_of::<usize>(),
+            XValue::StructInstance(items) => items.len() * size_of::<usize>(),
+            XValue::Native(n) => size_of::<usize>() + n.size(),
+        }
+    }
+}
+
+struct ManagedXValue {
+    runtime: Rc<RefCell<Runtime>>,
+    size: usize,
+    value: XValue
+}
+
+impl Drop for ManagedXValue {
+    fn drop(&mut self) {
+        self.runtime.borrow_mut().size -= self.size;
+    }
+}
+
+impl ManagedXValue {
+    pub fn new(value: XValue, runtime: Rc<RefCell<Runtime>>) -> Result<Rc<ManagedXValue>, String> {
+        let size = value.size();
+        runtime.borrow_mut().size += size;
+        if runtime.borrow().size > runtime.borrow().limits.size_limit {
+            return Err(format!("Size limit exceeded: {} bytes", runtime.borrow().size));
+        }
+        Ok(Rc::new(ManagedXValue {
+            runtime,
+            size: value.size(),
+            value
+        }))
+    }
+
+}
+
+impl Deref for ManagedXValue {
+    type Target = XValue;
+    fn deref(&self) -> &XValue {
+        &self.value
     }
 }
