@@ -20,6 +20,7 @@ pub enum XValue {
     Bool(bool),
     Function(XFunction),
     StructInstance(Vec<Rc<ManagedXValue>>),
+    UnionInstance(usize, Rc<ManagedXValue>),
     Native(Box<dyn XNativeValue>),
 }
 
@@ -163,6 +164,7 @@ impl XValue{
             XValue::Function(XFunction::UserFunction(_, closure)) => size_of::<usize>() + closure.len() * size_of::<usize>(),
             XValue::Function(XFunction::Recourse()) => size_of::<usize>(),
             XValue::StructInstance(items) => items.len() * size_of::<usize>(),
+            XValue::UnionInstance(_, item) => item.size() + size_of::<usize>(),
             XValue::Native(n) => size_of::<usize>() + n.size(),
         }
     }

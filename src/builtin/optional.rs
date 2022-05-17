@@ -31,7 +31,7 @@ impl NativeType for XOptionalType {
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]
-struct XOptional {
+pub struct XOptional {
     pub value: Option<Rc<ManagedXValue>>,
 }
 

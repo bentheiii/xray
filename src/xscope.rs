@@ -1,14 +1,13 @@
-use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::iter::from_fn;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
-use crate::runtime::{RTCell, Runtime, RuntimeLimits};
+use crate::runtime::{RTCell, RuntimeLimits};
 use crate::xexpr::{XExpr, XStaticFunction};
-use crate::xtype::{XFuncSpec, XStructSpec, XType};
-use crate::xvalue::{ManagedXValue, XFunction, XValue};
+use crate::xtype::{XFuncSpec, XStructSpec, XType, XUnionSpec};
+use crate::xvalue::{ManagedXValue, XFunction};
 
 pub type Identifier = DefaultSymbol;
 
@@ -16,6 +15,7 @@ pub struct XCompilationScope<'p> {
     pub values: HashMap<Identifier, (Option<XExpr>, Arc<XType>)>,
     pub types: HashMap<Identifier, Arc<XType>>,
     pub structs: HashMap<Identifier, Arc<XStructSpec>>,
+    pub unions: HashMap<Identifier, Arc<XUnionSpec>>,
     pub functions: HashMap<Identifier, Vec<Rc<XStaticFunction>>>,
     pub recourse: Option<(Identifier, Rc<XFuncSpec>)>,
     pub closure_variables: HashSet<Identifier>,
@@ -29,6 +29,7 @@ pub enum XCompilationScopeItem {
     Value(Arc<XType>),
     NativeType(Arc<XType>),
     Struct(Arc<XStructSpec>),
+    Union(Arc<XUnionSpec>),
     Overload(Vec<Rc<XStaticFunction>>),
 }
 
@@ -39,6 +40,7 @@ impl<'p> XCompilationScope<'p> {
             types: HashMap::new(),
             structs: HashMap::new(),
             functions: HashMap::new(),
+            unions: HashMap::new(),
             parent: None,
             recourse: None,
             closure_variables: HashSet::new(),
@@ -53,6 +55,7 @@ impl<'p> XCompilationScope<'p> {
             types: HashMap::new(),
             structs: HashMap::new(),
             functions: HashMap::new(),
+            unions: HashMap::new(),
             parent: Some(parent),
             recourse: Some((recourse_name, Rc::new(recourse_spec))),
             closure_variables: HashSet::new(),
@@ -98,6 +101,9 @@ impl<'p> XCompilationScope<'p> {
             if let Some(struct_spec) = scope.structs.get(&name) {
                 return Some((XCompilationScopeItem::Struct(struct_spec.clone()), depth));
             }
+            if let Some(struct_spec) = scope.unions.get(&name) {
+                return Some((XCompilationScopeItem::Union(struct_spec.clone()), depth));
+            }
             if let Some(type_spec) = scope.types.get(&name) {
                 return Some((XCompilationScopeItem::NativeType(type_spec.clone()), depth));
             }
@@ -141,6 +147,12 @@ impl<'p> XCompilationScope<'p> {
         // todo ensure no shadowing
         self.structs.insert(name, Arc::new(struct_spec.clone()));
         Ok(Declaration::Struct(struct_spec))
+    }
+
+    pub fn add_union(&mut self, name: DefaultSymbol, union_spec: XUnionSpec) -> Result<Declaration, String> {
+        // todo ensure no shadowing
+        self.unions.insert(name, Arc::new(union_spec.clone()));
+        Ok(Declaration::Union(union_spec))
     }
 
     pub fn add_native_type(&mut self, name: DefaultSymbol, type_: Arc<XType>) -> Result<(), String> {
@@ -188,6 +200,7 @@ impl<'p> XCompilationScope<'p> {
 pub enum Declaration {
     Value(DefaultSymbol, XExpr),
     Struct(XStructSpec),
+    Union(XUnionSpec),
     UserFunction(DefaultSymbol, Rc<XStaticFunction>),
 }
 
@@ -199,6 +212,7 @@ impl Hash for Declaration {
             Declaration::UserFunction(name, _) => {
                 name.hash(state);
             }
+            Declaration::Union(spec) => spec.hash(state),
         }
     }
 }

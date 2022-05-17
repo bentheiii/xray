@@ -50,16 +50,12 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    fn range(start: int, stop: int, step:int ?= 1)->Array<int> {
-        fn range_helper(ret: Stack<int>, i:int)->Stack<int> {
-            (i >= stop).if(
-                ret,
-                range_helper(ret.push(i), i + step)
-            )
-        }
-        range_helper(stack(), start).to_array()
-    }
-    let z = range(1, 1000);
+    union A (
+        a: int,
+        b: bool
+    )
+    let t = A::b(true);
+    let z = t::b.map(not);
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -128,9 +124,7 @@ fn main() {
     add_optional_or(&mut root_scope, &mut interner).unwrap();
     add_optional_and(&mut root_scope, &mut interner).unwrap();
 
-    let limits = RuntimeLimits{
-        recursion_limit: Some(500),
-        ..RuntimeLimits::default()
+    let limits = RuntimeLimits{..RuntimeLimits::default()
     };
     let runtime = limits.to_runtime();
 
@@ -263,6 +257,28 @@ impl<'p> XCompilationScope<'p> {
                 let struct_ = XStructSpec::new(symbol, params);
                 Ok(vec![self.add_struct(symbol, struct_)?])
             }
+            Rule::union_def => {
+                let mut inners = input.into_inner();
+                let _pub_opt = inners.next().unwrap();
+                let var_name = inners.next().unwrap().as_str();
+                let gen_params = inners.next().unwrap();
+                let mut gen_param_names = HashSet::new();
+                if let Some(gen_params) = gen_params.into_inner().next() {
+                    for param in gen_params.into_inner() {
+                        gen_param_names.insert(param.as_str().to_string());
+                    }
+                }
+                let param_pairs = inners.next().unwrap();
+                let params = param_pairs.into_inner().map(|p| {
+                    let mut param_iter = p.into_inner();
+                    let name = param_iter.next().unwrap().as_str();
+                    let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner)?;
+                    Ok(XStructFieldSpec { name: name.to_string(), type_ })
+                }).collect::<Result<Vec<_>, String>>()?;
+                let symbol = interner.get_or_intern(var_name);
+                let struct_ = XStructSpec::new(symbol, params);
+                Ok(vec![self.add_union(symbol, struct_)?])
+            }
             Rule::EOI => Ok(Vec::new()),
             _ => {
                 println!("{:?}", input);
@@ -323,7 +339,7 @@ impl<'p> XCompilationScope<'p> {
                 }
             }
             _ => {
-                println!("{:?}", input);
+                println!("{:?}", input.as_str());
                 Err(format!("{} is not a type", input))
             }
         }
@@ -416,16 +432,18 @@ fn to_expr(input: Pair<Rule>, xscope: &XCompilationScope, interner: &mut StringI
             };
             Ok(ret)
         }
-        Rule::expression3 => {
+        Rule::expression4 => {
             let mut iter = input.into_inner();
             let mut ret = to_expr(iter.next().unwrap(), xscope, interner)?;
+            let mut gen_params = iter.next().unwrap().into_inner().next().map(|p| p.into_inner().map(|p|xscope.get_complete_type(p, &HashSet::new(), interner)).collect::<Result<Vec<_>, _>>()).transpose()?;
             for next_args in iter {
                 let member = next_args.as_str();
-                ret = XStaticExpr::Member(Box::new(ret), member.to_string());
+                ret = XStaticExpr::Member(Box::new(ret), gen_params, member.to_string());
+                gen_params = None;
             }
             Ok(ret)
         }
-        Rule::expression4 => {
+        Rule::expression3 => {
             let mut iter = input.into_inner();
             let raw_callable = iter.next().unwrap();
             match iter.next() {

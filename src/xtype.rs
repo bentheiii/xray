@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
-use std::net::Incoming;
 use std::sync::Arc;
 use derivative::Derivative;
 use string_interner::{DefaultSymbol, StringInterner};
@@ -15,6 +14,7 @@ pub enum XType {
     String,
     XUnknown,
     XStruct(Arc<XStructSpec>, Bind),
+    XUnion(Arc<XUnionSpec>, Bind),
     XCallable(XCallableSpec),
     XFunc(XFuncSpec),
     XGeneric(Identifier),
@@ -69,6 +69,8 @@ pub struct XStructSpec {
     pub fields: Vec<XStructFieldSpec>,
     pub indices: BTreeMap<String, usize>,
 }
+
+pub type XUnionSpec = XStructSpec;
 
 impl XStructSpec {
     pub fn new(name: Identifier, fields: Vec<XStructFieldSpec>) -> XStructSpec {
@@ -335,6 +337,7 @@ impl Display for XType {
             XType::Rational => write!(f, "rational"),
             XType::String => write!(f, "string"),
             XType::XStruct(ref a, ref b) => write!(f, "{:?}<{:?}>", a.name, b),
+            XType::XUnion(ref a, ref b) => write!(f, "{:?}<{:?}>", a.name, b),
             XType::XCallable(ref a) => write!(f, "{:?}->{}", a.param_types, a.return_type),
             XType::XFunc(ref a) => {
                 write!(f, "(")?;
