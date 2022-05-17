@@ -1,8 +1,8 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, intern, to_native, to_primitive, XArray, XArrayType, XCallableSpec, XCompilationScope, XSet, XSetType, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, intern, manage_native, to_native, to_primitive, XArray, XArrayType, XCallableSpec, XCompilationScope, XSet, XSetType, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
-use crate::xvalue::{XValue};
+use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
 use std::collections::{HashMap, HashSet};
 use std::mem::size_of;
@@ -32,7 +32,7 @@ impl NativeType for XOptionalType {
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 struct XOptional {
-    pub value: Option<Rc<XValue>>,
+    pub value: Option<Rc<ManagedXValue>>,
 }
 
 impl XNativeValue for XOptional {
@@ -51,8 +51,8 @@ pub fn add_optional_null(scope: &mut XCompilationScope, interner: &mut StringInt
             generic_params: None,
             params: vec![],
             ret: XOptionalType::xtype(X_UNKNOWN.clone()),
-        }, |_args, _ns, _tca| {
-            Ok(XValue::Native(Box::new(XOptional { value: None })).into())
+        }, |_args, _ns, _tca, rt| {
+            Ok(manage_native!(XOptional { value: None }, rt))
         }), interner)?;
     Ok(())
 }
@@ -67,9 +67,9 @@ pub fn add_optional_some(scope: &mut XCompilationScope, interner: &mut StringInt
                 required: true,
             }],
             ret: XOptionalType::xtype(t),
-        }, |args, ns, _tca| {
-            let (a0, ) = eval!(args, ns, 0);
-            Ok(XValue::Native(Box::new(XOptional { value: Some(a0) })).into())
+        }, |args, ns, _tca, rt| {
+            let (a0, ) = eval!(args, ns, rt, 0);
+            Ok(manage_native!(XOptional { value: Some(a0) }, rt))
         }), interner)?;
     Ok(())
 }
@@ -92,17 +92,17 @@ pub fn add_optional_map(scope: &mut XCompilationScope, interner: &mut StringInte
                     required: true,
                 }],
             ret: XOptionalType::xtype(t),
-        }, |args, ns, _tca| {
-            let (a0, ) = eval!(args, ns, 0);
+        }, |args, ns, _tca, rt| {
+            let (a0, ) = eval!(args, ns, rt, 0);
             let opt0 = &to_native!(a0, XOptional).value;
             Ok(match opt0 {
                 None => a0.into(),
                 Some(v) => {
-                    let (a1, ) = eval!(args, ns, 1);
+                    let (a1, ) = eval!(args, ns, rt, 1);
                     let f1 = to_primitive!(a1, Function);
-                    XValue::Native(Box::new(XOptional {
-                        value: Some(f1.eval_values(vec![v.clone()], &ns)?)
-                    })).into()
+                    manage_native!(XOptional {
+                        value: Some(f1.eval_values(vec![v.clone()], &ns, rt.clone())?)
+                    }, rt)
                 }
             })
         }), interner)?;
@@ -132,15 +132,15 @@ pub fn add_optional_map_or(scope: &mut XCompilationScope, interner: &mut StringI
                 },
             ],
             ret: t,
-        }, |args, ns, tca| {
-            let (a0, ) = eval!(args, ns, 0);
+        }, |args, ns, tca, rt| {
+            let (a0, ) = eval!(args, ns, rt, 0);
             let opt0 = &to_native!(a0, XOptional).value;
             match opt0 {
-                None => Ok(args[2].eval(&ns, tca)?),
+                None => Ok(args[2].eval(&ns, tca, rt)?),
                 Some(v) => {
-                    let (a1, ) = eval!(args, ns, 1);
+                    let (a1, ) = eval!(args, ns, rt, 1);
                     let f1 = to_primitive!(a1, Function);
-                    Ok(f1.eval_values(vec![v.clone()], &ns)?.into())
+                    Ok(f1.eval_values(vec![v.clone()], &ns, rt)?.into())
                 }
             }
         }), interner)?;
@@ -165,11 +165,11 @@ pub fn add_optional_or_unwrap(scope: &mut XCompilationScope, interner: &mut Stri
                     }],
                 ret: t.clone(),
             },
-            |args, ns, tca| {
-                let (a0, ) = eval!(args, ns, 0);
+            |args, ns, tca, rt| {
+                let (a0, ) = eval!(args, ns, rt, 0);
                 let opt0 = &to_native!(a0, XOptional).value;
                 Ok(match opt0 {
-                    None => args[1].eval(&ns, tca)?,
+                    None => args[1].eval(&ns, tca, rt)?,
                     Some(v) => v.clone().into()
                 })
             },
@@ -195,11 +195,11 @@ pub fn add_optional_or(scope: &mut XCompilationScope, interner: &mut StringInter
                     }],
                 ret: opt_t.clone(),
             },
-            |args, ns, tca| {
-                let (a0, ) = eval!(args, ns, 0);
+            |args, ns, tca, rt| {
+                let (a0, ) = eval!(args, ns, rt, 0);
                 let opt0 = &to_native!(a0, XOptional).value;
                 Ok(match opt0 {
-                    None => args[1].eval(&ns, tca)?,
+                    None => args[1].eval(&ns, tca, rt)?,
                     Some(_) => a0.clone().into()
                 })
             },
@@ -225,11 +225,11 @@ pub fn add_optional_and(scope: &mut XCompilationScope, interner: &mut StringInte
                     }],
                 ret: opt_t,
             },
-            |args, ns, tca| {
-                let (a0, ) = eval!(args, ns, 0);
+            |args, ns, tca, rt| {
+                let (a0, ) = eval!(args, ns, rt, 0);
                 let opt0 = &to_native!(a0, XOptional).value;
                 Ok(match opt0 {
-                    Some(_) => args[1].eval(&ns, tca)?,
+                    Some(_) => args[1].eval(&ns, tca, rt)?,
                     None => a0.clone().into()
                 })
             },
@@ -252,10 +252,10 @@ pub fn add_optional_has_value(scope: &mut XCompilationScope, interner: &mut Stri
                 ],
                 ret: X_BOOL.clone(),
             },
-            |args, ns, _tca| {
-                let (a0, ) = eval!(args, ns, 0);
+            |args, ns, _tca, rt| {
+                let (a0, ) = eval!(args, ns, rt, 0);
                 let opt0 = &to_native!(a0, XOptional).value;
-                Ok(XValue::Bool(opt0.is_some()).into())
+                Ok(ManagedXValue::new(XValue::Bool(opt0.is_some()), rt)?.into())
             },
         ), interner)?;
     Ok(())
@@ -276,8 +276,8 @@ pub fn add_optional_value(scope: &mut XCompilationScope, interner: &mut StringIn
                 ],
                 ret: t.clone(),
             },
-            |args, ns, _tca| {
-                let (a0, ) = eval!(args, ns, 0);
+            |args, ns, _tca, rt| {
+                let (a0, ) = eval!(args, ns, rt, 0);
                 let opt0 = to_native!(a0, XOptional).value.clone();
                 Ok(opt0.unwrap().clone().into())
             },

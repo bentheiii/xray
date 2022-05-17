@@ -1,12 +1,14 @@
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::iter::from_fn;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
+use crate::runtime::{RTCell, Runtime, RuntimeLimits};
 use crate::xexpr::{XExpr, XStaticFunction};
 use crate::xtype::{XFuncSpec, XStructSpec, XType};
-use crate::xvalue::{XFunction, XValue};
+use crate::xvalue::{ManagedXValue, XFunction, XValue};
 
 pub type Identifier = DefaultSymbol;
 
@@ -154,7 +156,7 @@ impl<'p> XCompilationScope<'p> {
         self.add_native_type(interner.get_or_intern_static(name), type_)
     }
 
-    pub fn to_eval_scope(&self) -> Result<XEvaluationScope, String> {
+    pub fn to_eval_scope(&self, runtime: RTCell) -> Result<XEvaluationScope, String> {
         let mut ret = XEvaluationScope::root();
         let mut current_scope = Some(self);
         while let Some(s) = current_scope {
@@ -162,12 +164,13 @@ impl<'p> XCompilationScope<'p> {
                 match expr {
                     None => {}
                     Some(expr) => {
-                        let evaluated = expr.eval(&ret, false);
+                        let evaluated = expr.eval(&ret, false, runtime.clone());
                         let value = match evaluated {
                             Ok(value) => value.unwrap_value(),
                             Err(_) => {
                                 // we actually allow this error to happen, since some expressions might depend on params or other unknown values
                                 // todo find some way to report this
+                                // todo catch limit errors
                                 continue;
                             }
                         };
@@ -201,7 +204,7 @@ impl Hash for Declaration {
 }
 
 pub struct XEvaluationScope<'p> {
-    pub values: HashMap<DefaultSymbol, Rc<XValue>>,
+    pub values: HashMap<DefaultSymbol, Rc<ManagedXValue>>,
     pub recourse: Option<&'p XFunction>,
     parent: Option<&'p XEvaluationScope<'p>>,
 }
@@ -223,19 +226,19 @@ impl<'p> XEvaluationScope<'p> {
         }
     }
 
-    pub fn get(&self, name: DefaultSymbol) -> Option<Rc<XValue>> {
+    pub fn get(&self, name: DefaultSymbol) -> Option<Rc<ManagedXValue>> {
         self.values.get(&name).cloned().or_else(|| self.parent.as_ref().and_then(|parent| parent.get(name)))
     }
 
-    pub fn add(&mut self, name: DefaultSymbol, value: Rc<XValue>) {
+    pub fn add(&mut self, name: DefaultSymbol, value: Rc<ManagedXValue>) {
         self.values.insert(name, value);
     }
 
-    pub fn add_from(&mut self, other: &Vec<Declaration>) -> Result<(), String> {
+    pub fn add_from(&mut self, other: &Vec<Declaration>, runtime: RTCell) -> Result<(), String> {
         for decl in other {
             match decl {
                 Declaration::Value(name, expr) => {
-                    let value = expr.eval(self, false)?.unwrap_value();
+                    let value = expr.eval(self, false, runtime.clone())?.unwrap_value();
                     self.add(name.clone(), value);
                 }
                 _ => {}

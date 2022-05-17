@@ -5,9 +5,10 @@ use std::hash::{Hash, Hasher};
 use std::mem::size_of;
 use std::ops::Deref;
 use std::rc::Rc;
+use derivative::Derivative;
 use num::{BigInt, BigRational};
 use crate::native_types::XNativeValue;
-use crate::runtime::Runtime;
+use crate::runtime::{RTCell, Runtime};
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
 use crate::xscope::{Declaration, Identifier, XEvaluationScope};
 
@@ -18,45 +19,45 @@ pub enum XValue {
     String(String),
     Bool(bool),
     Function(XFunction),
-    StructInstance(Vec<Rc<XValue>>),
+    StructInstance(Vec<Rc<ManagedXValue>>),
     Native(Box<dyn XNativeValue>),
 }
 
-pub type NativeCallable = fn(&Vec<XExpr>, &XEvaluationScope<'_>, bool) -> Result<TailedEvalResult, String>;
+pub type NativeCallable = fn(&Vec<XExpr>, &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String>;
 
 #[derive(Clone)]
 pub enum XFunction {
     Native(NativeCallable),
-    UserFunction(Rc<XStaticFunction>, HashMap<Identifier, Rc<XValue>>),
+    UserFunction(Rc<XStaticFunction>, HashMap<Identifier, Rc<ManagedXValue>>),
     Recourse(),
 }
 
 impl XFunction {
-    pub fn eval<'p>(&'p self, args: &Vec<XExpr>, parent_scope: &XEvaluationScope<'p>, tail_available: bool) -> Result<TailedEvalResult, String> {
+    pub fn eval<'p>(&'p self, args: &Vec<XExpr>, parent_scope: &XEvaluationScope<'p>, tail_available: bool, runtime: RTCell) -> Result<TailedEvalResult, String> {
         match self {
             XFunction::Native(native) => {
-                native(args, parent_scope, tail_available)
+                native(args, parent_scope, tail_available, runtime)
             }
             XFunction::UserFunction(..) => {
-                let mut arguments = args.iter().map(|x| x.eval(parent_scope, false).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
-                self.eval_values(arguments, parent_scope).map(|r| r.into())
+                let mut arguments = args.iter().map(|x| x.eval(parent_scope, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
+                self.eval_values(arguments, parent_scope, runtime).map(|r| r.into())
             }
             XFunction::Recourse() => {
                 if tail_available {
-                    let arguments = args.iter().map(|x| x.eval(parent_scope, false).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
+                    let arguments = args.iter().map(|x| x.eval(parent_scope, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
                     return Ok(TailedEvalResult::TailCall(arguments));
                 }
-                parent_scope.recourse.unwrap().eval(args, parent_scope, tail_available)
+                parent_scope.recourse.unwrap().eval(args, parent_scope, tail_available, runtime)
             }
         }
     }
 
-    pub fn eval_values<'p>(&'p self, mut args: Vec<Rc<XValue>>, parent_scope: &XEvaluationScope<'p>) -> Result<Rc<XValue>, String> {
+    pub fn eval_values<'p>(&'p self, mut args: Vec<Rc<ManagedXValue>>, parent_scope: &XEvaluationScope<'p>, runtime: RTCell) -> Result<Rc<ManagedXValue>, String> {
         match self {
             XFunction::Native(native) => {
                 // we need to wrap all the values with dummy expressions, so that native functions can handle them
                 let args = args.iter().map(|x| XExpr::Dummy(x.clone())).collect::<Vec<_>>();
-                native(&args, parent_scope, false).map(|r| r.unwrap_value())
+                native(&args, parent_scope, false, runtime).map(|r| r.unwrap_value())
             }
             XFunction::UserFunction(func, closure) => {
                 let uf = match func.as_ref() {
@@ -87,9 +88,9 @@ impl XFunction {
                         scope.add(name, value.clone());
                     }
                     for (name, expr) in &uf.variable_declarations {
-                        scope.add(*name, expr.eval(&scope, false)?.unwrap_value());
+                        scope.add(*name, expr.eval(&scope, false, runtime.clone())?.unwrap_value());
                     }
-                    match uf.output.eval(&scope, true)? {
+                    match uf.output.eval(&scope, true, runtime.clone())? {
                         TailedEvalResult::Value(value) => return Ok(value),
                         TailedEvalResult::TailCall(new_args) => {
                             args = new_args;
@@ -98,7 +99,7 @@ impl XFunction {
                 }
             }
             XFunction::Recourse() => {
-                parent_scope.recourse.unwrap().eval_values(args, parent_scope)
+                parent_scope.recourse.unwrap().eval_values(args, parent_scope, runtime)
             }
         }
     }
@@ -160,10 +161,19 @@ impl XValue{
     }
 }
 
-struct ManagedXValue {
-    runtime: Rc<RefCell<Runtime>>,
-    size: usize,
-    value: XValue
+#[derive(Derivative)]
+#[derivative(Hash, PartialEq, Eq)]
+pub struct ManagedXValue {
+    #[derivative(Hash = "ignore", PartialEq = "ignore", )]
+    pub runtime: RTCell,
+    size: usize,  // this will be zero if the runtime has no size limit
+    pub value: XValue
+}
+
+impl Debug for ManagedXValue {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        write!(f, "ManagedXValue({:?})", self.value)
+    }
 }
 
 impl Drop for ManagedXValue {
@@ -173,15 +183,21 @@ impl Drop for ManagedXValue {
 }
 
 impl ManagedXValue {
-    pub fn new(value: XValue, runtime: Rc<RefCell<Runtime>>) -> Result<Rc<ManagedXValue>, String> {
-        let size = value.size();
-        runtime.borrow_mut().size += size;
-        if runtime.borrow().size > runtime.borrow().limits.size_limit {
-            return Err(format!("Size limit exceeded: {} bytes", runtime.borrow().size));
+    pub fn new(value: XValue, runtime: RTCell) -> Result<Rc<ManagedXValue>, String> {
+        let size;
+        if let Some(max_size) = runtime.borrow().limits.size_limit {
+            size = value.size();
+            runtime.borrow_mut().size += size;
+            if runtime.borrow().size > max_size {
+                return Err(format!("Size limit exceeded: {} bytes", runtime.borrow().size));
+            }
+        }
+        else{
+            size = 0;
         }
         Ok(Rc::new(ManagedXValue {
             runtime,
-            size: value.size(),
+            size,
             value
         }))
     }

@@ -2,7 +2,7 @@ use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
 use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, Bind, XCompilationScope, XStaticFunction, XType, eval, intern};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
-use crate::xvalue::{XValue};
+use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
 use std::sync::Arc;
 use mopa::Any;
@@ -28,12 +28,12 @@ pub fn add_if(scope: &mut XCompilationScope, interner: &mut StringInterner) -> R
                 },
             ],
             ret: t,
-        }, |args, ns, tca| {
-            let (a0,) = eval!(args, ns, 0);
+        }, |args, ns, tca, rt| {
+            let (a0,) = eval!(args, ns, rt, 0);
             args[match to_primitive!(a0, Bool) {
                 true => 1,
                 false => 2,
-            }].eval(&ns, tca)
+            }].eval(&ns, tca, rt)
         }))?;
     Ok(())
 }
@@ -52,8 +52,8 @@ pub fn add_cast(scope: &mut XCompilationScope, interner: &mut StringInterner) ->
                 },
             ],
             ret: t,
-        }, |args, ns, tca| {
-            args[0].eval(&ns, tca)
+        }, |args, ns, tca, rt| {
+            args[0].eval(&ns, tca, rt)
         }), interner)?;
     Ok(())
 }

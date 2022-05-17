@@ -1,8 +1,8 @@
 use std::rc;
 use num::{BigInt, BigRational, Integer, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, eval, Bind, XArray, XArrayType, XCompilationScope, XStaticFunction, XType, meval};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, eval, Bind, XArray, XArrayType, XCompilationScope, XStaticFunction, XType, meval, manage_native, RTCell};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
-use crate::xvalue::{XValue};
+use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
 use std::sync::Arc;
 use string_interner::StringInterner;
@@ -15,9 +15,9 @@ macro_rules! add_int_binop {
     ($fn_name:ident, $name:ident, $func:expr) => {add_binop!($fn_name, $name, X_INT, Int, X_INT, $func);};
 }
 
-add_int_binop!(add_int_add, add, |a,b| Ok(XValue::Int(a + b).into()));
-add_int_binop!(add_int_sub, sub, |a,b| Ok(XValue::Int(a - b).into()));
-add_int_binop!(add_int_mul, mul, |a,b| Ok(XValue::Int(a * b).into()));
+add_int_binop!(add_int_add, add, |a,b| Ok(XValue::Int(a + b)));
+add_int_binop!(add_int_sub, sub, |a,b| Ok(XValue::Int(a - b)));
+add_int_binop!(add_int_mul, mul, |a,b| Ok(XValue::Int(a * b)));
 add_int_binop!(add_int_mod, mod, |a: &BigInt, b : &BigInt| {
         if b.is_zero() {
             Err(String::from("Modulo by zero"))
@@ -47,26 +47,26 @@ add_binop!(add_int_pow, pow, X_INT, Int, X_RATIONAL, |a: &BigInt,b: &BigInt|
     }
 );
 add_binop!(add_int_lt, lt, X_INT, Int, X_BOOL, |a,b|
-    Ok(XValue::Bool(a < b).into())
+    Ok(XValue::Bool(a < b))
 );
 add_binop!(add_int_gt, gt, X_INT, Int, X_BOOL, |a,b|
-    Ok(XValue::Bool(a > b).into())
+    Ok(XValue::Bool(a > b))
 );
 add_binop!(add_int_eq, eq, X_INT, Int, X_BOOL, |a,b|
-    Ok(XValue::Bool(a == b).into())
+    Ok(XValue::Bool(a == b))
 );
 add_binop!(add_int_ne, ne, X_INT, Int, X_BOOL, |a,b|
-    Ok(XValue::Bool(a != b).into())
+    Ok(XValue::Bool(a != b))
 );
 add_binop!(add_int_le, le, X_INT, Int, X_BOOL, |a,b|
-    Ok(XValue::Bool(a <= b).into())
+    Ok(XValue::Bool(a <= b))
 );
 add_binop!(add_int_ge, ge, X_INT, Int, X_BOOL, |a,b|
-    Ok(XValue::Bool(a >= b).into())
+    Ok(XValue::Bool(a >= b))
 );
 
 add_ufunc!(add_int_neg, neg, X_INT, Int, X_INT, |a:&BigInt| {
-    Ok(XValue::Int(-a).into())
+    Ok(XValue::Int(-a))
 });
 
 add_ufunc!(add_int_to_str, to_str, X_INT, Int, X_STRING, |a:&BigInt| Ok(XValue::String(a.to_string()).into()));
@@ -91,10 +91,10 @@ pub fn add_int_digits(scope: &mut XCompilationScope, interner: &mut StringIntern
                 },
             ],
             ret: XArrayType::xtype(X_INT.clone()),
-        }, |args, ns, _tca| {
-            let (a0,) = eval!(args, ns, 0);
+        }, |args, ns, _tca, rt| {
+            let (a0,) = eval!(args, ns, rt, 0);
             let n = to_primitive!(a0, Int);
-            let (a1,) = meval!(args, ns, 1);
+            let (a1,) = meval!(args, ns, rt, 1);
             let b = to_primitive!(a1, Int, BigInt::from(10 as i64));
             let mut digits = Vec::new();
             let mut n = n.clone();
@@ -102,7 +102,7 @@ pub fn add_int_digits(scope: &mut XCompilationScope, interner: &mut StringIntern
                 digits.push(n.mod_floor(&b));
                 n = n.div_floor(&b);
             }
-            Ok(XValue::Native(Box::new(XArray::new(digits.into_iter().map(|v| Rc::new(XValue::Int(v))).collect()))).into())
+            Ok(manage_native!(XArray::new(digits.into_iter().map(|v| ManagedXValue::new(XValue::Int(v), rt.clone())).collect::<Result<_,_>>()?), rt.clone()))
         }))?;
     Ok(())
 }

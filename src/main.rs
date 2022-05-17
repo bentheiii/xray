@@ -38,6 +38,7 @@ use crate::builtin::generic::{*};
 use crate::builtin::optional::{*};
 use crate::builtin::set::{*};
 use crate::builtin::stack::{*};
+use crate::runtime::{RTCell, RuntimeLimits};
 
 use crate::xexpr::{CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
@@ -49,13 +50,16 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    fn foo(x: Stack<int>) -> int {
-        0
+    fn range(end: int) -> Array<int> {
+        fn helper(i: int, s: Stack<int>) -> Stack<int> {
+            if(i >= 0,
+                helper(i - 1, s.push(i)),
+                s
+            )
+        }
+        helper(end, stack()).to_array_reversed()
     }
-    fn foo<T>(x: Stack<T>) -> int {
-        1
-    }
-    let z = foo(stack());
+    let z = range(1000);
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -123,23 +127,30 @@ fn main() {
     add_optional_or(&mut root_scope, &mut interner).unwrap();
     add_optional_and(&mut root_scope, &mut interner).unwrap();
 
-    let decals = root_scope.feed(body, &HashSet::new(), &mut interner).unwrap();
+    let limits = RuntimeLimits{
+        size_limit: Some(1000),
+        ..RuntimeLimits::default()
+    };
+    let runtime = limits.to_runtime();
+
+    let decals = root_scope.feed(body, &HashSet::new(), &mut interner, runtime.clone()).unwrap();
     println!("compiled!");
+
 
     let mut eval_scope = XEvaluationScope::root();
     eval_scope.add_from(
-        &decals
+        &decals, runtime
     ).unwrap();
-    println!("z={:?}", eval_scope.get(interner.get_or_intern_static("z")));
+    println!("z={:?}", eval_scope.get(interner.get_or_intern_static("z")).unwrap().value);
 }
 
 impl<'p> XCompilationScope<'p> {
-    fn feed(&mut self, input: Pair<Rule>, parent_gen_param_names: &HashSet<String>, interner: &mut StringInterner) -> Result<Vec<Declaration>, String> {
+    fn feed(&mut self, input: Pair<Rule>, parent_gen_param_names: &HashSet<String>, interner: &mut StringInterner, runtime: RTCell) -> Result<Vec<Declaration>, String> {
         match input.as_rule() {
             Rule::header | Rule::top_level_execution | Rule::execution | Rule::declaration => {
                 let mut declarations = Vec::new();
                 for inner in input.into_inner() {
-                    declarations.extend(self.feed(inner, parent_gen_param_names, interner)?);
+                    declarations.extend(self.feed(inner, parent_gen_param_names, interner, runtime.clone())?);
                 }
                 Ok(declarations)
             }
@@ -185,9 +196,9 @@ impl<'p> XCompilationScope<'p> {
                         let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner)?;
                         let default = param_iter.next().map(|d| {
                             let d = d.into_inner().next().unwrap();
-                            let e_scope = self.to_eval_scope()?;
+                            let e_scope = self.to_eval_scope(runtime.clone())?;
                             to_expr(d, &self, interner)?.compile(&self).and_then(|c| {
-                                c.expr.eval(&e_scope, false).map(|r| r.unwrap_value())
+                                c.expr.eval(&e_scope, false, runtime.clone()).map(|r| r.unwrap_value())
                             })
                         }).transpose()?;
                         Ok(XExplicitArgSpec { name: interner.get_or_intern(name), type_, default })
@@ -211,7 +222,7 @@ impl<'p> XCompilationScope<'p> {
                     subscope.add_param(param.name, param.type_.clone())?;
                 }
                 let mut body_iter = body.into_inner();
-                let declarations = subscope.feed(body_iter.next().unwrap(), &gen_param_names, interner)?;
+                let declarations = subscope.feed(body_iter.next().unwrap(), &gen_param_names, interner, runtime.clone())?;
                 let compiled_output = to_expr(body_iter.next().unwrap(), &self, interner)?.compile(&subscope)?;
                 let output = Box::new(compiled_output.expr);
                 let out_type = output.xtype()?;

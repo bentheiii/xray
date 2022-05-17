@@ -1,8 +1,8 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, intern, to_native, XArray, XArrayType, XCompilationScope, XSet, XSetType, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, intern, manage_native, to_native, XArray, XArrayType, XCompilationScope, XSet, XSetType, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
-use crate::xvalue::{XValue};
+use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
 use std::collections::{HashMap, HashSet};
 use std::mem::size_of;
@@ -32,16 +32,16 @@ impl NativeType for XStackType {
 #[derive(Debug, Eq, PartialEq, Derivative)]
 #[derivative(Hash)]
 pub struct StackNode {
-    value: Rc<XValue>,
+    value: Rc<ManagedXValue>,
     #[derivative(Hash = "ignore")]
     next: Option<Rc<StackNode>>,
 }
 
 impl StackNode {
-    fn first(value: Rc<XValue>) -> Rc<StackNode> {
+    fn first(value: Rc<ManagedXValue>) -> Rc<StackNode> {
         Rc::new(StackNode { value, next: None })
     }
-    fn new(value: Rc<XValue>, next: Rc<StackNode>) -> Rc<StackNode> {
+    fn new(value: Rc<ManagedXValue>, next: Rc<StackNode>) -> Rc<StackNode> {
         Rc::new(StackNode { value, next: Some(next) })
     }
 }
@@ -60,7 +60,7 @@ impl XStack {
         }
     }
 
-    pub fn push(&self, value: Rc<XValue>) -> Self {
+    pub fn push(&self, value: Rc<ManagedXValue>) -> Self {
         let node = match self.head {
             None => StackNode::first(value),
             Some(ref head) => StackNode::new(value, head.clone())
@@ -71,7 +71,7 @@ impl XStack {
         }
     }
 
-    fn to_vec<const REV: bool>(&self) -> Vec<Rc<XValue>> {
+    fn to_vec<const REV: bool>(&self) -> Vec<Rc<ManagedXValue>> {
         let mut vec = Vec::with_capacity(self.length);
         let mut node = &self.head;
         while let Some(ref n) = node {
@@ -84,7 +84,7 @@ impl XStack {
         vec
     }
 
-    fn to_set(&self) -> HashSet<Rc<XValue>> {
+    fn to_set(&self) -> HashSet<Rc<ManagedXValue>> {
         let mut ret = HashSet::with_capacity(self.length);
         let mut node = &self.head;
         while let Some(ref n) = node {
@@ -97,7 +97,21 @@ impl XStack {
 
 impl XNativeValue for XStack {
     fn size(&self) -> usize {
-        self.length * size_of::<usize>()
+        let mut managed_count = 0;
+        let mut node = &self.head;
+        while let Some(ref n) = node {
+            if Rc::strong_count(n) > 1 {
+                // if the strong count is higher than 0, someone else already counted everything
+                // after this towards a limit
+                break;
+            }
+            managed_count += 1;
+            node = &n.next;
+        }
+        if node.is_none(){
+            managed_count+=1;
+        }
+        (managed_count + 1) * size_of::<usize>()
     }
 }
 
@@ -111,8 +125,8 @@ pub fn add_stack_new(scope: &mut XCompilationScope, interner: &mut StringInterne
             generic_params: None,
             params: vec![],
             ret: XStackType::xtype(X_UNKNOWN.clone()),
-        }, |args, ns, _tca| {
-            Ok(XValue::Native(Box::new(XStack::new())).into())
+        }, |args, ns, _tca, rt| {
+            Ok(manage_native!(XStack::new(), rt))
         }), interner)?;
     Ok(())
 }
@@ -135,10 +149,10 @@ pub fn add_stack_push(scope: &mut XCompilationScope, interner: &mut StringIntern
                 },
             ],
             ret: t_stk.clone(),
-        }, |args, ns, _tca| {
-            let (a0, a1) = eval!(args, ns, 0, 1);
+        }, |args, ns, _tca, rt| {
+            let (a0, a1) = eval!(args, ns, rt, 0, 1);
             let stk0 = to_native!(a0, XStack);
-            Ok(XValue::Native(Box::new(stk0.push(a1))).into())
+            Ok(manage_native!(stk0.push(a1), rt))
         }), interner)?;
     Ok(())
 }
@@ -157,10 +171,10 @@ pub fn add_stack_to_array(scope: &mut XCompilationScope, interner: &mut StringIn
                 },
             ],
             ret: XArrayType::xtype(t.clone()),
-        }, |args, ns, _tca| {
-            let (a0, ) = eval!(args, ns, 0);
+        }, |args, ns, _tca, rt| {
+            let (a0, ) = eval!(args, ns, rt, 0);
             let stk0 = to_native!(a0, XStack);
-            Ok(XValue::Native(Box::new(XArray::new(stk0.to_vec::<false>()))).into())
+            Ok(manage_native!(XArray::new(stk0.to_vec::<false>()), rt))
         }), interner)?;
     Ok(())
 }
@@ -179,10 +193,10 @@ pub fn add_stack_to_array_reversed(scope: &mut XCompilationScope, interner: &mut
                 },
             ],
             ret: XArrayType::xtype(t.clone()),
-        }, |args, ns, _tca| {
-            let (a0, ) = eval!(args, ns, 0);
+        }, |args, ns, _tca, rt| {
+            let (a0, ) = eval!(args, ns, rt, 0);
             let stk0 = to_native!(a0, XStack);
-            Ok(XValue::Native(Box::new(XArray::new(stk0.to_vec::<true>()))).into())
+            Ok(manage_native!(XArray::new(stk0.to_vec::<true>()), rt))
         }), interner)?;
     Ok(())
 }
@@ -201,10 +215,10 @@ pub fn add_stack_to_set(scope: &mut XCompilationScope, interner: &mut StringInte
                 },
             ],
             ret: XSetType::xtype(t.clone()),
-        }, |args, ns, _tca| {
-            let (a0, ) = eval!(args, ns, 0);
+        }, |args, ns, _tca, rt| {
+            let (a0, ) = eval!(args, ns, rt, 0);
             let stk0 = to_native!(a0, XStack);
-            Ok(XValue::Native(Box::new(XSet::new(stk0.to_set()))).into())
+            Ok(manage_native!(XSet::new(stk0.to_set()), rt))
         }), interner)?;
     Ok(())
 }
@@ -223,10 +237,10 @@ pub fn add_stack_len(scope: &mut XCompilationScope, interner: &mut StringInterne
                 },
             ],
             ret: X_INT.clone(),
-        }, |args, ns, _tca| {
-            let (a0, ) = eval!(args, ns, 0);
+        }, |args, ns, _tca, rt| {
+            let (a0, ) = eval!(args, ns, rt, 0);
             let stk0 = to_native!(a0, XStack);
-            Ok(XValue::Int(stk0.length.into()).into()).into()
+            Ok(ManagedXValue::new(XValue::Int(stk0.length.into()), rt)?.into())
         }), interner)?;
     Ok(())
 }
@@ -245,8 +259,8 @@ pub fn add_stack_head(scope: &mut XCompilationScope, interner: &mut StringIntern
                 },
             ],
             ret: t.clone(),
-        }, |args, ns, _tca| {
-            let (a0, ) = eval!(args, ns, 0);
+        }, |args, ns, _tca, rt| {
+            let (a0, ) = eval!(args, ns, rt, 0);
             let stk0 = to_native!(a0, XStack);
             match &stk0.head {
                 Some(v) => Ok(v.value.clone().into()),
@@ -270,14 +284,14 @@ pub fn add_stack_tail(scope: &mut XCompilationScope, interner: &mut StringIntern
                 },
             ],
             ret: t_stk.clone(),
-        }, |args, ns, _tca| {
-            let (a0, ) = eval!(args, ns, 0);
+        }, |args, ns, _tca, rt| {
+            let (a0, ) = eval!(args, ns, rt, 0);
             let stk0 = to_native!(a0, XStack);
             match &stk0.head {
-                Some(v) => Ok(XValue::Native(Box::new(XStack {
+                Some(v) => Ok(manage_native!(XStack {
                     head: v.next.clone(),
                     length: stk0.length - 1,
-                })).into()),
+                }, rt)),
                 None => Err("stack is empty".to_string()),
             }
         }), interner)?;

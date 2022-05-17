@@ -2,7 +2,7 @@ use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
 use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, to_primitive, XCompilationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
-use crate::xvalue::{XValue};
+use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
 use std::sync::Arc;
 use string_interner::StringInterner;
@@ -12,7 +12,7 @@ pub fn add_bool_type(scope: &mut XCompilationScope, interner: &mut StringInterne
 }
 
 add_binop!(add_bool_eq, pow, X_BOOL, Bool, X_BOOL, |a,b|
-    Ok(XValue::Bool(a == b).into())
+    Ok(XValue::Bool(a == b))
 );
 
 add_ufunc!(add_bool_display, display, X_BOOL, Bool, X_STRING, |a:&bool| {
@@ -20,8 +20,8 @@ add_ufunc!(add_bool_display, display, X_BOOL, Bool, X_STRING, |a:&bool| {
     Ok(XValue::String(a.to_string()).into())
 });
 
-add_ufunc_ref!(add_assert, display, X_BOOL, X_BOOL, |a:Rc<XValue>| {
-    if let XValue::Bool(true) = a.as_ref(){
+add_ufunc_ref!(add_assert, display, X_BOOL, X_BOOL, |a:Rc<ManagedXValue>, rt| {
+    if let XValue::Bool(true) = a.value{
         Ok(a.into())
     }else{
         Err("assertion is untrue".to_string())
@@ -47,10 +47,10 @@ pub fn add_and(scope: &mut XCompilationScope, interner: &mut StringInterner) -> 
                 },
             ],
             ret: X_BOOL.clone(),
-        }, |args, ns, tca| {
-            let (a0,) = eval!(args, ns, 0);
+        }, |args, ns, tca, rt| {
+            let (a0,) = eval!(args, ns, rt, 0);
             if *to_primitive!(a0, Bool) {
-                return Ok(args[1].eval(&ns, tca)?);
+                return Ok(args[1].eval(&ns, tca, rt)?);
             }
             Ok(a0.into())
         }), interner)?;
@@ -72,10 +72,10 @@ pub fn add_or(scope: &mut XCompilationScope, interner: &mut StringInterner) -> R
                 },
             ],
             ret: X_BOOL.clone(),
-        }, |args, ns, tca| {
-            let (a0,) = eval!(args, ns, 0);
+        }, |args, ns, tca, rt| {
+            let (a0,) = eval!(args, ns, rt, 0);
             if !*to_primitive!(a0, Bool) {
-                return Ok(args[1].eval(&ns, tca)?);
+                return Ok(args[1].eval(&ns, tca, rt)?);
             }
             Ok(a0.into())
         }), interner)?;

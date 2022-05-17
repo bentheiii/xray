@@ -16,11 +16,12 @@ macro_rules! add_binop {
                         },
                     ],
                     ret: $return_type.clone(),
-                }, |args, ns, _tca| {
-                    let (a0,a1) = eval!(args, ns, 0, 1);
+                }, |args, ns, _tca, rt| {
+                    let (a0,a1) = eval!(args, ns, rt, 0, 1);
                     let v0 = to_primitive!(a0, $operand_variant);
                     let v1 = to_primitive!(a1, $operand_variant);
-                    $func(v0, v1)
+                    let result: Result<_, String> = $func(v0, v1);
+                    Ok(ManagedXValue::new(result?, rt.clone())?.into())
                 }))?;
             Ok(())
         }
@@ -41,9 +42,9 @@ macro_rules! add_ufunc_ref {
                         },
                     ],
                     ret: $return_type.clone(),
-                }, |args, ns, _tca| {
-                    let (a0,) = eval!(args, ns, 0);
-                    $func(a0)
+                }, |args, ns, _tca, rt| {
+                    let (a0,) = eval!(args, ns, rt, 0);
+                    $func(a0, rt)
                 }))?;
             Ok(())
         }
@@ -53,14 +54,17 @@ macro_rules! add_ufunc_ref {
 #[macro_export]
 macro_rules! add_ufunc {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
-        add_ufunc_ref!($fn_name, $name, $operand_type, $return_type, |a: Rc<XValue>| $func(to_primitive!(a, $operand_variant)));
+        add_ufunc_ref!($fn_name, $name, $operand_type, $return_type, |a: Rc<ManagedXValue>, rt: crate::runtime::RTCell| {
+            let result: Result<_, String> = $func(to_primitive!(a, $operand_variant));
+            Ok(ManagedXValue::new(result?, rt.clone())?.into())
+        });
     };
 }
 
 #[macro_export]
 macro_rules! to_native {
     ($x: expr, $t: ty) => {
-        match $x.as_ref() {
+        match &$x.value {
             XValue::Native(__b) => {
                 __b.as_ref()._as_any().downcast_ref::<$t>().unwrap()
             },
@@ -72,7 +76,7 @@ macro_rules! to_native {
 #[macro_export]
 macro_rules! to_primitive {
     ($x: expr, $v: ident) => {
-        match $x.as_ref() {
+        match &$x.value {
             XValue::$v(__b) => __b,
             _ => unreachable!(),
         }
@@ -97,18 +101,25 @@ macro_rules! intern {
 
 #[macro_export]
 macro_rules! eval {
-    ($args: expr, $ns: expr, $($idx:expr),*) => {
+    ($args: expr, $ns: expr, $rt: expr, $($idx:expr),*) => {
         ($(
-            $args[$idx].eval(&$ns, false)?.unwrap_value(),
+            $args[$idx].eval(&$ns, false, $rt.clone())?.unwrap_value(),
         )*)
     };
 }
 
 #[macro_export]
 macro_rules! meval {
-    ($args: expr, $ns: expr, $($idx:expr),*) => {
+    ($args: expr, $ns: expr, $rt: expr, $($idx:expr),*) => {
         ($(
-            $args.get($idx).map(|e| e.eval(&$ns, false)).transpose()?.map(|e| e.unwrap_value().clone()),
+            $args.get($idx).map(|e| e.eval(&$ns, false, $rt.clone())).transpose()?.map(|e| e.unwrap_value().clone()),
         )*)
+    };
+}
+
+#[macro_export]
+macro_rules! manage_native {
+    ($native: expr, $rt: expr) => {
+        ManagedXValue::new(XValue::Native(Box::new($native)), $rt)?.into()
     };
 }

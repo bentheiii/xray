@@ -1,4 +1,5 @@
 use std::borrow::BorrowMut;
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
 use std::mem::take;
@@ -10,10 +11,11 @@ use crate::builtin::set::{XSet, XSetType};
 use crate::XFuncSpec;
 use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
 use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XStructSpec, XType};
-use crate::xvalue::{NativeCallable, XFunction, XValue};
+use crate::xvalue::{ManagedXValue, NativeCallable, XFunction, XValue};
 use derivative::Derivative;
 use itertools::Itertools;
 use string_interner::{DefaultSymbol, StringInterner};
+use crate::runtime::{RTCell, Runtime};
 
 #[derive(Debug, Clone, Derivative)]
 #[derivative(Hash)]
@@ -263,7 +265,7 @@ pub enum XExpr {
     Ident(DefaultSymbol, Box<IdentItem>),
     // this dummy exists for calling native functions with arguments that were already
     // evaluated
-    Dummy(Rc<XValue>),
+    Dummy(Rc<ManagedXValue>),
 }
 
 #[derive(Clone)]  // todo why clone?
@@ -280,7 +282,7 @@ pub struct UfData {
     pub cvars: HashSet<DefaultSymbol>,
 
     pub param_names: Vec<DefaultSymbol>,
-    pub defaults: Vec<Rc<XValue>>,
+    pub defaults: Vec<Rc<ManagedXValue>>,
     pub variable_declarations: Vec<(DefaultSymbol, XExpr)>,
 }
 
@@ -355,7 +357,7 @@ pub struct XExplicitArgSpec {
     pub name: DefaultSymbol,
     #[derivative(Hash = "ignore")]
     pub type_: Arc<XType>,
-    pub default: Option<Rc<XValue>>,
+    pub default: Option<Rc<ManagedXValue>>,
 }
 
 impl XExplicitFuncSpec {
@@ -412,12 +414,12 @@ pub enum IdentItem {
 
 #[derive(Debug)]
 pub enum TailedEvalResult {
-    Value(Rc<XValue>),
-    TailCall(Vec<Rc<XValue>>),
+    Value(Rc<ManagedXValue>),
+    TailCall(Vec<Rc<ManagedXValue>>),
 }
 
 impl TailedEvalResult {
-    pub fn unwrap_value(self) -> Rc<XValue> {
+    pub fn unwrap_value(self) -> Rc<ManagedXValue> {
         match self {
             TailedEvalResult::Value(v) => v,
             TailedEvalResult::TailCall(_) => panic!("TailedEvalResult::unwrap_value called on a tail call")
@@ -425,15 +427,9 @@ impl TailedEvalResult {
     }
 }
 
-impl From<Rc<XValue>> for TailedEvalResult {
-    fn from(v: Rc<XValue>) -> Self {
+impl From<Rc<ManagedXValue>> for TailedEvalResult {
+    fn from(v: Rc<ManagedXValue>) -> Self {
         TailedEvalResult::Value(v)
-    }
-}
-
-impl From<XValue> for TailedEvalResult {
-    fn from(v: XValue) -> Self {
-        TailedEvalResult::Value(Rc::new(v))
     }
 }
 
@@ -483,50 +479,50 @@ impl XExpr {
         }
     }
 
-    pub fn eval<'p>(&self, namespace: &XEvaluationScope<'p>, tail_available: bool) -> Result<TailedEvalResult, String> {
+    pub fn eval<'p>(&self, namespace: &XEvaluationScope<'p>, tail_available: bool, runtime: RTCell) -> Result<TailedEvalResult, String> {
         match &self {
-            XExpr::LiteralBool(b) => Ok(XValue::Bool(*b).into()),
-            XExpr::LiteralInt(i) => Ok(XValue::Int(BigInt::from(*i)).into()),
-            XExpr::LiteralRational(r) => Ok(XValue::Rational(r.clone()).into()),
-            XExpr::LiteralString(s) => Ok(XValue::String(s.clone()).into()),
+            XExpr::LiteralBool(b) => Ok(ManagedXValue::new(XValue::Bool(*b),runtime)?.into()),
+            XExpr::LiteralInt(i) => Ok(ManagedXValue::new(XValue::Int(BigInt::from(*i)),runtime)?.into()),
+            XExpr::LiteralRational(r) => Ok(ManagedXValue::new(XValue::Rational(r.clone()), runtime)?.into()),
+            XExpr::LiteralString(s) => Ok(ManagedXValue::new(XValue::String(s.clone()), runtime)?.into()),
             XExpr::Array(exprs) => {
-                Ok(XValue::Native(Box::new(XArray::new(
-                    exprs.iter().map(|x| x.eval(namespace, false).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?))).into()
-                )
+                Ok(ManagedXValue::new(XValue::Native(Box::new(XArray::new(
+                    exprs.iter().map(|x| x.eval(namespace, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?)))
+                , runtime)?.into())
             }
             XExpr::Set(exprs) => {
-                Ok(XValue::Native(Box::new(XSet::new(
-                    exprs.iter().map(|x| x.eval(namespace, false).map(|r| r.unwrap_value())).collect::<Result<HashSet<_>, _>>()?))).into()
-                )
+                Ok(ManagedXValue::new(XValue::Native(Box::new(XSet::new(
+                    exprs.iter().map(|x| x.eval(namespace, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<HashSet<_>, _>>()?)))
+                , runtime)?.into())
             }
             XExpr::Call(func, args) => {
-                let callable = func.eval(namespace, false)?.unwrap_value().clone();
+                let callable = func.eval(namespace, false, runtime.clone())?.unwrap_value().clone();
                 let ret;
-                if let XValue::Function(xfunc) = callable.as_ref() {
-                    ret = xfunc.eval(args, namespace, tail_available)?;
+                if let XValue::Function(xfunc) = &callable.value {
+                    ret = xfunc.eval(args, namespace, tail_available, runtime)?;
                 } else {
                     return Err(format!("Expected function, got {:?}", callable));
                 }
                 return Ok(ret);
             }
             XExpr::Construct(_, _, args) => {
-                let items = args.iter().map(|x| x.eval(namespace, false).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
-                Ok(XValue::StructInstance(items).into())
+                let items = args.iter().map(|x| x.eval(namespace, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
+                Ok(ManagedXValue::new(XValue::StructInstance(items), runtime)?.into())
             }
             XExpr::Member(obj, idx) => {
-                let obj = obj.eval(namespace, false)?.unwrap_value();
-                if let XValue::StructInstance(items) = obj.as_ref() {
+                let obj = obj.eval(namespace, false, runtime)?.unwrap_value();
+                if let XValue::StructInstance(items) = &obj.value {
                     Ok(items[*idx].clone().into())
                 } else {
                     Err(format!("Expected struct, got {:?}", obj))
                 }
             }
             XExpr::KnownOverload(func, _) => {
-                Ok(XValue::Function(func.clone().to_function(namespace)).into())
+                Ok(ManagedXValue::new(XValue::Function(func.clone().to_function(namespace)), runtime)?.into())
             }
             XExpr::Ident(name, item) => {
                 if let IdentItem::Function(func) = item.as_ref() {
-                    Ok(XValue::Function(func.clone().to_function(namespace)).into())
+                    Ok(ManagedXValue::new(XValue::Function(func.clone().to_function(namespace)), runtime)?.into())
                 } else {
                     Ok(namespace.get(*name).ok_or_else(|| format!("Undefined identifier during evaluation: {:?}", name))?.clone().into())
                 }
