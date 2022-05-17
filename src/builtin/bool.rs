@@ -11,7 +11,7 @@ pub fn add_bool_type(scope: &mut XCompilationScope, interner: &mut StringInterne
     scope.add_native_type(interner.get_or_intern_static("bool"), X_BOOL.clone())
 }
 
-add_binop!(add_bool_eq, pow, X_BOOL, XValue::Bool, X_BOOL, |a,b|
+add_binop!(add_bool_eq, pow, X_BOOL, Bool, X_BOOL, |a,b|
     Ok(XValue::Bool(a == b).into())
 );
 

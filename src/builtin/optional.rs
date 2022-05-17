@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, XArray, XArrayType, XCallableSpec, XCompilationScope, XSet, XSetType, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, intern, to_native, to_primitive, XArray, XArrayType, XCallableSpec, XCompilationScope, XSet, XSetType, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue};
 use rc::Rc;
@@ -24,8 +24,8 @@ impl NativeType for XOptionalType {
     fn generic_names(&self) -> Vec<String> {
         vec!["T".to_string()]
     }
-    fn name(&self) -> String {
-        "Optional".to_string()
+    fn name(&self) -> &str {
+        "Optional"
     }
 }
 
@@ -56,15 +56,15 @@ pub fn add_optional_some(scope: &mut XCompilationScope, interner: &mut StringInt
     let t = XType::generic_from_name("T", interner);
     scope.add_func_intern(
         "some", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![XFuncParamSpec {
                 type_: t.clone(),
                 required: true,
             }],
             ret: XOptionalType::xtype(t),
         }, |args, ns, _tca| {
-            let value = args[0].eval(&ns, false)?.unwrap_value();
-            Ok(XValue::Native(Box::new(XOptional { value: Some(value) })).into())
+            let (a0, ) = eval!(args, ns, 0);
+            Ok(XValue::Native(Box::new(XOptional { value: Some(a0) })).into())
         }), interner)?;
     Ok(())
 }
@@ -73,7 +73,7 @@ pub fn add_optional_map(scope: &mut XCompilationScope, interner: &mut StringInte
     let t = XType::generic_from_name("T", interner);
     scope.add_func_intern(
         "map", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: XOptionalType::xtype(t.clone()),
@@ -88,25 +88,18 @@ pub fn add_optional_map(scope: &mut XCompilationScope, interner: &mut StringInte
                 }],
             ret: XOptionalType::xtype(t),
         }, |args, ns, _tca| {
-            let value = args[0].eval(&ns, false)?.unwrap_value();
-            match value.as_ref() {
-                XValue::Native(b) => {
-                    let opt = &b.as_ref()._as_any().downcast_ref::<XOptional>().unwrap().value;
-                    match opt {
-                        None => Ok(value.into()),
-                        Some(v) => {
-                            let func = args[1].eval(&ns, false)?.unwrap_value();
-                            match func.as_ref() {
-                                XValue::Function(f) => Ok(XValue::Native(Box::new(XOptional {
-                                    value: Some(f.eval_values(vec![v.clone()], &ns)?),
-                                })).into()),
-                                _ => unreachable!(),
-                            }
-                        }
-                    }
+            let (a0, ) = eval!(args, ns, 0);
+            let opt0 = &to_native!(a0, XOptional).value;
+            Ok(match opt0 {
+                None => a0.into(),
+                Some(v) => {
+                    let (a1, ) = eval!(args, ns, 1);
+                    let f1 = to_primitive!(a1, Function);
+                    XValue::Native(Box::new(XOptional {
+                        value: Some(f1.eval_values(vec![v.clone()], &ns)?)
+                    })).into()
                 }
-                _ => unreachable!()
-            }
+            })
         }), interner)?;
     Ok(())
 }
@@ -115,7 +108,7 @@ pub fn add_optional_map_or(scope: &mut XCompilationScope, interner: &mut StringI
     let t = XType::generic_from_name("T", interner);
     scope.add_func_intern(
         "map_or", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: XOptionalType::xtype(t.clone()),
@@ -134,23 +127,16 @@ pub fn add_optional_map_or(scope: &mut XCompilationScope, interner: &mut StringI
                 },
             ],
             ret: t,
-        }, |args, ns, _tca| {
-            let value = args[0].eval(&ns, false)?.unwrap_value();
-            match value.as_ref() {
-                XValue::Native(b) => {
-                    let opt = &b.as_ref()._as_any().downcast_ref::<XOptional>().unwrap().value;
-                    match opt {
-                        None => Ok(args[2].eval(&ns, true)?),
-                        Some(v) => {
-                            let func = args[1].eval(&ns, false)?.unwrap_value();
-                            match func.as_ref() {
-                                XValue::Function(f) => Ok(f.eval_values(vec![v.clone()], &ns)?.into()),
-                                _ => unreachable!(),
-                            }
-                        }
-                    }
+        }, |args, ns, tca| {
+            let (a0, ) = eval!(args, ns, 0);
+            let opt0 = &to_native!(a0, XOptional).value;
+            match opt0 {
+                None => Ok(args[2].eval(&ns, tca)?),
+                Some(v) => {
+                    let (a1, ) = eval!(args, ns, 1);
+                    let f1 = to_primitive!(a1, Function);
+                    Ok(f1.eval_values(vec![v.clone()], &ns)?.into())
                 }
-                _ => unreachable!()
             }
         }), interner)?;
     Ok(())
@@ -162,7 +148,7 @@ pub fn add_optional_or_unwrap(scope: &mut XCompilationScope, interner: &mut Stri
     scope.add_func_intern(
         "or", XStaticFunction::Native(
             XFuncSpec {
-                generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+                generic_params: Some(intern!(interner, "T")),
                 params: vec![
                     XFuncParamSpec {
                         type_: opt_t.clone(),
@@ -174,18 +160,13 @@ pub fn add_optional_or_unwrap(scope: &mut XCompilationScope, interner: &mut Stri
                     }],
                 ret: t.clone(),
             },
-            |args, ns, _tca| {
-                let value = args[0].eval(&ns, false)?.unwrap_value();
-                match value.as_ref() {
-                    XValue::Native(b) => {
-                        let opt = &b.as_ref()._as_any().downcast_ref::<XOptional>().unwrap().value;
-                        match opt {
-                            None => Ok(args[1].eval(&ns, true)?),
-                            Some(v) => Ok(v.clone().into()),
-                        }
-                    }
-                    _ => unreachable!()
-                }
+            |args, ns, tca| {
+                let (a0, ) = eval!(args, ns, 0);
+                let opt0 = &to_native!(a0, XOptional).value;
+                Ok(match opt0 {
+                    None => args[1].eval(&ns, tca)?,
+                    Some(v) => v.clone().into()
+                })
             },
         ), interner)?;
     Ok(())
@@ -197,7 +178,7 @@ pub fn add_optional_or(scope: &mut XCompilationScope, interner: &mut StringInter
     scope.add_func_intern(
         "or", XStaticFunction::Native(
             XFuncSpec {
-                generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+                generic_params: Some(intern!(interner, "T")),
                 params: vec![
                     XFuncParamSpec {
                         type_: opt_t.clone(),
@@ -209,18 +190,13 @@ pub fn add_optional_or(scope: &mut XCompilationScope, interner: &mut StringInter
                     }],
                 ret: opt_t.clone(),
             },
-            |args, ns, _tca| {
-                let value = args[0].eval(&ns, false)?.unwrap_value();
-                match value.as_ref() {
-                    XValue::Native(b) => {
-                        let opt = &b.as_ref()._as_any().downcast_ref::<XOptional>().unwrap().value;
-                        match opt {
-                            None => Ok(args[1].eval(&ns, true)?),
-                            Some(_) => Ok(value.clone().into()),
-                        }
-                    }
-                    _ => unreachable!()
-                }
+            |args, ns, tca| {
+                let (a0, ) = eval!(args, ns, 0);
+                let opt0 = &to_native!(a0, XOptional).value;
+                Ok(match opt0 {
+                    None => args[1].eval(&ns, tca)?,
+                    Some(_) => a0.clone().into()
+                })
             },
         ), interner)?;
     Ok(())
@@ -232,7 +208,7 @@ pub fn add_optional_and(scope: &mut XCompilationScope, interner: &mut StringInte
     scope.add_func_intern(
         "and", XStaticFunction::Native(
             XFuncSpec {
-                generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+                generic_params: Some(intern!(interner, "T")),
                 params: vec![
                     XFuncParamSpec {
                         type_: opt_t.clone(),
@@ -242,20 +218,15 @@ pub fn add_optional_and(scope: &mut XCompilationScope, interner: &mut StringInte
                         type_: opt_t.clone(),
                         required: true,
                     }],
-                ret: opt_t.clone(),
+                ret: opt_t,
             },
-            |args, ns, _tca| {
-                let value = args[0].eval(&ns, false)?.unwrap_value();
-                match value.as_ref() {
-                    XValue::Native(b) => {
-                        let opt = &b.as_ref()._as_any().downcast_ref::<XOptional>().unwrap().value;
-                        match opt {
-                            None => Ok(value.clone().into()),
-                            Some(_) => Ok(args[1].eval(&ns, true)?),
-                        }
-                    }
-                    _ => unreachable!()
-                }
+            |args, ns, tca| {
+                let (a0, ) = eval!(args, ns, 0);
+                let opt0 = &to_native!(a0, XOptional).value;
+                Ok(match opt0 {
+                    Some(_) => args[1].eval(&ns, tca)?,
+                    None => a0.clone().into()
+                })
             },
         ), interner)?;
     Ok(())
@@ -267,7 +238,7 @@ pub fn add_optional_has_value(scope: &mut XCompilationScope, interner: &mut Stri
     scope.add_func_intern(
         "has_value", XStaticFunction::Native(
             XFuncSpec {
-                generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+                generic_params: Some(intern!(interner, "T")),
                 params: vec![
                     XFuncParamSpec {
                         type_: opt_t.clone(),
@@ -277,14 +248,9 @@ pub fn add_optional_has_value(scope: &mut XCompilationScope, interner: &mut Stri
                 ret: X_BOOL.clone(),
             },
             |args, ns, _tca| {
-                let value = args[0].eval(&ns, false)?.unwrap_value();
-                match value.as_ref() {
-                    XValue::Native(b) => {
-                        let opt = &b.as_ref()._as_any().downcast_ref::<XOptional>().unwrap().value;
-                        Ok(XValue::Bool(opt.is_some()).into())
-                    }
-                    _ => unreachable!()
-                }
+                let (a0, ) = eval!(args, ns, 0);
+                let opt0 = &to_native!(a0, XOptional).value;
+                Ok(XValue::Bool(opt0.is_some()).into())
             },
         ), interner)?;
     Ok(())
@@ -296,7 +262,7 @@ pub fn add_optional_value(scope: &mut XCompilationScope, interner: &mut StringIn
     scope.add_func_intern(
         "value", XStaticFunction::Native(
             XFuncSpec {
-                generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+                generic_params: Some(intern!(interner, "T")),
                 params: vec![
                     XFuncParamSpec {
                         type_: opt_t.clone(),
@@ -306,17 +272,9 @@ pub fn add_optional_value(scope: &mut XCompilationScope, interner: &mut StringIn
                 ret: t.clone(),
             },
             |args, ns, _tca| {
-                let value = args[0].eval(&ns, false)?.unwrap_value();
-                match value.as_ref() {
-                    XValue::Native(b) => {
-                        let opt = &b.as_ref()._as_any().downcast_ref::<XOptional>().unwrap().value;
-                        match opt {
-                            None => Err(format!("Optional has no value")),
-                            Some(v) => Ok(v.clone().into()),
-                        }
-                    }
-                    _ => unreachable!()
-                }
+                let (a0, ) = eval!(args, ns, 0);
+                let opt0 = to_native!(a0, XOptional).value.clone();
+                Ok(opt0.unwrap().clone().into())
             },
         ), interner)?;
     Ok(())

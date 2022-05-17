@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, XCompilationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, intern, to_native, XCompilationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue};
 use rc::Rc;
@@ -26,7 +26,7 @@ impl NativeType for XSetType {
     fn generic_names(&self) -> Vec<String> {
         vec!["T".to_string()]
     }
-    fn name(&self) -> String { "set".to_string() }
+    fn name(&self) -> &str { "Set" }
 }
 
 #[derive(Debug, Eq, PartialEq, Derivative)]
@@ -54,7 +54,7 @@ pub fn add_set_bitor(scope: &mut XCompilationScope, interner: &mut StringInterne
 
     scope.add_func_intern(
         "bit_or", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: set_t.clone(),
@@ -66,18 +66,18 @@ pub fn add_set_bitor(scope: &mut XCompilationScope, interner: &mut StringInterne
                 },
             ],
             ret: set_t.clone(),
-        }, |args, ns, _tca| {
-            let s1 = args[0].eval(&ns, false)?.unwrap_value();
-            let s2 = args[1].eval(&ns, false)?.unwrap_value();
-            match (s1.as_ref(), s2.as_ref()) {
-                (XValue::Native(b1), XValue::Native(b2)) => {
-                    let s1 = &b1.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
-                    let s2 = &b2.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
-
-                    Ok(XValue::Native(Box::new(XSet::new(s1.union(s2).cloned().collect()))).into())
-                }
-                _ => unreachable!(),
+        }, |args, ns, tca| {
+            let (a0, ) = eval!(args, ns, 0);
+            let set0 = &to_native!(a0, XSet).value;
+            if set0.is_empty() {
+                return Ok(args[1].eval(&ns, tca)?);
             }
+            let (a1, ) = eval!(args, ns, 1);
+            let set1 = &to_native!(a1, XSet).value;
+            if set1.is_empty() {
+                return Ok(a0.into());
+            }
+            Ok(XValue::Native(Box::new(XSet::new(set0.union(set1).cloned().collect()))).into())
         }), interner)?;
     Ok(())
 }
@@ -88,7 +88,7 @@ pub fn add_set_bitand(scope: &mut XCompilationScope, interner: &mut StringIntern
 
     scope.add_func_intern(
         "bit_and", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: set_t.clone(),
@@ -101,17 +101,17 @@ pub fn add_set_bitand(scope: &mut XCompilationScope, interner: &mut StringIntern
             ],
             ret: set_t.clone(),
         }, |args, ns, _tca| {
-            let s1 = args[0].eval(&ns, false)?.unwrap_value();
-            let s2 = args[1].eval(&ns, false)?.unwrap_value();
-            match (s1.as_ref(), s2.as_ref()) {
-                (XValue::Native(b1), XValue::Native(b2)) => {
-                    let s1 = &b1.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
-                    let s2 = &b2.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
-
-                    Ok(XValue::Native(Box::new(XSet::new(s1.intersection(s2).cloned().collect()))).into())
-                }
-                _ => unreachable!(),
+            let (a0, ) = eval!(args, ns, 0);
+            let set0 = &to_native!(a0, XSet).value;
+            if set0.is_empty() {
+                return Ok(a0.into());
             }
+            let (a1, ) = eval!(args, ns, 1);
+            let set1 = &to_native!(a1, XSet).value;
+            if set1.is_empty() {
+                return Ok(a1.into());
+            }
+            Ok(XValue::Native(Box::new(XSet::new(set0.intersection(set1).cloned().collect()))).into())
         }), interner)?;
     Ok(())
 }
@@ -122,7 +122,7 @@ pub fn add_set_bitxor(scope: &mut XCompilationScope, interner: &mut StringIntern
 
     scope.add_func_intern(
         "bit_xor", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: set_t.clone(),
@@ -134,18 +134,18 @@ pub fn add_set_bitxor(scope: &mut XCompilationScope, interner: &mut StringIntern
                 },
             ],
             ret: set_t.clone(),
-        }, |args, ns, _tca| {
-            let s1 = args[0].eval(&ns, false)?.unwrap_value();
-            let s2 = args[1].eval(&ns, false)?.unwrap_value();
-            match (s1.as_ref(), s2.as_ref()) {
-                (XValue::Native(b1), XValue::Native(b2)) => {
-                    let s1 = &b1.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
-                    let s2 = &b2.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
-
-                    Ok(XValue::Native(Box::new(XSet::new(s1.symmetric_difference(s2).cloned().collect()))).into())
-                }
-                _ => unreachable!(),
+        }, |args, ns, tca| {
+            let (a0, ) = eval!(args, ns, 0);
+            let set0 = &to_native!(a0, XSet).value;
+            if set0.is_empty() {
+                return Ok(args[1].eval(&ns, tca)?);
             }
+            let (a1, ) = eval!(args, ns, 1);
+            let set1 = &to_native!(a1, XSet).value;
+            if set1.is_empty() {
+                return Ok(a0.into());
+            }
+            Ok(XValue::Native(Box::new(XSet::new(set0.symmetric_difference(set1).cloned().collect()))).into())
         }), interner)?;
     Ok(())
 }
@@ -155,8 +155,8 @@ pub fn add_set_sub(scope: &mut XCompilationScope, interner: &mut StringInterner)
     let set_t = XSetType::xtype(t.clone());
 
     scope.add_func_intern(
-        "bit_sub", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+        "sub", XStaticFunction::Native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: set_t.clone(),
@@ -169,17 +169,17 @@ pub fn add_set_sub(scope: &mut XCompilationScope, interner: &mut StringInterner)
             ],
             ret: set_t.clone(),
         }, |args, ns, _tca| {
-            let s1 = args[0].eval(&ns, false)?.unwrap_value();
-            let s2 = args[1].eval(&ns, false)?.unwrap_value();
-            match (s1.as_ref(), s2.as_ref()) {
-                (XValue::Native(b1), XValue::Native(b2)) => {
-                    let s1 = &b1.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
-                    let s2 = &b2.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
-
-                    Ok(XValue::Native(Box::new(XSet::new(s1.difference(s2).cloned().collect()))).into())
-                }
-                _ => unreachable!(),
+            let (a0, ) = eval!(args, ns, 0);
+            let set0 = &to_native!(a0, XSet).value;
+            if set0.is_empty() {
+                return Ok(a0.into());
             }
+            let (a1, ) = eval!(args, ns, 1);
+            let set1 = &to_native!(a1, XSet).value;
+            if set1.is_empty() {
+                return Ok(a0.into());
+            }
+            Ok(XValue::Native(Box::new(XSet::new(set0.difference(set1).cloned().collect()))).into())
         }), interner)?;
     Ok(())
 }
@@ -189,7 +189,7 @@ pub fn add_set_to_stack(scope: &mut XCompilationScope, interner: &mut StringInte
 
     scope.add_func_intern(
         "to_stack", XStaticFunction::Native(XFuncSpec {
-            generic_params: Some(vec!["T"].iter().map(|s| interner.get_or_intern_static(s)).collect()),
+            generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
                     type_: XSetType::xtype(t.clone()),
@@ -198,18 +198,13 @@ pub fn add_set_to_stack(scope: &mut XCompilationScope, interner: &mut StringInte
             ],
             ret: XStackType::xtype(t.clone()),
         }, |args, ns, _tca| {
-            let arr = args[0].eval(&ns, false)?.unwrap_value();
-            match arr.as_ref() {
-                XValue::Native(b) => {
-                    let arr = &b.as_ref()._as_any().downcast_ref::<XSet>().unwrap().value;
-                    let mut ret = XStack::new();
-                    for x in arr {
-                        ret = ret.push(x.clone());
-                    }
-                    Ok(XValue::Native(Box::new(ret)).into())
-                }
-                _ => unreachable!(),
+            let (a0, ) = eval!(args, ns, 0);
+            let set0 = &to_native!(a0, XSet).value;
+            let mut ret = XStack::new();
+            for x in set0 {
+                ret = ret.push(x.clone());
             }
+            Ok(XValue::Native(Box::new(ret)).into())
         }), interner)?;
     Ok(())
 }

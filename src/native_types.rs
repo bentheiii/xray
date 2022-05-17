@@ -11,7 +11,7 @@ use crate::xvalue::XValue;
 
 pub trait NativeType: Send + Sync + Debug + DynClone {
     fn generic_names(&self) -> Vec<String>;
-    fn name(&self) -> String;
+    fn name(&self) -> &str;
 }
 
 dyn_clone::clone_trait_object!(NativeType);

@@ -1,6 +1,6 @@
 #[macro_export]
 macro_rules! add_binop {
-    ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:path, $return_type:ident, $func:expr) => {
+    ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
         pub fn $fn_name(scope: &mut XCompilationScope<'_>, interner: &mut StringInterner) -> Result<(), String> {
             scope.add_func(
                 interner.get_or_intern_static(stringify!($name)), XStaticFunction::Native(XFuncSpec {
@@ -17,15 +17,10 @@ macro_rules! add_binop {
                     ],
                     ret: $return_type.clone(),
                 }, |args, ns, _tca| {
-                    let a = args[0].eval(&ns,false)?.unwrap_value();
-                    let b = args[1].eval(&ns,false)?.unwrap_value();
-                    match (a.as_ref(), b.as_ref()) {
-                        ($operand_variant(a), $operand_variant(b)) => $func(a,b),
-                        (other_a, other_b) => {
-                            println!("entered function with unexpected args {:?} and {:?}", other_a, other_b);
-                            unreachable!()
-                        },
-                    }
+                    let (a0,a1) = eval!(args, ns, 0, 1);
+                    let v0 = to_primitive!(a0, $operand_variant);
+                    let v1 = to_primitive!(a1, $operand_variant);
+                    $func(v0, v1)
                 }))?;
             Ok(())
         }
@@ -47,8 +42,8 @@ macro_rules! add_ufunc_ref {
                     ],
                     ret: $return_type.clone(),
                 }, |args, ns, _tca| {
-                    let a = args[0].eval(&ns,false)?.unwrap_value();
-                    $func(a)
+                    let (a0,) = eval!(args, ns, 0);
+                    $func(a0)
                 }))?;
             Ok(())
         }
@@ -82,6 +77,13 @@ macro_rules! to_primitive {
             _ => unreachable!(),
         }
     };
+    ($x: expr, $v: ident, $d: expr) => {
+        if let Some(__x) = &$x {
+            std::borrow::Cow::Borrowed(to_primitive!(__x, $v))
+        } else {
+            std::borrow::Cow::Owned($d)
+        }
+    };
 }
 
 #[macro_export]
@@ -98,6 +100,15 @@ macro_rules! eval {
     ($args: expr, $ns: expr, $($idx:expr),*) => {
         ($(
             $args[$idx].eval(&$ns, false)?.unwrap_value(),
+        )*)
+    };
+}
+
+#[macro_export]
+macro_rules! meval {
+    ($args: expr, $ns: expr, $($idx:expr),*) => {
+        ($(
+            $args.get($idx).map(|e| e.eval(&$ns, false)).transpose()?.map(|e| e.unwrap_value().clone()),
         )*)
     };
 }

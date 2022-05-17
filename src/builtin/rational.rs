@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, Bind, XCompilationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, eval, Bind, XCompilationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue};
 use rc::Rc;
@@ -13,7 +13,7 @@ pub fn add_rational_type(scope: &mut XCompilationScope, interner: &mut StringInt
 }
 
 macro_rules! add_rational_binop {
-    ($fn_name:ident, $name:ident, $func:expr) => {add_binop!($fn_name, $name, X_RATIONAL, XValue::Rational, X_RATIONAL, $func);};
+    ($fn_name:ident, $name:ident, $func:expr) => {add_binop!($fn_name, $name, X_RATIONAL, Rational, X_RATIONAL, $func);};
 }
 
 add_rational_binop!(add_rational_add, add, |a,b| Ok(XValue::Rational(a + b).into()));

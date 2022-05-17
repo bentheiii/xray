@@ -25,7 +25,7 @@ impl NativeType for XArrayType {
     fn generic_names(&self) -> Vec<String> {
         vec!["T".to_string()]
     }
-    fn name(&self) -> String { "Array".to_string() }
+    fn name(&self) -> &str { "Array" }
 }
 
 #[derive(Debug, Eq, PartialEq, Hash)]
