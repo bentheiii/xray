@@ -89,7 +89,8 @@ impl XStaticExpr {
             let is_unknown = arg_types.iter().any(|t| t.is_unknown());
             // if the bindings are unknown, then we prefer generic solutions over exact solutions
             for overload in overloads {
-                if let Some(bind) = overload.bind(arg_types) {
+                let b = overload.bind(arg_types);
+                if let Some(bind) = b {
                     if overload.is_generic() ^ is_unknown {
                         &mut generic_matches
                     } else {

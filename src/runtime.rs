@@ -4,7 +4,7 @@ use std::rc::Rc;
 #[derive(Debug, Clone, Default)]
 pub struct RuntimeLimits {
     pub size_limit: Option<usize>,
-    pub depth_limit: usize,
+    pub depth_limit: Option<usize>,
     pub recursion_limit: usize,
 }
 

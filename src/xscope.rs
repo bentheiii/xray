@@ -207,6 +207,7 @@ pub struct XEvaluationScope<'p> {
     pub values: HashMap<DefaultSymbol, Rc<ManagedXValue>>,
     pub recourse: Option<&'p XFunction>,
     parent: Option<&'p XEvaluationScope<'p>>,
+    depth: usize,
 }
 
 impl<'p> XEvaluationScope<'p> {
@@ -215,15 +216,23 @@ impl<'p> XEvaluationScope<'p> {
             values: HashMap::new(),
             recourse: None,
             parent: None,
+            depth: 0,
         }
     }
 
-    pub fn from_parent(parent: &'p XEvaluationScope<'p>, recourse: &'p XFunction) -> Self {
-        XEvaluationScope {
+    pub fn from_parent(parent: &'p XEvaluationScope<'p>, recourse: &'p XFunction, runtime: RTCell) -> Result<Self, String> {
+        let new_depth = parent.depth + 1;
+        if let Some(depth_limit) = runtime.borrow().limits.depth_limit {
+            if new_depth > depth_limit {
+                return Err(format!("Maximum stack depth of {} exceeded", depth_limit));
+            }
+        }
+        Ok(XEvaluationScope {
             values: HashMap::new(),
             recourse: Some(recourse),
             parent: Some(parent),
-        }
+            depth: parent.depth + 1,
+        })
     }
 
     pub fn get(&self, name: DefaultSymbol) -> Option<Rc<ManagedXValue>> {

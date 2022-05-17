@@ -50,16 +50,13 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    fn range(end: int) -> Array<int> {
-        fn helper(i: int, s: Stack<int>) -> Stack<int> {
-            if(i >= 0,
-                helper(i - 1, s.push(i)),
-                s
-            )
-        }
-        helper(end, stack()).to_array_reversed()
+    fn range(end: int) -> Stack<int> {
+        if(end >= 0,
+            range(end-1).push(end),
+            stack()
+        )
     }
-    let z = range(1000);
+    let z = range(30).to_array();
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -106,6 +103,7 @@ fn main() {
     add_array_pop(&mut root_scope, &mut interner).unwrap();
     add_array_to_stack(&mut root_scope, &mut interner).unwrap();
     add_array_map(&mut root_scope, &mut interner).unwrap();
+    add_array_push(&mut root_scope, &mut interner).unwrap();
 
     add_set_type(&mut root_scope, &mut interner).unwrap();
     add_set_bitor(&mut root_scope, &mut interner).unwrap();
@@ -128,7 +126,7 @@ fn main() {
     add_optional_and(&mut root_scope, &mut interner).unwrap();
 
     let limits = RuntimeLimits{
-        size_limit: Some(1000),
+        depth_limit: Some(50),
         ..RuntimeLimits::default()
     };
     let runtime = limits.to_runtime();

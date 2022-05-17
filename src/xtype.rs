@@ -41,14 +41,12 @@ impl Bind {
 
 
     pub fn mix(mut self, other: &Bind) -> Option<Self> {
-        let mut bg = &mut self.bound_generics;
         for (k, v) in other.bound_generics.iter() {
-            if bg.contains_key(k) {
-                if *bg[k] != **v {
-                    return None;
-                }
+            if let Some(existing) = self.bound_generics.get(k) {
+                let new_bind = existing.bind_in_assignment(v)?;
+                self = self.mix(&new_bind)?;
             } else {
-                bg.insert(k.clone(), v.clone());
+                self.bound_generics.insert(k.clone(), v.clone());
             }
         }
         Some(self)
@@ -269,16 +267,23 @@ impl XType {
                 Some(bind)
             }
             (_, XType::XUnknown) => Some(Bind::new()),
+            (XType::XUnknown, _) => Some(Bind::new()),
             (XType::XGeneric(ref a), XType::XGeneric(ref b)) if a == b => {
                 Some(Bind::new())
             }
             (XType::XGeneric(ref a), _) => {
-                Some(Bind::from([
-                    (a.clone(), other.clone()),
-                ]))
+                Some(if other.is_unknown() {
+                    Bind::new()
+                } else {
+                    Bind::from([
+                        (a.clone(), other.clone()),
+                    ])
+                })
             }
 
-            _ => None,
+            _ => {
+                None
+            },
         }
     }
     pub fn resolve_bind(self: Arc<XType>, bind: &Bind) -> Arc<XType> {

@@ -66,7 +66,7 @@ impl XFunction {
                 };
                 loop {
                     let closure_scope = if !closure.is_empty() {
-                        let mut scope = XEvaluationScope::from_parent(&parent_scope, &self);
+                        let mut scope = XEvaluationScope::from_parent(&parent_scope, &self, runtime.clone())?;
                         for (&name, value) in closure {
                             scope.add(name, value.clone());
                         }
@@ -77,7 +77,7 @@ impl XFunction {
                     let mut scope = XEvaluationScope::from_parent(match closure_scope {
                         Some(ref scope) => scope,
                         None => &parent_scope,
-                    }, &self);
+                    }, &self, runtime.clone())?;
                     // explicit params
                     for (&name, arg) in uf.param_names.iter().zip(args.iter()) {
                         scope.add(name, arg.clone());
@@ -185,15 +185,18 @@ impl Drop for ManagedXValue {
 impl ManagedXValue {
     pub fn new(value: XValue, runtime: RTCell) -> Result<Rc<ManagedXValue>, String> {
         let size;
-        if let Some(max_size) = runtime.borrow().limits.size_limit {
-            size = value.size();
-            runtime.borrow_mut().size += size;
-            if runtime.borrow().size > max_size {
-                return Err(format!("Size limit exceeded: {} bytes", runtime.borrow().size));
+        {
+            let size_limit = runtime.borrow().limits.size_limit;
+            if let Some(max_size) = size_limit {
+                size = value.size();
+                runtime.borrow_mut().size += size;
+                if runtime.borrow().size > max_size {
+                    return Err(format!("Size limit exceeded: {} bytes", runtime.borrow().size));
+                }
             }
-        }
-        else{
-            size = 0;
+            else{
+                size = 0;
+            }
         }
         Ok(Rc::new(ManagedXValue {
             runtime,
