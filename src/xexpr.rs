@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Error, Formatter};
 use std::mem::take;
+use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 use num::{BigInt, BigRational};
@@ -10,7 +11,7 @@ use crate::builtin::array::{XArray, XArrayType};
 use crate::builtin::set::{XSet, XSetType};
 use crate::{manage_native, XFuncSpec, XOptional, XOptionalType};
 use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
-use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XStructSpec, XType, XUnionSpec};
+use crate::xtype::{Bind, common_type, TRef, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XStructSpec, XType, XUnionSpec};
 use crate::xvalue::{ManagedXValue, NativeCallable, XFunction, XValue};
 use derivative::Derivative;
 use itertools::Itertools;
@@ -27,14 +28,11 @@ pub enum XStaticExpr {
     Array(Vec<XStaticExpr>),
     Set(Vec<XStaticExpr>),
     Call(Box<XStaticExpr>, Vec<XStaticExpr>),
-    Member(Box<XStaticExpr>,
-           #[derivative(Hash = "ignore")]
-           Option<Vec<Arc<XType>>>,
-           String),
+    Member(Box<XStaticExpr>, String),
     Ident(DefaultSymbol),
     SpecializedIdent(DefaultSymbol,
                      #[derivative(Hash = "ignore")]
-                     Vec<Arc<XType>>),
+                     Vec<TRef>),
 }
 
 pub struct CompilationResult {
@@ -86,7 +84,7 @@ impl XStaticExpr {
     }
 
     pub fn compile<'p>(&self, namespace: &'p XCompilationScope<'p>) -> Result<CompilationResult, String> {
-        fn resolve_overload(overloads: Vec<Rc<XStaticFunction>>, arg_types: &Vec<Arc<XType>>, name: DefaultSymbol) -> Result<XExpr, String> {
+        fn resolve_overload(overloads: Vec<Rc<XStaticFunction>>, arg_types: &Vec<TRef>, name: DefaultSymbol) -> Result<XExpr, String> {
             let mut exact_matches = vec![];
             let mut generic_matches = vec![];
             let is_unknown = arg_types.iter().any(|t| t.is_unknown());
@@ -137,7 +135,7 @@ impl XStaticExpr {
             XStaticExpr::Call(func, args) => {
                 let (compiled_args, mut cvars) = compile_many(args, namespace)?;
                 match func.as_ref() {
-                    XStaticExpr::Member(obj, gens, member_name) => {
+                    XStaticExpr::Member(obj, member_name) => {
                         //special case: member access can be a variant constructor
                         if let XStaticExpr::Ident(name) = obj.as_ref() {
                             if let Some(XCompilationScopeItem::Union(spec)) = namespace.get(*name) {
@@ -145,10 +143,7 @@ impl XStaticExpr {
                                     if compiled_args.len() != 1 {
                                         return Err(format!("variant constructor must have exactly one argument"));
                                     }
-                                    if let Some(gens) = gens {
-                                        todo!()
-                                    }
-                                    return if let Some(bind) = spec.fields[index].type_.bind_in_assignment(&compiled_args[0].xtype()?){
+                                    return if let Some(bind) = spec.fields[index].type_.to_arc().bind_in_assignment(&compiled_args[0].xtype()?){
                                         return Ok(CompilationResult::new(XExpr::Variant(
                                             spec,
                                             Bind::new(),
@@ -193,7 +188,7 @@ impl XStaticExpr {
                         let actual_arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
                         let mut bind = Bind::new();
                         for (arg_type, actual_type) in arg_types.iter().zip(actual_arg_types.iter()) {
-                            bind = arg_type.bind_in_assignment(actual_type)
+                            bind = arg_type.to_arc().bind_in_assignment(actual_type)
                                 .and_then(|b| bind.mix(&b))
                                 .ok_or_else(|| format!("Specialized function {:?} takes argument of type {}, but {} was given", name, arg_type, actual_type))?;
                         }
@@ -220,13 +215,9 @@ impl XStaticExpr {
                 cvars.extend(func_closure_vars.into_iter());
                 Ok(CompilationResult::new(XExpr::Call(Box::new(func_compiled), compiled_args), cvars))
             }
-            XStaticExpr::Member(obj, gens, member_name) => {
-                if gens.is_some() {
-                    // todo
-                    return Err(format!("Generics are not supported for member access"));
-                }
+            XStaticExpr::Member(obj, member_name) => {
                 let obj_compiled = obj.compile(namespace)?;
-                match obj_compiled.expr.xtype()?.as_ref() {
+                match obj_compiled.expr.xtype()?.to_arc().as_ref() {
                     XType::XStruct(spec, _) | XType::XUnion(spec, _) => {
                         if let Some(&index) = spec.indices.get(member_name) {
                             Ok(CompilationResult::new(XExpr::Member(Box::new(obj_compiled.expr), index), obj_compiled.closure_vars))
@@ -381,7 +372,7 @@ pub struct XExplicitFuncSpec {
     pub generic_params: Option<Vec<DefaultSymbol>>,
     pub args: Vec<XExplicitArgSpec>,
     #[derivative(Hash = "ignore")]
-    pub ret: Arc<XType>,
+    pub ret: TRef,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Derivative)]
@@ -389,7 +380,7 @@ pub struct XExplicitFuncSpec {
 pub struct XExplicitArgSpec {
     pub name: DefaultSymbol,
     #[derivative(Hash = "ignore")]
-    pub type_: Arc<XType>,
+    pub type_: TRef,
     pub default: Option<Rc<ManagedXValue>>,
 }
 
@@ -409,14 +400,14 @@ impl XExplicitFuncSpec {
 }
 
 impl XStaticFunction {
-    pub fn bind(&self, args: &Vec<Arc<XType>>) -> Option<Bind> {
+    pub fn bind(&self, args: &Vec<TRef>) -> Option<Bind> {
         match self {
             XStaticFunction::Native(spec, _) => spec.bind(args),
             XStaticFunction::Recourse(spec) => spec.bind(args),
             XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().bind(args),
         }
     }
-    pub fn rtype(&self, bind: &Bind) -> Arc<XType> {
+    pub fn rtype(&self, bind: &Bind) -> TRef {
         match self {
             XStaticFunction::Native(spec, _) => spec.rtype(bind),
             XStaticFunction::Recourse(spec) => spec.rtype(bind),
@@ -430,7 +421,7 @@ impl XStaticFunction {
             XStaticFunction::UserFunction(ud, ..) => ud.spec.generic_params.is_some(),
         }
     }
-    pub fn xtype(&self, bind: &Bind) -> Arc<XType> {
+    pub fn xtype(&self, bind: &Bind) -> TRef {
         match self {
             XStaticFunction::Native(spec, _) => spec.xtype(bind),
             XStaticFunction::Recourse(spec) => spec.xtype(bind),
@@ -441,7 +432,7 @@ impl XStaticFunction {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum IdentItem {
-    Value(Arc<XType>),
+    Value(TRef),
     Function(Rc<XStaticFunction>),
 }
 
@@ -467,7 +458,7 @@ impl From<Rc<ManagedXValue>> for TailedEvalResult {
 }
 
 impl XExpr {
-    pub fn xtype(&self) -> Result<Arc<XType>, String> {
+    pub fn xtype(&self) -> Result<TRef, String> {
         match self {
             XExpr::LiteralBool(_) => Ok(X_BOOL.clone()),
             XExpr::LiteralInt(_) => Ok(X_INT.clone()),
@@ -485,18 +476,18 @@ impl XExpr {
                 if let XExpr::KnownOverload(func, bind) = func.as_ref() {
                     return Ok(func.rtype(bind));
                 }
-                if let XType::XCallable(spec) = func.xtype()?.as_ref() {
+                if let XType::XCallable(spec) = func.xtype()?.to_arc().as_ref() {
                     return Ok(spec.return_type.clone());
                 }
-                if let XType::XFunc(func) = func.xtype()?.as_ref() {
+                if let XType::XFunc(func) = func.xtype()?.to_arc().as_ref() {
                     return Ok(func.rtype(&Bind::new()));
                 }
                 Err(format!("Expected function type, got {:?}", func.xtype()?))
             }
-            XExpr::Construct(spec, binding, ..) => Ok(Arc::new(XType::XStruct(spec.clone(), binding.clone()))),
-            XExpr::Variant(spec, binding, ..) => Ok(Arc::new(XType::XUnion(spec.clone(), binding.clone()))),
+            XExpr::Construct(spec, binding, ..) => Ok(TRef::from(XType::XStruct(spec.clone(), binding.clone()))),
+            XExpr::Variant(spec, binding, ..) => Ok(TRef::from(XType::XUnion(spec.clone(), binding.clone()))),
             XExpr::Member(obj, idx) => {
-                match obj.xtype()?.as_ref(){
+                match obj.xtype()?.to_arc().as_ref(){
                     XType::XStruct(spec, bind) => Ok(spec.fields[*idx].type_.clone().resolve_bind(&bind)),
                     XType::XUnion(spec, bind) => {
                         let t = spec.fields[*idx].type_.clone().resolve_bind(&bind);

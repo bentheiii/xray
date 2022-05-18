@@ -20,6 +20,7 @@ extern crate core;
 
 use std::collections::{HashSet};
 use std::iter;
+use std::ops::Deref;
 use std::sync::Arc;
 use itertools::Itertools;
 use pest::iterators::Pair;
@@ -42,7 +43,7 @@ use crate::runtime::{RTCell, RuntimeLimits};
 
 use crate::xexpr::{CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
-use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XStructFieldSpec, XStructSpec, XType};
+use crate::xtype::{Bind, TRef, XCallableSpec, XFuncSpec, XStructFieldSpec, XStructSpec, XType};
 
 #[derive(Parser)]
 #[grammar = "xray.pest"]
@@ -50,25 +51,31 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    union msg(
-        x: Array<int>,
-        y: rational
+    union nest<T>(
+        v: T,
+        arr: Array<nest<T>>
     )
 
-    fn sum(x: Array<int>) -> int {
-        fn helper(i: int, ret: int) -> int {
-            if(i == x.len(),
-                ret,
-                helper(i+1, ret + x.get(i)))
+    fn flatten<T>(n: nest<T>) -> Stack<T> {
+        fn helper(n: nest<T>, acc: Stack<T>) -> Stack<T> {
+            fn arr_case(arr: Array<nest<T>>) -> Stack<T>{
+                fn arr_case_helper(ret: Stack<T>, idx: int) -> Stack<T> {
+                    (idx == arr.len()).if(
+                        ret,
+                        arr_case_helper(helper(arr.get(idx), ret), idx + 1)
+                    )
+                }
+                arr_case_helper(acc, 0)
+            }
+            fn v_case(v: T) -> Stack<T> {
+                acc.push(v)
+            }
+            (n::arr.map(arr_case) || n::v.map(v_case)).unwrap()
         }
-        helper(0, 0)
+        helper(n, stack())
     }
 
-    fn do(m: msg) -> int {
-        (m::x.map(sum) || m::y.map(floor)).value()
-    }
-
-    let z = do(msg::x([1,15,16]));
+    let z = flatten(nest::arr([nest::v(1), nest::arr([nest::v(2), nest::arr([nest::v(3)])])]));
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -301,7 +308,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    fn get_complete_type(&self, input: Pair<Rule>, generic_param_names: &HashSet<String>, interner: &mut StringInterner) -> Result<Arc<XType>, String> {
+    fn get_complete_type(&self, input: Pair<Rule>, generic_param_names: &HashSet<String>, interner: &mut StringInterner) -> Result<TRef, String> {
         match input.as_rule() {
             Rule::complete_type => {
                 let mut inners = input.into_inner();
@@ -314,7 +321,7 @@ impl<'p> XCompilationScope<'p> {
                             p.into_inner().map(|i| self.get_complete_type(i, generic_param_names, interner)).collect::<Result<Vec<_>, _>>()
                         }).transpose()?.unwrap_or_default();
                         let return_type = self.get_complete_type(sig_inners.next().unwrap(), generic_param_names, interner)?;
-                        Ok(Arc::new(XType::XCallable(XCallableSpec {
+                        Ok(TRef::from(XType::XCallable(XCallableSpec {
                             param_types,
                             return_type,
                         })))
@@ -331,24 +338,24 @@ impl<'p> XCompilationScope<'p> {
                         let t = self.get(symbol);
                         if t.is_none() {
                             if generic_param_names.contains(name) {
-                                return Ok(Arc::new(XType::XGeneric(symbol)));
+                                return Ok(TRef::from(XType::XGeneric(symbol)));
                             }
                             return Err(format!("type {} not found", name));
                         }
                         match t.unwrap() {
                             XCompilationScopeItem::NativeType(t) => {
-                                if let XType::XNative(t, _) = t.as_ref() {
+                                if let XType::XNative(t, _) = t.to_arc().as_ref() {
                                     if gen_params.len() != t.generic_names().len() {
                                         return Err(format!("Generic parameter count mismatch for type {}, expected {}, got {}", name, t.generic_names().len(), gen_params.len()));
                                     }
-                                    return Ok(Arc::new(XType::XNative(t.clone(), gen_params)));
+                                    return Ok(TRef::from(XType::XNative(t.clone(), gen_params)));
                                 } else {
                                     Ok(t)
                                 }
                             }
                             // todo gen params
-                            XCompilationScopeItem::Struct(t) => Ok(Arc::new(XType::XStruct(t, Bind::new()))),
-                            XCompilationScopeItem::Union(t) => Ok(Arc::new(XType::XUnion(t, Bind::new()))),
+                            XCompilationScopeItem::Struct(t) => Ok(TRef::from(XType::XStruct(t, Bind::new()))),
+                            XCompilationScopeItem::Union(t) => Ok(TRef::from(XType::XUnion(t, Bind::new()))),
                             other => Err(format!("{:?} is not a type", other))
                         }
                     }
@@ -451,11 +458,9 @@ fn to_expr(input: Pair<Rule>, xscope: &XCompilationScope, interner: &mut StringI
         Rule::expression4 => {
             let mut iter = input.into_inner();
             let mut ret = to_expr(iter.next().unwrap(), xscope, interner)?;
-            let mut gen_params = iter.next().unwrap().into_inner().next().map(|p| p.into_inner().map(|p|xscope.get_complete_type(p, &HashSet::new(), interner)).collect::<Result<Vec<_>, _>>()).transpose()?;
             for next_args in iter {
                 let member = next_args.as_str();
-                ret = XStaticExpr::Member(Box::new(ret), gen_params, member.to_string());
-                gen_params = None;
+                ret = XStaticExpr::Member(Box::new(ret), member.to_string());
             }
             Ok(ret)
         }

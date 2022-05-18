@@ -6,14 +6,14 @@ use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
 use crate::runtime::{RTCell, RuntimeLimits};
 use crate::xexpr::{XExpr, XStaticFunction};
-use crate::xtype::{XFuncSpec, XStructSpec, XType, XUnionSpec};
+use crate::xtype::{TRef, XFuncSpec, XStructSpec, XType, XUnionSpec};
 use crate::xvalue::{ManagedXValue, XFunction};
 
 pub type Identifier = DefaultSymbol;
 
 pub struct XCompilationScope<'p> {
-    pub values: HashMap<Identifier, (Option<XExpr>, Arc<XType>)>,
-    pub types: HashMap<Identifier, Arc<XType>>,
+    pub values: HashMap<Identifier, (Option<XExpr>, TRef)>,
+    pub types: HashMap<Identifier, TRef>,
     pub structs: HashMap<Identifier, Arc<XStructSpec>>,
     pub unions: HashMap<Identifier, Arc<XUnionSpec>>,
     pub functions: HashMap<Identifier, Vec<Rc<XStaticFunction>>>,
@@ -26,8 +26,8 @@ pub struct XCompilationScope<'p> {
 
 #[derive(Debug, Clone)]
 pub enum XCompilationScopeItem {
-    Value(Arc<XType>),
-    NativeType(Arc<XType>),
+    Value(TRef),
+    NativeType(TRef),
     Struct(Arc<XStructSpec>),
     Union(Arc<XUnionSpec>),
     Overload(Vec<Rc<XStaticFunction>>),
@@ -112,7 +112,7 @@ impl<'p> XCompilationScope<'p> {
         helper(self, name, 0)
     }
 
-    pub fn add_param(&mut self, name: DefaultSymbol, type_: Arc<XType>) -> Result<(), String> {
+    pub fn add_param(&mut self, name: DefaultSymbol, type_: TRef) -> Result<(), String> {
         if self.get(name).is_some() {
             // todo fix symbol shit
             Err(format!("Variable {:?} already defined", name))
@@ -155,7 +155,7 @@ impl<'p> XCompilationScope<'p> {
         Ok(Declaration::Union(union_spec))
     }
 
-    pub fn add_native_type(&mut self, name: DefaultSymbol, type_: Arc<XType>) -> Result<(), String> {
+    pub fn add_native_type(&mut self, name: DefaultSymbol, type_: TRef) -> Result<(), String> {
         if self.get(name).is_some() {
             Err(format!("Native type {:?} already defined", name))
         } else {
@@ -164,7 +164,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    pub fn add_native_type_intern(&mut self, name: &'static str, type_: Arc<XType>, interner: &mut StringInterner) -> Result<(), String> {
+    pub fn add_native_type_intern(&mut self, name: &'static str, type_: TRef, interner: &mut StringInterner) -> Result<(), String> {
         self.add_native_type(interner.get_or_intern_static(name), type_)
     }
 
