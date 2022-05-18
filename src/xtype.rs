@@ -1,9 +1,11 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::Deref;
+use std::intrinsics::unreachable;
+use std::iter::FromIterator;
 use std::sync::{Arc, Weak};
 use derivative::Derivative;
 use string_interner::{DefaultSymbol, StringInterner};
+use crate::mref::MRef;
 use crate::native_types::NativeType;
 use crate::xscope::Identifier;
 
@@ -14,51 +16,15 @@ pub enum XType {
     Rational,
     String,
     XUnknown,
-    XStruct(Arc<XStructSpec>, Bind),
-    XUnion(Arc<XUnionSpec>, Bind),
+    XStruct(MRef<XStructSpec>, Bind),
+    XUnion(MRef<XUnionSpec>, Bind),
     XCallable(XCallableSpec),
     XFunc(XFuncSpec),
     XGeneric(Identifier),
     XNative(Box::<dyn NativeType>, Vec<TRef>),
 }
 
-#[derive(Clone)]
-pub enum TRef {
-    Weak(Weak<XType>),
-    Strong(Arc<XType>),
-}
-
-impl Debug for TRef {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        std::fmt::Debug::fmt(self.deref(), f)
-    }
-}
-
-impl Display for TRef {
-    fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        std::fmt::Display::fmt(self.deref(), f)
-    }
-}
-
-impl PartialEq for TRef {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (TRef::Weak(a), TRef::Weak(b)) => a.ptr_eq(b),
-            (TRef::Strong(a), TRef::Strong(b)) => a.as_ref() == b.as_ref(),
-            (TRef::Strong(a), TRef::Weak(b)) => a.as_ref() == b.upgrade().unwrap().as_ref(),
-            (TRef::Weak(_), TRef::Strong(_)) => other == self,
-            _ => false,
-        }
-    }
-}
-
-impl Eq for TRef {}
-
-impl From<XType> for TRef {
-    fn from(t: XType) -> TRef {
-        TRef::Strong(Arc::new(t))
-    }
-}
+pub type TRef = MRef<XType>;
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct Bind {
@@ -75,6 +41,12 @@ impl Bind {
     pub fn from<T: Into<HashMap<Identifier, TRef>>>(bound_generics: T) -> Self {
         Bind {
             bound_generics: bound_generics.into(),
+        }
+    }
+
+    pub fn from_iter<T>(bound_generics: impl IntoIterator<Item=T>) -> Self where HashMap<Identifier, TRef>: FromIterator<T> {
+        Bind {
+            bound_generics: HashMap::from_iter(bound_generics),
         }
     }
 
@@ -98,12 +70,17 @@ impl Bind {
     pub fn iter(&self) -> impl Iterator<Item=(&Identifier, &TRef)> {
         self.bound_generics.iter()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.bound_generics.is_empty()
+    }
 }
 
 
 #[derive(Clone, Hash, Debug, Eq, PartialEq)]
 pub struct XStructSpec {
     pub name: Identifier,
+    pub generic_names: Vec<Identifier>,
     // this is the full qualified name
     pub fields: Vec<XStructFieldSpec>,
     pub indices: BTreeMap<String, usize>,
@@ -112,13 +89,14 @@ pub struct XStructSpec {
 pub type XUnionSpec = XStructSpec;
 
 impl XStructSpec {
-    pub fn new(name: Identifier, fields: Vec<XStructFieldSpec>) -> XStructSpec {
+    pub fn new(name: Identifier, generic_names: Vec<Identifier>, fields: Vec<XStructFieldSpec>) -> XStructSpec {
         let mut indices = BTreeMap::new();
         for (i, field) in fields.iter().enumerate() {
             indices.insert(field.name.clone(), i);
         }
         XStructSpec {
             name,
+            generic_names,
             fields,
             indices,
         }
@@ -210,13 +188,6 @@ pub struct XFuncParamSpec {
 }
 
 impl TRef {
-    pub fn to_arc(&self) -> Arc<XType> {
-        match self {
-            TRef::Strong(t) => t.clone(),
-            TRef::Weak(t) => t.upgrade().unwrap(),
-        }
-    }
-
     pub fn resolve_bind(&self, bind: &Bind) -> TRef {
         match self.to_arc().as_ref() {
             XType::XNative(a, ref a_bind) => {
@@ -241,6 +212,42 @@ impl TRef {
             _ => false,
         }
     }
+
+    pub fn gen_param_count(&self) -> usize {
+        match self.to_arc().as_ref() {
+            XType::XNative(_, types) => types.len(),
+            XType::XStruct(spec, ..) | XType::XUnion(spec, ..) => spec.to_arc().generic_names.len(),
+            _ => 0,
+        }
+    }
+
+    pub fn bind(&self, generic_params: Vec<Self>) -> Result<Self, String> {
+        let with_compound = |spec: &MRef<XStructSpec>| -> Result<Bind, String>{
+            let spec = spec.to_arc();
+            if generic_params.len() != spec.generic_names.len() {
+                unreachable!();
+            }
+            // we only bind with pure types, so the current bind is always just generics
+            Ok(Bind::from_iter(spec.generic_names.iter().zip(generic_params.iter())
+                .map(|(n, t)| (n.clone(), t.clone()))))
+        };
+
+        if generic_params.is_empty() {
+            return Ok(self.clone());
+        }
+        match self.to_arc().as_ref() {
+            XType::XStruct(spec, ..) => Ok(Self::from(XType::XStruct(spec.clone(), with_compound(spec)?))),
+            XType::XUnion(spec, ..) => Ok(Self::from(XType::XUnion(spec.clone(), with_compound(spec)?))),
+            XType::XNative(a, current_bind) => {
+                if generic_params.len() != current_bind.len() {
+                    unreachable!();
+                }
+                // we only bind with pure types, so the current bind is always just generics
+                Ok(Self::from(XType::XNative(a.clone(), generic_params.clone())))
+            }
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl XType {
@@ -254,13 +261,13 @@ impl XType {
             (XType::Int, XType::Int) => Some(Bind::new()),
             (XType::Rational, XType::Rational) => Some(Bind::new()),
             (XType::String, XType::String) => Some(Bind::new()),
-            (XType::XStruct(a, ref bind_a), XType::XStruct(b, ref bind_b))|
-            (XType::XUnion(a, ref bind_a), XType::XUnion(b, ref bind_b))=> {
+            (XType::XStruct(a, ref bind_a), XType::XStruct(b, ref bind_b)) |
+            (XType::XUnion(a, ref bind_a), XType::XUnion(b, ref bind_b)) => {
                 if a != b {
                     return None;
                 }
                 let mut bind = Bind::new();
-                for p_type in a.fields.iter().map(|f| f.type_.clone()) {
+                for p_type in a.to_arc().fields.iter().map(|f| f.type_.clone()) {
                     if let Some(binds) = p_type.clone().resolve_bind(bind_a).to_arc().bind_in_assignment(&p_type.resolve_bind(bind_b)) {
                         bind = bind.mix(&binds)?;
                     } else {
@@ -357,7 +364,6 @@ impl XType {
             }
         }
     }
-
 }
 
 impl PartialEq<XType> for XType {
@@ -367,7 +373,7 @@ impl PartialEq<XType> for XType {
             (XType::Int, XType::Int) => true,
             (XType::Rational, XType::Rational) => true,
             (XType::String, XType::String) => true,
-            (XType::XStruct(ref a, ref a_b), XType::XStruct(ref b, ref b_b)) => a.name == b.name && a_b == b_b,
+            (XType::XStruct(ref a, ref a_b), XType::XStruct(ref b, ref b_b)) => a.to_arc().name == b.to_arc().name && a_b == b_b,
             (XType::XCallable(ref a), XType::XCallable(ref b)) => a.eq(b),
             (XType::XFunc(ref a), XType::XFunc(ref b)) => a.generic_params == b.generic_params && a.params.len() == b.params.len() && a.params.iter().zip(b.params.iter()).all(|(a, b)| a.type_.eq(&b.type_)),
             (XType::XCallable(ref a), XType::XFunc(ref b)) => b.generic_params.is_none() && a.param_types == b.params.iter().map(|p| p.type_.clone()).collect::<Vec<_>>() && a.return_type.eq(&b.ret),
@@ -387,8 +393,8 @@ impl Display for XType {
             XType::Int => write!(f, "int"),
             XType::Rational => write!(f, "rational"),
             XType::String => write!(f, "string"),
-            XType::XStruct(ref a, ref b) => write!(f, "{:?}<{:?}>", a.name, b),
-            XType::XUnion(ref a, ref b) => write!(f, "{:?}<{:?}>", a.name, b),
+            XType::XStruct(ref a, ref b) => write!(f, "{:?}<{:?}>", a.to_arc().name, b),
+            XType::XUnion(ref a, ref b) => write!(f, "{:?}<{:?}>", a.to_arc().name, b),
             XType::XCallable(ref a) => write!(f, "{:?}->{}", a.param_types, a.return_type),
             XType::XFunc(ref a) => {
                 write!(f, "(")?;

@@ -4,6 +4,7 @@ use std::iter::from_fn;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
+use crate::mref::MRef;
 use crate::runtime::{RTCell, RuntimeLimits};
 use crate::xexpr::{XExpr, XStaticFunction};
 use crate::xtype::{TRef, XFuncSpec, XStructSpec, XType, XUnionSpec};
@@ -14,8 +15,8 @@ pub type Identifier = DefaultSymbol;
 pub struct XCompilationScope<'p> {
     pub values: HashMap<Identifier, (Option<XExpr>, TRef)>,
     pub types: HashMap<Identifier, TRef>,
-    pub structs: HashMap<Identifier, Arc<XStructSpec>>,
-    pub unions: HashMap<Identifier, Arc<XUnionSpec>>,
+    pub structs: HashMap<Identifier, MRef<XStructSpec>>,
+    pub unions: HashMap<Identifier, MRef<XUnionSpec>>,
     pub functions: HashMap<Identifier, Vec<Rc<XStaticFunction>>>,
     pub recourse: Option<(Identifier, Rc<XFuncSpec>)>,
     pub closure_variables: HashSet<Identifier>,
@@ -28,8 +29,8 @@ pub struct XCompilationScope<'p> {
 pub enum XCompilationScopeItem {
     Value(TRef),
     NativeType(TRef),
-    Struct(Arc<XStructSpec>),
-    Union(Arc<XUnionSpec>),
+    Struct(MRef<XStructSpec>),
+    Union(MRef<XUnionSpec>),
     Overload(Vec<Rc<XStaticFunction>>),
 }
 
@@ -145,13 +146,13 @@ impl<'p> XCompilationScope<'p> {
 
     pub fn add_struct(&mut self, name: DefaultSymbol, struct_spec: XStructSpec) -> Result<Declaration, String> {
         // todo ensure no shadowing
-        self.structs.insert(name, Arc::new(struct_spec.clone()));
+        self.structs.insert(name, MRef::from(struct_spec.clone()));
         Ok(Declaration::Struct(struct_spec))
     }
 
     pub fn add_union(&mut self, name: DefaultSymbol, union_spec: XUnionSpec) -> Result<Declaration, String> {
         // todo ensure no shadowing
-        self.unions.insert(name, Arc::new(union_spec.clone()));
+        self.unions.insert(name, MRef::from(union_spec.clone()));
         Ok(Declaration::Union(union_spec))
     }
 

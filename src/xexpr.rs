@@ -16,6 +16,7 @@ use crate::xvalue::{ManagedXValue, NativeCallable, XFunction, XValue};
 use derivative::Derivative;
 use itertools::Itertools;
 use string_interner::{DefaultSymbol, StringInterner};
+use crate::mref::MRef;
 use crate::runtime::{RTCell, Runtime};
 
 #[derive(Debug, Clone, Derivative)]
@@ -138,15 +139,16 @@ impl XStaticExpr {
                     XStaticExpr::Member(obj, member_name) => {
                         //special case: member access can be a variant constructor
                         if let XStaticExpr::Ident(name) = obj.as_ref() {
-                            if let Some(XCompilationScopeItem::Union(spec)) = namespace.get(*name) {
+                            if let Some(XCompilationScopeItem::Union(mspec)) = namespace.get(*name) {
+                                let spec = mspec.to_arc();
                                 if let Some(&index) = spec.indices.get(member_name) {
                                     if compiled_args.len() != 1 {
                                         return Err(format!("variant constructor must have exactly one argument"));
                                     }
                                     return if let Some(bind) = spec.fields[index].type_.to_arc().bind_in_assignment(&compiled_args[0].xtype()?){
                                         return Ok(CompilationResult::new(XExpr::Variant(
-                                            spec,
-                                            Bind::new(),
+                                            mspec,
+                                            bind,
                                             index,
                                             Box::new(compiled_args[0].clone())),
                                                                          cvars));
@@ -167,15 +169,15 @@ impl XStaticExpr {
                                     cvars,
                                 ));
                             }
-                            Some(XCompilationScopeItem::Struct(spec)) => {
-                                // todo support direct specialization?
+                            Some(XCompilationScopeItem::Struct(mspec)) => {
+                                let spec = mspec.to_arc();
                                 let arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
                                 if arg_types.len() != spec.fields.len() {
                                     // todo
                                     return Err(format!("Struct {:?} takes {} arguments, but {} were given", spec.name, spec.fields.len(), arg_types.len()));
                                 }
                                 return if let Some(bind) = spec.bind(&arg_types) {
-                                    Ok(CompilationResult::new(XExpr::Construct(spec.clone(), bind, compiled_args), cvars))
+                                    Ok(CompilationResult::new(XExpr::Construct(mspec.clone(), bind, compiled_args), cvars))
                                 } else {
                                     // todo
                                     Err(format!("Struct {:?} does not take arguments {:?}", spec.name, arg_types))
@@ -219,7 +221,7 @@ impl XStaticExpr {
                 let obj_compiled = obj.compile(namespace)?;
                 match obj_compiled.expr.xtype()?.to_arc().as_ref() {
                     XType::XStruct(spec, _) | XType::XUnion(spec, _) => {
-                        if let Some(&index) = spec.indices.get(member_name) {
+                        if let Some(&index) = spec.to_arc().indices.get(member_name) {
                             Ok(CompilationResult::new(XExpr::Member(Box::new(obj_compiled.expr), index), obj_compiled.closure_vars))
                         } else {
                             Err(format!("No member named {} in struct {:?}", member_name, spec))
@@ -282,8 +284,8 @@ pub enum XExpr {
     Array(Vec<XExpr>),
     Set(Vec<XExpr>),
     Call(Box<XExpr>, Vec<XExpr>),
-    Construct(Arc<XStructSpec>, Bind, Vec<XExpr>),
-    Variant(Arc<XUnionSpec>, Bind, usize, Box<XExpr>),
+    Construct(MRef<XStructSpec>, Bind, Vec<XExpr>),
+    Variant(MRef<XUnionSpec>, Bind, usize, Box<XExpr>),
     Member(Box<XExpr>, usize),
     KnownOverload(Rc<XStaticFunction>, Bind),
     Ident(DefaultSymbol, Box<IdentItem>),
@@ -488,9 +490,9 @@ impl XExpr {
             XExpr::Variant(spec, binding, ..) => Ok(TRef::from(XType::XUnion(spec.clone(), binding.clone()))),
             XExpr::Member(obj, idx) => {
                 match obj.xtype()?.to_arc().as_ref(){
-                    XType::XStruct(spec, bind) => Ok(spec.fields[*idx].type_.clone().resolve_bind(&bind)),
+                    XType::XStruct(spec, bind) => Ok(spec.to_arc().fields[*idx].type_.clone().resolve_bind(&bind)),
                     XType::XUnion(spec, bind) => {
-                        let t = spec.fields[*idx].type_.clone().resolve_bind(&bind);
+                        let t = spec.to_arc().fields[*idx].type_.clone().resolve_bind(&bind);
                         Ok(XOptionalType::xtype(t))
                     },
                     _ => Err(format!("Expected struct type, got {:?}", obj.xtype()?))

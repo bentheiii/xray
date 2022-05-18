@@ -12,6 +12,9 @@ mod xexpr;
 mod builtin;
 mod native_types;
 mod runtime;
+mod type_skeleton;
+mod mref;
+mod util;
 
 extern crate pest;
 #[macro_use]
@@ -162,6 +165,28 @@ fn main() {
 
 impl<'p> XCompilationScope<'p> {
     fn feed(&mut self, input: Pair<Rule>, parent_gen_param_names: &HashSet<String>, interner: &mut StringInterner, runtime: RTCell) -> Result<Vec<Declaration>, String> {
+        let read_compound = ||->XStructSpec {
+            let mut inners = input.into_inner();
+            let _pub_opt = inners.next().unwrap();
+            let var_name = inners.next().unwrap().as_str();
+            let gen_params = inners.next().unwrap();
+            let mut gen_param_names = vec![];
+            if let Some(gen_params) = gen_params.into_inner().next() {
+                for param in gen_params.into_inner() {
+                    gen_param_names.push(param.as_str().to_string());
+                }
+            }
+            let param_pairs = inners.next().unwrap();
+            let params = param_pairs.into_inner().map(|p| {
+                let mut param_iter = p.into_inner();
+                let name = param_iter.next().unwrap().as_str();
+                let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names.iter().cloned().collect(), interner)?;
+                Ok(XStructFieldSpec { name: name.to_string(), type_ })
+            }).collect::<Result<Vec<_>, String>>()?;
+            let symbol = interner.get_or_intern(var_name);
+            let gen_symbols = gen_param_names.iter().map(|name| interner.get_or_intern(name)).collect::<Vec<_>>();
+            XStructSpec::new(symbol, gen_symbols, params)
+        };
         match input.as_rule() {
             Rule::header | Rule::top_level_execution | Rule::execution | Rule::declaration => {
                 let mut declarations = Vec::new();
@@ -257,48 +282,12 @@ impl<'p> XCompilationScope<'p> {
                 Ok(vec![self.add_func(name, func)?])
             }
             Rule::struct_def => {
-                let mut inners = input.into_inner();
-                let _pub_opt = inners.next().unwrap();
-                let var_name = inners.next().unwrap().as_str();
-                let gen_params = inners.next().unwrap();
-                let mut gen_param_names = HashSet::new();
-                if let Some(gen_params) = gen_params.into_inner().next() {
-                    for param in gen_params.into_inner() {
-                        gen_param_names.insert(param.as_str().to_string());
-                    }
-                }
-                let param_pairs = inners.next().unwrap();
-                let params = param_pairs.into_inner().map(|p| {
-                    let mut param_iter = p.into_inner();
-                    let name = param_iter.next().unwrap().as_str();
-                    let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner)?;
-                    Ok(XStructFieldSpec { name: name.to_string(), type_ })
-                }).collect::<Result<Vec<_>, String>>()?;
-                let symbol = interner.get_or_intern(var_name);
-                let struct_ = XStructSpec::new(symbol, params);
-                Ok(vec![self.add_struct(symbol, struct_)?])
+                let struct_ = read_compound();
+                Ok(vec![self.add_struct(struct_.name, struct_)?])
             }
             Rule::union_def => {
-                let mut inners = input.into_inner();
-                let _pub_opt = inners.next().unwrap();
-                let var_name = inners.next().unwrap().as_str();
-                let gen_params = inners.next().unwrap();
-                let mut gen_param_names = HashSet::new();
-                if let Some(gen_params) = gen_params.into_inner().next() {
-                    for param in gen_params.into_inner() {
-                        gen_param_names.insert(param.as_str().to_string());
-                    }
-                }
-                let param_pairs = inners.next().unwrap();
-                let params = param_pairs.into_inner().map(|p| {
-                    let mut param_iter = p.into_inner();
-                    let name = param_iter.next().unwrap().as_str();
-                    let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner)?;
-                    Ok(XStructFieldSpec { name: name.to_string(), type_ })
-                }).collect::<Result<Vec<_>, String>>()?;
-                let symbol = interner.get_or_intern(var_name);
-                let struct_ = XStructSpec::new(symbol, params);
-                Ok(vec![self.add_union(symbol, struct_)?])
+                let struct_ = read_compound();
+                Ok(vec![self.add_union(struct_.name, struct_)?])
             }
             Rule::EOI => Ok(Vec::new()),
             _ => {
