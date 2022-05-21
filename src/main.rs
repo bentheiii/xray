@@ -42,7 +42,7 @@ use crate::runtime::{RTCell, RuntimeLimits};
 
 use crate::xexpr::{CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
-use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XStructFieldSpec, XStructSpec, XType};
+use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompoundSpec, XType};
 
 #[derive(Parser)]
 #[grammar = "xray.pest"]
@@ -50,25 +50,28 @@ struct XRayParser;
 
 fn main() {
     let input = r#"
-    union msg(
-        x: Array<int>,
-        y: rational
+    union unn(
+        a: int,
+        b: rational
+    )
+    struct strct(
+        a: int,
+        b: rational
     )
 
-    fn sum(x: Array<int>) -> int {
-        fn helper(i: int, ret: int) -> int {
-            if(i == x.len(),
-                ret,
-                helper(i+1, ret + x.get(i)))
+    fn foo(x: unn, y: strct)->rational {
+        fn handle_a(v: int)->rational {
+            ((v*y::a)/1) + y::b
         }
-        helper(0, 0)
+        fn handle_b(v: rational)->rational {
+            v*(y::a/1) + y::b
+        }
+
+        (x::a.map(handle_a) || x::b.map(handle_b)).value()
     }
 
-    fn do(m: msg) -> int {
-        (m::x.map(sum) || m::y.map(floor)).value()
-    }
+    let z = foo(unn::b(3/4), strct(3, 4.0));
 
-    let z = do(msg::x([1,15,16]));
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -155,6 +158,28 @@ fn main() {
 
 impl<'p> XCompilationScope<'p> {
     fn feed(&mut self, input: Pair<Rule>, parent_gen_param_names: &HashSet<String>, interner: &mut StringInterner, runtime: RTCell) -> Result<Vec<Declaration>, String> {
+        let mut to_compound_spec = |input: Pair<Rule>|->Result<_, String> {
+            let mut inners = input.into_inner();
+            let _pub_opt = inners.next().unwrap();
+            let var_name = inners.next().unwrap().as_str();
+            let gen_params = inners.next().unwrap();
+            let mut gen_param_names = HashSet::new();
+            if let Some(gen_params) = gen_params.into_inner().next() {
+                for param in gen_params.into_inner() {
+                    gen_param_names.insert(param.as_str().to_string());
+                }
+            }
+            let param_pairs = inners.next().unwrap();
+            let params = param_pairs.into_inner().map(|p| {
+                let mut param_iter = p.into_inner();
+                let name = param_iter.next().unwrap().as_str();
+                let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner)?;
+                Ok(XCompoundFieldSpec { name: name.to_string(), type_ })
+            }).collect::<Result<Vec<_>, String>>()?;
+            let symbol = interner.get_or_intern(var_name);
+            Ok(XCompoundSpec::new(symbol, params))
+        };
+
         match input.as_rule() {
             Rule::header | Rule::top_level_execution | Rule::execution | Rule::declaration => {
                 let mut declarations = Vec::new();
@@ -250,48 +275,12 @@ impl<'p> XCompilationScope<'p> {
                 Ok(vec![self.add_func(name, func)?])
             }
             Rule::struct_def => {
-                let mut inners = input.into_inner();
-                let _pub_opt = inners.next().unwrap();
-                let var_name = inners.next().unwrap().as_str();
-                let gen_params = inners.next().unwrap();
-                let mut gen_param_names = HashSet::new();
-                if let Some(gen_params) = gen_params.into_inner().next() {
-                    for param in gen_params.into_inner() {
-                        gen_param_names.insert(param.as_str().to_string());
-                    }
-                }
-                let param_pairs = inners.next().unwrap();
-                let params = param_pairs.into_inner().map(|p| {
-                    let mut param_iter = p.into_inner();
-                    let name = param_iter.next().unwrap().as_str();
-                    let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner)?;
-                    Ok(XStructFieldSpec { name: name.to_string(), type_ })
-                }).collect::<Result<Vec<_>, String>>()?;
-                let symbol = interner.get_or_intern(var_name);
-                let struct_ = XStructSpec::new(symbol, params);
-                Ok(vec![self.add_struct(symbol, struct_)?])
+                let spec = to_compound_spec(input)?;
+                Ok(vec![self.add_struct(spec.name, spec)?])
             }
             Rule::union_def => {
-                let mut inners = input.into_inner();
-                let _pub_opt = inners.next().unwrap();
-                let var_name = inners.next().unwrap().as_str();
-                let gen_params = inners.next().unwrap();
-                let mut gen_param_names = HashSet::new();
-                if let Some(gen_params) = gen_params.into_inner().next() {
-                    for param in gen_params.into_inner() {
-                        gen_param_names.insert(param.as_str().to_string());
-                    }
-                }
-                let param_pairs = inners.next().unwrap();
-                let params = param_pairs.into_inner().map(|p| {
-                    let mut param_iter = p.into_inner();
-                    let name = param_iter.next().unwrap().as_str();
-                    let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner)?;
-                    Ok(XStructFieldSpec { name: name.to_string(), type_ })
-                }).collect::<Result<Vec<_>, String>>()?;
-                let symbol = interner.get_or_intern(var_name);
-                let struct_ = XStructSpec::new(symbol, params);
-                Ok(vec![self.add_union(symbol, struct_)?])
+                let spec = to_compound_spec(input)?;
+                Ok(vec![self.add_union(spec.name, spec)?])
             }
             Rule::EOI => Ok(Vec::new()),
             _ => {
@@ -347,8 +336,7 @@ impl<'p> XCompilationScope<'p> {
                                 }
                             }
                             // todo gen params
-                            XCompilationScopeItem::Struct(t) => Ok(Arc::new(XType::XStruct(t, Bind::new()))),
-                            XCompilationScopeItem::Union(t) => Ok(Arc::new(XType::XUnion(t, Bind::new()))),
+                            XCompilationScopeItem::Compound(kind, t) => Ok(Arc::new(XType::Compound(kind, t, Bind::new()))),
                             other => Err(format!("{:?} is not a type", other))
                         }
                     }

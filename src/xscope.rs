@@ -6,7 +6,7 @@ use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
 use crate::runtime::{RTCell, RuntimeLimits};
 use crate::xexpr::{XExpr, XStaticFunction};
-use crate::xtype::{XFuncSpec, XStructSpec, XType, XUnionSpec};
+use crate::xtype::{XFuncSpec, XCompoundSpec, XType, CompoundKind};
 use crate::xvalue::{ManagedXValue, XFunction};
 
 pub type Identifier = DefaultSymbol;
@@ -14,8 +14,8 @@ pub type Identifier = DefaultSymbol;
 pub struct XCompilationScope<'p> {
     pub values: HashMap<Identifier, (Option<XExpr>, Arc<XType>)>,
     pub types: HashMap<Identifier, Arc<XType>>,
-    pub structs: HashMap<Identifier, Arc<XStructSpec>>,
-    pub unions: HashMap<Identifier, Arc<XUnionSpec>>,
+    pub structs: HashMap<Identifier, Arc<XCompoundSpec>>,
+    pub unions: HashMap<Identifier, Arc<XCompoundSpec>>,
     pub functions: HashMap<Identifier, Vec<Rc<XStaticFunction>>>,
     pub recourse: Option<(Identifier, Rc<XFuncSpec>)>,
     pub closure_variables: HashSet<Identifier>,
@@ -28,8 +28,7 @@ pub struct XCompilationScope<'p> {
 pub enum XCompilationScopeItem {
     Value(Arc<XType>),
     NativeType(Arc<XType>),
-    Struct(Arc<XStructSpec>),
-    Union(Arc<XUnionSpec>),
+    Compound(CompoundKind, Arc<XCompoundSpec>),
     Overload(Vec<Rc<XStaticFunction>>),
 }
 
@@ -99,10 +98,10 @@ impl<'p> XCompilationScope<'p> {
                 return Some((XCompilationScopeItem::Value(value.clone()), depth));
             }
             if let Some(struct_spec) = scope.structs.get(&name) {
-                return Some((XCompilationScopeItem::Struct(struct_spec.clone()), depth));
+                return Some((XCompilationScopeItem::Compound(CompoundKind::Struct, struct_spec.clone()), depth));
             }
             if let Some(struct_spec) = scope.unions.get(&name) {
-                return Some((XCompilationScopeItem::Union(struct_spec.clone()), depth));
+                return Some((XCompilationScopeItem::Compound(CompoundKind::Union, struct_spec.clone()), depth));
             }
             if let Some(type_spec) = scope.types.get(&name) {
                 return Some((XCompilationScopeItem::NativeType(type_spec.clone()), depth));
@@ -143,13 +142,13 @@ impl<'p> XCompilationScope<'p> {
         self.add_func(interner.get_or_intern_static(name), func)
     }
 
-    pub fn add_struct(&mut self, name: DefaultSymbol, struct_spec: XStructSpec) -> Result<Declaration, String> {
+    pub fn add_struct(&mut self, name: DefaultSymbol, struct_spec: XCompoundSpec) -> Result<Declaration, String> {
         // todo ensure no shadowing
         self.structs.insert(name, Arc::new(struct_spec.clone()));
         Ok(Declaration::Struct(struct_spec))
     }
 
-    pub fn add_union(&mut self, name: DefaultSymbol, union_spec: XUnionSpec) -> Result<Declaration, String> {
+    pub fn add_union(&mut self, name: DefaultSymbol, union_spec: XCompoundSpec) -> Result<Declaration, String> {
         // todo ensure no shadowing
         self.unions.insert(name, Arc::new(union_spec.clone()));
         Ok(Declaration::Union(union_spec))
@@ -199,8 +198,8 @@ impl<'p> XCompilationScope<'p> {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Declaration {
     Value(DefaultSymbol, XExpr),
-    Struct(XStructSpec),
-    Union(XUnionSpec),
+    Struct(XCompoundSpec),
+    Union(XCompoundSpec),
     UserFunction(DefaultSymbol, Rc<XStaticFunction>),
 }
 

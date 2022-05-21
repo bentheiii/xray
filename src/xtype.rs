@@ -13,12 +13,17 @@ pub enum XType {
     Rational,
     String,
     XUnknown,
-    XStruct(Arc<XStructSpec>, Bind),
-    XUnion(Arc<XUnionSpec>, Bind),
+    Compound(CompoundKind, Arc<XCompoundSpec>, Bind),
     XCallable(XCallableSpec),
     XFunc(XFuncSpec),
     XGeneric(Identifier),
     XNative(Box::<dyn NativeType>, Vec<Arc<XType>>),
+}
+
+#[derive(Debug, Eq, PartialEq, Clone, Copy)]
+pub enum CompoundKind {
+    Struct,
+    Union,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
@@ -63,22 +68,20 @@ impl Bind {
 
 
 #[derive(Clone, Hash, Debug, Eq, PartialEq)]
-pub struct XStructSpec {
+pub struct XCompoundSpec {
     pub name: Identifier,
     // this is the full qualified name
-    pub fields: Vec<XStructFieldSpec>,
+    pub fields: Vec<XCompoundFieldSpec>,
     pub indices: BTreeMap<String, usize>,
 }
 
-pub type XUnionSpec = XStructSpec;
-
-impl XStructSpec {
-    pub fn new(name: Identifier, fields: Vec<XStructFieldSpec>) -> XStructSpec {
+impl XCompoundSpec {
+    pub fn new(name: Identifier, fields: Vec<XCompoundFieldSpec>) -> XCompoundSpec {
         let mut indices = BTreeMap::new();
         for (i, field) in fields.iter().enumerate() {
             indices.insert(field.name.clone(), i);
         }
-        XStructSpec {
+        XCompoundSpec {
             name,
             fields,
             indices,
@@ -99,7 +102,7 @@ impl XStructSpec {
 
 #[derive(Clone, Debug, Eq, PartialEq, Derivative)]
 #[derivative(Hash)]
-pub struct XStructFieldSpec {
+pub struct XCompoundFieldSpec {
     pub name: String,
     #[derivative(Hash = "ignore")]
     pub type_: Arc<XType>,
@@ -181,9 +184,8 @@ impl XType {
             (XType::Int, XType::Int) => Some(Bind::new()),
             (XType::Rational, XType::Rational) => Some(Bind::new()),
             (XType::String, XType::String) => Some(Bind::new()),
-            (XType::XStruct(a, ref bind_a), XType::XStruct(b, ref bind_b))|
-            (XType::XUnion(a, ref bind_a), XType::XUnion(b, ref bind_b))=> {
-                if a != b {
+            (XType::Compound(k0, a, ref bind_a), XType::Compound(k1, b, ref bind_b))=> {
+                if a != b || k0 != k1{
                     return None;
                 }
                 let mut bind = Bind::new();
@@ -304,7 +306,7 @@ impl XType {
             XType::XNative(_, types) => types.iter().cloned().any(|t| t.is_unknown()),
             XType::XCallable(spec) => spec.param_types.iter().cloned().any(|t| t.is_unknown()) || spec.return_type.is_unknown(),
             XType::XFunc(spec) => spec.params.iter().any(|t| t.type_.clone().is_unknown()) || spec.ret.is_unknown(),
-            XType::XStruct(_, bind) => bind.iter().any(|(_, t)| t.is_unknown()),
+            XType::Compound(.., bind) => bind.iter().any(|(_, t)| t.is_unknown()),
             _ => false,
         }
     }
@@ -317,7 +319,7 @@ impl PartialEq<XType> for XType {
             (XType::Int, XType::Int) => true,
             (XType::Rational, XType::Rational) => true,
             (XType::String, XType::String) => true,
-            (XType::XStruct(ref a, ref a_b), XType::XStruct(ref b, ref b_b)) => a.name == b.name && a_b == b_b,
+            (XType::Compound(k0, ref a, ref a_b), XType::Compound(k1, ref b, ref b_b)) => k0==k1 && a.name == b.name && a_b == b_b,
             (XType::XCallable(ref a), XType::XCallable(ref b)) => a.eq(b),
             (XType::XFunc(ref a), XType::XFunc(ref b)) => a.generic_params == b.generic_params && a.params.len() == b.params.len() && a.params.iter().zip(b.params.iter()).all(|(a, b)| a.type_.eq(&b.type_)),
             (XType::XCallable(ref a), XType::XFunc(ref b)) => b.generic_params.is_none() && a.param_types == b.params.iter().map(|p| p.type_.clone()).collect::<Vec<_>>() && a.return_type.eq(&b.ret),
@@ -337,8 +339,7 @@ impl Display for XType {
             XType::Int => write!(f, "int"),
             XType::Rational => write!(f, "rational"),
             XType::String => write!(f, "string"),
-            XType::XStruct(ref a, ref b) => write!(f, "{:?}<{:?}>", a.name, b),
-            XType::XUnion(ref a, ref b) => write!(f, "{:?}<{:?}>", a.name, b),
+            XType::Compound(_, ref a, ref b) => write!(f, "{:?}<{:?}>", a.name, b),
             XType::XCallable(ref a) => write!(f, "{:?}->{}", a.param_types, a.return_type),
             XType::XFunc(ref a) => {
                 write!(f, "(")?;

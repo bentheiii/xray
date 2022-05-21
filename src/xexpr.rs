@@ -10,7 +10,7 @@ use crate::builtin::array::{XArray, XArrayType};
 use crate::builtin::set::{XSet, XSetType};
 use crate::{manage_native, XFuncSpec, XOptional, XOptionalType};
 use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
-use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XStructSpec, XType, XUnionSpec};
+use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XCompoundSpec, XType, CompoundKind};
 use crate::xvalue::{ManagedXValue, NativeCallable, XFunction, XValue};
 use derivative::Derivative;
 use itertools::Itertools;
@@ -140,7 +140,7 @@ impl XStaticExpr {
                     XStaticExpr::Member(obj, gens, member_name) => {
                         //special case: member access can be a variant constructor
                         if let XStaticExpr::Ident(name) = obj.as_ref() {
-                            if let Some(XCompilationScopeItem::Union(spec)) = namespace.get(*name) {
+                            if let Some(XCompilationScopeItem::Compound(CompoundKind::Union,spec)) = namespace.get(*name) {
                                 if let Some(&index) = spec.indices.get(member_name) {
                                     if compiled_args.len() != 1 {
                                         return Err(format!("variant constructor must have exactly one argument"));
@@ -172,7 +172,7 @@ impl XStaticExpr {
                                     cvars,
                                 ));
                             }
-                            Some(XCompilationScopeItem::Struct(spec)) => {
+                            Some(XCompilationScopeItem::Compound(CompoundKind::Struct, spec)) => {
                                 // todo support direct specialization?
                                 let arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
                                 if arg_types.len() != spec.fields.len() {
@@ -227,7 +227,7 @@ impl XStaticExpr {
                 }
                 let obj_compiled = obj.compile(namespace)?;
                 match obj_compiled.expr.xtype()?.as_ref() {
-                    XType::XStruct(spec, _) | XType::XUnion(spec, _) => {
+                    XType::Compound(_, spec, _)=> {
                         if let Some(&index) = spec.indices.get(member_name) {
                             Ok(CompilationResult::new(XExpr::Member(Box::new(obj_compiled.expr), index), obj_compiled.closure_vars))
                         } else {
@@ -240,7 +240,7 @@ impl XStaticExpr {
             XStaticExpr::Ident(name) => {
                 match namespace.get_with_depth(*name) {
                     None => Err(format!("Undefined root identifier: {:?}", name)),
-                    Some((XCompilationScopeItem::Struct(_), _)) => Err(format!("Struct {:?} cannot be used as a variable", name)),
+                    Some((XCompilationScopeItem::Compound(..), _)) => Err(format!("Compound {:?} cannot be used as a variable", name)),
                     Some((item, depth)) => {
                         let cvars = if depth != 0 && depth != namespace.height {
                             vec![name.clone()]
@@ -291,8 +291,8 @@ pub enum XExpr {
     Array(Vec<XExpr>),
     Set(Vec<XExpr>),
     Call(Box<XExpr>, Vec<XExpr>),
-    Construct(Arc<XStructSpec>, Bind, Vec<XExpr>),
-    Variant(Arc<XUnionSpec>, Bind, usize, Box<XExpr>),
+    Construct(Arc<XCompoundSpec>, Bind, Vec<XExpr>),
+    Variant(Arc<XCompoundSpec>, Bind, usize, Box<XExpr>),
     Member(Box<XExpr>, usize),
     KnownOverload(Rc<XStaticFunction>, Bind),
     Ident(DefaultSymbol, Box<IdentItem>),
@@ -493,12 +493,12 @@ impl XExpr {
                 }
                 Err(format!("Expected function type, got {:?}", func.xtype()?))
             }
-            XExpr::Construct(spec, binding, ..) => Ok(Arc::new(XType::XStruct(spec.clone(), binding.clone()))),
-            XExpr::Variant(spec, binding, ..) => Ok(Arc::new(XType::XUnion(spec.clone(), binding.clone()))),
+            XExpr::Construct(spec, binding, ..) => Ok(Arc::new(XType::Compound(CompoundKind::Struct,spec.clone(), binding.clone()))),
+            XExpr::Variant(spec, binding, ..) => Ok(Arc::new(XType::Compound(CompoundKind::Union, spec.clone(), binding.clone()))),
             XExpr::Member(obj, idx) => {
                 match obj.xtype()?.as_ref(){
-                    XType::XStruct(spec, bind) => Ok(spec.fields[*idx].type_.clone().resolve_bind(&bind)),
-                    XType::XUnion(spec, bind) => {
+                    XType::Compound(CompoundKind::Struct, spec, bind) => Ok(spec.fields[*idx].type_.clone().resolve_bind(&bind)),
+                    XType::Compound(CompoundKind::Union, spec, bind) => {
                         let t = spec.fields[*idx].type_.clone().resolve_bind(&bind);
                         Ok(XOptionalType::xtype(t))
                     },
