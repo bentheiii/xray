@@ -17,20 +17,27 @@ impl<T> Clone for MRef<T> {
 
 impl<T: Debug> Debug for MRef<T> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        Debug::fmt(self.to_arc().as_ref(), f)
+        match self {
+            MRef::Weak(..) => write!(f, "Weak(...)"),
+            MRef::Strong(strong) => Debug::fmt(strong, f),
+        }
     }
 }
 
 impl<T: Display> Display for MRef<T> {
     fn fmt(&self, f: &mut Formatter) -> std::fmt::Result {
-        Display::fmt(self.to_arc().as_ref(), f)
+        match self {
+            MRef::Weak(..) => write!(f, "Weak(...)"),
+            MRef::Strong(strong) => Display::fmt(strong, f),
+        }
     }
 }
 
-impl<T: PartialEq> PartialEq for MRef<T> {
+impl<T: PartialEq+Debug> PartialEq for MRef<T> {
     fn eq(&self, other: &Self) -> bool {
+        println!("!!! EQ.0 {:?} {:?}", self, other);
         match (self, other) {
-            (MRef::Weak(a), MRef::Weak(b)) => a.upgrade().unwrap().as_ref() == b.upgrade().unwrap().as_ref(),
+            (MRef::Weak(a), MRef::Weak(b)) => a.ptr_eq(b),
             (MRef::Strong(a), MRef::Strong(b)) => a.as_ref() == b.as_ref(),
             (MRef::Strong(a), MRef::Weak(b)) => a.as_ref() == b.upgrade().unwrap().as_ref(),
             (MRef::Weak(_), MRef::Strong(_)) => other == self,
@@ -39,7 +46,7 @@ impl<T: PartialEq> PartialEq for MRef<T> {
     }
 }
 
-impl<T: PartialEq> Eq for MRef<T> {}
+impl<T: PartialEq+Debug> Eq for MRef<T> {}
 
 impl<T> From<T> for MRef<T> {
     fn from(t: T) -> Self<> {

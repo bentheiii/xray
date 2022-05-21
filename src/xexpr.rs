@@ -86,12 +86,15 @@ impl XStaticExpr {
 
     pub fn compile<'p>(&self, namespace: &'p XCompilationScope<'p>) -> Result<CompilationResult, String> {
         fn resolve_overload(overloads: Vec<Rc<XStaticFunction>>, arg_types: &Vec<TRef>, name: DefaultSymbol) -> Result<XExpr, String> {
+            println!("!!! R.0 {:?}", overloads.len());
             let mut exact_matches = vec![];
             let mut generic_matches = vec![];
             let is_unknown = arg_types.iter().any(|t| t.is_unknown());
             // if the bindings are unknown, then we prefer generic solutions over exact solutions
             for overload in overloads {
+                println!("!!! R.1 {:?} {:?}", overload, arg_types);
                 let b = overload.bind(arg_types);
+                println!("!!! R.2 {:?}", b);
                 if let Some(bind) = b {
                     if overload.is_generic() ^ is_unknown {
                         &mut generic_matches
@@ -99,6 +102,7 @@ impl XStaticExpr {
                         &mut exact_matches
                     }.push(XExpr::KnownOverload(overload, bind));
                 }
+                println!("!!! R.3 {:?} {:?}", exact_matches.len(), generic_matches.len());
             }
             if exact_matches.len() == 1 {
                 return Ok(exact_matches.swap_remove(0));
@@ -134,6 +138,7 @@ impl XStaticExpr {
             XStaticExpr::Array(items) => Ok(CompilationResult::from_multi(compile_many(items, namespace)?, XExpr::Array)),
             XStaticExpr::Set(items) => Ok(CompilationResult::from_multi(compile_many(items, namespace)?, XExpr::Set)),
             XStaticExpr::Call(func, args) => {
+                println!("!!! C.0");
                 let (compiled_args, mut cvars) = compile_many(args, namespace)?;
                 match func.as_ref() {
                     XStaticExpr::Member(obj, member_name) => {
@@ -146,6 +151,7 @@ impl XStaticExpr {
                                         return Err(format!("variant constructor must have exactly one argument"));
                                     }
                                     return if let Some(bind) = spec.fields[index].type_.to_arc().bind_in_assignment(&compiled_args[0].xtype()?){
+                                        println!("!!! C.V.1");
                                         return Ok(CompilationResult::new(XExpr::Variant(
                                             mspec,
                                             bind,

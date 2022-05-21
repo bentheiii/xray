@@ -14,15 +14,15 @@ mod native_types;
 mod runtime;
 mod type_skeleton;
 mod mref;
-mod util;
 
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 extern crate core;
 
-use std::collections::{HashSet};
+use std::collections::{HashMap, HashSet};
 use std::iter;
+use std::iter::FromIterator;
 use std::ops::Deref;
 use std::sync::Arc;
 use itertools::Itertools;
@@ -42,10 +42,12 @@ use crate::builtin::generic::{*};
 use crate::builtin::optional::{*};
 use crate::builtin::set::{*};
 use crate::builtin::stack::{*};
+use crate::mref::MRef;
 use crate::runtime::{RTCell, RuntimeLimits};
+use crate::type_skeleton::{build_from_skeleton, FnFromSpec, XTypeSkeleton};
 
 use crate::xexpr::{CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
-use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
+use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
 use crate::xtype::{Bind, TRef, XCallableSpec, XFuncSpec, XStructFieldSpec, XStructSpec, XType};
 
 #[derive(Parser)]
@@ -59,26 +61,12 @@ fn main() {
         arr: Array<nest<T>>
     )
 
-    fn flatten<T>(n: nest<T>) -> Stack<T> {
-        fn helper(n: nest<T>, acc: Stack<T>) -> Stack<T> {
-            fn arr_case(arr: Array<nest<T>>) -> Stack<T>{
-                fn arr_case_helper(ret: Stack<T>, idx: int) -> Stack<T> {
-                    (idx == arr.len()).if(
-                        ret,
-                        arr_case_helper(helper(arr.get(idx), ret), idx + 1)
-                    )
-                }
-                arr_case_helper(acc, 0)
-            }
-            fn v_case(v: T) -> Stack<T> {
-                acc.push(v)
-            }
-            (n::arr.map(arr_case) || n::v.map(v_case)).unwrap()
-        }
-        helper(n, stack())
+    fn flatten<T>(n0: nest<T>) -> int {
+        0
     }
-
-    let z = flatten(nest::arr([nest::v(1), nest::arr([nest::v(2), nest::arr([nest::v(3)])])]));
+    let n: nest<int> = nest::v(1);
+    let z = flatten(n);
+    //let z = flatten(nest::arr([nest::v(1), nest::arr([nest::v(2), nest::arr([nest::v(3)])])]));
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
@@ -165,7 +153,7 @@ fn main() {
 
 impl<'p> XCompilationScope<'p> {
     fn feed(&mut self, input: Pair<Rule>, parent_gen_param_names: &HashSet<String>, interner: &mut StringInterner, runtime: RTCell) -> Result<Vec<Declaration>, String> {
-        let read_compound = ||->XStructSpec {
+        let mut read_compound = |input: Pair<Rule>, builder: FnFromSpec|->Result<MRef<XStructSpec>,String> {
             let mut inners = input.into_inner();
             let _pub_opt = inners.next().unwrap();
             let var_name = inners.next().unwrap().as_str();
@@ -176,16 +164,17 @@ impl<'p> XCompilationScope<'p> {
                     gen_param_names.push(param.as_str().to_string());
                 }
             }
+            let gen_param_symbols = gen_param_names.iter().map(|name| interner.get_or_intern(name)).collect();
             let param_pairs = inners.next().unwrap();
-            let params = param_pairs.into_inner().map(|p| {
+            let param_skeletons = param_pairs.into_inner().map(|p| {
                 let mut param_iter = p.into_inner();
                 let name = param_iter.next().unwrap().as_str();
-                let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names.iter().cloned().collect(), interner)?;
-                Ok(XStructFieldSpec { name: name.to_string(), type_ })
+                let skel = self.get_skeleton_type(param_iter.next().unwrap(), &gen_param_names.iter().cloned().collect(), &gen_param_symbols, var_name, interner)?;
+                Ok((name.to_string(), skel ))
             }).collect::<Result<Vec<_>, String>>()?;
             let symbol = interner.get_or_intern(var_name);
             let gen_symbols = gen_param_names.iter().map(|name| interner.get_or_intern(name)).collect::<Vec<_>>();
-            XStructSpec::new(symbol, gen_symbols, params)
+            Ok(build_from_skeleton(param_skeletons, symbol, gen_symbols, builder))
         };
         match input.as_rule() {
             Rule::header | Rule::top_level_execution | Rule::execution | Rule::declaration => {
@@ -196,16 +185,19 @@ impl<'p> XCompilationScope<'p> {
                 Ok(declarations)
             }
             Rule::value => {
+                println!("!!! V.0 {:?}", input.as_str());
                 let mut inners = input.into_inner();
                 let _pub_opt = inners.next().unwrap();
                 let var_name = inners.next().unwrap().as_str();
                 let explicit_type_opt = inners.next().unwrap();
                 let complete_type = explicit_type_opt.into_inner().next().map(|et| self.get_complete_type(et, parent_gen_param_names, interner)).transpose()?;
                 let expr = to_expr(inners.next().unwrap(), &self, interner)?;
+                println!("!!! V.1");
                 let CompilationResult { expr: compiled, closure_vars: cvars } = expr.compile(&self)?;
+                println!("!!! V.2");
                 if let Some(complete_type) = complete_type {
                     let comp_xtype = compiled.xtype()?;
-                    if complete_type != comp_xtype {
+                    if complete_type.to_arc().bind_in_assignment(&comp_xtype).is_none(){
                         return Err(format!("type mismatch: expected {:?}, got {:?}", complete_type, comp_xtype));
                     }
                 }
@@ -282,17 +274,91 @@ impl<'p> XCompilationScope<'p> {
                 Ok(vec![self.add_func(name, func)?])
             }
             Rule::struct_def => {
-                let struct_ = read_compound();
-                Ok(vec![self.add_struct(struct_.name, struct_)?])
+                let struct_ = read_compound(input, |spec, bind| XType::XStruct(spec, bind))?;
+                Ok(vec![self.add_struct(struct_.to_arc().name, struct_)?])
             }
             Rule::union_def => {
-                let struct_ = read_compound();
-                Ok(vec![self.add_union(struct_.name, struct_)?])
+                println!("!!! B.0");
+                let struct_ = read_compound(input, |spec, bind| XType::XUnion(spec, bind))?;
+                let ret = Ok(vec![self.add_union(struct_.to_arc().name, struct_)?]);
+                println!("!!! B.1");
+                ret
             }
             Rule::EOI => Ok(Vec::new()),
             _ => {
                 println!("{:?}", input);
                 Ok(vec![])
+            }
+        }
+    }
+
+    fn get_skeleton_type(&self, input: Pair<Rule>, generic_param_names: &HashSet<String>, specific_gen_names: &Vec<Identifier>, tail_name: &str, interner: &mut StringInterner) -> Result<XTypeSkeleton, String> {
+        match input.as_rule() {
+            Rule::complete_type => {
+                let mut inners = input.into_inner();
+                let part1 = inners.next().unwrap();
+                match part1.as_rule() {
+                    Rule::signature => {
+                        let mut sig_inners = part1.into_inner();
+                        let param_spec_opt = sig_inners.next().unwrap();
+                        let param_types = param_spec_opt.into_inner().next().map(|p| {
+                            p.into_inner().map(|i| self.get_skeleton_type(i, generic_param_names, specific_gen_names, tail_name, interner)).collect::<Result<Vec<_>, _>>()
+                        }).transpose()?.unwrap_or_default();
+                        let return_type = self.get_skeleton_type(sig_inners.next().unwrap(), generic_param_names, specific_gen_names, tail_name, interner)?;
+                        Ok(XTypeSkeleton::Signature(param_types, Box::new(return_type)))
+                    }
+                    _ => {
+                        // cname
+                        let name = part1.as_str();
+                        let gen_params = inners.next().map_or_else(|| Ok(vec![]), |p| {
+                            p.into_inner().map(|p| {
+                                self.get_skeleton_type(p, generic_param_names, specific_gen_names, tail_name, interner)
+                            }).collect::<Result<Vec<_>, _>>()
+                        })?;
+                        let symbol = interner.get_or_intern(name);
+                        let t = self.get(symbol);
+                        if t.is_none() {
+                            if generic_param_names.contains(&name.to_string()) {
+                                // todo forbid generic params
+                                return Ok(XTypeSkeleton::Known(TRef::from(XType::XGeneric(symbol)), vec![]));
+                            }
+                            if name == tail_name {
+                                if gen_params.len() != specific_gen_names.len() {
+                                    return Err(format!("Expected {} generic parameters, but got {}", generic_param_names.len(), gen_params.len()));
+                                }
+                                let bind = HashMap::from_iter(specific_gen_names.iter().zip(gen_params.into_iter()).map(|(name, t)| (name.clone(), t)));
+                                return Ok(XTypeSkeleton::Tail(bind));
+                            }
+                            return Err(format!("type {} not found", name));
+                        }
+                        match t.unwrap() {
+                            XCompilationScopeItem::NativeType(t) => {
+                                if let XType::XNative(t, _) = t.to_arc().as_ref() {
+                                    if gen_params.len() != t.generic_names().len() {
+                                        return Err(format!("Generic parameter count mismatch for type {}, expected {}, got {}", name, t.generic_names().len(), gen_params.len()));
+                                    }
+                                    return Ok(XTypeSkeleton::from_known(TRef::from(XType::XNative(t.clone(), vec![])), gen_params)?);
+                                } else {
+                                    Ok(XTypeSkeleton::from_known(t, gen_params)?)
+                                }
+                            }
+                            // todo gen params
+                            XCompilationScopeItem::Struct(t) => {
+                                let t = TRef::from(XType::XStruct(t, Bind::new()));
+                                Ok(XTypeSkeleton::from_known(t, gen_params)?)
+                            },
+                            XCompilationScopeItem::Union(t) => {
+                                let t = TRef::from(XType::XUnion(t, Bind::new()));
+                                Ok(XTypeSkeleton::from_known(t, gen_params)?)
+                            },
+                            other => Err(format!("{:?} is not a type", other))
+                        }
+                    }
+                }
+            }
+            _ => {
+                println!("{:?}", input.as_str());
+                Err(format!("{} is not a type", input))
             }
         }
     }
@@ -327,6 +393,7 @@ impl<'p> XCompilationScope<'p> {
                         let t = self.get(symbol);
                         if t.is_none() {
                             if generic_param_names.contains(name) {
+                                // todo forbid generic params
                                 return Ok(TRef::from(XType::XGeneric(symbol)));
                             }
                             return Err(format!("type {} not found", name));
@@ -343,8 +410,24 @@ impl<'p> XCompilationScope<'p> {
                                 }
                             }
                             // todo gen params
-                            XCompilationScopeItem::Struct(t) => Ok(TRef::from(XType::XStruct(t, Bind::new()))),
-                            XCompilationScopeItem::Union(t) => Ok(TRef::from(XType::XUnion(t, Bind::new()))),
+                            XCompilationScopeItem::Struct(t) => {
+                                if gen_params.len() != t.to_arc().generic_names.len() {
+                                    return Err(format!("Generic parameter count mismatch for type {}, expected {}, got {}", name, t.to_arc().generic_names.len(), gen_params.len()));
+                                }
+                                let bind = Bind::from_iter(t.to_arc().generic_names.iter().zip(gen_params.iter()).map(|(n, t)| {
+                                    (n.clone(), t.clone())
+                                }));
+                                Ok(TRef::from(XType::XStruct(t, bind)))
+                            },
+                            XCompilationScopeItem::Union(t) => {
+                                if gen_params.len() != t.to_arc().generic_names.len() {
+                                    return Err(format!("Generic parameter count mismatch for type {}, expected {}, got {}", name, t.to_arc().generic_names.len(), gen_params.len()));
+                                }
+                                let bind = Bind::from_iter(t.to_arc().generic_names.iter().zip(gen_params.iter()).map(|(n, t)| {
+                                    (n.clone(), t.clone())
+                                }));
+                                Ok(TRef::from(XType::XUnion(t, bind)))
+                            },
                             other => Err(format!("{:?} is not a type", other))
                         }
                     }

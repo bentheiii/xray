@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display, Formatter};
-use std::intrinsics::unreachable;
 use std::iter::FromIterator;
 use std::sync::{Arc, Weak};
 use derivative::Derivative;
@@ -80,8 +79,8 @@ impl Bind {
 #[derive(Clone, Hash, Debug, Eq, PartialEq)]
 pub struct XStructSpec {
     pub name: Identifier,
-    pub generic_names: Vec<Identifier>,
     // this is the full qualified name
+    pub generic_names: Vec<Identifier>,
     pub fields: Vec<XStructFieldSpec>,
     pub indices: BTreeMap<String, usize>,
 }
@@ -215,7 +214,7 @@ impl TRef {
 
     pub fn gen_param_count(&self) -> usize {
         match self.to_arc().as_ref() {
-            XType::XNative(_, types) => types.len(),
+            XType::XNative(n, _) => n.generic_names().len(),
             XType::XStruct(spec, ..) | XType::XUnion(spec, ..) => spec.to_arc().generic_names.len(),
             _ => 0,
         }
@@ -238,8 +237,8 @@ impl TRef {
         match self.to_arc().as_ref() {
             XType::XStruct(spec, ..) => Ok(Self::from(XType::XStruct(spec.clone(), with_compound(spec)?))),
             XType::XUnion(spec, ..) => Ok(Self::from(XType::XUnion(spec.clone(), with_compound(spec)?))),
-            XType::XNative(a, current_bind) => {
-                if generic_params.len() != current_bind.len() {
+            XType::XNative(a, ..) => {
+                if generic_params.len() != a.generic_names().len() {
                     unreachable!();
                 }
                 // we only bind with pure types, so the current bind is always just generics
@@ -256,6 +255,7 @@ impl XType {
     }
 
     pub fn bind_in_assignment(&self, other: &TRef) -> Option<Bind> {
+        println!("!!! I.0 {:?};{:?}", self, other);
         match (self, other.to_arc().as_ref()) {
             (XType::Bool, XType::Bool) => Some(Bind::new()),
             (XType::Int, XType::Int) => Some(Bind::new()),
@@ -263,14 +263,23 @@ impl XType {
             (XType::String, XType::String) => Some(Bind::new()),
             (XType::XStruct(a, ref bind_a), XType::XStruct(b, ref bind_b)) |
             (XType::XUnion(a, ref bind_a), XType::XUnion(b, ref bind_b)) => {
+                println!("!!! T.0: {:?} {:?}", a, b);
                 if a != b {
                     return None;
                 }
+                if bind_a == bind_b {
+                    return Some(bind_a.clone());
+                }
+                println!("!!! T.1");
                 let mut bind = Bind::new();
                 for p_type in a.to_arc().fields.iter().map(|f| f.type_.clone()) {
+                    println!("!!! T.1.2 {:?};{:?};{:?};{:?};{:?}", p_type, p_type.clone().resolve_bind(bind_a), p_type.resolve_bind(bind_b), bind_a, bind_b);
                     if let Some(binds) = p_type.clone().resolve_bind(bind_a).to_arc().bind_in_assignment(&p_type.resolve_bind(bind_b)) {
+                        println!("!!! T.1.2.1 {:?}", binds);
                         bind = bind.mix(&binds)?;
+                        println!("!!! T.1.2.1.2 {:?}", bind);
                     } else {
+                        println!("!!! T.1.2.2");
                         return None;
                     }
                 }
@@ -351,9 +360,11 @@ impl XType {
             (_, XType::XUnknown) => Some(Bind::new()),
             (XType::XUnknown, _) => Some(Bind::new()),
             (XType::XGeneric(ref a), XType::XGeneric(ref b)) if a == b => {
+                println!("!!! G.0");
                 Some(Bind::new())
             }
             (XType::XGeneric(ref a), _) => {
+                println!("!!! G.1 {:?};{:?}", self, other);
                 Some(Bind::from([
                     (a.clone(), other.clone()),
                 ]))
@@ -374,6 +385,7 @@ impl PartialEq<XType> for XType {
             (XType::Rational, XType::Rational) => true,
             (XType::String, XType::String) => true,
             (XType::XStruct(ref a, ref a_b), XType::XStruct(ref b, ref b_b)) => a.to_arc().name == b.to_arc().name && a_b == b_b,
+            (XType::XUnion(ref a, ref a_b), XType::XUnion(ref b, ref b_b)) => a.to_arc().name == b.to_arc().name && a_b == b_b,
             (XType::XCallable(ref a), XType::XCallable(ref b)) => a.eq(b),
             (XType::XFunc(ref a), XType::XFunc(ref b)) => a.generic_params == b.generic_params && a.params.len() == b.params.len() && a.params.iter().zip(b.params.iter()).all(|(a, b)| a.type_.eq(&b.type_)),
             (XType::XCallable(ref a), XType::XFunc(ref b)) => b.generic_params.is_none() && a.param_types == b.params.iter().map(|p| p.type_.clone()).collect::<Vec<_>>() && a.return_type.eq(&b.ret),
