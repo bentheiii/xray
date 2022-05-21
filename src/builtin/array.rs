@@ -1,7 +1,7 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
 use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, intern, manage_native, to_native, to_primitive, XCallableSpec, XCompilationScope, XStaticFunction, XType};
-use crate::xtype::{TRef, X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
+use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
 use std::borrow::Cow;
@@ -17,8 +17,8 @@ use crate::XType::XCallable;
 pub struct XArrayType {}
 
 impl XArrayType {
-    pub fn xtype(t: TRef) -> TRef {
-        TRef::from(XType::XNative(Box::new(Self {}), vec![t.clone()]))
+    pub fn xtype(t: Arc<XType>) -> Arc<XType> {
+        Arc::new(XType::XNative(Box::new(Self {}), vec![t.clone()]))
     }
 }
 
@@ -392,7 +392,7 @@ pub fn add_array_map(scope: &mut XCompilationScope, interner: &mut StringInterne
                     required: true,
                 },
                 XFuncParamSpec {
-                    type_: TRef::from(XCallable(XCallableSpec {
+                    type_: Arc::new(XCallable(XCallableSpec {
                         param_types: vec![input_t.clone()],
                         return_type: output_t.clone(),
                     })),

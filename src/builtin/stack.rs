@@ -1,7 +1,7 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
 use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, intern, manage_native, to_native, XArray, XArrayType, XCompilationScope, XSet, XSetType, XStaticFunction, XType};
-use crate::xtype::{TRef, X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
+use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
 use std::collections::{HashMap, HashSet};
@@ -15,8 +15,8 @@ use string_interner::StringInterner;
 pub struct XStackType {}
 
 impl XStackType {
-    pub fn xtype(t: TRef) -> TRef {
-        TRef::from(XType::XNative(Box::new(Self {}), vec![t]))
+    pub fn xtype(t: Arc<XType>) -> Arc<XType> {
+        Arc::new(XType::XNative(Box::new(Self {}), vec![t]))
     }
 }
 

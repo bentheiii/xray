@@ -4,19 +4,18 @@ use std::iter::from_fn;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
-use crate::mref::MRef;
 use crate::runtime::{RTCell, RuntimeLimits};
 use crate::xexpr::{XExpr, XStaticFunction};
-use crate::xtype::{TRef, XFuncSpec, XStructSpec, XType, XUnionSpec};
+use crate::xtype::{XFuncSpec, XStructSpec, XType, XUnionSpec};
 use crate::xvalue::{ManagedXValue, XFunction};
 
 pub type Identifier = DefaultSymbol;
 
 pub struct XCompilationScope<'p> {
-    pub values: HashMap<Identifier, (Option<XExpr>, TRef)>,
-    pub types: HashMap<Identifier, TRef>,
-    pub structs: HashMap<Identifier, MRef<XStructSpec>>,
-    pub unions: HashMap<Identifier, MRef<XUnionSpec>>,
+    pub values: HashMap<Identifier, (Option<XExpr>, Arc<XType>)>,
+    pub types: HashMap<Identifier, Arc<XType>>,
+    pub structs: HashMap<Identifier, Arc<XStructSpec>>,
+    pub unions: HashMap<Identifier, Arc<XUnionSpec>>,
     pub functions: HashMap<Identifier, Vec<Rc<XStaticFunction>>>,
     pub recourse: Option<(Identifier, Rc<XFuncSpec>)>,
     pub closure_variables: HashSet<Identifier>,
@@ -27,10 +26,10 @@ pub struct XCompilationScope<'p> {
 
 #[derive(Debug, Clone)]
 pub enum XCompilationScopeItem {
-    Value(TRef),
-    NativeType(TRef),
-    Struct(MRef<XStructSpec>),
-    Union(MRef<XUnionSpec>),
+    Value(Arc<XType>),
+    NativeType(Arc<XType>),
+    Struct(Arc<XStructSpec>),
+    Union(Arc<XUnionSpec>),
     Overload(Vec<Rc<XStaticFunction>>),
 }
 
@@ -113,10 +112,10 @@ impl<'p> XCompilationScope<'p> {
         helper(self, name, 0)
     }
 
-    pub fn add_param(&mut self, name: DefaultSymbol, type_: TRef) -> Result<(), String> {
+    pub fn add_param(&mut self, name: DefaultSymbol, type_: Arc<XType>) -> Result<(), String> {
         if self.get(name).is_some() {
             // todo fix symbol shit
-            Err(format!("Variable {:?} already defined 1", name))
+            Err(format!("Variable {:?} already defined", name))
         } else {
             self.values.insert(name, (None, type_));
             Ok(())
@@ -126,7 +125,7 @@ impl<'p> XCompilationScope<'p> {
     pub fn add_var(&mut self, name: DefaultSymbol, expr: XExpr) -> Result<Declaration, String> {
         if self.get(name).is_some() {
             // todo fix symbol shit
-            Err(format!("Variable {:?} already defined 0", name))
+            Err(format!("Variable {:?} already defined", name))
         } else {
             self.values.insert(name, (Some(expr.clone()), expr.xtype()?));
             Ok(Declaration::Value(name, expr))
@@ -144,19 +143,19 @@ impl<'p> XCompilationScope<'p> {
         self.add_func(interner.get_or_intern_static(name), func)
     }
 
-    pub fn add_struct(&mut self, name: DefaultSymbol, struct_spec: MRef<XStructSpec>) -> Result<Declaration, String> {
+    pub fn add_struct(&mut self, name: DefaultSymbol, struct_spec: XStructSpec) -> Result<Declaration, String> {
         // todo ensure no shadowing
-        self.structs.insert(name, struct_spec.clone());
+        self.structs.insert(name, Arc::new(struct_spec.clone()));
         Ok(Declaration::Struct(struct_spec))
     }
 
-    pub fn add_union(&mut self, name: DefaultSymbol, union_spec: MRef<XUnionSpec>) -> Result<Declaration, String> {
+    pub fn add_union(&mut self, name: DefaultSymbol, union_spec: XUnionSpec) -> Result<Declaration, String> {
         // todo ensure no shadowing
-        self.unions.insert(name, union_spec.clone());
+        self.unions.insert(name, Arc::new(union_spec.clone()));
         Ok(Declaration::Union(union_spec))
     }
 
-    pub fn add_native_type(&mut self, name: DefaultSymbol, type_: TRef) -> Result<(), String> {
+    pub fn add_native_type(&mut self, name: DefaultSymbol, type_: Arc<XType>) -> Result<(), String> {
         if self.get(name).is_some() {
             Err(format!("Native type {:?} already defined", name))
         } else {
@@ -165,7 +164,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    pub fn add_native_type_intern(&mut self, name: &'static str, type_: TRef, interner: &mut StringInterner) -> Result<(), String> {
+    pub fn add_native_type_intern(&mut self, name: &'static str, type_: Arc<XType>, interner: &mut StringInterner) -> Result<(), String> {
         self.add_native_type(interner.get_or_intern_static(name), type_)
     }
 
@@ -200,9 +199,22 @@ impl<'p> XCompilationScope<'p> {
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Declaration {
     Value(DefaultSymbol, XExpr),
-    Struct(MRef<XStructSpec>),
-    Union(MRef<XUnionSpec>),
+    Struct(XStructSpec),
+    Union(XUnionSpec),
     UserFunction(DefaultSymbol, Rc<XStaticFunction>),
+}
+
+impl Hash for Declaration {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Declaration::Value(name, _) => name.hash(state),
+            Declaration::Struct(spec) => spec.hash(state),
+            Declaration::UserFunction(name, _) => {
+                name.hash(state);
+            }
+            Declaration::Union(spec) => spec.hash(state),
+        }
+    }
 }
 
 pub struct XEvaluationScope<'p> {
