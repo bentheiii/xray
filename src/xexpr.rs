@@ -149,11 +149,14 @@ impl XStaticExpr {
                         //special case: member access can be a variant constructor
                         if let XStaticExpr::Ident(name) = obj.as_ref() {
                             if let Some(XCompilationScopeItem::Compound(CompoundKind::Union, spec)) = namespace.get(*name) {
-                                if let Some(&index) = spec.indices.get(member_name) {
+                                return if let Some(&index) = spec.indices.get(member_name) {
                                     if compiled_args.len() != 1 {
                                         return Err(CompilationError::VariantConstructorOneArg);
                                     }
-                                    return if let Some(bind) = spec.fields[index].type_.bind_in_assignment(&compiled_args[0].xtype()?) {
+                                    let com_type = Arc::new(XType::Compound(CompoundKind::Union, spec.clone(), Bind::new()));
+                                    let var_type = spec.fields[index].type_.resolve_bind(&Bind::new(), Some(&com_type));
+                                    if let Some(bind) = var_type.bind_in_assignment(&compiled_args[0].xtype()?) {
+                                        // todo check the bind
                                         return Ok(CompilationResult::new(XExpr::Variant(
                                             spec,
                                             Bind::new(),
@@ -167,7 +170,9 @@ impl XStaticExpr {
                                             expected_type: spec.fields[index].type_.clone(),
                                             actual_type: compiled_args[0].xtype()?,
                                         })
-                                    };
+                                    }
+                                } else {
+                                    Err(CompilationError::MemberNotFound { spec, name: member_name.clone() })
                                 }
                             }
                         }
@@ -508,9 +513,9 @@ impl XExpr {
             XExpr::Member(obj, idx) => {
                 let obj_type = obj.xtype()?;
                 match obj_type.as_ref() {
-                    XType::Compound(CompoundKind::Struct, spec, bind) => Ok(spec.fields[*idx].type_.clone().resolve_bind(&bind)),
+                    XType::Compound(CompoundKind::Struct, spec, bind) => Ok(spec.fields[*idx].type_.clone().resolve_bind(&bind, Some(&obj_type))),
                     XType::Compound(CompoundKind::Union, spec, bind) => {
-                        let t = spec.fields[*idx].type_.clone().resolve_bind(&bind);
+                        let t = spec.fields[*idx].type_.clone().resolve_bind(&bind, Some(&obj_type));
                         Ok(XOptionalType::xtype(t))
                     }
                     _ => Err(CompilationError::NotACompound {type_: obj_type.clone()})

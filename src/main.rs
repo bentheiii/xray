@@ -50,27 +50,22 @@ use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompound
 
 fn main() {
     let input = r#"
-    union unn(
-        a: int,
-        b: rational
-    )
-    struct strct(
-        a: int,
-        b: rational
+    union Chain(
+        last: int,
+        next: Chain
     )
 
-    fn foo(x: unn, y: strct)->rational {
-        fn handle_a(v: int)->rational {
-            ((v*y::a)/1) + y::b
+    fn foo(x: Chain)->int {
+        fn helper(x0: Chain, ret: int)->int {
+            if(x0::last.has_value(),
+                ret+x0::last.value(),
+                helper(x0::next.value(), ret+100)
+            )
         }
-        fn handle_b(v: rational)->rational {
-            v*(y::a/1) + y::b
-        }
-
-        (x::a.map(handle_a) || x::b.map(handle_b)).value()
+        helper(x, 0)
     }
 
-    let z = foo(unn::b(3/4), strct(3, 4.0));
+    let z = foo(Chain::next(Chain::next(Chain::last(5))));
 
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -140,6 +135,7 @@ fn main() {
     add_optional_or(&mut root_scope, &mut interner).unwrap();
     add_optional_and(&mut root_scope, &mut interner).unwrap();
     add_optional_value(&mut root_scope, &mut interner).unwrap();
+    add_optional_has_value(&mut root_scope, &mut interner).unwrap();
 
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()
@@ -165,20 +161,22 @@ impl<'p> XCompilationScope<'p> {
             let var_name = inners.next().unwrap().as_str();
             let gen_params = inners.next().unwrap();
             let mut gen_param_names = HashSet::new();
+            let mut gen_param_symbols = Vec::new();
             if let Some(gen_params) = gen_params.into_inner().next() {
                 for param in gen_params.into_inner() {
                     gen_param_names.insert(param.as_str().to_string());
+                    gen_param_symbols.push(interner.get_or_intern(param.as_str()));
                 }
             }
             let param_pairs = inners.next().unwrap();
             let params = param_pairs.into_inner().map(|p| {
                 let mut param_iter = p.into_inner();
                 let name = param_iter.next().unwrap().as_str();
-                let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner)?;
+                let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner, Some(var_name))?;
                 Ok(XCompoundFieldSpec { name: name.to_string(), type_ })
             }).collect::<Result<Vec<_>, _>>()?;
             let symbol = interner.get_or_intern(var_name);
-            Ok(XCompoundSpec::new(symbol, params))
+            Ok(XCompoundSpec::new(symbol, gen_param_symbols, params))
         };
 
         match input.as_rule() {
@@ -194,7 +192,7 @@ impl<'p> XCompilationScope<'p> {
                 let _pub_opt = inners.next().unwrap();
                 let var_name = inners.next().unwrap().as_str();
                 let explicit_type_opt = inners.next().unwrap();
-                let complete_type = explicit_type_opt.clone().into_inner().next().map(|et| self.get_complete_type(et, parent_gen_param_names, interner)).transpose()?;
+                let complete_type = explicit_type_opt.clone().into_inner().next().map(|et| self.get_complete_type(et, parent_gen_param_names, interner, None)).transpose()?;
                 let expr = self.to_expr(inners.next().unwrap(), interner)?;
                 let CompilationResult { expr: compiled, closure_vars: cvars } = expr.compile(&self).map_err(|e| e.trace(&input))?;
                 let symbol = interner.get_or_intern(var_name);
@@ -235,7 +233,7 @@ impl<'p> XCompilationScope<'p> {
                         let mut param_iter = p.clone().into_inner();
                         let param_name = param_iter.next().unwrap().as_str();
                         let param_symbol = interner.get_or_intern(param_name);
-                        let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner)?;
+                        let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner, None)?;
                         let default = param_iter.next().map(|d|->Result<_, TracedCompilationError> {
                             let d = d.into_inner().next().unwrap();
                             let e_scope = self.to_eval_scope(runtime.clone()).map_err(|e| e.trace(&d))?;
@@ -258,7 +256,7 @@ impl<'p> XCompilationScope<'p> {
                         param_name: out_of_order_param.name,
                     }.trace(&input));
                 }
-                let rtype = self.get_complete_type(inners.next().unwrap(), &gen_param_names, interner)?;
+                let rtype = self.get_complete_type(inners.next().unwrap(), &gen_param_names, interner, None)?;
                 let body = inners.next().unwrap();
                 let spec = XExplicitFuncSpec {
                     generic_params: specific_gen_params,
@@ -308,7 +306,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    fn get_complete_type(&self, input: Pair<Rule>, generic_param_names: &HashSet<String>, interner: &mut StringInterner) -> Result<Arc<XType>, TracedCompilationError> {
+    fn get_complete_type(&self, input: Pair<Rule>, generic_param_names: &HashSet<String>, interner: &mut StringInterner, tail_name: Option<&str>) -> Result<Arc<XType>, TracedCompilationError> {
         match input.as_rule() {
             Rule::complete_type => {
                 let mut inners = input.clone().into_inner();
@@ -318,9 +316,9 @@ impl<'p> XCompilationScope<'p> {
                         let mut sig_inners = part1.into_inner();
                         let param_spec_opt = sig_inners.next().unwrap();
                         let param_types = param_spec_opt.into_inner().next().map(|p| {
-                            p.into_inner().map(|i| self.get_complete_type(i, generic_param_names, interner)).collect::<Result<Vec<_>, _>>()
+                            p.into_inner().map(|i| self.get_complete_type(i, generic_param_names, interner, tail_name)).collect::<Result<Vec<_>, _>>()
                         }).transpose()?.unwrap_or_default();
-                        let return_type = self.get_complete_type(sig_inners.next().unwrap(), generic_param_names, interner)?;
+                        let return_type = self.get_complete_type(sig_inners.next().unwrap(), generic_param_names, interner, tail_name)?;
                         Ok(Arc::new(XType::XCallable(XCallableSpec {
                             param_types,
                             return_type,
@@ -331,9 +329,14 @@ impl<'p> XCompilationScope<'p> {
                         let name = part1.as_str();
                         let gen_params = inners.next().map_or_else(|| Ok(vec![]), |p| {
                             p.into_inner().map(|p| {
-                                self.get_complete_type(p, generic_param_names, interner)
+                                self.get_complete_type(p, generic_param_names, interner, tail_name)
                             }).collect::<Result<Vec<_>, _>>()
                         })?;
+                        if let Some(tail_name) = tail_name {
+                            if tail_name == name{
+                                return Ok(Arc::new(XType::XTail(gen_params)))
+                            }
+                        }
                         let symbol = interner.get_or_intern(name);
                         let t = self.get(symbol);
                         if t.is_none() {
@@ -503,7 +506,7 @@ impl<'p> XCompilationScope<'p> {
             Rule::specialized_cname => {
                 let mut iter = input.into_inner();
                 let cname = iter.next().unwrap().as_str();
-                let args = iter.map(|p| self.get_complete_type(p, &HashSet::new(), interner)).collect::<Result<Vec<_>, _>>()?;
+                let args = iter.map(|p| self.get_complete_type(p, &HashSet::new(), interner, None)).collect::<Result<Vec<_>, _>>()?;
                 Ok(XStaticExpr::SpecializedIdent(interner.get_or_intern(cname), args))
             }
             _ => {

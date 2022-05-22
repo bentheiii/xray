@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use itertools::Itertools;
 use pest::iterators::Pair;
 use pest::Position;
 use crate::parser::Rule;
@@ -6,11 +7,12 @@ use string_interner::StringInterner;
 use crate::xscope::Identifier;
 use crate::{XCompilationScopeItem, XCompoundSpec, XType};
 use crate::xexpr::XExpr;
+use strum::IntoStaticStr;
 
 #[derive(Debug)]
 pub struct TracedCompilationError(CompilationError, ((usize, usize), usize), ((usize, usize), usize));
 
-#[derive(Debug)]
+#[derive(Debug, IntoStaticStr)]
 pub enum CompilationError {
     VariableTypeMismatch{
         variable_name: Identifier,
@@ -121,8 +123,8 @@ impl CompilationError{
             CompilationError::VariableTypeMismatch{variable_name, expected_type, actual_type} => {
                 format!("Variable {} has type {}, but expected {}",
                     interner.resolve(variable_name.clone()).unwrap(),
-                    actual_type,
-                    expected_type
+                    actual_type.display_with_interner(interner),
+                    expected_type.display_with_interner(interner)
                 )
             }
             CompilationError::RequiredParamsAfterOptionalParams{function_name, param_name} => {
@@ -141,8 +143,8 @@ impl CompilationError{
             CompilationError::FunctionOutputTypeMismatch{function_name, expected_type, actual_type} => {
                 format!("Function {} has output type {}, but expected {}",
                     interner.resolve(function_name.clone()).unwrap(),
-                    actual_type,
-                    expected_type
+                    actual_type.display_with_interner(interner),
+                    expected_type.display_with_interner(interner)
                 )
             }
             CompilationError::TypeNotFound{name} => {
@@ -188,8 +190,8 @@ impl CompilationError{
                 format!("Variant {} of union {} has type {}, but expected {}",
                     variant_name,
                     interner.resolve(union_name.clone()).unwrap(),
-                    actual_type,
-                    expected_type
+                    actual_type.display_with_interner(interner),
+                    expected_type.display_with_interner(interner)
                 )
             }
             CompilationError::StructParamsLengthMismatch {struct_name, expected_count, actual_count} => {
@@ -200,10 +202,10 @@ impl CompilationError{
                 )
             }
             CompilationError::StructFieldTypeMismatch {struct_name, expected_types, actual_types} => {
-                format!("Struct {} has parameters of types {:?}, but expected {:?}",
+                format!("Struct {} has parameters of types [{:?}], but expected [{:?}]",
                     interner.resolve(struct_name.clone()).unwrap(),
-                    actual_types,
-                    expected_types
+                    actual_types.iter().map(|t| t.display_with_interner(interner)).join(", "),
+                    expected_types.iter().map(|t| t.display_with_interner(interner)).join(", ")
                 )
             }
             CompilationError::NonFunctionSpecialization {name, item} => {
@@ -227,7 +229,7 @@ impl CompilationError{
                 format!("Member {} not found in compound {}", name, interner.resolve(spec.name).unwrap())
             }
             CompilationError::NonCompoundMemberAccess {xtype} => {
-                format!("Cannot access member of non-compound type {}", xtype)
+                format!("Cannot access member of non-compound type {}", xtype.display_with_interner(interner))
             }
             CompilationError::ValueNotFound {name} => {
                 format!("Value {} not found", interner.resolve(name.clone()).unwrap())
@@ -242,13 +244,13 @@ impl CompilationError{
                 format!("Cannot use overloaded function {} as variable", interner.resolve(name.clone()).unwrap())
             }
             CompilationError::IncompatibleTypes {type0, type1} => {
-                format!("Incompatible types: {:?} and {:?}", type0, type1)
+                format!("Incompatible types: {} and {}", type0.display_with_interner(interner), type1.display_with_interner(interner))
             }
             CompilationError::NotAFunction {type_} => {
-                format!("expression does not evaluate to a function (got {})", type_)
+                format!("expression does not evaluate to a function (got {})", type_.display_with_interner(interner))
             }
             CompilationError::NotACompound {type_} => {
-                format!("expression does not evaluate to a compound (got {})", type_)
+                format!("expression does not evaluate to a compound (got {})", type_.display_with_interner(interner))
             }
         }
     }
@@ -268,6 +270,6 @@ impl TracedCompilationError {
         let ((start_line, _), start_pos) = self.1;
         let (_, end_pos) = self.2;
         let slc = &input[start_pos..=end_pos];
-        format!("{} {{{}| {}}}", self.0.display_with_interner(interner), start_line, slc)
+        format!("{} {{{}| {}}} [{}]", self.0.display_with_interner(interner), start_line, slc, <&CompilationError as Into<&'static str>>::into(&self.0))
     }
 }

@@ -18,3 +18,4 @@ itertools = "0.10.3"
 mopa = "0.2.2"
 dyn-clone = "1.0.4"
 string-interner = "0.14.0"
+strum = { version = "0.24", features = ["derive"] }

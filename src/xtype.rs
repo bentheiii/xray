@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, HashMap};
-use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter, write};
+use std::iter::FromIterator;
 use std::sync::Arc;
 use derivative::Derivative;
+use itertools::Itertools;
 use string_interner::{DefaultSymbol, StringInterner};
 use crate::CompilationError;
 use crate::native_types::NativeType;
@@ -19,6 +21,7 @@ pub enum XType {
     XFunc(XFuncSpec),
     XGeneric(Identifier),
     XNative(Box::<dyn NativeType>, Vec<Arc<XType>>),
+    XTail(Vec<Arc<XType>>)
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -42,6 +45,12 @@ impl Bind {
     pub fn from<T: Into<HashMap<Identifier, Arc<XType>>>>(bound_generics: T) -> Self {
         Bind {
             bound_generics: bound_generics.into(),
+        }
+    }
+
+    pub fn from_iter<T: Iterator>(bound_generics: T) -> Self where HashMap<Identifier, Arc<XType>>: FromIterator<T::Item> {
+        Bind {
+            bound_generics: FromIterator::from_iter(bound_generics),
         }
     }
 
@@ -72,18 +81,20 @@ impl Bind {
 pub struct XCompoundSpec {
     pub name: Identifier,
     // this is the full qualified name
+    pub generic_names: Vec<Identifier>,
     pub fields: Vec<XCompoundFieldSpec>,
     pub indices: BTreeMap<String, usize>,
 }
 
 impl XCompoundSpec {
-    pub fn new(name: Identifier, fields: Vec<XCompoundFieldSpec>) -> XCompoundSpec {
+    pub fn new(name: Identifier, generic_names: Vec<Identifier>, fields: Vec<XCompoundFieldSpec>) -> XCompoundSpec {
         let mut indices = BTreeMap::new();
         for (i, field) in fields.iter().enumerate() {
             indices.insert(field.name.clone(), i);
         }
         XCompoundSpec {
             name,
+            generic_names,
             fields,
             indices,
         }
@@ -98,6 +109,18 @@ impl XCompoundSpec {
             ret = ret.mix(&param.type_.bind_in_assignment(&arg)?)?;
         }
         Some(ret)
+    }
+
+    pub fn generics_with_bind(&self, bind: &Bind) -> Vec<Arc<XType>> {
+        let mut ret = Vec::new();
+        for name in self.generic_names.iter() {
+            if let Some(bound) = bind.get(name) {
+                ret.push(bound.clone());
+            } else {
+                ret.push(Arc::new(XType::XGeneric(name.clone())));
+            }
+        }
+        ret
     }
 }
 
@@ -147,7 +170,7 @@ impl XFuncSpec {
     }
 
     pub fn rtype(&self, bind: &Bind) -> Arc<XType> {
-        self.ret.clone().resolve_bind(bind)
+        self.ret.clone().resolve_bind(bind, None)
     }
 
     pub fn xtype(&self, bind: &Bind) -> Arc<XType> {
@@ -156,11 +179,11 @@ impl XFuncSpec {
                 generic_params: None,
                 params: self.params.iter().map(|p| {
                     XFuncParamSpec {
-                        type_: p.type_.clone().resolve_bind(bind),
+                        type_: p.type_.clone().resolve_bind(bind, None),
                         required: p.required,
                     }
                 }).collect(),
-                ret: self.ret.clone().resolve_bind(bind),
+                ret: self.ret.clone().resolve_bind(bind, None),
             }
         ))
     }
@@ -190,12 +213,8 @@ impl XType {
                     return None;
                 }
                 let mut bind = Bind::new();
-                for p_type in a.fields.iter().map(|f| f.type_.clone()) {
-                    if let Some(binds) = p_type.clone().resolve_bind(bind_a).bind_in_assignment(&p_type.resolve_bind(bind_b)) {
-                        bind = bind.mix(&binds)?;
-                    } else {
-                        return None;
-                    }
+                for (gen_arg0, gen_arg1) in a.generics_with_bind(bind_a).iter().zip(b.generics_with_bind(bind_b).iter()).rev() {
+                    bind = bind.mix(&gen_arg0.bind_in_assignment(&gen_arg1)?)?;
                 }
                 Some(bind)
             }
@@ -287,17 +306,33 @@ impl XType {
             }
         }
     }
-    pub fn resolve_bind(self: Arc<XType>, bind: &Bind) -> Arc<XType> {
+    pub fn resolve_bind(self: &Arc<XType>, bind: &Bind, tail: Option<&Arc<XType>>) -> Arc<XType> {
         match self.as_ref() {
             XType::XNative(a, ref a_bind) => {
                 let mut new_bind = HashMap::new();
                 for (k, a_v) in a.generic_names().iter().zip(a_bind.iter()) {
-                    new_bind.insert(k.clone(), a_v.clone().resolve_bind(bind));
+                    new_bind.insert(k.clone(), a_v.clone().resolve_bind(bind, tail));
                 }
                 XType::XNative(a.clone(), a.generic_names().iter().map(|n| new_bind.get(n).unwrap()).cloned().collect()).into()
             }
             XType::XGeneric(ref a) => bind.get(a).map(|b| b.clone()).unwrap_or(self.clone()),
-            _ => self,
+            XType::XTail(types) => {
+                match tail{
+                    None => unreachable!(),
+                    Some(t) => {
+                        if let XType::Compound(kind, spec, _) = t.as_ref(){
+                            let bind = Bind::from_iter(
+                                spec.generic_names.iter().zip(types.iter()).map(|(n, t)| (n.clone(), t.clone().resolve_bind(bind, None)))
+                            );
+                            Arc::new(XType::Compound(kind.clone(), spec.clone(), bind))
+                        } else {
+                            unreachable!()
+                        }
+                    }
+
+                }
+            }
+            _ => self.clone(),
         }
     }
 
@@ -308,7 +343,38 @@ impl XType {
             XType::XCallable(spec) => spec.param_types.iter().cloned().any(|t| t.is_unknown()) || spec.return_type.is_unknown(),
             XType::XFunc(spec) => spec.params.iter().any(|t| t.type_.clone().is_unknown()) || spec.ret.is_unknown(),
             XType::Compound(.., bind) => bind.iter().any(|(_, t)| t.is_unknown()),
+            XType::XTail(bind) => bind.iter().cloned().any(|t| t.is_unknown()),
             _ => false,
+        }
+    }
+
+    pub fn display_with_interner(self: &Arc<XType>, interner: &StringInterner)->String{
+        match self.as_ref() {
+            XType::Bool => "bool".to_string(),
+            XType::Int => "int".to_string(),
+            XType::Rational => "rational".to_string(),
+            XType::String => "string".to_string(),
+            XType::Compound(_, ref a, ref b) => format!("{:?}", interner.resolve(a.name.clone()).unwrap()),  // todo handle generics
+            XType::XCallable(ref a) => format!("({})->({})", a.param_types.iter().map(|a| a.display_with_interner(interner)).join(", "), a.return_type.display_with_interner(interner)),
+            XType::XFunc(ref a) => {
+                let mut ret = "(".to_string();
+                for (i, arg) in a.params.iter().enumerate() {
+                    if i > 0 {
+                        ret.push_str(", ");
+                    }
+                    ret.push_str(&arg.type_.display_with_interner(interner));
+                    if !arg.required {
+                        ret.push_str("?");
+                    }
+                }
+                ret.push_str(")->");
+                ret.push_str(&a.ret.display_with_interner(interner));
+                ret
+            }
+            XType::XGeneric(ref a) => format!("{}", interner.resolve(a.clone()).unwrap()),
+            XType::XNative(ref a, bind) => format!("{}<{}>", a.name(), bind.iter().map(|t| format!("{}", t.display_with_interner(interner))).join(", ")),
+            XType::XUnknown => "?".to_string(),
+            XType::XTail(_) => "tail".to_string(),  // todo make unreachable
         }
     }
 }
@@ -329,32 +395,6 @@ impl PartialEq<XType> for XType {
             (XType::XGeneric(ref a), XType::XGeneric(ref b)) => a == b,
             (XType::XNative(a, ref a_bind), XType::XNative(b, ref b_bind)) => a == b && a_bind == b_bind,
             _ => false,
-        }
-    }
-}
-
-impl Display for XType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            XType::Bool => write!(f, "bool"),
-            XType::Int => write!(f, "int"),
-            XType::Rational => write!(f, "rational"),
-            XType::String => write!(f, "string"),
-            XType::Compound(_, ref a, ref b) => write!(f, "{:?}<{:?}>", a.name, b),
-            XType::XCallable(ref a) => write!(f, "{:?}->{}", a.param_types, a.return_type),
-            XType::XFunc(ref a) => {
-                write!(f, "(")?;
-                for (i, arg) in a.params.iter().enumerate() {
-                    if i > 0 {
-                        write!(f, ", ")?;
-                    }
-                    write!(f, "{}{}", arg.type_, if arg.required { "" } else { "?" })?;
-                }
-                write!(f, ") -> {}", a.ret)
-            }
-            XType::XGeneric(ref a) => write!(f, "{:?}", a), // TODO
-            XType::XNative(ref a, bind) => write!(f, "{}<{:?}>", a.name(), bind),
-            XType::XUnknown => write!(f, "?"),
         }
     }
 }
