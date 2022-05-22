@@ -1,13 +1,13 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, to_primitive, XCompilationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, to_primitive, XCompilationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
 use std::sync::Arc;
 use string_interner::StringInterner;
 
-pub fn add_bool_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_bool_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_native_type(interner.get_or_intern_static("bool"), X_BOOL.clone())
 }
 
@@ -32,7 +32,7 @@ add_ufunc!(add_bool_not, not, X_BOOL, Bool, X_BOOL, |a:&bool| {
     Ok(XValue::Bool(!a).into())
 });
 
-pub fn add_and(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_and(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_func_intern(
         "and", XStaticFunction::Native(XFuncSpec {
             generic_params: None,
@@ -57,7 +57,7 @@ pub fn add_and(scope: &mut XCompilationScope, interner: &mut StringInterner) -> 
     Ok(())
 }
 
-pub fn add_or(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_or(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_func_intern(
         "or", XStaticFunction::Native(XFuncSpec {
             generic_params: None,

@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, intern, manage_native, to_native, XArray, XArrayType, XCompilationScope, XSet, XSetType, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, intern, manage_native, to_native, XArray, XArrayType, XCompilationScope, XSet, XSetType, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
@@ -115,11 +115,11 @@ impl XNativeValue for XStack {
     }
 }
 
-pub fn add_stack_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_stack_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_native_type_intern("Stack", XStackType::xtype(XType::generic_from_name("T", interner)), interner)
 }
 
-pub fn add_stack_new(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_stack_new(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_func_intern(
         "stack", XStaticFunction::Native(XFuncSpec {
             generic_params: None,
@@ -131,7 +131,7 @@ pub fn add_stack_new(scope: &mut XCompilationScope, interner: &mut StringInterne
     Ok(())
 }
 
-pub fn add_stack_push(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_stack_push(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -157,7 +157,7 @@ pub fn add_stack_push(scope: &mut XCompilationScope, interner: &mut StringIntern
     Ok(())
 }
 
-pub fn add_stack_to_array(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_stack_to_array(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -179,7 +179,7 @@ pub fn add_stack_to_array(scope: &mut XCompilationScope, interner: &mut StringIn
     Ok(())
 }
 
-pub fn add_stack_to_array_reversed(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_stack_to_array_reversed(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -201,7 +201,7 @@ pub fn add_stack_to_array_reversed(scope: &mut XCompilationScope, interner: &mut
     Ok(())
 }
 
-pub fn add_stack_to_set(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_stack_to_set(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -223,7 +223,7 @@ pub fn add_stack_to_set(scope: &mut XCompilationScope, interner: &mut StringInte
     Ok(())
 }
 
-pub fn add_stack_len(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_stack_len(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -245,7 +245,7 @@ pub fn add_stack_len(scope: &mut XCompilationScope, interner: &mut StringInterne
     Ok(())
 }
 
-pub fn add_stack_head(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_stack_head(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -270,7 +270,7 @@ pub fn add_stack_head(scope: &mut XCompilationScope, interner: &mut StringIntern
     Ok(())
 }
 
-pub fn add_stack_tail(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_stack_tail(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 

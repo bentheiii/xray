@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, Bind, XCompilationScope, XStaticFunction, XType, eval, intern};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, Bind, XCompilationScope, XStaticFunction, XType, eval, intern, CompilationError};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
@@ -8,7 +8,7 @@ use std::sync::Arc;
 use mopa::Any;
 use string_interner::StringInterner;
 
-pub fn add_if(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_if(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     scope.add_func(
         interner.get_or_intern_static("if"), XStaticFunction::Native(XFuncSpec {
@@ -40,7 +40,7 @@ pub fn add_if(scope: &mut XCompilationScope, interner: &mut StringInterner) -> R
 
 add_ufunc!(add_error, error, X_STRING, String, X_UNKNOWN, |a: &String| Err(a.clone()));
 
-pub fn add_cast(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_cast(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     scope.add_func_intern(
         "cast", XStaticFunction::Native(XFuncSpec {

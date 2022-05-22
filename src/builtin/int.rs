@@ -1,13 +1,13 @@
 use std::rc;
 use num::{BigInt, BigRational, Integer, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, eval, Bind, XArray, XArrayType, XCompilationScope, XStaticFunction, XType, meval, manage_native, RTCell};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, eval, Bind, XArray, XArrayType, XCompilationScope, XStaticFunction, XType, meval, manage_native, RTCell, CompilationError};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
 use std::sync::Arc;
 use string_interner::StringInterner;
 
-pub fn add_int_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_int_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_native_type(interner.get_or_intern_static("int"), X_INT.clone())
 }
 
@@ -76,7 +76,7 @@ add_ufunc!(add_int_display, display, X_INT, Int, X_STRING, |a:&BigInt| {
     Ok(XValue::String(a.to_string()).into())
 });
 
-pub fn add_int_digits(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_int_digits(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_func(
         interner.get_or_intern_static("digits"), XStaticFunction::Native(XFuncSpec {
             generic_params: None,

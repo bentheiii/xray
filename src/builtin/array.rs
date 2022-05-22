@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, intern, manage_native, to_native, to_primitive, XCallableSpec, XCompilationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, intern, manage_native, to_native, to_primitive, XCallableSpec, XCompilationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
@@ -61,11 +61,11 @@ fn value_to_idx(arr: &Vec<Rc<ManagedXValue>>, i: &BigInt) -> Result<usize, Strin
     Ok(idx)
 }
 
-pub fn add_array_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_array_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_native_type_intern("Array", XArrayType::xtype(XType::generic_from_name("T", interner)), interner)
 }
 
-pub fn add_array_get(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_array_get(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
 
     scope.add_func_intern(
@@ -92,7 +92,7 @@ pub fn add_array_get(scope: &mut XCompilationScope, interner: &mut StringInterne
     Ok(())
 }
 
-pub fn add_array_len(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_array_len(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
 
     scope.add_func_intern(
@@ -113,7 +113,7 @@ pub fn add_array_len(scope: &mut XCompilationScope, interner: &mut StringInterne
     Ok(())
 }
 
-pub fn add_array_add(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_array_add(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
@@ -149,7 +149,7 @@ pub fn add_array_add(scope: &mut XCompilationScope, interner: &mut StringInterne
     Ok(())
 }
 
-pub fn add_array_push(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_array_push(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
@@ -177,7 +177,7 @@ pub fn add_array_push(scope: &mut XCompilationScope, interner: &mut StringIntern
     Ok(())
 }
 
-pub fn add_array_rpush(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_array_rpush(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
@@ -205,7 +205,7 @@ pub fn add_array_rpush(scope: &mut XCompilationScope, interner: &mut StringInter
     Ok(())
 }
 
-pub fn add_array_insert(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_array_insert(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
@@ -241,7 +241,7 @@ pub fn add_array_insert(scope: &mut XCompilationScope, interner: &mut StringInte
     Ok(())
 }
 
-pub fn add_array_pop(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_array_pop(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
@@ -272,7 +272,7 @@ pub fn add_array_pop(scope: &mut XCompilationScope, interner: &mut StringInterne
     Ok(())
 }
 
-pub fn add_array_set(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_array_set(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
@@ -308,7 +308,7 @@ pub fn add_array_set(scope: &mut XCompilationScope, interner: &mut StringInterne
     Ok(())
 }
 
-pub fn add_array_swap(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_array_swap(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_arr = XArrayType::xtype(t.clone());
 
@@ -354,7 +354,7 @@ pub fn add_array_swap(scope: &mut XCompilationScope, interner: &mut StringIntern
     Ok(())
 }
 
-pub fn add_array_to_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_array_to_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
 
     scope.add_func_intern(
@@ -379,7 +379,7 @@ pub fn add_array_to_stack(scope: &mut XCompilationScope, interner: &mut StringIn
     Ok(())
 }
 
-pub fn add_array_map(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_array_map(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let input_t = XType::generic_from_name("T_IN", interner);
     let output_t = XType::generic_from_name("T_OUT", interner);
 

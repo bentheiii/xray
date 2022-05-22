@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, eval, Bind, XCompilationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, eval, Bind, XCompilationScope, XStaticFunction, XType, CompilationError};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
@@ -8,7 +8,7 @@ use std::sync::Arc;
 use string_interner::StringInterner;
 use crate::XType::Int;
 
-pub fn add_rational_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_rational_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_native_type(interner.get_or_intern_static("rational"), X_RATIONAL.clone())
 }
 

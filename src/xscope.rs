@@ -4,6 +4,7 @@ use std::iter::from_fn;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
+use crate::{TracedCompilationError, CompilationResult, CompilationError};
 use crate::runtime::{RTCell, RuntimeLimits};
 use crate::xexpr::{XExpr, XStaticFunction};
 use crate::xtype::{XFuncSpec, XCompoundSpec, XType, CompoundKind};
@@ -111,63 +112,61 @@ impl<'p> XCompilationScope<'p> {
         helper(self, name, 0)
     }
 
-    pub fn add_param(&mut self, name: DefaultSymbol, type_: Arc<XType>) -> Result<(), String> {
-        if self.get(name).is_some() {
-            // todo fix symbol shit
-            Err(format!("Variable {:?} already defined", name))
+    pub fn add_param(&mut self, name: DefaultSymbol, type_: Arc<XType>) -> Result<(), CompilationError> {
+        if let Some(other) = self.get(name) {
+            Err(CompilationError::NameAlreadyDefined {name, other})
         } else {
             self.values.insert(name, (None, type_));
             Ok(())
         }
     }
 
-    pub fn add_var(&mut self, name: DefaultSymbol, expr: XExpr) -> Result<Declaration, String> {
-        if self.get(name).is_some() {
-            // todo fix symbol shit
-            Err(format!("Variable {:?} already defined", name))
+    pub fn add_var(&mut self, name: DefaultSymbol, expr: XExpr) -> Result<Declaration, CompilationError> {
+        if let Some(other) = self.get(name) {
+            Err(CompilationError::NameAlreadyDefined {name, other})
         } else {
             self.values.insert(name, (Some(expr.clone()), expr.xtype()?));
             Ok(Declaration::Value(name, expr))
         }
     }
 
-    pub fn add_func(&mut self, name: DefaultSymbol, func: XStaticFunction) -> Result<Declaration, String> {
+    pub fn add_func(&mut self, name: DefaultSymbol, func: XStaticFunction) -> Result<Declaration, CompilationError> {
         // todo ensure no shadowing
         let item = Rc::new(func);
         self.functions.entry(name).or_insert_with(|| vec![]).push(item.clone());
         Ok(Declaration::UserFunction(name, item))
     }
 
-    pub fn add_func_intern(&mut self, name: &'static str, func: XStaticFunction, interner: &mut StringInterner) -> Result<Declaration, String> {
+    pub fn add_func_intern(&mut self, name: &'static str, func: XStaticFunction, interner: &mut StringInterner) -> Result<Declaration, CompilationError> {
         self.add_func(interner.get_or_intern_static(name), func)
     }
 
-    pub fn add_struct(&mut self, name: DefaultSymbol, struct_spec: XCompoundSpec) -> Result<Declaration, String> {
+    pub fn add_struct(&mut self, name: DefaultSymbol, struct_spec: XCompoundSpec) -> Result<Declaration, CompilationError> {
         // todo ensure no shadowing
         self.structs.insert(name, Arc::new(struct_spec.clone()));
         Ok(Declaration::Struct(struct_spec))
     }
 
-    pub fn add_union(&mut self, name: DefaultSymbol, union_spec: XCompoundSpec) -> Result<Declaration, String> {
+    pub fn add_union(&mut self, name: DefaultSymbol, union_spec: XCompoundSpec) -> Result<Declaration, CompilationError> {
         // todo ensure no shadowing
         self.unions.insert(name, Arc::new(union_spec.clone()));
         Ok(Declaration::Union(union_spec))
     }
 
-    pub fn add_native_type(&mut self, name: DefaultSymbol, type_: Arc<XType>) -> Result<(), String> {
-        if self.get(name).is_some() {
-            Err(format!("Native type {:?} already defined", name))
+    pub fn add_native_type(&mut self, name: DefaultSymbol, type_: Arc<XType>) -> Result<(), CompilationError> {
+        if let Some(other) = self.get(name) {
+            Err(CompilationError::NameAlreadyDefined {name, other})
         } else {
             self.types.insert(name, type_);
             Ok(())
         }
     }
 
-    pub fn add_native_type_intern(&mut self, name: &'static str, type_: Arc<XType>, interner: &mut StringInterner) -> Result<(), String> {
+    pub fn add_native_type_intern(&mut self, name: &'static str, type_: Arc<XType>, interner: &mut StringInterner) -> Result<(), CompilationError> {
         self.add_native_type(interner.get_or_intern_static(name), type_)
     }
 
-    pub fn to_eval_scope(&self, runtime: RTCell) -> Result<XEvaluationScope, String> {
+    pub fn to_eval_scope(&self, runtime: RTCell) -> Result<XEvaluationScope, CompilationError> {
         let mut ret = XEvaluationScope::root();
         let mut current_scope = Some(self);
         while let Some(s) = current_scope {

@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, intern, manage_native, to_native, to_primitive, XArray, XArrayType, XCallableSpec, XCompilationScope, XSet, XSetType, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, intern, manage_native, to_native, to_primitive, XArray, XArrayType, XCallableSpec, XCompilationScope, XSet, XSetType, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
@@ -41,11 +41,11 @@ impl XNativeValue for XOptional {
     }
 }
 
-pub fn add_optional_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_optional_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_native_type_intern("Optional", XOptionalType::xtype(XType::generic_from_name("T", interner)), interner)
 }
 
-pub fn add_optional_null(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_optional_null(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_func_intern(
         "null", XStaticFunction::Native(XFuncSpec {
             generic_params: None,
@@ -57,7 +57,7 @@ pub fn add_optional_null(scope: &mut XCompilationScope, interner: &mut StringInt
     Ok(())
 }
 
-pub fn add_optional_some(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_optional_some(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     scope.add_func_intern(
         "some", XStaticFunction::Native(XFuncSpec {
@@ -74,7 +74,7 @@ pub fn add_optional_some(scope: &mut XCompilationScope, interner: &mut StringInt
     Ok(())
 }
 
-pub fn add_optional_map(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_optional_map(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t_in = XType::generic_from_name("T_IN", interner);
     let t_out = XType::generic_from_name("T_OUT", interner);
     scope.add_func_intern(
@@ -110,7 +110,7 @@ pub fn add_optional_map(scope: &mut XCompilationScope, interner: &mut StringInte
     Ok(())
 }
 
-pub fn add_optional_map_or(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_optional_map_or(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     scope.add_func_intern(
         "map_or", XStaticFunction::Native(XFuncSpec {
@@ -148,7 +148,7 @@ pub fn add_optional_map_or(scope: &mut XCompilationScope, interner: &mut StringI
     Ok(())
 }
 
-pub fn add_optional_or_unwrap(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_optional_or_unwrap(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let opt_t = XOptionalType::xtype(t.clone());
     scope.add_func_intern(
@@ -178,7 +178,7 @@ pub fn add_optional_or_unwrap(scope: &mut XCompilationScope, interner: &mut Stri
     Ok(())
 }
 
-pub fn add_optional_or(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_optional_or(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let opt_t = XOptionalType::xtype(t.clone());
     scope.add_func_intern(
@@ -208,7 +208,7 @@ pub fn add_optional_or(scope: &mut XCompilationScope, interner: &mut StringInter
     Ok(())
 }
 
-pub fn add_optional_and(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_optional_and(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let opt_t = XOptionalType::xtype(t.clone());
     scope.add_func_intern(
@@ -238,7 +238,7 @@ pub fn add_optional_and(scope: &mut XCompilationScope, interner: &mut StringInte
     Ok(())
 }
 
-pub fn add_optional_has_value(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_optional_has_value(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let opt_t = XOptionalType::xtype(t.clone());
     scope.add_func_intern(
@@ -262,7 +262,7 @@ pub fn add_optional_has_value(scope: &mut XCompilationScope, interner: &mut Stri
     Ok(())
 }
 
-pub fn add_optional_value(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_optional_value(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let opt_t = XOptionalType::xtype(t.clone());
     scope.add_func_intern(

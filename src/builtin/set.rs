@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, eval, intern, manage_native, to_native, XCompilationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, intern, manage_native, to_native, XCompilationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
@@ -49,11 +49,11 @@ impl XNativeValue for XSet {
     }
 }
 
-pub fn add_set_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_set_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_native_type_intern("Set", XSetType::xtype(XType::generic_from_name("T", interner)), interner)
 }
 
-pub fn add_set_bitor(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_set_bitor(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let set_t = XSetType::xtype(t.clone());
 
@@ -87,7 +87,7 @@ pub fn add_set_bitor(scope: &mut XCompilationScope, interner: &mut StringInterne
     Ok(())
 }
 
-pub fn add_set_bitand(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_set_bitand(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let set_t = XSetType::xtype(t.clone());
 
@@ -121,7 +121,7 @@ pub fn add_set_bitand(scope: &mut XCompilationScope, interner: &mut StringIntern
     Ok(())
 }
 
-pub fn add_set_bitxor(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_set_bitxor(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let set_t = XSetType::xtype(t);
 
@@ -155,7 +155,7 @@ pub fn add_set_bitxor(scope: &mut XCompilationScope, interner: &mut StringIntern
     Ok(())
 }
 
-pub fn add_set_sub(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_set_sub(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let set_t = XSetType::xtype(t.clone());
 
@@ -189,7 +189,7 @@ pub fn add_set_sub(scope: &mut XCompilationScope, interner: &mut StringInterner)
     Ok(())
 }
 
-pub fn add_set_to_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), String> {
+pub fn add_set_to_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
 
     scope.add_func_intern(

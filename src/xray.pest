@@ -20,9 +20,8 @@ expression3 = {
     expression4 ~ call_args*
 }
 expression4 = {
-    expression5 ~ generic_arguments_opt ~ ("::" ~ CNAME)*
+    expression5 ~ ("::" ~ CNAME)*
 }
-    generic_arguments_opt = { generic_arguments? }
 expression5 = _{
     STRING
     | bool

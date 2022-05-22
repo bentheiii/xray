@@ -3,6 +3,7 @@ use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 use derivative::Derivative;
 use string_interner::{DefaultSymbol, StringInterner};
+use crate::CompilationError;
 use crate::native_types::NativeType;
 use crate::xscope::Identifier;
 
@@ -365,15 +366,15 @@ lazy_static!(
     pub static ref X_UNKNOWN: Arc<XType> = Arc::new(XType::XUnknown);
 );
 
-pub fn common_type<T: Iterator<Item=Result<Arc<XType>, String>>>(mut values: T) -> Result<Arc<XType>, String> {
+pub fn common_type<T: Iterator<Item=Result<Arc<XType>, CompilationError>>>(mut values: T) -> Result<Arc<XType>, CompilationError> {
     let ret = match values.next() {
         None => return Ok(X_UNKNOWN.clone()),
         Some(v) => v?
     };
     for res in values.by_ref() {
         let v = res?;
-        if ret != v {
-            return Err(format!("incompatible types {:?} and {:?}", ret, v));
+        if ret != v { // todo assignable?
+            return Err(CompilationError::IncompatibleTypes {type0: ret.clone(), type1: v.clone()});
         }
     }
     Ok(ret.clone())
