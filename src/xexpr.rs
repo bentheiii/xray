@@ -32,6 +32,7 @@ pub enum XStaticExpr {
     SpecializedIdent(DefaultSymbol,
                      #[derivative(Hash = "ignore")]
                      Vec<Arc<XType>>),
+    Lambda(Vec<XExplicitArgSpec>, Box<XStaticExpr>),
 }
 
 pub struct CompilationResult {
@@ -172,7 +173,7 @@ impl XStaticExpr {
                                     }
                                 } else {
                                     Err(CompilationError::MemberNotFound { spec, name: member_name.clone() })
-                                }
+                                };
                             }
                         }
                     }
@@ -247,13 +248,13 @@ impl XStaticExpr {
                             Err(CompilationError::MemberNotFound { spec: spec.clone(), name: member_name.clone() })
                         }
                     }
-                    _ => Err(CompilationError::NonCompoundMemberAccess {xtype: obj_compiled.expr.xtype()?})
+                    _ => Err(CompilationError::NonCompoundMemberAccess { xtype: obj_compiled.expr.xtype()? })
                 }
             }
             XStaticExpr::Ident(name) => {
                 match namespace.get_with_depth(*name) {
                     None => Err(CompilationError::ValueNotFound { name: name.clone() }),
-                    Some((XCompilationScopeItem::Compound(..) | XCompilationScopeItem::NativeType(..), _)) => Err(CompilationError::TypeAsVariable { name: name.clone()}),
+                    Some((XCompilationScopeItem::Compound(..) | XCompilationScopeItem::NativeType(..), _)) => Err(CompilationError::TypeAsVariable { name: name.clone() }),
                     Some((item, depth)) => {
                         let cvars = if depth != 0 && depth != namespace.height {
                             vec![name.clone()]
@@ -288,8 +289,28 @@ impl XStaticExpr {
                         Ok(CompilationResult::new(resolve_overload(overloads, arg_types, *name)?, cvars))
                     }
                     None => Err(CompilationError::FunctionNotFound { name: name.clone() }),
-                    Some((item, _)) => Err(CompilationError::NonFunctionSpecialization { name: name.clone(), item})
+                    Some((item, _)) => Err(CompilationError::NonFunctionSpecialization { name: name.clone(), item })
                 }
+            }
+            XStaticExpr::Lambda(args, body) => {
+                let mut subscope = XCompilationScope::from_parent_lambda(namespace);
+                for param in args {
+                    subscope.add_param(param.name, param.type_.clone())?;
+                }
+                let body_result = body.compile(&subscope)?;
+                let body_type = body_result.expr.xtype()?;
+                return Ok(CompilationResult::from(
+                    XExpr::Lambda(Rc::new(XStaticFunction::UserFunction(UfData::new(
+                        XExplicitFuncSpec {
+                            generic_params: None,
+                            args: args.clone(),
+                            ret: body_type,
+                        },
+                        vec![],
+                        Box::new(body_result.expr),
+                        body_result.closure_vars.iter().cloned().collect(),
+                    )))),
+                ));
             }
         }
     }
@@ -309,6 +330,7 @@ pub enum XExpr {
     Member(Box<XExpr>, usize),
     KnownOverload(Rc<XStaticFunction>, Bind),
     Ident(DefaultSymbol, Box<IdentItem>),
+    Lambda(Rc<XStaticFunction>),
     // this dummy exists for calling native functions with arguments that were already
     // evaluated
     Dummy(Rc<ManagedXValue>),
@@ -505,7 +527,7 @@ impl XExpr {
                 if let XType::XFunc(func) = func_type.as_ref() {
                     return Ok(func.rtype(&Bind::new()));
                 }
-                Err(CompilationError::NotAFunction {type_: func_type.clone()})
+                Err(CompilationError::NotAFunction { type_: func_type.clone() })
             }
             XExpr::Construct(spec, binding, ..) => Ok(Arc::new(XType::Compound(CompoundKind::Struct, spec.clone(), binding.clone()))),
             XExpr::Variant(spec, binding, ..) => Ok(Arc::new(XType::Compound(CompoundKind::Union, spec.clone(), binding.clone()))),
@@ -517,10 +539,11 @@ impl XExpr {
                         let t = spec.fields[*idx].type_.clone().resolve_bind(&bind, Some(&obj_type));
                         Ok(XOptionalType::xtype(t))
                     }
-                    _ => Err(CompilationError::NotACompound {type_: obj_type.clone()})
+                    _ => Err(CompilationError::NotACompound { type_: obj_type.clone() })
                 }
             }
             XExpr::KnownOverload(func, bind) => Ok(func.xtype(bind)),
+            XExpr::Lambda(func) => Ok(func.xtype(&Bind::new())),
             XExpr::Ident(_, item) => {
                 match item.as_ref() {
                     IdentItem::Value(xtype) => Ok(xtype.clone()),
@@ -579,7 +602,7 @@ impl XExpr {
                 let obj = expr.eval(namespace, false, runtime.clone())?.unwrap_value();
                 Ok(ManagedXValue::new(XValue::UnionInstance(*idx, obj), runtime)?.into())
             }
-            XExpr::KnownOverload(func, _) => {
+            XExpr::KnownOverload(func, _) | XExpr::Lambda(func) => {
                 Ok(ManagedXValue::new(XValue::Function(func.clone().to_function(namespace)), runtime)?.into())
             }
             XExpr::Ident(name, item) => {

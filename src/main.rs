@@ -45,17 +45,19 @@ use crate::parser::{XRayParser, Rule};
 use crate::runtime::{RTCell, RuntimeLimits};
 
 use crate::xexpr::{CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
-use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
-use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompoundSpec, XType, CompoundKind};
+use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
+use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompoundSpec, XType, CompoundKind, XFuncParamSpec};
 
 fn main() {
     let input = r#"
-    struct Point (
-        a: int,
-        b: int,
-    )
+    struct Term ()
 
-    let z = Point(1,2);
+    fn foo(x: Term) -> str {
+        'hi there'
+    }
+
+    let t = Term();
+    let z = foo(t);
 
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -86,6 +88,7 @@ fn main() {
 
     add_str_type(&mut root_scope, &mut interner).unwrap();
     add_str_eq(&mut root_scope, &mut interner).unwrap();
+    add_str_add(&mut root_scope, &mut interner).unwrap();
 
     add_bool_type(&mut root_scope, &mut interner).unwrap();
     add_and(&mut root_scope, &mut interner).unwrap();
@@ -147,6 +150,28 @@ fn main() {
 }
 
 impl<'p> XCompilationScope<'p> {
+    fn parse_param_specs(&self, param_pairs: Pair<Rule>, gen_param_names: &HashSet<String>, interner: &mut StringInterner, runtime: RTCell, fn_symbol: Option<Identifier>) -> Result<Vec<XExplicitArgSpec>, TracedCompilationError> {
+        param_pairs.into_inner().map(|p| -> Result<_, TracedCompilationError> {
+            let mut param_iter = p.clone().into_inner();
+            let param_name = param_iter.next().unwrap().as_str();
+            let param_symbol = interner.get_or_intern(param_name);
+            let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner, None)?;
+            let default = param_iter.next().map(|d| -> Result<_, TracedCompilationError> {
+                let d = d.into_inner().next().unwrap();
+                let e_scope = self.to_eval_scope(runtime.clone()).map_err(|e| e.trace(&d))?;
+                self.to_expr(d.clone(), interner, runtime.clone())?.compile(&self).and_then(|c| {
+                    c.expr.eval(&e_scope, false, runtime.clone()).map(|r| r.unwrap_value())
+                        .map_err(|error| CompilationError::DefaultEvaluationError {
+                            function_name: fn_symbol,
+                            param_name: param_symbol,
+                            error,
+                        })
+                }).map_err(|e| e.trace(&d))
+            }).transpose()?;
+            Ok(XExplicitArgSpec { name: param_symbol, type_, default })
+        }).collect::<Result<Vec<_>, _>>()
+    }
+
     fn feed(&mut self, input: Pair<Rule>, parent_gen_param_names: &HashSet<String>, interner: &mut StringInterner, runtime: RTCell) -> Result<Vec<Declaration>, TracedCompilationError> {
         match input.as_rule() {
             Rule::header | Rule::top_level_execution | Rule::execution | Rule::declaration => {
@@ -162,7 +187,7 @@ impl<'p> XCompilationScope<'p> {
                 let var_name = inners.next().unwrap().as_str();
                 let explicit_type_opt = inners.next().unwrap();
                 let complete_type = explicit_type_opt.clone().into_inner().next().map(|et| self.get_complete_type(et, parent_gen_param_names, interner, None)).transpose()?;
-                let expr = self.to_expr(inners.next().unwrap(), interner)?;
+                let expr = self.to_expr(inners.next().unwrap(), interner, runtime)?;
                 let CompilationResult { expr: compiled, closure_vars: cvars } = expr.compile(&self).map_err(|e| e.trace(&input))?;
                 let symbol = interner.get_or_intern(var_name);
                 if let Some(complete_type) = complete_type {
@@ -198,30 +223,12 @@ impl<'p> XCompilationScope<'p> {
                 }
                 let params = match inners.next().unwrap().into_inner().next() {
                     None => vec![],
-                    Some(param_pairs) => param_pairs.into_inner().map(|p| -> Result<_, TracedCompilationError> {
-                        let mut param_iter = p.clone().into_inner();
-                        let param_name = param_iter.next().unwrap().as_str();
-                        let param_symbol = interner.get_or_intern(param_name);
-                        let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner, None)?;
-                        let default = param_iter.next().map(|d| -> Result<_, TracedCompilationError> {
-                            let d = d.into_inner().next().unwrap();
-                            let e_scope = self.to_eval_scope(runtime.clone()).map_err(|e| e.trace(&d))?;
-                            self.to_expr(d.clone(), interner)?.compile(&self).and_then(|c| {
-                                c.expr.eval(&e_scope, false, runtime.clone()).map(|r| r.unwrap_value())
-                                    .map_err(|error| CompilationError::DefaultEvaluationError {
-                                        function_name: fn_symbol,
-                                        param_name: param_symbol,
-                                        error,
-                                    })
-                            }).map_err(|e| e.trace(&d))
-                        }).transpose()?;
-                        Ok(XExplicitArgSpec { name: param_symbol, type_, default })
-                    }).collect::<Result<Vec<_>, _>>()?
+                    Some(param_pairs) => self.parse_param_specs(param_pairs, &gen_param_names, interner, runtime.clone(), Some(fn_symbol))?
                 };
                 // check that there are no required params after optional ones
                 if let Some(out_of_order_param) = params.iter().skip_while(|p| p.default.is_none()).find(|p| p.default.is_none()) {
                     return Err(CompilationError::RequiredParamsAfterOptionalParams {
-                        function_name: fn_symbol,
+                        function_name: Some(fn_symbol),
                         param_name: out_of_order_param.name,
                     }.trace(&input));
                 }
@@ -238,7 +245,7 @@ impl<'p> XCompilationScope<'p> {
                 }
                 let mut body_iter = body.clone().into_inner();
                 let declarations = subscope.feed(body_iter.next().unwrap(), &gen_param_names, interner, runtime.clone())?;
-                let compiled_output = self.to_expr(body_iter.next().unwrap(), interner)?.compile(&subscope).map_err(|e| e.trace(&input))?;
+                let compiled_output = self.to_expr(body_iter.next().unwrap(), interner, runtime)?.compile(&subscope).map_err(|e| e.trace(&input))?;
                 let output = Box::new(compiled_output.expr);
                 let out_type = output.xtype().map_err(|e| e.trace(&body))?; // todo improve trace?
                 if out_type != spec.ret {
@@ -379,11 +386,11 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    fn to_expr(&self, input: Pair<Rule>, interner: &mut StringInterner) -> Result<XStaticExpr, TracedCompilationError> {
+    fn to_expr(&self, input: Pair<Rule>, interner: &mut StringInterner, runtime: RTCell) -> Result<XStaticExpr, TracedCompilationError> {
         match input.as_rule() {
             Rule::expression => {
                 let (add_symbol, sub_symbol, mul_symbol, div_symbol, mod_symbol, pow_symbol, and_symbol, or_symbol, lt_symbol, gt_symbol, eq_symbol, ne_symbol, le_symbol, ge_symbol, bit_or_symbol, bit_and_symbol, bit_xor_symbol, ) = (interner.get_or_intern_static("add"), interner.get_or_intern_static("sub"), interner.get_or_intern_static("mul"), interner.get_or_intern_static("div"), interner.get_or_intern_static("mod"), interner.get_or_intern_static("pow"), interner.get_or_intern_static("and"), interner.get_or_intern_static("or"), interner.get_or_intern_static("lt"), interner.get_or_intern_static("gt"), interner.get_or_intern_static("eq"), interner.get_or_intern_static("ne"), interner.get_or_intern_static("le"), interner.get_or_intern_static("ge"), interner.get_or_intern_static("bit_or"), interner.get_or_intern_static("bit_and"), interner.get_or_intern_static("bit_xor"), );
-                CLIMBER.climb(input.into_inner(), |pair| self.to_expr(pair, interner),
+                CLIMBER.climb(input.into_inner(), |pair| self.to_expr(pair, interner, runtime.clone()),
                               |lhs, op, rhs| {
                                   let lhs = lhs?;
                                   let rhs = rhs?;
@@ -412,7 +419,7 @@ impl<'p> XCompilationScope<'p> {
             }
             Rule::expression1 => {
                 let mut iter = input.into_inner().rev();
-                let mut expr = self.to_expr(iter.next().unwrap(), interner)?;
+                let mut expr = self.to_expr(iter.next().unwrap(), interner, runtime)?;
                 for inner in iter {
                     let func = match inner.as_rule() {
                         Rule::UNARY_PLUS => "pos",
@@ -427,13 +434,13 @@ impl<'p> XCompilationScope<'p> {
             }
             Rule::expression2 => {
                 let mut iter = input.into_inner();
-                let mut ret = self.to_expr(iter.next().unwrap(), interner)?;
+                let mut ret = self.to_expr(iter.next().unwrap(), interner, runtime.clone())?;
                 for meth_call in &iter.chunks(2) {
                     let mut meth_call_iter = meth_call.into_iter();
                     let method = XStaticExpr::Ident(interner.get_or_intern(meth_call_iter.next().unwrap().as_str()));
                     let args = match meth_call_iter.next().unwrap().into_inner().next() {
                         None => Ok(vec![ret]),
-                        Some(c) => iter::once(Ok(ret)).chain(c.into_inner().map(|p| self.to_expr(p, interner))).collect()
+                        Some(c) => iter::once(Ok(ret)).chain(c.into_inner().map(|p| self.to_expr(p, interner, runtime.clone()))).collect()
                     }?;
                     ret = XStaticExpr::Call(Box::new(method), args);
                 };
@@ -441,7 +448,7 @@ impl<'p> XCompilationScope<'p> {
             }
             Rule::expression4 => {
                 let mut iter = input.into_inner();
-                let mut ret = self.to_expr(iter.next().unwrap(), interner)?;
+                let mut ret = self.to_expr(iter.next().unwrap(), interner, runtime)?;
                 for next_args in iter {
                     let member = next_args.as_str();
                     ret = XStaticExpr::Member(Box::new(ret), member.to_string());
@@ -452,19 +459,19 @@ impl<'p> XCompilationScope<'p> {
                 let mut iter = input.into_inner();
                 let raw_callable = iter.next().unwrap();
                 match iter.next() {
-                    None => self.to_expr(raw_callable, interner),
+                    None => self.to_expr(raw_callable, interner, runtime),
                     Some(raw_first_args) => {
                         let args = raw_first_args.into_inner().next().map_or_else(|| Ok(vec![]), |c| {
-                            c.into_inner().map(|p| self.to_expr(p, interner)).collect()
+                            c.into_inner().map(|p| self.to_expr(p, interner, runtime.clone())).collect()
                         })?;
                         let mut ret;
                         if raw_callable.as_rule() == Rule::CNAME {}
-                        let callable = Box::new(self.to_expr(raw_callable, interner)?);
+                        let callable = Box::new(self.to_expr(raw_callable, interner, runtime.clone())?);
                         ret = XStaticExpr::Call(callable, args);
 
                         for next_args in iter {
                             let args = next_args.into_inner().next().map_or_else(|| Ok(vec![]), |c| {
-                                c.into_inner().map(|p| self.to_expr(p, interner)).collect()
+                                c.into_inner().map(|p| self.to_expr(p, interner, runtime.clone())).collect()
                             })?;
                             ret = XStaticExpr::Call(Box::new(ret), args);
                         }
@@ -495,7 +502,7 @@ impl<'p> XCompilationScope<'p> {
                 let container_type = iter.next().unwrap().into_inner().next().map_or("array", |c| c.as_str());
                 let parts = iter.next().map_or_else(
                     || Ok(vec![]),
-                    |c| c.into_inner().map(|p| self.to_expr(p, interner)).collect(),
+                    |c| c.into_inner().map(|p| self.to_expr(p, interner, runtime.clone())).collect(),
                 )?;
                 Ok(match container_type {
                     "array" => XStaticExpr::Array(parts),
@@ -508,6 +515,28 @@ impl<'p> XCompilationScope<'p> {
                 let cname = iter.next().unwrap().as_str();
                 let args = iter.map(|p| self.get_complete_type(p, &HashSet::new(), interner, None)).collect::<Result<Vec<_>, _>>()?;
                 Ok(XStaticExpr::SpecializedIdent(interner.get_or_intern(cname), args))
+            }
+            Rule::lambda_func => {
+                let mut iter = input.clone().into_inner();
+                let params = match iter.next().unwrap().into_inner().next() {
+                    None => vec![],
+                    Some(c) => self.parse_param_specs(c,
+                                                      &HashSet::new(),  // todo
+                                                      interner,
+                                                      runtime.clone(),
+                                                      None, )?
+                };
+                // check that there are no required params after optional ones
+                // todo add this logic to parse_param_specs
+                if let Some(out_of_order_param) = params.iter().skip_while(|p| p.default.is_none()).find(|p| p.default.is_none()) {
+                    return Err(CompilationError::RequiredParamsAfterOptionalParams {
+                        function_name: None,
+                        param_name: out_of_order_param.name,
+                    }.trace(&input));
+                }
+                let body = iter.next().unwrap();
+                let ret = self.to_expr(body.clone(), interner, runtime)?;
+                Ok(XStaticExpr::Lambda(params, Box::new(ret)))
             }
             _ => {
                 panic!("not an expression {:?}", input);

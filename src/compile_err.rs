@@ -20,11 +20,11 @@ pub enum CompilationError {
         actual_type: Arc<XType>,
     },
     RequiredParamsAfterOptionalParams{
-        function_name: Identifier,
+        function_name: Option<Identifier>,
         param_name: Identifier,
     },
     DefaultEvaluationError {
-        function_name: Identifier,
+        function_name: Option<Identifier>,  // None for lambda function
         param_name: Identifier,
         error: String,  // todo fix when we have proper eval error handling
     },
@@ -130,13 +130,13 @@ impl CompilationError{
             CompilationError::RequiredParamsAfterOptionalParams{function_name, param_name} => {
                 format!("Required parameter {} after optional parameter in function {}",
                     interner.resolve(param_name.clone()).unwrap(),
-                    interner.resolve(function_name.clone()).unwrap()
+                    function_name.map_or("<lambda>",|function_name|interner.resolve(function_name.clone()).unwrap())
                 )
             }
             CompilationError::DefaultEvaluationError{function_name, param_name, error} => {
                 format!("Error evaluating default value for parameter {} in function {}: {}",
                     interner.resolve(param_name.clone()).unwrap(),
-                    interner.resolve(function_name.clone()).unwrap(),
+                    function_name.map_or("<lambda>" ,|s| interner.resolve(s.clone()).unwrap()),
                     error
                 )
             }
@@ -178,7 +178,7 @@ impl CompilationError{
                 )
             }
             CompilationError::NoOverload {name,param_types} => {
-                format!("No overload for {} found for param types [{:?}]",
+                format!("No overload for {} found for param types [{}]",
                     interner.resolve(name.clone()).unwrap(),
                     param_types.iter().map(|t| t.display_with_interner(interner)).join(", ")
                 )

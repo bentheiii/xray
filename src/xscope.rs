@@ -63,6 +63,20 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
+    pub fn from_parent_lambda(parent: &'p XCompilationScope<'p>) -> Self {
+        XCompilationScope {
+            values: HashMap::new(),
+            types: HashMap::new(),
+            structs: HashMap::new(),
+            functions: HashMap::new(),
+            unions: HashMap::new(),
+            parent: Some(parent),
+            recourse: None,
+            closure_variables: HashSet::new(),
+            height: parent.height + 1,
+        }
+    }
+
     fn ancestors(&self) -> impl Iterator<Item=&XCompilationScope<'p>> {
         let mut scope = self;
         return from_fn(move || {
