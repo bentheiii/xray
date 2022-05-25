@@ -30,7 +30,7 @@ pub type NativeCallable = fn(&Vec<XExpr>, &XEvaluationScope<'_>, bool, RTCell) -
 pub enum XFunction {
     Native(NativeCallable),
     UserFunction(Rc<XStaticFunction>, HashMap<Identifier, Rc<ManagedXValue>>),
-    Recourse(),
+    Recourse(usize),
 }
 
 impl XFunction {
@@ -43,12 +43,12 @@ impl XFunction {
                 let mut arguments = args.iter().map(|x| x.eval(parent_scope, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
                 self.eval_values(arguments, parent_scope, runtime).map(|r| r.into())
             }
-            XFunction::Recourse() => {
-                if tail_available {
+            XFunction::Recourse(depth) => {
+                if tail_available && *depth == 0 {
                     let arguments = args.iter().map(|x| x.eval(parent_scope, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
                     return Ok(TailedEvalResult::TailCall(arguments));
                 }
-                parent_scope.recourse.unwrap().eval(args, parent_scope, tail_available, runtime)
+                parent_scope.ancestor(*depth).recourse.unwrap().eval(args, parent_scope, tail_available, runtime)
             }
         }
     }
@@ -106,8 +106,8 @@ impl XFunction {
                     }
                 }
             }
-            XFunction::Recourse() => {
-                parent_scope.recourse.unwrap().eval_values(args, parent_scope, runtime)
+            XFunction::Recourse(depth) => {
+                parent_scope.ancestor(*depth).recourse.unwrap().eval_values(args, parent_scope, runtime)
             }
         }
     }
@@ -122,7 +122,7 @@ impl Debug for XFunction {
             XFunction::UserFunction(params, ..) => {
                 write!(f, "UserFunction({:?})", params)
             }
-            XFunction::Recourse() => {
+            XFunction::Recourse(..) => {
                 write!(f, "Recourse()")
             }
         }
@@ -146,7 +146,7 @@ impl Hash for XFunction {
             XFunction::UserFunction(args, ..) => {
                 1.hash(state)
             }
-            XFunction::Recourse() => {
+            XFunction::Recourse(..) => {
                 2.hash(state)
             }
         }
@@ -162,7 +162,7 @@ impl XValue{
             XValue::Bool(_) => 1,
             XValue::Function(XFunction::Native(_)) => size_of::<usize>(),
             XValue::Function(XFunction::UserFunction(_, closure)) => size_of::<usize>() + closure.len() * size_of::<usize>(),
-            XValue::Function(XFunction::Recourse()) => size_of::<usize>(),
+            XValue::Function(XFunction::Recourse(..)) => size_of::<usize>(),
             XValue::StructInstance(items) => items.len() * size_of::<usize>(),
             XValue::UnionInstance(_, item) => item.size() + size_of::<usize>(),
             XValue::Native(n) => size_of::<usize>() + n.size(),

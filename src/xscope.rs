@@ -83,14 +83,22 @@ impl<'p> XCompilationScope<'p> {
             let mut overloads = scope.functions.get(&name).map_or_else(|| vec![], |x| x.clone());
             match &scope.recourse {
                 Some((rec_name, spec)) if rec_name == &name => {
-                    overloads.push(Rc::new(XStaticFunction::Recourse(spec.clone())));
+                    overloads.push(Rc::new(XStaticFunction::Recourse(spec.clone(), 0)));
                 }
                 _ => (),
             }
             if overloads.len() > 0 {
-                for ancestor in scope.ancestors() {
+                for (depth, ancestor) in scope.ancestors().enumerate() {
                     if let Some(ancestor_overloads) = ancestor.functions.get(&name) {
-                        overloads.extend(ancestor_overloads.iter().cloned());
+                        // a scope might send us a recurse, in which case we need to increment its depth
+                        let ancestor_overloads = ancestor_overloads.iter().map(|x| {
+                            if let XStaticFunction::Recourse(spec, _) = x.as_ref() {
+                                Rc::new(XStaticFunction::Recourse(spec.clone(), depth+1))
+                            } else {
+                                Rc::clone(x)
+                            }
+                        });
+                        overloads.extend(ancestor_overloads);
                     }
                 }
                 return Some((XCompilationScopeItem::Overload(overloads), depth));
@@ -107,7 +115,20 @@ impl<'p> XCompilationScope<'p> {
             if let Some(type_spec) = scope.types.get(&name) {
                 return Some((XCompilationScopeItem::NativeType(type_spec.clone()), depth));
             }
-            scope.parent.as_ref().and_then(|parent| helper(parent, name, depth + 1))
+            scope.parent.as_ref()
+                .and_then(|parent| helper(parent, name, depth + 1))
+                .map(|(item, depth)| (match item{
+                    XCompilationScopeItem::Overload(overloads) => {
+                        XCompilationScopeItem::Overload(overloads.iter().map(|x| {
+                            if let XStaticFunction::Recourse(spec, depth) = x.as_ref() {
+                                Rc::new(XStaticFunction::Recourse(spec.clone(), depth+1))
+                            } else {
+                                Rc::clone(x)
+                            }
+                        }).collect())
+                    },
+                    other => other,
+                }, depth))
         }
         helper(self, name, 0)
     }
@@ -266,5 +287,13 @@ impl<'p> XEvaluationScope<'p> {
             }
         };
         Ok(())
+    }
+
+    pub fn ancestor(&'p self, depth: usize) -> &'p XEvaluationScope<'p> {
+        if depth == 0 {
+            self
+        } else {
+            self.parent.unwrap().ancestor(depth - 1)
+        }
     }
 }

@@ -68,7 +68,7 @@ macro_rules! to_native {
             XValue::Native(__b) => {
                 __b.as_ref()._as_any().downcast_ref::<$t>().unwrap()
             },
-            _ => unreachable!(),
+            _ => panic!("to_native: expected native value, got {:?}", $x.value),
         }
     };
 }

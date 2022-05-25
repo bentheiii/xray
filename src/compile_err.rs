@@ -178,9 +178,9 @@ impl CompilationError{
                 )
             }
             CompilationError::NoOverload {name,param_types} => {
-                format!("No overload for {} found for param types {:?}",
+                format!("No overload for {} found for param types [{:?}]",
                     interner.resolve(name.clone()).unwrap(),
-                    param_types
+                    param_types.iter().map(|t| t.display_with_interner(interner)).join(", ")
                 )
             }
             CompilationError::VariantConstructorOneArg => {

@@ -50,22 +50,29 @@ use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompound
 
 fn main() {
     let input = r#"
-    union Chain(
-        last: int,
-        next: Chain
+    union Nested<T> (
+        x: T,
+        y: Array<Nested<T>>
     )
 
-    fn foo(x: Chain)->int {
-        fn helper(x0: Chain, ret: int)->int {
-            if(x0::last.has_value(),
-                ret+x0::last.value(),
-                helper(x0::next.value(), ret+100)
-            )
+    fn flatten<T>(nested: Nested<T>) -> Array<T> {
+        fn helper(n: Nested<T>, ret: Stack<T>) -> Stack<T> {
+            fn arr_helper(y: Array<Nested<T>>, idx: int, ret0: Stack<T>) -> Stack<T> {
+                if (idx == y.len(),
+                    ret0,
+                    arr_helper(y, idx + 1, helper(y.get(idx), ret0)))
+            }
+            if(n::x.has_value(),
+                ret.push(n::x.value()),
+                arr_helper(n::y.value(), 0, ret))
         }
-        helper(x, 0)
+
+        helper(nested, stack()).to_array()
     }
 
-    let z = foo(Chain::next(Chain::next(Chain::last(5))));
+    let n: Nested<int> = Nested::y([Nested::x(1), Nested::y([Nested::x(2), Nested::x(10)]), Nested::x(11), Nested::y([Nested::x(3), Nested::x(4)])]);
+    let f: Array<int> = flatten(n);
+    let z = f;
 
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -81,6 +88,7 @@ fn main() {
     add_int_eq(&mut root_scope, &mut interner).unwrap();
     add_int_sub(&mut root_scope, &mut interner).unwrap();
     add_int_lt(&mut root_scope, &mut interner).unwrap();
+    add_int_le(&mut root_scope, &mut interner).unwrap();
     add_int_ge(&mut root_scope, &mut interner).unwrap();
     add_int_gt(&mut root_scope, &mut interner).unwrap();
     add_int_neg(&mut root_scope, &mut interner).unwrap();
@@ -100,11 +108,13 @@ fn main() {
     add_and(&mut root_scope, &mut interner).unwrap();
     add_or(&mut root_scope, &mut interner).unwrap();
     add_bool_not(&mut root_scope, &mut interner).unwrap();
+    add_bool_then(&mut root_scope, &mut interner).unwrap();
 
 
     add_if(&mut root_scope, &mut interner).unwrap();
     add_error(&mut root_scope, &mut interner).unwrap();
     add_cast(&mut root_scope, &mut interner).unwrap();
+    add_debug(&mut root_scope, &mut interner).unwrap();
 
     add_array_type(&mut root_scope, &mut interner).unwrap();
     add_array_get(&mut root_scope, &mut interner).unwrap();
@@ -234,7 +244,7 @@ impl<'p> XCompilationScope<'p> {
                         let param_name = param_iter.next().unwrap().as_str();
                         let param_symbol = interner.get_or_intern(param_name);
                         let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner, None)?;
-                        let default = param_iter.next().map(|d|->Result<_, TracedCompilationError> {
+                        let default = param_iter.next().map(|d| -> Result<_, TracedCompilationError> {
                             let d = d.into_inner().next().unwrap();
                             let e_scope = self.to_eval_scope(runtime.clone()).map_err(|e| e.trace(&d))?;
                             self.to_expr(d.clone(), interner)?.compile(&self).and_then(|c| {
@@ -333,8 +343,8 @@ impl<'p> XCompilationScope<'p> {
                             }).collect::<Result<Vec<_>, _>>()
                         })?;
                         if let Some(tail_name) = tail_name {
-                            if tail_name == name{
-                                return Ok(Arc::new(XType::XTail(gen_params)))
+                            if tail_name == name {
+                                return Ok(Arc::new(XType::XTail(gen_params)));
                             }
                         }
                         let symbol = interner.get_or_intern(name);
@@ -362,8 +372,17 @@ impl<'p> XCompilationScope<'p> {
                                     Ok(t)
                                 }
                             }
-                            // todo gen params
-                            XCompilationScopeItem::Compound(kind, t) => Ok(Arc::new(XType::Compound(kind, t, Bind::new()))),
+                            XCompilationScopeItem::Compound(kind, t) => {
+                                if gen_params.len() != t.generic_names.len() {
+                                    return Err(CompilationError::GenericParamCountMismatch {
+                                        type_name: name.to_string(),
+                                        expected_count: t.generic_names.len(),
+                                        actual_count: gen_params.len(),
+                                    }.trace(&input));
+                                }
+                                let bind = Bind::from_iter(t.generic_names.iter().cloned().zip(gen_params.into_iter()));
+                                Ok(Arc::new(XType::Compound(kind, t, bind)))
+                            }
                             other => Err(CompilationError::ValueIsNotType {
                                 name: symbol,
                                 item: other,

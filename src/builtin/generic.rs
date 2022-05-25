@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, Bind, XCompilationScope, XStaticFunction, XType, eval, intern, CompilationError};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, Bind, XCompilationScope, XStaticFunction, XType, eval, intern, CompilationError, meval};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
@@ -29,7 +29,7 @@ pub fn add_if(scope: &mut XCompilationScope, interner: &mut StringInterner) -> R
             ],
             ret: t,
         }, |args, ns, tca, rt| {
-            let (a0,) = eval!(args, ns, rt, 0);
+            let (a0, ) = eval!(args, ns, rt, 0);
             args[match to_primitive!(a0, Bool) {
                 true => 1,
                 false => 2,
@@ -54,6 +54,32 @@ pub fn add_cast(scope: &mut XCompilationScope, interner: &mut StringInterner) ->
             ret: t,
         }, |args, ns, tca, rt| {
             args[0].eval(&ns, tca, rt)
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_debug(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    scope.add_func_intern(
+        "debug", XStaticFunction::Native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: X_STRING.clone(),
+                    required: false,
+                },
+            ],
+            ret: t,
+        }, |args, ns, tca, rt| {
+            let (a0, ) = eval!(args, ns, rt, 0);
+            let (a1,) = meval!(args, ns, rt, 1);
+            let b = to_primitive!(a1, String, "".to_string());
+            println!("{}{:?}", b, a0);
+            Ok(a0.into())
         }), interner)?;
     Ok(())
 }

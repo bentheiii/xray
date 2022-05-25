@@ -156,10 +156,9 @@ impl XStaticExpr {
                                     let com_type = Arc::new(XType::Compound(CompoundKind::Union, spec.clone(), Bind::new()));
                                     let var_type = spec.fields[index].type_.resolve_bind(&Bind::new(), Some(&com_type));
                                     if let Some(bind) = var_type.bind_in_assignment(&compiled_args[0].xtype()?) {
-                                        // todo check the bind
                                         return Ok(CompilationResult::new(XExpr::Variant(
                                             spec,
-                                            Bind::new(),
+                                            bind,
                                             index,
                                             Box::new(compiled_args[0].clone())),
                                                                          cvars));
@@ -319,7 +318,7 @@ pub enum XExpr {
 pub enum XStaticFunction {
     Native(XFuncSpec, NativeCallable),
     UserFunction(UfData),
-    Recourse(Rc<XFuncSpec>),
+    Recourse(Rc<XFuncSpec>, usize),
 }
 
 #[derive(Clone, Debug)] // todo better debug
@@ -360,7 +359,7 @@ impl XStaticFunction {
                 let closure = uf.cvars.iter().map(|&name| (name, closure.get(name).unwrap().clone())).collect();
                 XFunction::UserFunction(self.clone(), closure)
             }
-            XStaticFunction::Recourse(_) => XFunction::Recourse(),
+            XStaticFunction::Recourse(_, depth) => XFunction::Recourse(*depth),
         }
     }
 }
@@ -374,7 +373,7 @@ impl Debug for XStaticFunction {
             XStaticFunction::UserFunction(spec, ..) => {
                 write!(f, "UserFunction({:?})", spec)
             }
-            XStaticFunction::Recourse(spec) => {
+            XStaticFunction::Recourse(spec, ..) => {
                 write!(f, "Recourse({:?})", spec)
             }
         }
@@ -426,28 +425,28 @@ impl XStaticFunction {
     pub fn bind(&self, args: &Vec<Arc<XType>>) -> Option<Bind> {
         match self {
             XStaticFunction::Native(spec, _) => spec.bind(args),
-            XStaticFunction::Recourse(spec) => spec.bind(args),
+            XStaticFunction::Recourse(spec, ..) => spec.bind(args),
             XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().bind(args),
         }
     }
     pub fn rtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
             XStaticFunction::Native(spec, _) => spec.rtype(bind),
-            XStaticFunction::Recourse(spec) => spec.rtype(bind),
+            XStaticFunction::Recourse(spec, ..) => spec.rtype(bind),
             XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().rtype(bind),
         }
     }
     pub fn is_generic(&self) -> bool {
         match self {
             XStaticFunction::Native(spec, _) => spec.generic_params.is_some(),
-            XStaticFunction::Recourse(spec) => spec.generic_params.is_some(),
+            XStaticFunction::Recourse(spec, ..) => spec.generic_params.is_some(),
             XStaticFunction::UserFunction(ud, ..) => ud.spec.generic_params.is_some(),
         }
     }
     pub fn xtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
             XStaticFunction::Native(spec, _) => spec.xtype(bind),
-            XStaticFunction::Recourse(spec) => spec.xtype(bind),
+            XStaticFunction::Recourse(spec, ..) => spec.xtype(bind),
             XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().xtype(bind),
         }
     }

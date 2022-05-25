@@ -354,7 +354,15 @@ impl XType {
             XType::Int => "int".to_string(),
             XType::Rational => "rational".to_string(),
             XType::String => "string".to_string(),
-            XType::Compound(_, ref a, ref b) => format!("{:?}", interner.resolve(a.name.clone()).unwrap()),  // todo handle generics
+            XType::Compound(_, ref a, ref b) => if a.generic_names.len() == 0 {
+                format!("{:?}", interner.resolve(a.name.clone()).unwrap())
+            } else {
+                format!("{:?}<{}>", interner.resolve(a.name.clone()).unwrap(),
+                        a.generic_names.iter().map(|n| b.get(&n.clone())
+                            .map(|t| t.display_with_interner(interner))
+                            .unwrap_or_else(|| interner.resolve(n.clone()).unwrap().to_string()))
+                            .join(", "))
+            },
             XType::XCallable(ref a) => format!("({})->({})", a.param_types.iter().map(|a| a.display_with_interner(interner)).join(", "), a.return_type.display_with_interner(interner)),
             XType::XFunc(ref a) => {
                 let mut ret = "(".to_string();
