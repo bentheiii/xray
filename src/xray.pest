@@ -3,7 +3,7 @@ eval = {SOI ~ expression ~ EOI}
 
 top_level_execution = {import* ~ execution}
 execution = {declaration*}
-declaration = {value | function | struct_def | union_def}
+declaration = {value | function | compound_def}
 expression = {
     expression1 ~ (BINARY_OP ~ expression1)*
 }
@@ -31,6 +31,7 @@ expression5 = _{
     | CNAME
     | map
     | "(" ~ expression ~ ")"
+    | "(" ~ function_parameters_opt ~ ")" ~ "->" ~ "{" ~ expression ~ "}"
 }
  container = {container_type_opt ~ "[" ~ container_elements? ~ ","? ~ "]"}
   container_type_opt = { container_type? }
@@ -89,13 +90,10 @@ function = {pub_opt ~"fn " ~ CNAME ~ generic_signature_opt ~ "(" ~ function_para
  parameter = {CNAME ~ ":" ~ complete_type ~ default_value?}
  default_value = {"?="~expression}
 
-struct_def = {pub_opt ~ "struct " ~ CNAME ~ generic_signature_opt ~ "(" ~ struct_parameters ~ ")"}
- struct_parameters = {(struct_parameter ~ ",")* ~ struct_parameter ~ ","?}
- struct_parameter = {CNAME ~ ":" ~ complete_type}
-
-union_def = {pub_opt ~ "union " ~ CNAME ~ generic_signature_opt ~ "(" ~ union_parameters ~ ","? ~ ")"}
- union_parameters = {(union_parameter ~ ",")* ~ union_parameter}
- union_parameter = {CNAME ~ ":" ~ complete_type}
+compound_def = {pub_opt ~ compound_kind ~ CNAME ~ generic_signature_opt ~ "(" ~ compound_parameters ~ ")"}
+ compound_kind = {"struct" | "union"}
+ compound_parameters = {(compound_parameter ~ ",")* ~ (compound_parameter ~ (",")?)?}
+ compound_parameter = {CNAME ~ ":" ~ complete_type}
 
 complete_type = {
   CNAME ~ generic_arguments?

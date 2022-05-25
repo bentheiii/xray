@@ -46,33 +46,16 @@ use crate::runtime::{RTCell, RuntimeLimits};
 
 use crate::xexpr::{CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
 use crate::xscope::{Declaration, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
-use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompoundSpec, XType};
+use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompoundSpec, XType, CompoundKind};
 
 fn main() {
     let input = r#"
-    union Nested<T> (
-        x: T,
-        y: Array<Nested<T>>
+    struct Point (
+        a: int,
+        b: int,
     )
 
-    fn flatten<T>(nested: Nested<T>) -> Array<T> {
-        fn helper(n: Nested<T>, ret: Stack<T>) -> Stack<T> {
-            fn arr_helper(y: Array<Nested<T>>, idx: int, ret0: Stack<T>) -> Stack<T> {
-                if (idx == y.len(),
-                    ret0,
-                    arr_helper(y, idx + 1, helper(y.get(idx), ret0)))
-            }
-            if(n::x.has_value(),
-                ret.push(n::x.value()),
-                arr_helper(n::y.value(), 0, ret))
-        }
-
-        helper(nested, stack()).to_array()
-    }
-
-    let n: Nested<int> = Nested::y([Nested::x(1), Nested::y([Nested::x(2), Nested::x(10)]), Nested::x(11), Nested::y([Nested::x(3), Nested::x(4)])]);
-    let f: Array<int> = flatten(n);
-    let z = f;
+    let z = Point(1,2);
 
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -165,30 +148,6 @@ fn main() {
 
 impl<'p> XCompilationScope<'p> {
     fn feed(&mut self, input: Pair<Rule>, parent_gen_param_names: &HashSet<String>, interner: &mut StringInterner, runtime: RTCell) -> Result<Vec<Declaration>, TracedCompilationError> {
-        let mut to_compound_spec = |input: Pair<Rule>| -> Result<_, TracedCompilationError> {
-            let mut inners = input.into_inner();
-            let _pub_opt = inners.next().unwrap();
-            let var_name = inners.next().unwrap().as_str();
-            let gen_params = inners.next().unwrap();
-            let mut gen_param_names = HashSet::new();
-            let mut gen_param_symbols = Vec::new();
-            if let Some(gen_params) = gen_params.into_inner().next() {
-                for param in gen_params.into_inner() {
-                    gen_param_names.insert(param.as_str().to_string());
-                    gen_param_symbols.push(interner.get_or_intern(param.as_str()));
-                }
-            }
-            let param_pairs = inners.next().unwrap();
-            let params = param_pairs.into_inner().map(|p| {
-                let mut param_iter = p.into_inner();
-                let name = param_iter.next().unwrap().as_str();
-                let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner, Some(var_name))?;
-                Ok(XCompoundFieldSpec { name: name.to_string(), type_ })
-            }).collect::<Result<Vec<_>, _>>()?;
-            let symbol = interner.get_or_intern(var_name);
-            Ok(XCompoundSpec::new(symbol, gen_param_symbols, params))
-        };
-
         match input.as_rule() {
             Rule::header | Rule::top_level_execution | Rule::execution | Rule::declaration => {
                 let mut declarations = Vec::new();
@@ -300,13 +259,35 @@ impl<'p> XCompilationScope<'p> {
                 );
                 Ok(vec![self.add_func(fn_symbol, func).map_err(|e| e.trace(&input))?])
             }
-            Rule::struct_def => {
-                let spec = to_compound_spec(input.clone())?;
-                Ok(vec![self.add_struct(spec.name, spec).map_err(|e| e.trace(&input))?])
-            }
-            Rule::union_def => {
-                let spec = to_compound_spec(input.clone())?;
-                Ok(vec![self.add_union(spec.name, spec).map_err(|e| e.trace(&input))?])
+            Rule::compound_def => {
+                let mut inners = input.clone().into_inner();
+                let _pub_opt = inners.next().unwrap();
+                let compound_kind_str = inners.next().unwrap().as_str();
+                let compound_kind = match compound_kind_str {
+                    "struct" => CompoundKind::Struct,
+                    "union" => CompoundKind::Union,
+                    _ => unreachable!(),
+                };
+                let var_name = inners.next().unwrap().as_str();
+                let gen_params = inners.next().unwrap();
+                let mut gen_param_names = HashSet::new();
+                let mut gen_param_symbols = Vec::new();
+                if let Some(gen_params) = gen_params.into_inner().next() {
+                    for param in gen_params.into_inner() {
+                        gen_param_names.insert(param.as_str().to_string());
+                        gen_param_symbols.push(interner.get_or_intern(param.as_str()));
+                    }
+                }
+                let param_pairs = inners.next().unwrap();
+                let params = param_pairs.into_inner().map(|p| {
+                    let mut param_iter = p.into_inner();
+                    let name = param_iter.next().unwrap().as_str();
+                    let type_ = self.get_complete_type(param_iter.next().unwrap(), &gen_param_names, interner, Some(var_name))?;
+                    Ok(XCompoundFieldSpec { name: name.to_string(), type_ })
+                }).collect::<Result<Vec<_>, _>>()?;
+                let symbol = interner.get_or_intern(var_name);
+                let spec = XCompoundSpec::new(symbol, gen_param_symbols, params);
+                Ok(vec![self.add_compound(spec.name, compound_kind, spec).map_err(|e| e.trace(&input))?])
             }
             Rule::EOI => Ok(Vec::new()),
             _ => {

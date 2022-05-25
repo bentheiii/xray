@@ -162,13 +162,21 @@ impl<'p> XCompilationScope<'p> {
         self.add_func(interner.get_or_intern_static(name), func)
     }
 
-    pub fn add_struct(&mut self, name: DefaultSymbol, struct_spec: XCompoundSpec) -> Result<Declaration, CompilationError> {
+    pub fn add_compound(&mut self, name: DefaultSymbol, kind: CompoundKind, spec: XCompoundSpec) -> Result<Declaration, CompilationError> {
+        if kind == CompoundKind::Struct{
+            self.add_struct(name, spec)
+        } else {
+            self.add_union(name, spec)
+        }
+    }
+
+    fn add_struct(&mut self, name: DefaultSymbol, struct_spec: XCompoundSpec) -> Result<Declaration, CompilationError> {
         // todo ensure no shadowing
         self.structs.insert(name, Arc::new(struct_spec.clone()));
         Ok(Declaration::Struct(struct_spec))
     }
 
-    pub fn add_union(&mut self, name: DefaultSymbol, union_spec: XCompoundSpec) -> Result<Declaration, CompilationError> {
+    fn add_union(&mut self, name: DefaultSymbol, union_spec: XCompoundSpec) -> Result<Declaration, CompilationError> {
         // todo ensure no shadowing
         self.unions.insert(name, Arc::new(union_spec.clone()));
         Ok(Declaration::Union(union_spec))
