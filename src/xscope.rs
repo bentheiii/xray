@@ -4,11 +4,14 @@ use std::iter::from_fn;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
-use crate::{TracedCompilationError, CompilationResult, CompilationError};
-use crate::runtime::{RTCell, RuntimeLimits};
-use crate::xexpr::{XExpr, XStaticFunction};
+use crate::{CompilationResult, CompilationError};
+use crate::runtime::{RTCell};
+use crate::xexpr::{resolve_overload, XExpr, XStaticFunction};
 use crate::xtype::{XFuncSpec, XCompoundSpec, XType, CompoundKind};
-use crate::xvalue::{ManagedXValue, XFunction};
+use crate::xvalue::{DynBind, ManagedXValue, XFunction};
+
+use derivative::Derivative;
+use regex::internal::Exec;
 
 pub type Identifier = DefaultSymbol;
 
@@ -17,7 +20,7 @@ pub struct XCompilationScope<'p> {
     pub types: HashMap<Identifier, Arc<XType>>,
     pub structs: HashMap<Identifier, Arc<XCompoundSpec>>,
     pub unions: HashMap<Identifier, Arc<XCompoundSpec>>,
-    pub functions: HashMap<Identifier, Vec<Rc<XStaticFunction>>>,
+    pub functions: HashMap<Identifier, Vec<Rc<XFunctionFactory>>>,
     pub recourse: Option<(Identifier, Rc<XFuncSpec>)>,
     pub closure_variables: HashSet<Identifier>,
     pub parent: Option<&'p XCompilationScope<'p>>,
@@ -25,12 +28,21 @@ pub struct XCompilationScope<'p> {
     pub height: usize,
 }
 
+#[derive(Derivative, Clone)]
+#[derivative(Debug)]
+pub enum XFunctionFactory {
+    Static(Rc<XStaticFunction>),
+    Dynamic(
+        #[derivative(Debug="ignore")]
+        DynBind),
+}
+
 #[derive(Debug, Clone)]
 pub enum XCompilationScopeItem {
     Value(Arc<XType>),
     NativeType(Arc<XType>),
     Compound(CompoundKind, Arc<XCompoundSpec>),
-    Overload(Vec<Rc<XStaticFunction>>),
+    Overload(Vec<Rc<XFunctionFactory>>),
 }
 
 impl<'p> XCompilationScope<'p> {
@@ -97,7 +109,7 @@ impl<'p> XCompilationScope<'p> {
             let mut overloads = scope.functions.get(&name).map_or_else(|| vec![], |x| x.clone());
             match &scope.recourse {
                 Some((rec_name, spec)) if rec_name == &name => {
-                    overloads.push(Rc::new(XStaticFunction::Recourse(spec.clone(), 0)));
+                    overloads.push(Rc::new(XFunctionFactory::Static(Rc::new(XStaticFunction::Recourse(spec.clone(), 0)))));
                 }
                 _ => (),
             }
@@ -106,10 +118,14 @@ impl<'p> XCompilationScope<'p> {
                     if let Some(ancestor_overloads) = ancestor.functions.get(&name) {
                         // a scope might send us a recurse, in which case we need to increment its depth
                         let ancestor_overloads = ancestor_overloads.iter().map(|x| {
-                            if let XStaticFunction::Recourse(spec, _) = x.as_ref() {
-                                Rc::new(XStaticFunction::Recourse(spec.clone(), depth+1))
+                            if let XFunctionFactory::Static(stat) = x.as_ref() {
+                                if let XStaticFunction::Recourse(spec, ..) = stat.as_ref() {
+                                    Rc::new(XFunctionFactory::Static(Rc::new(XStaticFunction::Recourse(spec.clone(), depth + 1))))
+                                } else {
+                                    x.clone()
+                                }
                             } else {
-                                Rc::clone(x)
+                                x.clone()
                             }
                         });
                         overloads.extend(ancestor_overloads);
@@ -131,16 +147,20 @@ impl<'p> XCompilationScope<'p> {
             }
             scope.parent.as_ref()
                 .and_then(|parent| helper(parent, name, depth + 1))
-                .map(|(item, depth)| (match item{
+                .map(|(item, depth)| (match item {
                     XCompilationScopeItem::Overload(overloads) => {
                         XCompilationScopeItem::Overload(overloads.iter().map(|x| {
-                            if let XStaticFunction::Recourse(spec, depth) = x.as_ref() {
-                                Rc::new(XStaticFunction::Recourse(spec.clone(), depth+1))
+                            if let XFunctionFactory::Static(stat) = x.as_ref() {
+                                if let XStaticFunction::Recourse(spec, ..) = stat.as_ref() {
+                                    Rc::new(XFunctionFactory::Static(Rc::new(XStaticFunction::Recourse(spec.clone(), depth + 1))))
+                                } else {
+                                    x.clone()
+                                }
                             } else {
-                                Rc::clone(x)
+                                x.clone()
                             }
                         }).collect())
-                    },
+                    }
                     other => other,
                 }, depth))
         }
@@ -149,7 +169,7 @@ impl<'p> XCompilationScope<'p> {
 
     pub fn add_param(&mut self, name: DefaultSymbol, type_: Arc<XType>) -> Result<(), CompilationError> {
         if let Some(other) = self.get(name) {
-            Err(CompilationError::NameAlreadyDefined {name, other})
+            Err(CompilationError::NameAlreadyDefined { name, other })
         } else {
             self.values.insert(name, (None, type_));
             Ok(())
@@ -158,7 +178,7 @@ impl<'p> XCompilationScope<'p> {
 
     pub fn add_var(&mut self, name: DefaultSymbol, expr: XExpr) -> Result<Declaration, CompilationError> {
         if let Some(other) = self.get(name) {
-            Err(CompilationError::NameAlreadyDefined {name, other})
+            Err(CompilationError::NameAlreadyDefined { name, other })
         } else {
             self.values.insert(name, (Some(expr.clone()), expr.xtype()?));
             Ok(Declaration::Value(name, expr))
@@ -168,7 +188,7 @@ impl<'p> XCompilationScope<'p> {
     pub fn add_func(&mut self, name: DefaultSymbol, func: XStaticFunction) -> Result<Declaration, CompilationError> {
         // todo ensure no shadowing
         let item = Rc::new(func);
-        self.functions.entry(name).or_insert_with(|| vec![]).push(item.clone());
+        self.functions.entry(name).or_insert_with(|| vec![]).push(Rc::new(XFunctionFactory::Static(item.clone())));
         Ok(Declaration::UserFunction(name, item))
     }
 
@@ -177,7 +197,7 @@ impl<'p> XCompilationScope<'p> {
     }
 
     pub fn add_compound(&mut self, name: DefaultSymbol, kind: CompoundKind, spec: XCompoundSpec) -> Result<Declaration, CompilationError> {
-        if kind == CompoundKind::Struct{
+        if kind == CompoundKind::Struct {
             self.add_struct(name, spec)
         } else {
             self.add_union(name, spec)
@@ -198,7 +218,7 @@ impl<'p> XCompilationScope<'p> {
 
     pub fn add_native_type(&mut self, name: DefaultSymbol, type_: Arc<XType>) -> Result<(), CompilationError> {
         if let Some(other) = self.get(name) {
-            Err(CompilationError::NameAlreadyDefined {name, other})
+            Err(CompilationError::NameAlreadyDefined { name, other })
         } else {
             self.types.insert(name, type_);
             Ok(())
@@ -234,6 +254,15 @@ impl<'p> XCompilationScope<'p> {
             current_scope = s.parent;
         }
         Ok(ret)
+    }
+
+    pub fn resolve_overload(&self, name: Identifier, types: Vec<Arc<XType>>)->Result<XExpr, String>{
+        let overloads = match self.get(name){
+            Some(XCompilationScopeItem::Overload(overloads)) => overloads,
+            _ => return Err(format!("{:?} is not an overload", name)) // todo better error
+        };
+        resolve_overload(overloads, None, &types, name, &self)
+            .map_err(|_| "overload resolution failed".to_string())
     }
 }
 

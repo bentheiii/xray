@@ -9,9 +9,9 @@ use num::{BigInt, BigRational};
 use crate::builtin::array::{XArray, XArrayType};
 use crate::builtin::set::{XSet, XSetType};
 use crate::{CompilationError, manage_native, TracedCompilationError, XFuncSpec, XOptional, XOptionalType};
-use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
+use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScopeItem, XEvaluationScope, XFunctionFactory};
 use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XCompoundSpec, XType, CompoundKind};
-use crate::xvalue::{ManagedXValue, NativeCallable, XFunction, XValue};
+use crate::xvalue::{DynBind, ManagedXValue, NativeCallable, XFunction, XValue};
 use derivative::Derivative;
 use itertools::Itertools;
 use string_interner::{DefaultSymbol, StringInterner};
@@ -73,30 +73,30 @@ impl CompilationResult {
     }
 }
 
-
-impl XStaticExpr {
-    pub fn new_call(name: &'static str, args: Vec<XStaticExpr>, interner: &mut StringInterner) -> XStaticExpr {
-        XStaticExpr::Call(Box::new(XStaticExpr::Ident(interner.get_or_intern_static(name))), args)
-    }
-
-    pub fn new_call_sym(name: Identifier, args: Vec<XStaticExpr>) -> XStaticExpr {
-        XStaticExpr::Call(Box::new(XStaticExpr::Ident(name)), args)
-    }
-
-    pub fn compile<'p>(&self, namespace: &'p XCompilationScope<'p>) -> Result<CompilationResult, CompilationError> {
-        fn resolve_overload(overloads: Vec<Rc<XStaticFunction>>, arg_types: &Vec<Arc<XType>>, name: DefaultSymbol) -> Result<XExpr, CompilationError> {
-            let mut exact_matches = vec![];
+pub fn resolve_overload<'p>(overloads: Vec<Rc<XFunctionFactory>>, args: Option<&Vec<XExpr>>, arg_types: &Vec<Arc<XType>>, name: DefaultSymbol, namespace: &'p XCompilationScope<'p>) -> Result<XExpr, CompilationError> {
+    let mut exact_matches = vec![];
             let mut generic_matches = vec![];
+            let mut dynamic_failures = vec![];
             let is_unknown = arg_types.iter().any(|t| t.is_unknown());
             // if the bindings are unknown, then we prefer generic solutions over exact solutions
             for overload in overloads {
+                let overload = match overload.as_ref() {
+                    XFunctionFactory::Static(overload) => overload.clone(),
+                    XFunctionFactory::Dynamic(dyn_func) => match dyn_func(args, arg_types, namespace) {
+                        Ok(overload) => overload,
+                        Err(err) => {
+                            dynamic_failures.push(err);
+                            continue;
+                        }
+                    }
+                };
                 let b = overload.bind(arg_types);
                 if let Some(bind) = b {
                     if overload.is_generic() ^ is_unknown {
                         &mut generic_matches
                     } else {
                         &mut exact_matches
-                    }.push(XExpr::KnownOverload(overload, bind));
+                    }.push(XExpr::KnownOverload(overload.clone(), bind));
                 }
             }
             if exact_matches.len() == 1 {
@@ -125,8 +125,19 @@ impl XStaticExpr {
                 name,
                 param_types: arg_types.clone(),
             })
-        }
+}
 
+impl XStaticExpr {
+    pub fn new_call(name: &'static str, args: Vec<XStaticExpr>, interner: &mut StringInterner) -> XStaticExpr {
+        XStaticExpr::Call(Box::new(XStaticExpr::Ident(interner.get_or_intern_static(name))), args)
+    }
+
+    pub fn new_call_sym(name: Identifier, args: Vec<XStaticExpr>) -> XStaticExpr {
+        XStaticExpr::Call(Box::new(XStaticExpr::Ident(name)), args)
+    }
+
+
+    pub fn compile<'p>(&self, namespace: &'p XCompilationScope<'p>) -> Result<CompilationResult, CompilationError> {
         fn compile_many<'p>(exprs: &Vec<XStaticExpr>, namespace: &'p XCompilationScope<'p>) -> Result<(Vec<XExpr>, Vec<DefaultSymbol>), CompilationError> {
             let mut ret = vec![];
             for item in exprs {
@@ -182,7 +193,7 @@ impl XStaticExpr {
                             Some(XCompilationScopeItem::Overload(overloads)) => {
                                 let arg_types = compiled_args.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
                                 return Ok(CompilationResult::new(
-                                    XExpr::Call(Box::new(resolve_overload(overloads, &arg_types, *name)?), compiled_args),
+                                    XExpr::Call(Box::new(resolve_overload(overloads, Some(&compiled_args), &arg_types, *name, namespace)?), compiled_args),
                                     cvars,
                                 ));
                             }
@@ -220,7 +231,7 @@ impl XStaticExpr {
                         return match namespace.get(*name) {
                             Some(XCompilationScopeItem::Overload(overloads)) => {
                                 Ok(CompilationResult::new(
-                                    XExpr::Call(Box::new(resolve_overload(overloads, arg_types, *name)?), compiled_args),
+                                    XExpr::Call(Box::new(resolve_overload(overloads, Some(&compiled_args), arg_types, *name, namespace)?), compiled_args),
                                     cvars,
                                 ))
                             }
@@ -266,10 +277,13 @@ impl XStaticExpr {
                             XCompilationScopeItem::Overload(overloads) => {
                                 if overloads.len() == 1 {
                                     let overload = &overloads[0];
-                                    if overload.is_generic() {
-                                        Err(CompilationError::GenericFunctionAsVariable { name: name.clone() })
-                                    } else {
-                                        Ok(CompilationResult::new(XExpr::Ident(*name, Box::new(IdentItem::Function(overload.clone()))), cvars))
+                                    match overload.as_ref() {
+                                        XFunctionFactory::Static(overload) => if overload.is_generic() {
+                                            Err(CompilationError::GenericFunctionAsVariable { name: name.clone() })
+                                        } else {
+                                            Ok(CompilationResult::new(XExpr::Ident(*name, Box::new(IdentItem::Function(overload.clone()))), cvars))
+                                        }
+                                        XFunctionFactory::Dynamic(_) => Err(CompilationError::DynamicFunctionAsVariable { name: name.clone() })
                                     }
                                 } else {
                                     Err(CompilationError::OverloadedFunctionAsVariable { name: name.clone() })
@@ -286,7 +300,7 @@ impl XStaticExpr {
                         let cvars = if depth != 0 && depth != namespace.height {
                             vec![name.clone()]
                         } else { vec![] };
-                        Ok(CompilationResult::new(resolve_overload(overloads, arg_types, *name)?, cvars))
+                        Ok(CompilationResult::new(resolve_overload(overloads, None, arg_types, *name, namespace)?, cvars))
                     }
                     None => Err(CompilationError::FunctionNotFound { name: name.clone() }),
                     Some((item, _)) => Err(CompilationError::NonFunctionSpecialization { name: name.clone(), item })
@@ -382,6 +396,7 @@ impl XStaticFunction {
                 XFunction::UserFunction(self.clone(), closure)
             }
             XStaticFunction::Recourse(_, depth) => XFunction::Recourse(*depth),
+            _ => unreachable!()
         }
     }
 }
@@ -602,7 +617,7 @@ impl XExpr {
                 let obj = expr.eval(namespace, false, runtime.clone())?.unwrap_value();
                 Ok(ManagedXValue::new(XValue::UnionInstance(*idx, obj), runtime)?.into())
             }
-            XExpr::KnownOverload(func, _) | XExpr::Lambda(func) => {
+            XExpr::KnownOverload(func, ..) | XExpr::Lambda(func) => {
                 Ok(ManagedXValue::new(XValue::Function(func.clone().to_function(namespace)), runtime)?.into())
             }
             XExpr::Ident(name, item) => {

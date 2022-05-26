@@ -1,16 +1,17 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, intern, manage_native, to_native, to_primitive, XCallableSpec, XCompilationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, to_native, to_primitive, XCallableSpec, XCompilationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
+use std::any::{Any, TypeId};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::mem::size_of;
 use std::sync::Arc;
 use string_interner::StringInterner;
 use crate::builtin::stack::{XStack, XStackType};
-use crate::native_types::{NativeType, XNativeValue};
+use crate::native_types::{NativeType, RuntimeEquatable, XNativeValue};
 use crate::XType::XCallable;
 
 #[derive(Debug, Clone)]
@@ -410,4 +411,61 @@ pub fn add_array_map(scope: &mut XCompilationScope, interner: &mut StringInterne
             Ok(manage_native!(XArray::new(ret), rt))
         }), interner)?;
     Ok(())
+}
+
+pub fn add_array_eq(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let eq_symbol = interner.get_or_intern_static("eq");
+
+    fn from_types(types: &Vec<Arc<XType>>, scope: &mut XCompilationScope, eq_symbol: Identifier)->Result<Rc<XStaticFunction>, String>{
+        if types.len() != 2 {
+            return Err(format!("Expected 2 types, got {}", types.len()));
+        }
+        let a0 = types[0].clone();
+        let t0 = match &a0.as_ref() {
+            XType::XNative(nt0, bind) if nt0.type_id() == TypeId::of::<XArrayType>() => bind[0].clone(),
+            _ => return Err(format!("Expected array type, got {:?}", a0)),  // todo improve
+        };
+        let a1 = types[1].clone();
+        let t1 = match &a1.as_ref() {
+            XType::XNative(nt1, bind) if nt1.type_id() == TypeId::of::<XArrayType>() => bind[0].clone(),
+            _ => return Err(format!("Expected array type, got {:?}", a1)),  // todo improve
+        };
+
+        let inner_eq = scope.resolve_overload(eq_symbol, vec![t0.clone(), t1.clone()])?;  // todo ensure that the function returns a bool
+
+        Ok(Rc::new(XStaticFunction::Native(XFuncSpec {
+            generic_params: None,
+            params: vec![
+                XFuncParamSpec {
+                    type_: XArrayType::xtype(t0.clone()),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: XArrayType::xtype(t1.clone()),
+                    required: true,
+                },
+            ],
+            ret: X_BOOL.clone(),
+        }, |args, ns, _tca, rt| {
+            let (a0, a1) = eval!(args, ns, rt, 0,1);
+            let arr0 = &to_native!(a0, XArray).value;
+            let arr1 = &to_native!(a1, XArray).value;
+            if arr0.len() != arr1.len() {
+                return Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into());
+            }
+            let mut ret = true;
+            for (x, y) in arr0.iter().zip(arr1.iter()) {
+                let inner_equal_value = inner_eq.eval(ns, false, rt)?.unwrap_value();
+                let inner_eq_func = to_primitive!(inner_equal_value, Function);
+                let eq = inner_eq_func.eval_values(vec![x.clone(), y.clone()], &ns, rt.clone())?;
+                let is_eq = to_primitive!(eq, Bool);
+                if !*is_eq {
+                    ret = false;
+                    break;
+                }
+            }
+            return Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into());
+        })))
+    }
+    todo!()
 }

@@ -5,10 +5,12 @@ use std::hash::{Hash, Hasher};
 use std::mem::size_of;
 use std::ops::Deref;
 use std::rc::Rc;
+use std::sync::Arc;
 use derivative::Derivative;
 use num::{BigInt, BigRational};
 use crate::native_types::XNativeValue;
 use crate::runtime::{RTCell, Runtime};
+use crate::{XCompilationScope, XType};
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
 use crate::xscope::{Declaration, Identifier, XEvaluationScope};
 
@@ -25,6 +27,7 @@ pub enum XValue {
 }
 
 pub type NativeCallable = fn(&Vec<XExpr>, &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String>;
+pub type DynBind = fn(Option<&Vec<XExpr>>, &Vec<Arc<XType>>, &XCompilationScope<'_>) -> Result<Rc<XStaticFunction>, String>; // todo make this a compilation error?
 
 #[derive(Clone)]
 pub enum XFunction {

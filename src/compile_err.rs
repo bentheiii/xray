@@ -115,6 +115,9 @@ pub enum CompilationError {
     },
     NotAFunction {type_: Arc<XType>},
     NotACompound {type_: Arc<XType>},
+    DynamicFunctionAsVariable {
+        name: Identifier,
+    },
 }
 
 impl CompilationError{
@@ -251,6 +254,9 @@ impl CompilationError{
             }
             CompilationError::NotACompound {type_} => {
                 format!("expression does not evaluate to a compound (got {})", type_.display_with_interner(interner))
+            }
+            CompilationError::DynamicFunctionAsVariable {name} => {
+                format!("Cannot use unspecialized dynamic function {} as variable", interner.resolve(name.clone()).unwrap())
             }
         }
     }
