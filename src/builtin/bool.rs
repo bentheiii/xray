@@ -34,7 +34,7 @@ add_ufunc!(add_bool_not, not, X_BOOL, Bool, X_BOOL, |a:&bool| {
 
 pub fn add_and(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_func_intern(
-        "and", XStaticFunction::Native(XFuncSpec {
+        "and", XStaticFunction::from_native(XFuncSpec {
             generic_params: None,
             params: vec![
                 XFuncParamSpec {
@@ -59,7 +59,7 @@ pub fn add_and(scope: &mut XCompilationScope, interner: &mut StringInterner) -> 
 
 pub fn add_or(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_func_intern(
-        "or", XStaticFunction::Native(XFuncSpec {
+        "or", XStaticFunction::from_native(XFuncSpec {
             generic_params: None,
             params: vec![
                 XFuncParamSpec {
@@ -86,7 +86,7 @@ pub fn add_bool_then(scope: &mut XCompilationScope, interner: &mut StringInterne
     let t = XType::generic_from_name("T", interner);
 
     scope.add_func_intern(
-        "then", XStaticFunction::Native(XFuncSpec {
+        "then", XStaticFunction::from_native(XFuncSpec {
             generic_params: None,
             params: vec![
                 XFuncParamSpec {

@@ -8,11 +8,16 @@ use std::any::{Any, TypeId};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::mem::size_of;
+use std::ops::Deref;
 use std::sync::Arc;
 use string_interner::StringInterner;
 use crate::builtin::stack::{XStack, XStackType};
 use crate::native_types::{NativeType, RuntimeEquatable, XNativeValue};
 use crate::XType::XCallable;
+
+use memoize::memoize;
+use crate::xexpr::XExpr;
+
 
 #[derive(Debug, Clone)]
 pub struct XArrayType {}
@@ -70,7 +75,7 @@ pub fn add_array_get(scope: &mut XCompilationScope, interner: &mut StringInterne
     let t = XType::generic_from_name("T", interner);
 
     scope.add_func_intern(
-        "get", XStaticFunction::Native(XFuncSpec {
+        "get", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -97,7 +102,7 @@ pub fn add_array_len(scope: &mut XCompilationScope, interner: &mut StringInterne
     let t = XType::generic_from_name("T", interner);
 
     scope.add_func_intern(
-        "len", XStaticFunction::Native(XFuncSpec {
+        "len", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -107,7 +112,7 @@ pub fn add_array_len(scope: &mut XCompilationScope, interner: &mut StringInterne
             ],
             ret: X_INT.clone(),
         }, |args, ns, _tca, rt| {
-            let (a0,) = eval!(args, ns, rt, 0);
+            let (a0, ) = eval!(args, ns, rt, 0);
             let arr = &to_native!(a0, XArray).value;
             Ok(ManagedXValue::new(XValue::Int(arr.len().into()), rt)?.into())
         }), interner)?;
@@ -119,7 +124,7 @@ pub fn add_array_add(scope: &mut XCompilationScope, interner: &mut StringInterne
     let t_arr = XArrayType::xtype(t.clone());
 
     scope.add_func_intern(
-        "add", XStaticFunction::Native(XFuncSpec {
+        "add", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -133,12 +138,12 @@ pub fn add_array_add(scope: &mut XCompilationScope, interner: &mut StringInterne
             ],
             ret: t_arr.clone(),
         }, |args, ns, tca, rt| {
-            let (a0,) = eval!(args, ns, rt, 0);
+            let (a0, ) = eval!(args, ns, rt, 0);
             let vec0 = &to_native!(a0, XArray).value;
             if vec0.is_empty() {
                 return Ok(args[1].eval(&ns, tca, rt)?);
             }
-            let (a1,) = eval!(args, ns, rt, 1);
+            let (a1, ) = eval!(args, ns, rt, 1);
             let vec1 = &to_native!(a1, XArray).value;
             if vec1.is_empty() {
                 return Ok(a0.clone().into());
@@ -155,7 +160,7 @@ pub fn add_array_push(scope: &mut XCompilationScope, interner: &mut StringIntern
     let t_arr = XArrayType::xtype(t.clone());
 
     scope.add_func_intern(
-        "push", XStaticFunction::Native(XFuncSpec {
+        "push", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -183,7 +188,7 @@ pub fn add_array_rpush(scope: &mut XCompilationScope, interner: &mut StringInter
     let t_arr = XArrayType::xtype(t.clone());
 
     scope.add_func_intern(
-        "rpush", XStaticFunction::Native(XFuncSpec {
+        "rpush", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -211,7 +216,7 @@ pub fn add_array_insert(scope: &mut XCompilationScope, interner: &mut StringInte
     let t_arr = XArrayType::xtype(t.clone());
 
     scope.add_func_intern(
-        "insert", XStaticFunction::Native(XFuncSpec {
+        "insert", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -247,7 +252,7 @@ pub fn add_array_pop(scope: &mut XCompilationScope, interner: &mut StringInterne
     let t_arr = XArrayType::xtype(t.clone());
 
     scope.add_func_intern(
-        "pop", XStaticFunction::Native(XFuncSpec {
+        "pop", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -278,7 +283,7 @@ pub fn add_array_set(scope: &mut XCompilationScope, interner: &mut StringInterne
     let t_arr = XArrayType::xtype(t.clone());
 
     scope.add_func_intern(
-        "set", XStaticFunction::Native(XFuncSpec {
+        "set", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -314,7 +319,7 @@ pub fn add_array_swap(scope: &mut XCompilationScope, interner: &mut StringIntern
     let t_arr = XArrayType::xtype(t.clone());
 
     scope.add_func_intern(
-        "swap", XStaticFunction::Native(XFuncSpec {
+        "swap", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -359,7 +364,7 @@ pub fn add_array_to_stack(scope: &mut XCompilationScope, interner: &mut StringIn
     let t = XType::generic_from_name("T", interner);
 
     scope.add_func_intern(
-        "to_stack", XStaticFunction::Native(XFuncSpec {
+        "to_stack", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -369,7 +374,7 @@ pub fn add_array_to_stack(scope: &mut XCompilationScope, interner: &mut StringIn
             ],
             ret: XStackType::xtype(t.clone()),
         }, |args, ns, _tca, rt| {
-            let (a0,) = eval!(args, ns, rt, 0);
+            let (a0, ) = eval!(args, ns, rt, 0);
             let arr = &to_native!(a0, XArray).value;
             let mut ret = XStack::new();
             for x in arr {
@@ -385,7 +390,7 @@ pub fn add_array_map(scope: &mut XCompilationScope, interner: &mut StringInterne
     let output_t = XType::generic_from_name("T_OUT", interner);
 
     scope.add_func_intern(
-        "map", XStaticFunction::Native(XFuncSpec {
+        "map", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T_IN", "T_OUT")),
             params: vec![
                 XFuncParamSpec {
@@ -416,24 +421,8 @@ pub fn add_array_map(scope: &mut XCompilationScope, interner: &mut StringInterne
 pub fn add_array_eq(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let eq_symbol = interner.get_or_intern_static("eq");
 
-    fn from_types(types: &Vec<Arc<XType>>, scope: &mut XCompilationScope, eq_symbol: Identifier)->Result<Rc<XStaticFunction>, String>{
-        if types.len() != 2 {
-            return Err(format!("Expected 2 types, got {}", types.len()));
-        }
-        let a0 = types[0].clone();
-        let t0 = match &a0.as_ref() {
-            XType::XNative(nt0, bind) if nt0.type_id() == TypeId::of::<XArrayType>() => bind[0].clone(),
-            _ => return Err(format!("Expected array type, got {:?}", a0)),  // todo improve
-        };
-        let a1 = types[1].clone();
-        let t1 = match &a1.as_ref() {
-            XType::XNative(nt1, bind) if nt1.type_id() == TypeId::of::<XArrayType>() => bind[0].clone(),
-            _ => return Err(format!("Expected array type, got {:?}", a1)),  // todo improve
-        };
-
-        let inner_eq = scope.resolve_overload(eq_symbol, vec![t0.clone(), t1.clone()])?;  // todo ensure that the function returns a bool
-
-        Ok(Rc::new(XStaticFunction::Native(XFuncSpec {
+    fn static_from_eq(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr)->Rc<XStaticFunction>{
+        Rc::new(XStaticFunction::from_native(XFuncSpec {
             generic_params: None,
             params: vec![
                 XFuncParamSpec {
@@ -446,7 +435,7 @@ pub fn add_array_eq(scope: &mut XCompilationScope, interner: &mut StringInterner
                 },
             ],
             ret: X_BOOL.clone(),
-        }, |args, ns, _tca, rt| {
+        }, move |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0,1);
             let arr0 = &to_native!(a0, XArray).value;
             let arr1 = &to_native!(a1, XArray).value;
@@ -455,7 +444,7 @@ pub fn add_array_eq(scope: &mut XCompilationScope, interner: &mut StringInterner
             }
             let mut ret = true;
             for (x, y) in arr0.iter().zip(arr1.iter()) {
-                let inner_equal_value = inner_eq.eval(ns, false, rt)?.unwrap_value();
+                let inner_equal_value = eq_expr.eval(ns, false, rt.clone())?.unwrap_value();
                 let inner_eq_func = to_primitive!(inner_equal_value, Function);
                 let eq = inner_eq_func.eval_values(vec![x.clone(), y.clone()], &ns, rt.clone())?;
                 let is_eq = to_primitive!(eq, Bool);
@@ -465,7 +454,30 @@ pub fn add_array_eq(scope: &mut XCompilationScope, interner: &mut StringInterner
                 }
             }
             return Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into());
-        })))
+        }))
     }
-    todo!()
+
+    fn from_types(types: &Vec<Arc<XType>>, scope: &XCompilationScope, eq_symbol: Identifier) -> Result<Rc<XStaticFunction>, String> {
+        if types.len() != 2 {
+            return Err(format!("Expected 2 types, got {}", types.len()));
+        }
+        let a0 = types[0].clone();
+        let t0 = match &a0.as_ref() {
+            XType::XNative(nt0, bind) if nt0.name() == "Array" => bind[0].clone(),
+            _ => return Err(format!("Expected array type, got {:?}", a0)),  // todo improve
+        };
+        let a1 = types[1].clone();
+        let t1 = match &a1.as_ref() {
+            XType::XNative(nt1, bind) if nt1.name() == "Array" => bind[0].clone(),
+            _ => return Err(format!("Expected array type, got {:?}", a1)),  // todo improve
+        };
+
+        let inner_eq = scope.resolve_overload(eq_symbol, vec![t0.clone(), t1.clone()])?;  // todo ensure that the function returns a bool
+
+        Ok(static_from_eq(t0, t1, inner_eq))
+    }
+
+    scope.add_dyn_func(eq_symbol, move |_params, types, ns| {
+        from_types(types, ns, eq_symbol)
+    })
 }

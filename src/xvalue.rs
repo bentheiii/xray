@@ -26,8 +26,8 @@ pub enum XValue {
     Native(Box<dyn XNativeValue>),
 }
 
-pub type NativeCallable = fn(&Vec<XExpr>, &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String>;
-pub type DynBind = fn(Option<&Vec<XExpr>>, &Vec<Arc<XType>>, &XCompilationScope<'_>) -> Result<Rc<XStaticFunction>, String>; // todo make this a compilation error?
+pub type NativeCallable = Rc<dyn Fn(&Vec<XExpr>, &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String>>;
+pub type DynBind = Rc<dyn Fn(Option<&Vec<XExpr>>, &Vec<Arc<XType>>, &XCompilationScope<'_>) -> Result<Rc<XStaticFunction>, String>>; // todo make this a compilation error?
 
 #[derive(Clone)]
 pub enum XFunction {

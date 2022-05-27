@@ -11,7 +11,7 @@ use string_interner::StringInterner;
 pub fn add_if(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     scope.add_func(
-        interner.get_or_intern_static("if"), XStaticFunction::Native(XFuncSpec {
+        interner.get_or_intern_static("if"), XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -43,7 +43,7 @@ add_ufunc!(add_error, error, X_STRING, String, X_UNKNOWN, |a: &String| Err(a.clo
 pub fn add_cast(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     scope.add_func_intern(
-        "cast", XStaticFunction::Native(XFuncSpec {
+        "cast", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -61,7 +61,7 @@ pub fn add_cast(scope: &mut XCompilationScope, interner: &mut StringInterner) ->
 pub fn add_debug(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     scope.add_func_intern(
-        "debug", XStaticFunction::Native(XFuncSpec {
+        "debug", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {

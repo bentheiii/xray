@@ -124,6 +124,7 @@ pub fn resolve_overload<'p>(overloads: Vec<Rc<XFunctionFactory>>, args: Option<&
             Err(CompilationError::NoOverload {
                 name,
                 param_types: arg_types.clone(),
+                dynamic_failures
             })
 }
 
@@ -390,7 +391,7 @@ impl UfData {
 impl XStaticFunction {
     pub fn to_function(self: Rc<Self>, closure: &XEvaluationScope<'_>) -> XFunction {
         match self.as_ref() {
-            XStaticFunction::Native(_, native) => XFunction::Native(*native),
+            XStaticFunction::Native(_, native) => XFunction::Native(native.clone()),
             XStaticFunction::UserFunction(uf) => {
                 let closure = uf.cvars.iter().map(|&name| (name, closure.get(name).unwrap().clone())).collect();
                 XFunction::UserFunction(self.clone(), closure)
@@ -399,6 +400,11 @@ impl XStaticFunction {
             _ => unreachable!()
         }
     }
+
+    pub fn from_native(spec: XFuncSpec, native: impl Fn(&Vec<XExpr>, &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String> + 'static) -> XStaticFunction {
+        XStaticFunction::Native(spec, Rc::new(native))
+    }
+
 }
 
 impl Debug for XStaticFunction {

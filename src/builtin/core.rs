@@ -3,7 +3,7 @@ macro_rules! add_binop {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
         pub fn $fn_name(scope: &mut XCompilationScope<'_>, interner: &mut StringInterner) -> Result<(), crate::CompilationError> {
             scope.add_func(
-                interner.get_or_intern_static(stringify!($name)), XStaticFunction::Native(XFuncSpec {
+                interner.get_or_intern_static(stringify!($name)), XStaticFunction::from_native(XFuncSpec {
                     generic_params: None,
                     params: vec![
                         XFuncParamSpec {
@@ -33,7 +33,7 @@ macro_rules! add_ufunc_ref {
     ($fn_name:ident, $name:ident, $operand_type: ident, $return_type:ident, $func:expr) => {
         pub fn $fn_name(scope: &mut XCompilationScope<'_>, interner: &mut StringInterner) -> Result<(), crate::CompilationError> {
             scope.add_func(
-                interner.get_or_intern_static(stringify!($name)), XStaticFunction::Native(XFuncSpec {
+                interner.get_or_intern_static(stringify!($name)), XStaticFunction::from_native(XFuncSpec {
                     generic_params: None,
                     params: vec![
                         XFuncParamSpec {

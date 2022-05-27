@@ -78,7 +78,7 @@ add_ufunc!(add_int_display, display, X_INT, Int, X_STRING, |a:&BigInt| {
 
 pub fn add_int_digits(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_func(
-        interner.get_or_intern_static("digits"), XStaticFunction::Native(XFuncSpec {
+        interner.get_or_intern_static("digits"), XStaticFunction::from_native(XFuncSpec {
             generic_params: None,
             params: vec![
                 XFuncParamSpec {

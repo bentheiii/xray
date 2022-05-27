@@ -50,14 +50,15 @@ use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompound
 
 fn main() {
     let input = r#"
-    struct Term ()
+    struct point (x: int, y: int)
 
-    fn foo(x: Term) -> str {
-        'hi there'
+    fn eq(p1: point, p2: point) -> bool {
+        p1::x == p2::x && p1::y == p2::y
     }
 
-    let t = Term();
-    let z = foo(t);
+    let a = [point(1, 2), point(3, 4)];
+    let b = [1, 3].map((x: int)->{point(x,x+1)});
+    let z = a == b;
 
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -110,6 +111,7 @@ fn main() {
     add_array_to_stack(&mut root_scope, &mut interner).unwrap();
     add_array_map(&mut root_scope, &mut interner).unwrap();
     add_array_push(&mut root_scope, &mut interner).unwrap();
+    add_array_eq(&mut root_scope, &mut interner).unwrap();
 
     add_set_type(&mut root_scope, &mut interner).unwrap();
     add_set_bitor(&mut root_scope, &mut interner).unwrap();

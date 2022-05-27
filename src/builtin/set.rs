@@ -4,6 +4,7 @@ use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, i
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
+use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::mem::size_of;
 use std::sync::Arc;
@@ -58,7 +59,7 @@ pub fn add_set_bitor(scope: &mut XCompilationScope, interner: &mut StringInterne
     let set_t = XSetType::xtype(t.clone());
 
     scope.add_func_intern(
-        "bit_or", XStaticFunction::Native(XFuncSpec {
+        "bit_or", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -92,7 +93,7 @@ pub fn add_set_bitand(scope: &mut XCompilationScope, interner: &mut StringIntern
     let set_t = XSetType::xtype(t.clone());
 
     scope.add_func_intern(
-        "bit_and", XStaticFunction::Native(XFuncSpec {
+        "bit_and", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -126,7 +127,7 @@ pub fn add_set_bitxor(scope: &mut XCompilationScope, interner: &mut StringIntern
     let set_t = XSetType::xtype(t);
 
     scope.add_func_intern(
-        "bit_xor", XStaticFunction::Native(XFuncSpec {
+        "bit_xor", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -160,7 +161,7 @@ pub fn add_set_sub(scope: &mut XCompilationScope, interner: &mut StringInterner)
     let set_t = XSetType::xtype(t.clone());
 
     scope.add_func_intern(
-        "sub", XStaticFunction::Native(XFuncSpec {
+        "sub", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -193,7 +194,7 @@ pub fn add_set_to_stack(scope: &mut XCompilationScope, interner: &mut StringInte
     let t = XType::generic_from_name("T", interner);
 
     scope.add_func_intern(
-        "to_stack", XStaticFunction::Native(XFuncSpec {
+        "to_stack", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {

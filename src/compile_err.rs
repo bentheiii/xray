@@ -59,6 +59,7 @@ pub enum CompilationError {
     NoOverload {
         name: Identifier,
         param_types: Vec<Arc<XType>>,
+        dynamic_failures: Vec<String>, // todo change to real errors
     },
     VariantConstructorOneArg,
     VariantConstructorTypeArgMismatch {
@@ -180,10 +181,11 @@ impl CompilationError{
                     items
                 )
             }
-            CompilationError::NoOverload {name,param_types} => {
-                format!("No overload for {} found for param types [{}]",
+            CompilationError::NoOverload {name,param_types, dynamic_failures} => {
+                format!("No overload for {} found for param types [{}]{}",
                     interner.resolve(name.clone()).unwrap(),
-                    param_types.iter().map(|t| t.display_with_interner(interner)).join(", ")
+                    param_types.iter().map(|t| t.display_with_interner(interner)).join(", "),
+                    if dynamic_failures.is_empty() { "".to_string() } else { " dynamic failures: ".to_owned()+&dynamic_failures.join(", ") },
                 )
             }
             CompilationError::VariantConstructorOneArg => {

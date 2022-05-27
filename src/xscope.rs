@@ -192,8 +192,17 @@ impl<'p> XCompilationScope<'p> {
         Ok(Declaration::UserFunction(name, item))
     }
 
+    pub fn add_dyn_func(&mut self, name: DefaultSymbol, func: impl Fn(Option<&Vec<XExpr>>, &Vec<Arc<XType>>, &XCompilationScope<'_>) -> Result<Rc<XStaticFunction>, String> + 'static) -> Result<(), CompilationError> {
+        // todo ensure no shadowing?
+        Ok(self.functions.entry(name).or_insert_with(|| vec![]).push(Rc::new(XFunctionFactory::Dynamic(Rc::new(func)))))
+    }
+
     pub fn add_func_intern(&mut self, name: &'static str, func: XStaticFunction, interner: &mut StringInterner) -> Result<Declaration, CompilationError> {
         self.add_func(interner.get_or_intern_static(name), func)
+    }
+
+    pub fn add_dyn_func_intern(&mut self, name: &'static str, func: impl Fn(Option<&Vec<XExpr>>, &Vec<Arc<XType>>, &XCompilationScope<'_>) -> Result<Rc<XStaticFunction>, String> + 'static, interner: &mut StringInterner) -> Result<(), CompilationError> {
+        self.add_dyn_func(interner.get_or_intern_static(name), func)
     }
 
     pub fn add_compound(&mut self, name: DefaultSymbol, kind: CompoundKind, spec: XCompoundSpec) -> Result<Declaration, CompilationError> {

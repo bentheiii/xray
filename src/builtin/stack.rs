@@ -4,6 +4,7 @@ use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, i
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
+use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::mem::size_of;
 use std::sync::Arc;
@@ -121,7 +122,7 @@ pub fn add_stack_type(scope: &mut XCompilationScope, interner: &mut StringIntern
 
 pub fn add_stack_new(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_func_intern(
-        "stack", XStaticFunction::Native(XFuncSpec {
+        "stack", XStaticFunction::from_native(XFuncSpec {
             generic_params: None,
             params: vec![],
             ret: XStackType::xtype(X_UNKNOWN.clone()),
@@ -136,7 +137,7 @@ pub fn add_stack_push(scope: &mut XCompilationScope, interner: &mut StringIntern
     let t_stk = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
-        "push", XStaticFunction::Native(XFuncSpec {
+        "push", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -162,7 +163,7 @@ pub fn add_stack_to_array(scope: &mut XCompilationScope, interner: &mut StringIn
     let t_stk = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
-        "to_array", XStaticFunction::Native(XFuncSpec {
+        "to_array", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -184,7 +185,7 @@ pub fn add_stack_to_array_reversed(scope: &mut XCompilationScope, interner: &mut
     let t_stk = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
-        "to_array_reversed", XStaticFunction::Native(XFuncSpec {
+        "to_array_reversed", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -206,7 +207,7 @@ pub fn add_stack_to_set(scope: &mut XCompilationScope, interner: &mut StringInte
     let t_stk = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
-        "to_set", XStaticFunction::Native(XFuncSpec {
+        "to_set", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -228,7 +229,7 @@ pub fn add_stack_len(scope: &mut XCompilationScope, interner: &mut StringInterne
     let t_stk = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
-        "len", XStaticFunction::Native(XFuncSpec {
+        "len", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -250,7 +251,7 @@ pub fn add_stack_head(scope: &mut XCompilationScope, interner: &mut StringIntern
     let t_stk = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
-        "head", XStaticFunction::Native(XFuncSpec {
+        "head", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
@@ -275,7 +276,7 @@ pub fn add_stack_tail(scope: &mut XCompilationScope, interner: &mut StringIntern
     let t_stk = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
-        "tail", XStaticFunction::Native(XFuncSpec {
+        "tail", XStaticFunction::from_native(XFuncSpec {
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
