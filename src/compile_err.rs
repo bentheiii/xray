@@ -98,6 +98,14 @@ pub enum CompilationError {
     NonCompoundMemberAccess {
         xtype: Arc<XType>,
     },
+    NonItemTupleAccess {
+        member: String,
+    },
+    TupleIndexOutOfBounds {
+        tuple_type: Arc<XType>,
+        index: usize,
+        max: usize,
+    },
     ValueNotFound {
         name: Identifier,
     },
@@ -235,6 +243,12 @@ impl CompilationError{
             }
             CompilationError::NonCompoundMemberAccess {xtype} => {
                 format!("Cannot access member of non-compound type {}", xtype.display_with_interner(interner))
+            }
+            CompilationError::NonItemTupleAccess {member} => {
+                format!("Member access to tuple must be of the for \"item<positive number>\", got {:?}", member)
+            }
+            CompilationError::TupleIndexOutOfBounds {tuple_type, index, max: max_index } => {
+                format!("Tuple index {} out of bounds for tuple {} of size {}", index, tuple_type.display_with_interner(interner), max_index)
             }
             CompilationError::ValueNotFound {name} => {
                 format!("Value {} not found", interner.resolve(name.clone()).unwrap())

@@ -26,6 +26,7 @@ pub enum XStaticExpr {
     LiteralString(String),
     Array(Vec<XStaticExpr>),
     Set(Vec<XStaticExpr>),
+    Tuple(Vec<XStaticExpr>),
     Call(Box<XStaticExpr>, Vec<XStaticExpr>),
     Member(Box<XStaticExpr>, String),
     Ident(DefaultSymbol),
@@ -252,12 +253,21 @@ impl XStaticExpr {
             }
             XStaticExpr::Member(obj, member_name) => {
                 let obj_compiled = obj.compile(namespace)?;
-                match obj_compiled.expr.xtype()?.as_ref() {
+                let obj_type = obj_compiled.expr.xtype()?;
+                match obj_type.as_ref() {
                     XType::Compound(_, spec, _) => {
                         if let Some(&index) = spec.indices.get(member_name) {
                             Ok(CompilationResult::new(XExpr::Member(Box::new(obj_compiled.expr), index), obj_compiled.closure_vars))
                         } else {
                             Err(CompilationError::MemberNotFound { spec: spec.clone(), name: member_name.clone() })
+                        }
+                    }
+                    XType::Tuple(types) => {
+                        let idx = member_name.strip_prefix("item").map(|s| s.parse::<usize>().unwrap()).ok_or_else(|| CompilationError::NonItemTupleAccess { member: member_name.clone() })?;
+                        if idx > types.len() {
+                            Err(CompilationError::TupleIndexOutOfBounds { tuple_type: obj_type.clone(), index: idx, max: types.len() })
+                        } else {
+                            Ok(CompilationResult::new(XExpr::Member(Box::new(obj_compiled.expr), idx), obj_compiled.closure_vars))
                         }
                     }
                     _ => Err(CompilationError::NonCompoundMemberAccess { xtype: obj_compiled.expr.xtype()? })
@@ -327,6 +337,7 @@ impl XStaticExpr {
                     )))),
                 ));
             }
+            XStaticExpr::Tuple(items) => Ok(CompilationResult::from_multi(compile_many(items, namespace)?, XExpr::Tuple)),
         }
     }
 }
@@ -339,6 +350,7 @@ pub enum XExpr {
     LiteralString(String),
     Array(Vec<XExpr>),
     Set(Vec<XExpr>),
+    Tuple(Vec<XExpr>),
     Call(Box<XExpr>, Vec<XExpr>),
     Construct(Arc<XCompoundSpec>, Bind, Vec<XExpr>),
     Variant(Arc<XCompoundSpec>, Bind, usize, Box<XExpr>),
@@ -397,7 +409,6 @@ impl XStaticFunction {
                 XFunction::UserFunction(self.clone(), closure)
             }
             XStaticFunction::Recourse(_, depth) => XFunction::Recourse(*depth),
-            _ => unreachable!()
         }
     }
 
@@ -560,6 +571,7 @@ impl XExpr {
                         let t = spec.fields[*idx].type_.clone().resolve_bind(&bind, Some(&obj_type));
                         Ok(XOptionalType::xtype(t))
                     }
+                    XType::Tuple(fields) => Ok(fields[*idx].clone()),
                     _ => Err(CompilationError::NotACompound { type_: obj_type.clone() })
                 }
             }
@@ -570,6 +582,10 @@ impl XExpr {
                     IdentItem::Value(xtype) => Ok(xtype.clone()),
                     IdentItem::Function(func) => Ok(func.xtype(&Bind::new())),
                 }
+            },
+            XExpr::Tuple(items) => {
+                let types = items.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
+                Ok(Arc::new(XType::Tuple(types)))
             }
             XExpr::Dummy(_) => unreachable!(),
         }
@@ -601,7 +617,8 @@ impl XExpr {
                 }
                 return Ok(ret);
             }
-            XExpr::Construct(_, _, args) => {
+            XExpr::Construct(_, _, args)
+            | XExpr::Tuple(args) => {
                 let items = args.iter().map(|x| x.eval(namespace, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
                 Ok(ManagedXValue::new(XValue::StructInstance(items), runtime)?.into())
             }

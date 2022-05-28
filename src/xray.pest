@@ -27,6 +27,7 @@ expression5 = _{
     | bool
     | NUMBER_ANY
     | container
+    | tuple
     | specialized_cname
     | CNAME
     | map
@@ -36,7 +37,10 @@ expression5 = _{
  container = {container_type_opt ~ "[" ~ container_elements? ~ ","? ~ "]"}
   container_type_opt = { container_type? }
   container_elements = {expression ~ (","~expression)*}
-  container_type = {"array" | "set" | "tuple"}
+  container_type = {"array" | "set"}
+ tuple = {
+   "(" ~ container_elements? ~ ","? ~ ")"
+ }
  map = {"{" ~ map_pairs? ~ ","? ~ "}"}
   map_pairs = {map_pair ~ (","~map_pair)*}
   map_pair = {expression ~ ":"~ expression}
@@ -99,11 +103,13 @@ compound_def = {pub_opt ~ compound_kind ~ CNAME ~ generic_signature_opt ~ "(" ~ 
 complete_type = {
   CNAME ~ generic_arguments?
   | signature
+  | tup_type
  }
  generic_arguments = {"<" ~ (complete_type ~ ",")* ~ complete_type ~ ">"}
  signature = {"(" ~ param_specs_opt ~ ")" ~ "->" ~ "(" ~ complete_type ~ ")"}
  param_specs_opt = { param_specs? }
  param_specs = {(complete_type ~ ",")* ~ complete_type}
+ tup_type = {"(" ~ param_specs? ~ ")"}
 
 CNAME = @{("_" | ASCII_ALPHA) ~ ("_" | ASCII_ALPHANUMERIC)*}
 

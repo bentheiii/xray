@@ -50,15 +50,21 @@ use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompound
 
 fn main() {
     let input = r#"
-    struct point (x: int, y: int)
+    fn foo(t: (Array<int>, int)) -> Optional<int>{
+        fn helper(i: int) -> Optional<int> {
+            if(i < t::item0.len(),
+                if(t::item0.get(i) == t::item1,
+                    some(i),
+                    helper(i + 1)
+                ),
+                null()
+            )
+        }
 
-    fn eq(p1: point, p2: point) -> bool {
-        p1::x == p2::x && p1::y == p2::y
+        helper(0)
     }
 
-    let a = [point(1, 2), point(3, 4)];
-    let b = [1, 3].map((x: int)->{point(x,x+1)});
-    let z = a == b;
+    let z = foo(([1, 2, 3, 2, 5], 9)) == null();
 
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -324,6 +330,16 @@ impl<'p> XCompilationScope<'p> {
                             return_type,
                         })))
                     }
+                    Rule::tup_type => {
+                        let mut tup_inners = part1.into_inner();
+                        match tup_inners.next() {
+                            None => Ok(Arc::new(XType::Tuple(vec![]))),  // todo make this a singleton?
+                            Some(inner) => {
+                                let tup_types = inner.into_inner().map(|i| self.get_complete_type(i, generic_param_names, interner, tail_name)).collect::<Result<Vec<_>, _>>()?;
+                                Ok(Arc::new(XType::Tuple(tup_types)))
+                            }
+                        }
+                    }
                     _ => {
                         // cname
                         let name = part1.as_str();
@@ -511,6 +527,14 @@ impl<'p> XCompilationScope<'p> {
                     "set" => XStaticExpr::Set(parts),
                     _ => unreachable!()
                 })
+            }
+            Rule::tuple => {
+                let mut iter = input.into_inner();
+                let parts = iter.next().map_or_else(
+                    || Ok(vec![]),
+                    |c| c.into_inner().map(|p| self.to_expr(p, interner, runtime.clone())).collect(),
+                )?;
+                Ok(XStaticExpr::Tuple(parts))
             }
             Rule::specialized_cname => {
                 let mut iter = input.into_inner();

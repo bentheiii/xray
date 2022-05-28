@@ -21,7 +21,8 @@ pub enum XType {
     XFunc(XFuncSpec),
     XGeneric(Identifier),
     XNative(Box::<dyn NativeType>, Vec<Arc<XType>>),
-    XTail(Vec<Arc<XType>>)
+    Tuple(Vec<Arc<XType>>),  // the actual value of this type is a struct
+    XTail(Vec<Arc<XType>>),
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -290,6 +291,20 @@ impl XType {
                 }
                 Some(bind)
             }
+            (XType::Tuple(types1), XType::Tuple(types2)) => {
+                if types1.len() != types2.len() {
+                    return None;
+                }
+                let mut bind = Bind::new();
+                for (a_type, b_type) in types1.iter().zip(types2.iter()) {
+                    if let Some(binds) = a_type.bind_in_assignment(b_type) {
+                        bind = bind.mix(&binds)?;
+                    } else {
+                        return None;
+                    }
+                }
+                Some(bind)
+            }
             (_, XType::XUnknown) => Some(Bind::new()),
             (XType::XUnknown, _) => Some(Bind::new()),
             (XType::XGeneric(ref a), XType::XGeneric(ref b)) if a == b => {
@@ -332,6 +347,13 @@ impl XType {
 
                 }
             }
+            XType::Tuple(types) => {
+                let mut new_types = Vec::new();
+                for t in types.iter() {
+                    new_types.push(t.resolve_bind(bind, tail));
+                }
+                XType::Tuple(new_types).into()
+            }
             _ => self.clone(),
         }
     }
@@ -339,7 +361,8 @@ impl XType {
     pub fn is_unknown(self: &Arc<XType>) -> bool {
         match self.as_ref() {
             XType::XUnknown => true,
-            XType::XNative(_, types) => types.iter().cloned().any(|t| t.is_unknown()),
+            XType::XNative(_, types)
+            | XType::Tuple(types) => types.iter().cloned().any(|t| t.is_unknown()),
             XType::XCallable(spec) => spec.param_types.iter().cloned().any(|t| t.is_unknown()) || spec.return_type.is_unknown(),
             XType::XFunc(spec) => spec.params.iter().any(|t| t.type_.clone().is_unknown()) || spec.ret.is_unknown(),
             XType::Compound(.., bind) => bind.iter().any(|(_, t)| t.is_unknown()),
@@ -381,6 +404,7 @@ impl XType {
             }
             XType::XGeneric(ref a) => format!("{}", interner.resolve(a.clone()).unwrap()),
             XType::XNative(ref a, bind) => format!("{}<{}>", a.name(), bind.iter().map(|t| format!("{}", t.display_with_interner(interner))).join(", ")),
+            XType::Tuple(ref a) => format!("({})", a.iter().map(|t| t.display_with_interner(interner)).join(", ")),
             XType::XUnknown => "?".to_string(),
             XType::XTail(_) => "tail".to_string(),  // todo make unreachable
         }
@@ -402,6 +426,7 @@ impl PartialEq<XType> for XType {
             (XType::XUnknown, XType::XUnknown) => true,
             (XType::XGeneric(ref a), XType::XGeneric(ref b)) => a == b,
             (XType::XNative(a, ref a_bind), XType::XNative(b, ref b_bind)) => a == b && a_bind == b_bind,
+            (XType::Tuple(ref a), XType::Tuple(ref b)) => a.len() == b.len() && a.iter().zip(b.iter()).all(|(a, b)| a.eq(b)),
             _ => false,
         }
     }
