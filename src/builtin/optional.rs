@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, intern, manage_native, to_native, to_primitive, XArray, XArrayType, XCallableSpec, XCompilationScope, XSet, XSetType, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, to_native, to_primitive, XArray, XArrayType, XCallableSpec, XCompilationScope, XSet, XSetType, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
@@ -11,6 +11,7 @@ use std::sync::Arc;
 use crate::native_types::{NativeType, XNativeValue};
 use derivative::Derivative;
 use string_interner::StringInterner;
+use crate::xexpr::XExpr;
 use crate::XType::XCallable;
 
 #[derive(Debug, Clone)]
@@ -285,4 +286,64 @@ pub fn add_optional_value(scope: &mut XCompilationScope, interner: &mut StringIn
             },
         ), interner)?;
     Ok(())
+}
+
+pub fn add_optional_eq(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let eq_symbol = interner.get_or_intern_static("eq");
+
+    fn static_from_eq(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr)->Rc<XStaticFunction>{
+        Rc::new(XStaticFunction::from_native(XFuncSpec {
+            generic_params: None,
+            params: vec![
+                XFuncParamSpec {
+                    type_: XOptionalType::xtype(t0.clone()),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: XOptionalType::xtype(t1.clone()),
+                    required: true,
+                },
+            ],
+            ret: X_BOOL.clone(),
+        }, move |args, ns, _tca, rt| {
+            let (a0, a1) = eval!(args, ns, rt, 0,1);
+            let opt0 = &to_native!(a0, XOptional).value;
+            let opt1 = &to_native!(a1, XOptional).value;
+            if opt0.is_some() && opt1.is_some(){
+                let v0 = opt0.clone().unwrap();
+                let v1 = opt1.clone().unwrap();
+                let inner_equal_value = eq_expr.eval(ns, false, rt.clone())?.unwrap_value();
+                let inner_eq_func = to_primitive!(inner_equal_value, Function);
+                let eq = inner_eq_func.eval_values(vec![v0.clone(), v1.clone()], &ns, rt.clone())?;
+                Ok(eq.into())
+            } else{
+                Ok(ManagedXValue::new(XValue::Bool(opt0.is_some() == opt1.is_some()), rt)?.into())
+            }
+
+        }))
+    }
+
+    fn from_types(types: &Vec<Arc<XType>>, scope: &XCompilationScope, eq_symbol: Identifier) -> Result<Rc<XStaticFunction>, String> {
+        if types.len() != 2 {
+            return Err(format!("Expected 2 types, got {}", types.len()));
+        }
+        let a0 = types[0].clone();
+        let t0 = match &a0.as_ref() {
+            XType::XNative(nt0, bind) if nt0.name() == "Optional" => bind[0].clone(),
+            _ => return Err(format!("Expected optional type, got {:?}", a0)),  // todo improve
+        };
+        let a1 = types[1].clone();
+        let t1 = match &a1.as_ref() {
+            XType::XNative(nt1, bind) if nt1.name() == "Optional" => bind[0].clone(),
+            _ => return Err(format!("Expected optional type, got {:?}", a1)),  // todo improve
+        };
+
+        let inner_eq = scope.resolve_overload(eq_symbol, vec![t0.clone(), t1.clone()])?;  // todo ensure that the function returns a bool
+
+        Ok(static_from_eq(t0, t1, inner_eq))
+    }
+
+    scope.add_dyn_func(eq_symbol, move |_params, types, ns| {
+        from_types(types, ns, eq_symbol)
+    })
 }

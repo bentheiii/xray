@@ -140,6 +140,7 @@ fn main() {
     add_optional_and(&mut root_scope, &mut interner).unwrap();
     add_optional_value(&mut root_scope, &mut interner).unwrap();
     add_optional_has_value(&mut root_scope, &mut interner).unwrap();
+    add_optional_eq(&mut root_scope, &mut interner).unwrap();
 
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()
