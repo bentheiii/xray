@@ -38,8 +38,8 @@ use crate::builtin::bool::{*};
 use crate::builtin::rational::{*};
 use crate::builtin::generic::{*};
 use crate::builtin::optional::{*};
-use crate::builtin::set::{*};
 use crate::builtin::stack::{*};
+use crate::builtin::mapping::{*};
 use crate::compile_err::{CompilationError, TracedCompilationError};
 use crate::parser::{XRayParser, Rule};
 use crate::runtime::{RTCell, RuntimeLimits};
@@ -50,21 +50,11 @@ use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompound
 
 fn main() {
     let input = r#"
-    fn foo(t: (Array<int>, int)) -> Optional<int>{
-        fn helper(i: int) -> Optional<int> {
-            if(i < t::item0.len(),
-                if(t::item0.get(i) == t::item1,
-                    some(i),
-                    helper(i + 1)
-                ),
-                null()
-            )
-        }
+    let m = mapping((x: int) -> {x % 10}, eq::<int, int>);
+    let m1 = m.set(5, 'hii').set(15, 'ho').set(5, 'hi');
+    let m2 = m1.update([(1,'one'), (2, 'two')]);
 
-        helper(0)
-    }
-
-    let z = foo(([1, 2, 3, 2, 5], 9)) == null();
+    let z = m2.entries();
 
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -119,9 +109,6 @@ fn main() {
     add_array_push(&mut root_scope, &mut interner).unwrap();
     add_array_eq(&mut root_scope, &mut interner).unwrap();
 
-    add_set_type(&mut root_scope, &mut interner).unwrap();
-    add_set_bitor(&mut root_scope, &mut interner).unwrap();
-
     add_stack_type(&mut root_scope, &mut interner).unwrap();
     add_stack_new(&mut root_scope, &mut interner).unwrap();
     add_stack_push(&mut root_scope, &mut interner).unwrap();
@@ -141,6 +128,13 @@ fn main() {
     add_optional_value(&mut root_scope, &mut interner).unwrap();
     add_optional_has_value(&mut root_scope, &mut interner).unwrap();
     add_optional_eq(&mut root_scope, &mut interner).unwrap();
+
+    add_mapping_new(&mut root_scope, &mut interner).unwrap();
+    add_mapping_set(&mut root_scope, &mut interner).unwrap();
+    add_mapping_get(&mut root_scope, &mut interner).unwrap();
+    add_mapping_update(&mut root_scope, &mut interner).unwrap();
+    add_mapping_len(&mut root_scope, &mut interner).unwrap();
+    add_mapping_entries(&mut root_scope, &mut interner).unwrap();
 
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()

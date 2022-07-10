@@ -7,7 +7,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 use num::{BigInt, BigRational};
 use crate::builtin::array::{XArray, XArrayType};
-use crate::builtin::set::{XSet, XSetType};
 use crate::{CompilationError, manage_native, TracedCompilationError, XFuncSpec, XOptional, XOptionalType};
 use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScopeItem, XEvaluationScope, XFunctionFactory};
 use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XCompoundSpec, XType, CompoundKind};
@@ -545,8 +544,7 @@ impl XExpr {
                 Ok(XType::XNative(Box::new(XArrayType {}), vec![element_type]).into())
             }
             XExpr::Set(exprs) => {
-                let element_type = common_type(exprs.iter().map(|x| x.xtype()))?;
-                Ok(XType::XNative(Box::new(XSetType {}), vec![element_type]).into())
+                todo!()
             }
             XExpr::Call(func, _) => {
                 if let XExpr::KnownOverload(func, bind) = func.as_ref() {
@@ -603,9 +601,7 @@ impl XExpr {
                                       , runtime)?.into())
             }
             XExpr::Set(exprs) => {
-                Ok(ManagedXValue::new(XValue::Native(Box::new(XSet::new(
-                    exprs.iter().map(|x| x.eval(namespace, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<HashSet<_>, _>>()?)))
-                                      , runtime)?.into())
+                todo!()
             }
             XExpr::Call(func, args) => {
                 let callable = func.eval(namespace, false, runtime.clone())?.unwrap_value().clone();

@@ -15,12 +15,11 @@ use crate::builtin::stack::{XStack, XStackType};
 use crate::native_types::{NativeType, RuntimeEquatable, XNativeValue};
 use crate::XType::XCallable;
 
-use memoize::memoize;
 use crate::xexpr::XExpr;
 
 
 #[derive(Debug, Clone)]
-pub struct XArrayType {}
+pub struct XArrayType;
 
 impl XArrayType {
     pub fn xtype(t: Arc<XType>) -> Arc<XType> {

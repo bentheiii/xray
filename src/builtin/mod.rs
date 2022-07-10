@@ -5,6 +5,6 @@ pub mod bool;
 pub mod generic;
 pub mod rational;
 pub mod array;
-pub mod set;
 pub mod stack;
 pub mod optional;
+pub mod mapping;

@@ -30,7 +30,6 @@ expression5 = _{
     | tuple
     | specialized_cname
     | CNAME
-    | map
     | "(" ~ expression ~ ")"
     | lambda_func
 }
@@ -41,9 +40,6 @@ expression5 = _{
  tuple = {
    "(" ~ container_elements? ~ ","? ~ ")"
  }
- map = {"{" ~ map_pairs? ~ ","? ~ "}"}
-  map_pairs = {map_pair ~ (","~map_pair)*}
-  map_pair = {expression ~ ":"~ expression}
  bool = @{"true"|"false"}
  specialized_cname = {CNAME ~ "::<" ~ complete_type ~ (","~complete_type)* ~ ">"}
  lambda_func = { "(" ~ function_parameters_opt ~ ")" ~ "->" ~ "{" ~ expression ~ "}" }
