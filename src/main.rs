@@ -49,17 +49,11 @@ use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScop
 use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompoundSpec, XType, CompoundKind, XFuncParamSpec};
 
 fn main() {
-    let input = r#"
-    union Tree(
-        leaf: int,
-        branch: (Tree, Tree),
-    )
+    let input = r###"
 
-    let t = Tree::branch((Tree::leaf(1),Tree::leaf(10)));
+    let z = #"me"ep"# == 'me"ep';
 
-    let z = t::branch.value()::item0::leaf.value();
-
-    "#;
+    "###;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();
     let mut root_scope = XCompilationScope::root();
