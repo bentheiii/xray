@@ -11,26 +11,28 @@ expression1 = {
     (UNARY_OP)* ~ expression2
 }
 expression2 = {
-    expression3 ~ ("." ~ CNAME ~ call_args)*
+    expression3 ~ (accessor)*
 }
- call_args = {
-    "(" ~ container_elements? ~ ","? ~ ")"
+ accessor = _{
+    method
+    | call
+    | member
  }
-expression3 = {
-    expression4 ~ call_args*
-}
-expression4 = {
-    expression5 ~ ("::" ~ CNAME)*
-}
-expression5 = _{
+  method = {"." ~ CNAME ~ call_args}
+     call_args = {
+        "(" ~ container_elements? ~ ","? ~ ")"
+     }
+  member = {"::" ~ CNAME}
+  call = {call_args}
+expression3 = _{
     STRING
     | bool
     | NUMBER_ANY
     | container
+    | "(" ~ expression ~ ")"
     | tuple
     | specialized_cname
     | CNAME
-    | "(" ~ expression ~ ")"
     | lambda_func
 }
  container = {container_type_opt ~ "[" ~ container_elements? ~ ","? ~ "]"}

@@ -50,11 +50,14 @@ use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompound
 
 fn main() {
     let input = r#"
-    let m = mapping((x: int) -> {x % 10}, eq::<int, int>);
-    let m1 = m.set(5, 'hii').set(15, 'ho').set(5, 'hi');
-    let m2 = m1.update([(1,'one'), (2, 'two')]);
+    union Tree(
+        leaf: int,
+        branch: (Tree, Tree),
+    )
 
-    let z = m2.contains(16);
+    let t = Tree::branch((Tree::leaf(1),Tree::leaf(10)));
+
+    let z = t::branch.value()::item0::leaf.value();
 
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -449,49 +452,33 @@ impl<'p> XCompilationScope<'p> {
             Rule::expression2 => {
                 let mut iter = input.into_inner();
                 let mut ret = self.to_expr(iter.next().unwrap(), interner, runtime.clone())?;
-                for meth_call in &iter.chunks(2) {
-                    let mut meth_call_iter = meth_call.into_iter();
-                    let method = XStaticExpr::Ident(interner.get_or_intern(meth_call_iter.next().unwrap().as_str()));
-                    let args = match meth_call_iter.next().unwrap().into_inner().next() {
-                        None => Ok(vec![ret]),
-                        Some(c) => iter::once(Ok(ret)).chain(c.into_inner().map(|p| self.to_expr(p, interner, runtime.clone()))).collect()
-                    }?;
-                    ret = XStaticExpr::Call(Box::new(method), args);
-                };
-                Ok(ret)
-            }
-            Rule::expression4 => {
-                let mut iter = input.into_inner();
-                let mut ret = self.to_expr(iter.next().unwrap(), interner, runtime)?;
-                for next_args in iter {
-                    let member = next_args.as_str();
-                    ret = XStaticExpr::Member(Box::new(ret), member.to_string());
-                }
-                Ok(ret)
-            }
-            Rule::expression3 => {
-                let mut iter = input.into_inner();
-                let raw_callable = iter.next().unwrap();
-                match iter.next() {
-                    None => self.to_expr(raw_callable, interner, runtime),
-                    Some(raw_first_args) => {
-                        let args = raw_first_args.into_inner().next().map_or_else(|| Ok(vec![]), |c| {
-                            c.into_inner().map(|p| self.to_expr(p, interner, runtime.clone())).collect()
-                        })?;
-                        let mut ret;
-                        if raw_callable.as_rule() == Rule::CNAME {}
-                        let callable = Box::new(self.to_expr(raw_callable, interner, runtime.clone())?);
-                        ret = XStaticExpr::Call(callable, args);
-
-                        for next_args in iter {
-                            let args = next_args.into_inner().next().map_or_else(|| Ok(vec![]), |c| {
+                for accessor in iter {
+                    match accessor.as_rule() {
+                        Rule::method => {
+                            let mut meth_call_iter = accessor.into_inner();
+                            let method = XStaticExpr::Ident(interner.get_or_intern(meth_call_iter.next().unwrap().as_str()));
+                            let args = match meth_call_iter.next().unwrap().into_inner().next() {
+                                None => Ok(vec![ret]),
+                                Some(c) => iter::once(Ok(ret)).chain(c.into_inner().map(|p| self.to_expr(p, interner, runtime.clone()))).collect()
+                            }?;
+                            ret = XStaticExpr::Call(Box::new(method), args);
+                        }
+                        Rule::member => {
+                            let member = accessor.into_inner().next().unwrap();
+                            ret = XStaticExpr::Member(Box::new(ret), member.as_str().to_string());
+                        }
+                        Rule::call => {
+                            let mut iter = accessor.into_inner();
+                            let raw_args = iter.next().unwrap();
+                            let args = raw_args.into_inner().next().map_or_else(|| Ok(vec![]), |c| {
                                 c.into_inner().map(|p| self.to_expr(p, interner, runtime.clone())).collect()
                             })?;
                             ret = XStaticExpr::Call(Box::new(ret), args);
                         }
-                        Ok(ret)
+                        _ => { unreachable!() }
                     }
                 }
+                Ok(ret)
             }
             Rule::NUMBER_ANY => {
                 if let Ok(whole) = input.as_str().parse::<i64>() {
