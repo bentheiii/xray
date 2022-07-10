@@ -54,7 +54,7 @@ fn main() {
     let m1 = m.set(5, 'hii').set(15, 'ho').set(5, 'hi');
     let m2 = m1.update([(1,'one'), (2, 'two')]);
 
-    let z = m2.entries();
+    let z = m2.contains(16);
 
     "#;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -135,6 +135,7 @@ fn main() {
     add_mapping_update(&mut root_scope, &mut interner).unwrap();
     add_mapping_len(&mut root_scope, &mut interner).unwrap();
     add_mapping_entries(&mut root_scope, &mut interner).unwrap();
+    add_mapping_contains(&mut root_scope, &mut interner).unwrap();
 
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()
