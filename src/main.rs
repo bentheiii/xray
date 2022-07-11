@@ -53,7 +53,8 @@ use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompound
 fn main() {
     let input = r###"
 
-    let z = [1,2,3,4,5].map((x: int)->{x/0}).len();
+    let m = mapping((a: int)->{a%10}, eq::<int, int>).update([(1,2),(3,4),(4,5)]).discard(9);
+    let z = m.get(3);
 
     "###;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -139,6 +140,8 @@ fn main() {
     add_mapping_len(&mut root_scope, &mut interner).unwrap();
     add_mapping_entries(&mut root_scope, &mut interner).unwrap();
     add_mapping_contains(&mut root_scope, &mut interner).unwrap();
+    add_mapping_pop(&mut root_scope, &mut interner).unwrap();
+    add_mapping_discard(&mut root_scope, &mut interner).unwrap();
 
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()

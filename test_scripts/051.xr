@@ -1,0 +1,10 @@
+fn main() -> bool {
+    let m = mapping((a: int)->{a%10}, eq::<int, int>).update([(1,2),(3,4),(4,5)]);
+
+    assert(m.pop(3).get(3) == null())
+    && assert(m.pop(4).get(3) == some(4))
+    && assert(is_error(m.pop(10))
+    && assert(m.discard(3).get(3) == null)
+    && assert(m.discard(4).get(3) == some(4))
+    && assert(m.discard(10).get(3) == some(4))
+}

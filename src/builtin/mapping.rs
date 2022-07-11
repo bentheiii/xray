@@ -311,17 +311,118 @@ pub fn add_mapping_contains(scope: &mut XCompilationScope, interner: &mut String
             let hash_key = to_primitive!(hash_func.eval_values(vec![a1.clone()], &ns, rt.clone())?, Int).to_u64().ok_or("hash is out of bounds")?;
             let spot = mapping.inner.get(&hash_key);
             let mut ret = false;
-            if let Some(candidates) = spot{
-                    let eq_func = to_primitive!(mapping.eq_func, Function);
-                    for (k, _) in candidates.iter() {
-                        if *to_primitive!(eq_func.eval_values(vec![a1.clone(), k.clone()], &ns, rt.clone())?, Bool) {
-                            ret = true;
-                            break
-                        }
+            if let Some(candidates) = spot {
+                let eq_func = to_primitive!(mapping.eq_func, Function);
+                for (k, _) in candidates.iter() {
+                    if *to_primitive!(eq_func.eval_values(vec![a1.clone(), k.clone()], &ns, rt.clone())?, Bool) {
+                        ret = true;
+                        break;
                     }
-
+                }
             }
             return Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into());
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_mapping_pop(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let k = XType::generic_from_name("K", interner);
+    let v = XType::generic_from_name("V", interner);
+    let mp = XMappingType::xtype(k.clone(), v.clone());
+
+    scope.add_func_intern(
+        "pop", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "K", "V")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: mp.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: k.clone(),
+                    required: true,
+                },
+            ],
+            ret: mp.clone(),
+        }, |args, ns, _tca, rt| {
+            let (a0, a1) = eval!(args, ns, rt, 0, 1);
+            let mapping = to_native!(a0, XMapping);
+            let hash_func = to_primitive!(mapping.hash_func, Function);
+            let hash_key = to_primitive!(hash_func.eval_values(vec![a1.clone()], &ns, rt.clone())?, Int).to_u64().ok_or("hash is out of bounds")?;
+            let spot = mapping.inner.get(&hash_key);
+            let mut new_spot = None;
+            if let Some(candidates) = spot {
+                let eq_func = to_primitive!(mapping.eq_func, Function);
+                for (i, (k, _)) in candidates.iter().enumerate() {
+                    if *to_primitive!(eq_func.eval_values(vec![a1.clone(), k.clone()], &ns, rt.clone())?, Bool) {
+                        new_spot = Some(candidates[..i].iter().cloned().chain(candidates[i + 1..].iter().cloned()).collect());
+                        break;
+                    }
+                }
+            }
+            match new_spot {
+                None => Err("Key not found in mapping".to_string()),
+                Some(new_spot) => {
+                    let mut new_dict = HashMap::from([(hash_key, new_spot)]);
+                    for (k, v) in &mapping.inner {
+                        if *k != hash_key {
+                            new_dict.insert(*k, v.clone());
+                        }
+                    };
+                    Ok(manage_native!(XMapping::new(mapping.hash_func.clone(), mapping.eq_func.clone(), new_dict), rt))
+                }
+            }
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_mapping_discard(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let k = XType::generic_from_name("K", interner);
+    let v = XType::generic_from_name("V", interner);
+    let mp = XMappingType::xtype(k.clone(), v.clone());
+
+    scope.add_func_intern(
+        "discard", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "K", "V")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: mp.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: k.clone(),
+                    required: true,
+                },
+            ],
+            ret: mp.clone(),
+        }, |args, ns, _tca, rt| {
+            let (a0, a1) = eval!(args, ns, rt, 0, 1);
+            let mapping = to_native!(a0, XMapping);
+            let hash_func = to_primitive!(mapping.hash_func, Function);
+            let hash_key = to_primitive!(hash_func.eval_values(vec![a1.clone()], &ns, rt.clone())?, Int).to_u64().ok_or("hash is out of bounds")?;
+            let spot = mapping.inner.get(&hash_key);
+            let mut new_spot = None;
+            if let Some(candidates) = spot {
+                let eq_func = to_primitive!(mapping.eq_func, Function);
+                for (i, (k, _)) in candidates.iter().enumerate() {
+                    if *to_primitive!(eq_func.eval_values(vec![a1.clone(), k.clone()], &ns, rt.clone())?, Bool) {
+                        new_spot = Some(candidates[..i].iter().cloned().chain(candidates[i + 1..].iter().cloned()).collect());
+                        break;
+                    }
+                }
+            }
+            match new_spot {
+                None => Ok(a0.clone().into()),
+                Some(new_spot) => {
+                    let mut new_dict = HashMap::from([(hash_key, new_spot)]);
+                    for (k, v) in &mapping.inner {
+                        if *k != hash_key {
+                            new_dict.insert(*k, v.clone());
+                        }
+                    };
+                    Ok(manage_native!(XMapping::new(mapping.hash_func.clone(), mapping.eq_func.clone(), new_dict), rt))
+                }
+            }
         }), interner)?;
     Ok(())
 }
