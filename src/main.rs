@@ -53,7 +53,7 @@ use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompound
 fn main() {
     let input = r###"
 
-    let z = [1,2,3].add_rev(stack().push(4).push(5)).sort(sub::<int ,int>);
+    let z = [1,2,3,4,5].map((x: int)->{x/0}).len();
 
     "###;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -82,6 +82,7 @@ fn main() {
     add_rational_mul(&mut root_scope, &mut interner).unwrap();
     add_rational_floor(&mut root_scope, &mut interner).unwrap();
     add_rational_to_str(&mut root_scope, &mut interner).unwrap();
+    add_rational_eq(&mut root_scope, &mut interner).unwrap();
 
     add_str_type(&mut root_scope, &mut interner).unwrap();
     add_str_eq(&mut root_scope, &mut interner).unwrap();

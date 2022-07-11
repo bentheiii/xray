@@ -179,7 +179,8 @@ pub fn add_mapping_update(scope: &mut XCompilationScope, interner: &mut StringIn
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0, 1);
             let mapping = to_native!(a0, XMapping);
-            let arr = &to_native!(a1, XSequence).value;
+            let seq = to_native!(a1, XSequence);
+            let arr = seq.slice(0, seq.len(), ns, rt.clone())?;
             let items = arr.iter().map(|t| {
                 let tup = to_primitive!(t, StructInstance);
                 (tup[0].clone(), tup[1].clone())
@@ -279,7 +280,7 @@ pub fn add_mapping_entries(scope: &mut XCompilationScope, interner: &mut StringI
                     lst.iter().map(|(k, v)|
                         ManagedXValue::new(XValue::StructInstance(vec![k.clone(), v.clone()]), rt.clone())))
                 .collect::<Result<Vec<_>, _>>()?;
-            Ok(manage_native!(XSequence::new(entries), rt))
+            Ok(manage_native!(XSequence::array(entries), rt))
         }), interner)?;
     Ok(())
 }

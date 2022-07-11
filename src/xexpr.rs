@@ -590,9 +590,10 @@ impl XExpr {
             XExpr::LiteralRational(r) => Ok(ManagedXValue::new(XValue::Rational(r.clone()), runtime)?.into()),
             XExpr::LiteralString(s) => Ok(ManagedXValue::new(XValue::String(s.clone()), runtime)?.into()),
             XExpr::Array(exprs) => {
-                Ok(ManagedXValue::new(XValue::Native(Box::new(XSequence::new(
-                    exprs.iter().map(|x| x.eval(namespace, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?)))
-                                      , runtime)?.into())
+                let seq = if exprs.is_empty() {XSequence::Empty} else {
+                    XSequence::array(exprs.iter().map(|x| x.eval(namespace, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?)
+                };
+                Ok(ManagedXValue::new(XValue::Native(Box::new(seq)), runtime)?.into())
             }
             XExpr::Set(exprs) => {
                 todo!()

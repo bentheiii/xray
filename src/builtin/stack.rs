@@ -106,8 +106,8 @@ impl XNativeValue for XStack {
         let mut node = &self.head;
         while let Some(ref n) = node {
             if Rc::strong_count(n) > 1 {
-                // if the strong count is higher than 0, someone else already counted everything
-                // after this towards a limit
+                // if the strong count is higher than 1, someone else already counted everything
+                // after this towards the limit
                 break;
             }
             managed_count += 1;
@@ -179,7 +179,7 @@ pub fn add_stack_to_array(scope: &mut XCompilationScope, interner: &mut StringIn
         }, |args, ns, _tca, rt| {
             let (a0, ) = eval!(args, ns, rt, 0);
             let stk0 = to_native!(a0, XStack);
-            Ok(manage_native!(XSequence::new(stk0.to_vec::<false>()), rt))
+            Ok(manage_native!(XSequence::array(stk0.to_vec::<false>()), rt))
         }), interner)?;
     Ok(())
 }
@@ -201,7 +201,7 @@ pub fn add_stack_to_array_reversed(scope: &mut XCompilationScope, interner: &mut
         }, |args, ns, _tca, rt| {
             let (a0, ) = eval!(args, ns, rt, 0);
             let stk0 = to_native!(a0, XStack);
-            Ok(manage_native!(XSequence::new(stk0.to_vec::<true>()), rt))
+            Ok(manage_native!(XSequence::array(stk0.to_vec::<true>()), rt))
         }), interner)?;
     Ok(())
 }

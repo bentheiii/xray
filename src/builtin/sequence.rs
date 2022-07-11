@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, to_native, to_primitive, XCallableSpec, XCompilationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, RTCell, to_native, to_primitive, XCallableSpec, XCompilationScope, XEvaluationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
@@ -8,6 +8,7 @@ use std::any::{Any, TypeId};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::mem::size_of;
+use std::num::NonZeroIsize;
 use std::ops::Deref;
 use std::sync::Arc;
 use string_interner::StringInterner;
@@ -36,23 +37,121 @@ impl NativeType for XSequenceType {
 }
 
 #[derive(Debug)]
-pub struct XSequence {
-    pub value: Vec<Rc<ManagedXValue>>,
+pub enum XSequence {
+    Empty,
+    Array(Vec<Rc<ManagedXValue>>),  // never empty
+    Range(i64, i64, i64),
+    Map(Rc<ManagedXValue>, Rc<ManagedXValue>),
+    Zip(Vec<Rc<ManagedXValue>>), // never empty //todo shortcut zip creation so that if any of the items are empty, Empty is returned instead
 }
 
 impl XSequence {
-    pub fn new(value: Vec<Rc<ManagedXValue>>) -> Self {
-        Self { value }
+    pub fn array(value: Vec<Rc<ManagedXValue>>) -> Self {
+        Self::Array(value)
+    }
+
+    pub fn len(&self) -> usize {
+        match self {
+            Self::Empty => 0,
+            Self::Array(arr) => arr.len(),
+            Self::Range(start, end, step) => {
+                if step.is_positive() && start < end {
+                    (1 + (end - 1 - start) / step) as usize
+                } else {
+                    assert!(step.is_negative() && end > start);
+                    (1 + (start - 1 - end) / -step) as usize
+                }
+            }
+            Self::Map(seq, ..) => {
+                to_native!(seq, XSequence).len()
+            }
+            Self::Zip(sequences) => {
+                sequences.iter()
+                    .map(|seq| to_native!(seq, XSequence).len())
+                    .min().unwrap()
+            }
+        }
+    }
+
+    pub fn get(&self, idx: usize, ns: &XEvaluationScope, rt: RTCell) -> Result<Rc<ManagedXValue>, String>{
+        match self {
+            Self::Empty => unreachable!(),
+            Self::Array(arr) => Ok(arr[idx].clone()),
+            Self::Range(start, _, step) => {
+                let v = BigInt::from(*start) + idx*BigInt::from(*step);
+                Ok(ManagedXValue::new(XValue::Int(v), rt)?.into())
+            }
+            Self::Map(seq, func) => {
+                let original = to_native!(seq, XSequence).get(idx, ns, rt.clone())?;
+                let f = to_primitive!(func, Function);
+                f.eval_values(vec![original], ns, rt)
+            }
+            Self::Zip(sequences) => {
+                let items = sequences.iter()
+                    .map(|seq| to_native!(seq, XSequence).get(idx, ns, rt.clone()))
+                    .collect::<Result<_, _>>()?;
+                Ok(ManagedXValue::new(XValue::StructInstance(items), rt)?)
+            }
+        }
+    }
+
+    pub fn slice(&self, start_idx: usize, end_idx: usize, ns: &XEvaluationScope, rt: RTCell) -> Result<Vec<Rc<ManagedXValue>>, String>{  // todo make this return an iterator
+        match self {
+            Self::Empty => Ok(vec![]),
+            Self::Array(arr) => Ok(arr[start_idx..end_idx].to_vec()),
+            Self::Range(start, _, step) => {
+                let step = BigInt::from(*step);
+                let mut current = BigInt::from(*start) + start_idx*&step;
+                let mut ret = vec![ManagedXValue::new(XValue::Int(current.clone()), rt.clone())?.into()];
+                for _ in start_idx+1..end_idx {
+                    current += &step;
+                    ret.push(ManagedXValue::new(XValue::Int(current.clone()), rt.clone())?.into());
+                }
+                Ok(ret)
+            }
+            Self::Map(seq, func) => {
+                let seq = to_native!(seq, XSequence);
+                let func = to_primitive!(func, Function);
+                let ret = (start_idx..end_idx).map(|idx| {
+                    let original = seq.get(idx,ns,rt.clone())?;
+                    func.eval_values(vec![original], ns, rt.clone())
+                }).collect::<Result<_,_>>()?;
+                Ok(ret)
+            }
+            Self::Zip(sequences) => {
+                let sequences = sequences.iter().map(|seq| to_native!(seq, XSequence)).collect::<Vec<_>>();
+                let ret = (start_idx..end_idx).map(|idx| {
+                    let items = sequences.iter()
+                        .map(|seq| seq.get(idx, ns, rt.clone()))
+                        .collect::<Result<_, _>>()?;
+                    ManagedXValue::new(XValue::StructInstance(items), rt.clone())
+                }).collect::<Result<_, _>>()?;
+                Ok(ret)
+            }
+        }
+    }
+
+    fn is_empty(&self)->bool{
+        if let Self::Empty = self{
+            true
+        } else {
+            false
+        }
     }
 }
 
 impl XNativeValue for XSequence {
     fn size(&self) -> usize {
-        self.value.len() * size_of::<usize>()
+        match self {
+            Self::Empty => size_of::<usize>(),
+            Self::Array(arr) | Self::Zip(arr) => arr.len() * size_of::<usize>(),
+            Self::Range(..) => 3 * size_of::<usize>(),
+            Self::Map(..) => 2 * size_of::<usize>(),
+        }
     }
 }
 
-fn value_to_idx(arr: &Vec<Rc<ManagedXValue>>, i: &BigInt) -> Result<usize, String> {
+fn value_to_idx(arr: &XSequence, i: &BigInt) -> Result<usize, String> {
     let mut i = Cow::Borrowed(i);
     if i.is_negative() {
         i = Cow::Owned(i.as_ref() + arr.len());
@@ -90,10 +189,10 @@ pub fn add_sequence_get(scope: &mut XCompilationScope, interner: &mut StringInte
             ret: t,
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0,1);
-            let arr = &to_native!(a0, XSequence).value;
+            let arr = &to_native!(a0, XSequence);
             let idx = to_primitive!(a1, Int);
             let idx = value_to_idx(&arr, idx)?;
-            Ok(arr[idx].clone().into())
+            Ok(arr.get(idx, ns, rt)?.into())
         }), interner)?;
     Ok(())
 }
@@ -113,7 +212,7 @@ pub fn add_sequence_len(scope: &mut XCompilationScope, interner: &mut StringInte
             ret: X_INT.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, ) = eval!(args, ns, rt, 0);
-            let arr = &to_native!(a0, XSequence).value;
+            let arr = &to_native!(a0, XSequence);
             Ok(ManagedXValue::new(XValue::Int(arr.len().into()), rt)?.into())
         }), interner)?;
     Ok(())
@@ -139,18 +238,18 @@ pub fn add_sequence_add(scope: &mut XCompilationScope, interner: &mut StringInte
             ret: t_arr.clone(),
         }, |args, ns, tca, rt| {
             let (a0, ) = eval!(args, ns, rt, 0);
-            let vec0 = &to_native!(a0, XSequence).value;
-            if vec0.is_empty() {
+            let seq0 = to_native!(a0, XSequence);
+            if seq0.is_empty() {
                 return Ok(args[1].eval(&ns, tca, rt)?);
             }
             let (a1, ) = eval!(args, ns, rt, 1);
-            let vec1 = &to_native!(a1, XSequence).value;
-            if vec1.is_empty() {
+            let seq1 = to_native!(a1, XSequence);
+            if seq1.is_empty() {
                 return Ok(a0.clone().into());
             }
-            let mut arr = vec0.clone();
-            arr.extend(vec1.iter().cloned());
-            Ok(manage_native!(XSequence::new(arr), rt))
+            let mut arr = seq0.slice(0, seq0.len(), ns, rt.clone())?;
+            arr.extend(seq1.slice(0, seq1.len(), ns, rt.clone())?);
+            Ok(manage_native!(XSequence::array(arr), rt))
         }), interner)?;
     Ok(())
 }
@@ -175,18 +274,17 @@ pub fn add_sequence_add_stack(scope: &mut XCompilationScope, interner: &mut Stri
             ],
             ret: t_arr.clone(),
         }, |args, ns, tca, rt| {
-            let (a0, ) = eval!(args, ns, rt, 0);
-            let vec0 = &to_native!(a0, XSequence).value;
-            let (a1, ) = eval!(args, ns, rt, 1);
+            let (a0, a1) = eval!(args, ns, rt, 0, 1);
+            let seq0 = to_native!(a0, XSequence);
             let stk1 = to_native!(a1, XStack);
             if stk1.length == 0 {
                 Ok(a0.clone().into())
             } else {
-                let mut arr = vec0.clone();
+                let mut arr = seq0.slice(0, seq0.len(), ns, rt.clone())?;
                 for v in stk1.iter() {
                     arr.push(v.clone());
                 }
-                Ok(manage_native!(XSequence::new(arr), rt))
+                Ok(manage_native!(XSequence::array(arr), rt))
             }
         }), interner)?;
     Ok(())
@@ -212,20 +310,19 @@ pub fn add_sequence_addrev_stack(scope: &mut XCompilationScope, interner: &mut S
             ],
             ret: t_arr.clone(),
         }, |args, ns, tca, rt| {
-            let (a0, ) = eval!(args, ns, rt, 0);
-            let vec0 = &to_native!(a0, XSequence).value;
-            let (a1, ) = eval!(args, ns, rt, 1);
+            let (a0, a1) = eval!(args, ns, rt, 0, 1);
+            let seq0 = to_native!(a0, XSequence);
             let stk1 = to_native!(a1, XStack);
             if stk1.length == 0 {
                 Ok(a0.clone().into())
             } else {
-                let mut arr = vec0.clone();
+                let mut arr = seq0.slice(0, seq0.len(), ns, rt.clone())?;
                 let original_len = arr.len();
                 for v in stk1.iter() {
                     arr.push(v.clone());
                 }
                 arr[original_len..].reverse();
-                Ok(manage_native!(XSequence::new(arr), rt))
+                Ok(manage_native!(XSequence::array(arr), rt))
             }
         }), interner)?;
     Ok(())
@@ -251,10 +348,10 @@ pub fn add_sequence_push(scope: &mut XCompilationScope, interner: &mut StringInt
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0, 1);
-            let vec0 = &to_native!(a0, XSequence).value;
-            let mut arr = vec0.clone();
+            let seq0 = to_native!(a0, XSequence);
+            let mut arr = seq0.slice(0, seq0.len(), ns, rt.clone())?;
             arr.push(a1.clone());
-            Ok(manage_native!(XSequence::new(arr), rt))
+            Ok(manage_native!(XSequence::array(arr), rt))
         }), interner)?;
     Ok(())
 }
@@ -279,10 +376,10 @@ pub fn add_sequence_rpush(scope: &mut XCompilationScope, interner: &mut StringIn
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0, 1);
-            let vec0 = &to_native!(a0, XSequence).value;
+            let seq0 = to_native!(a0, XSequence);
             let mut arr = vec![a1.clone()];
-            arr.extend(vec0.iter().cloned());
-            Ok(manage_native!(XSequence::new(arr), rt))
+            arr.extend(seq0.slice(0, seq0.len(), ns, rt.clone())?);
+            Ok(manage_native!(XSequence::array(arr), rt))
         }), interner)?;
     Ok(())
 }
@@ -311,14 +408,14 @@ pub fn add_sequence_insert(scope: &mut XCompilationScope, interner: &mut StringI
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1, a2) = eval!(args, ns, rt, 0,1,2);
-            let arr = &to_native!(a0, XSequence).value;
+            let seq = to_native!(a0, XSequence);
             let idx = to_primitive!(a1, Int);
-            let idx = value_to_idx(arr, idx)?;
+            let idx = value_to_idx(seq, idx)?;
             let mut ret: Vec<Rc<_>> = vec![];
-            ret.extend(arr.iter().take(idx - 1).map(|x| x.clone()));
+            ret.extend(seq.slice(0, idx, ns, rt.clone())?);
             ret.push(a2.clone());
-            ret.extend(arr.iter().skip(idx - 1).map(|x| x.clone()));
-            Ok(manage_native!(XSequence::new(ret), rt))
+            ret.extend(seq.slice(idx, seq.len(), ns, rt.clone())?);
+            Ok(manage_native!(XSequence::array(ret), rt))
         }), interner)?;
     Ok(())
 }
@@ -343,13 +440,16 @@ pub fn add_sequence_pop(scope: &mut XCompilationScope, interner: &mut StringInte
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0,1);
-            let arr = &to_native!(a0, XSequence).value;
+            let seq = to_native!(a0, XSequence);
             let idx = to_primitive!(a1, Int);
-            let idx = value_to_idx(&arr, idx)?;
+            let idx = value_to_idx(&seq, idx)?;
+            if seq.len() == 1{
+                return Ok(manage_native!(XSequence::Empty, rt));
+            }
             let mut ret: Vec<Rc<_>> = vec![];
-            ret.extend(arr.iter().take(idx).cloned());
-            ret.extend(arr.iter().skip(idx + 1).cloned());
-            Ok(manage_native!(XSequence::new(ret), rt))
+            ret.extend(seq.slice(0, idx, ns, rt.clone())?);
+            ret.extend(seq.slice(idx+1, seq.len(), ns, rt.clone())?);
+            Ok(manage_native!(XSequence::array(ret), rt))
         }), interner)?;
     Ok(())
 }
@@ -378,14 +478,14 @@ pub fn add_sequence_set(scope: &mut XCompilationScope, interner: &mut StringInte
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1, a2) = eval!(args, ns, rt, 0,1,2);
-            let arr = &to_native!(a0, XSequence).value;
+            let seq = to_native!(a0, XSequence);
             let idx = to_primitive!(a1, Int);
-            let idx = value_to_idx(arr, idx)?;
+            let idx = value_to_idx(seq, idx)?;
             let mut ret: Vec<Rc<_>> = vec![];
-            ret.extend(arr.iter().take(idx - 1).map(|x| x.clone()));
+            ret.extend(seq.slice(0, idx, ns, rt.clone())?);
             ret.push(a2.clone());
-            ret.extend(arr.iter().skip(idx).map(|x| x.clone()));
-            Ok(manage_native!(XSequence::new(ret), rt))
+            ret.extend(seq.slice(idx+1, seq.len(), ns, rt.clone())?);
+            Ok(manage_native!(XSequence::array(ret), rt))
         }), interner)?;
     Ok(())
 }
@@ -414,11 +514,11 @@ pub fn add_sequence_swap(scope: &mut XCompilationScope, interner: &mut StringInt
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1, a2) = eval!(args, ns, rt, 0,1,2);
-            let arr = &to_native!(a0, XSequence).value;
+            let seq = to_native!(a0, XSequence);
             let idx1 = to_primitive!(a1, Int);
             let idx2 = to_primitive!(a2, Int);
-            let mut idx1 = value_to_idx(arr, idx1)?;
-            let mut idx2 = value_to_idx(arr, idx2)?;
+            let mut idx1 = value_to_idx(seq, idx1)?;
+            let mut idx2 = value_to_idx(seq, idx2)?;
             if idx1 == idx2 {
                 return Ok(a0.clone().into());
             }
@@ -426,12 +526,12 @@ pub fn add_sequence_swap(scope: &mut XCompilationScope, interner: &mut StringInt
                 (idx1, idx2) = (idx2, idx1);
             }
             let mut ret = vec![];
-            ret.extend(arr.iter().take(idx1).cloned());
-            ret.push(arr[idx2].clone());
-            ret.extend(arr.iter().skip(idx1 + 1).take(idx1 - idx2 - 1).cloned());
-            ret.push(arr[idx1].clone());
-            ret.extend(arr.iter().skip(idx2 + 1).cloned());
-            Ok(manage_native!(XSequence::new(ret), rt))
+            ret.extend(seq.slice(0, idx1, ns, rt.clone())?);
+            ret.push(seq.get(idx2, ns, rt.clone())?);
+            ret.extend(seq.slice(idx1+1, idx2, ns, rt.clone())?);
+            ret.push(seq.get(idx1, ns, rt.clone())?);
+            ret.extend(seq.slice(idx2+1, seq.len(), ns, rt.clone())?);
+            Ok(manage_native!(XSequence::array(ret), rt))
         }), interner)?;
     Ok(())
 }
@@ -451,10 +551,10 @@ pub fn add_sequence_to_stack(scope: &mut XCompilationScope, interner: &mut Strin
             ret: XStackType::xtype(t.clone()),
         }, |args, ns, _tca, rt| {
             let (a0, ) = eval!(args, ns, rt, 0);
-            let arr = &to_native!(a0, XSequence).value;
+            let arr = to_native!(a0, XSequence);
             let mut ret = XStack::new();
-            for x in arr {
-                ret = ret.push(x.clone());
+            for x in arr.slice(0, arr.len(), ns, rt.clone())? {
+                ret = ret.push(x);
             }
             Ok(manage_native!(ret, rt))
         }), interner)?;
@@ -484,12 +584,7 @@ pub fn add_sequence_map(scope: &mut XCompilationScope, interner: &mut StringInte
             ret: XSequenceType::xtype(output_t.clone()),
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0,1);
-            let arr = &to_native!(a0, XSequence).value;
-            let f = to_primitive!(a1, Function);
-            let ret = arr.iter().map(|x| {
-                f.eval_values(vec![x.clone()], &ns, rt.clone())
-            }).collect::<Result<_, _>>()?;
-            Ok(manage_native!(XSequence::new(ret), rt))
+            Ok(manage_native!(XSequence::Map(a0, a1), rt))
         }), interner)?;
     Ok(())
 }
@@ -517,9 +612,10 @@ pub fn add_sequence_sort(scope: &mut XCompilationScope, interner: &mut StringInt
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0,1);
-            let arr = &to_native!(a0, XSequence).value;
+            let seq = to_native!(a0, XSequence);
+            let arr = seq.slice(0, seq.len(), ns, rt.clone())?;
             let f = to_primitive!(a1, Function);
-            // first we check if the array is already sorted
+            // first we check if the seq is already sorted
             let mut is_sorted = true;
             for w in arr.windows(2) {
                 if to_primitive!(
@@ -542,7 +638,7 @@ pub fn add_sequence_sort(scope: &mut XCompilationScope, interner: &mut StringInt
                         ).is_negative()
                     )
                 })?;
-                Ok(manage_native!(XSequence::new(ret), rt))
+                Ok(manage_native!(XSequence::array(ret), rt))
             }
         }), interner)?;
     Ok(())
@@ -567,16 +663,18 @@ pub fn add_sequence_eq(scope: &mut XCompilationScope, interner: &mut StringInter
             ret: X_BOOL.clone(),
         }, move |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0,1);
-            let arr0 = &to_native!(a0, XSequence).value;
-            let arr1 = &to_native!(a1, XSequence).value;
-            if arr0.len() != arr1.len() {
+            let seq0 = to_native!(a0, XSequence);
+            let seq1 = to_native!(a1, XSequence);
+            if seq0.len() != seq1.len() {
                 return Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into());
             }
+            let arr0 = seq0.slice(0, seq0.len(), ns, rt.clone())?;
+            let arr1 = seq1.slice(0, seq1.len(), ns, rt.clone())?;
             let mut ret = true;
-            for (x, y) in arr0.iter().zip(arr1.iter()) {
+            for (x, y) in arr0.into_iter().zip(arr1.into_iter()) {
                 let inner_equal_value = eq_expr.eval(ns, false, rt.clone())?.unwrap_value();
                 let inner_eq_func = to_primitive!(inner_equal_value, Function);
-                let eq = inner_eq_func.eval_values(vec![x.clone(), y.clone()], &ns, rt.clone())?;
+                let eq = inner_eq_func.eval_values(vec![x, y], &ns, rt.clone())?;
                 let is_eq = to_primitive!(eq, Bool);
                 if !*is_eq {
                     ret = false;
@@ -593,13 +691,13 @@ pub fn add_sequence_eq(scope: &mut XCompilationScope, interner: &mut StringInter
         }
         let a0 = types[0].clone();
         let t0 = match &a0.as_ref() {
-            XType::XNative(nt0, bind) if nt0.name() == "Array" => bind[0].clone(),
-            _ => return Err(format!("Expected array type, got {:?}", a0)),  // todo improve
+            XType::XNative(nt0, bind) if nt0.name() == "Sequence" => bind[0].clone(),
+            _ => return Err(format!("Expected sequence type, got {:?}", a0)),  // todo improve
         };
         let a1 = types[1].clone();
         let t1 = match &a1.as_ref() {
-            XType::XNative(nt1, bind) if nt1.name() == "Array" => bind[0].clone(),
-            _ => return Err(format!("Expected array type, got {:?}", a1)),  // todo improve
+            XType::XNative(nt1, bind) if nt1.name() == "Sequence" => bind[0].clone(),
+            _ => return Err(format!("Expected sequence type, got {:?}", a1)),  // todo improve
         };
 
         let inner_eq = scope.resolve_overload(eq_symbol, vec![t0.clone(), t1.clone()])?;  // todo ensure that the function returns a bool

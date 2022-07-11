@@ -35,6 +35,9 @@ add_rational_binop!(add_rational_div, div, |a: &BigRational,b: &BigRational| {
         Ok(XValue::Rational(a / b).into())
     }
 });
+add_binop!(add_rational_eq, eq, X_RATIONAL, Rational, X_BOOL, |a: &BigRational,b: &BigRational| {
+        Ok(XValue::Bool(a == b).into())
+});
 
 add_ufunc!(add_rational_floor, floor, X_RATIONAL, Rational, X_INT, |a:&BigRational| Ok(XValue::Int(a.floor().numer().clone()).into()));
 add_ufunc!(add_rational_ceil, ceil, X_RATIONAL, Rational, X_INT, |a:&BigRational| Ok(XValue::Int(a.ceil().numer().clone()).into()));

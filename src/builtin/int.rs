@@ -102,7 +102,7 @@ pub fn add_int_digits(scope: &mut XCompilationScope, interner: &mut StringIntern
                 digits.push(n.mod_floor(&b));
                 n = n.div_floor(&b);
             }
-            Ok(manage_native!(XSequence::new(digits.into_iter().map(|v| ManagedXValue::new(XValue::Int(v), rt.clone())).collect::<Result<_,_>>()?), rt.clone()))
+            Ok(manage_native!(XSequence::array(digits.into_iter().map(|v| ManagedXValue::new(XValue::Int(v), rt.clone())).collect::<Result<_,_>>()?), rt.clone()))
         }))?;
     Ok(())
 }
