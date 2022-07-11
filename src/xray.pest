@@ -35,10 +35,8 @@ expression3 = _{
     | CNAME
     | lambda_func
 }
- container = {container_type_opt ~ "[" ~ container_elements? ~ ","? ~ "]"}
-  container_type_opt = { container_type? }
+ container = { "[" ~ container_elements? ~ ","? ~ "]" }
   container_elements = {expression ~ (","~expression)*}
-  container_type = {"array" | "set"}
  tuple = {
    "(" ~ container_elements? ~ ","? ~ ")"
  }

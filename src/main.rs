@@ -499,16 +499,11 @@ impl<'p> XCompilationScope<'p> {
             }
             Rule::container => {
                 let mut iter = input.into_inner();
-                let container_type = iter.next().unwrap().into_inner().next().map_or("array", |c| c.as_str());
                 let parts = iter.next().map_or_else(
                     || Ok(vec![]),
                     |c| c.into_inner().map(|p| self.to_expr(p, interner, runtime.clone())).collect(),
                 )?;
-                Ok(match container_type {
-                    "array" => XStaticExpr::Array(parts),
-                    "set" => XStaticExpr::Set(parts),
-                    _ => unreachable!()
-                })
+                Ok(XStaticExpr::Array(parts))
             }
             Rule::tuple => {
                 let mut iter = input.into_inner();
