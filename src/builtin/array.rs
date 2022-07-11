@@ -13,6 +13,7 @@ use std::sync::Arc;
 use string_interner::StringInterner;
 use crate::builtin::stack::{XStack, XStackType};
 use crate::native_types::{NativeType, RuntimeEquatable, XNativeValue};
+use crate::util::trysort::try_sort;
 use crate::XType::XCallable;
 
 use crate::xexpr::XExpr;
@@ -150,6 +151,82 @@ pub fn add_array_add(scope: &mut XCompilationScope, interner: &mut StringInterne
             let mut arr = vec0.clone();
             arr.extend(vec1.iter().cloned());
             Ok(manage_native!(XArray::new(arr), rt))
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_array_add_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    let t_arr = XArrayType::xtype(t.clone());
+    let t_stack = XStackType::xtype(t.clone());
+
+    scope.add_func_intern(
+        "add", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_arr.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: t_stack.clone(),
+                    required: true,
+                },
+            ],
+            ret: t_arr.clone(),
+        }, |args, ns, tca, rt| {
+            let (a0, ) = eval!(args, ns, rt, 0);
+            let vec0 = &to_native!(a0, XArray).value;
+            let (a1, ) = eval!(args, ns, rt, 1);
+            let stk1 = to_native!(a1, XStack);
+            if stk1.length == 0 {
+                Ok(a0.clone().into())
+            } else {
+                let mut arr = vec0.clone();
+                for v in stk1.iter() {
+                    arr.push(v.clone());
+                }
+                Ok(manage_native!(XArray::new(arr), rt))
+            }
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_array_addrev_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    let t_arr = XArrayType::xtype(t.clone());
+    let t_stack = XStackType::xtype(t.clone());
+
+    scope.add_func_intern(
+        "add_rev", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_arr.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: t_stack.clone(),
+                    required: true,
+                },
+            ],
+            ret: t_arr.clone(),
+        }, |args, ns, tca, rt| {
+            let (a0, ) = eval!(args, ns, rt, 0);
+            let vec0 = &to_native!(a0, XArray).value;
+            let (a1, ) = eval!(args, ns, rt, 1);
+            let stk1 = to_native!(a1, XStack);
+            if stk1.length == 0 {
+                Ok(a0.clone().into())
+            } else {
+                let mut arr = vec0.clone();
+                let original_len = arr.len();
+                for v in stk1.iter() {
+                    arr.push(v.clone());
+                }
+                arr[original_len..].reverse();
+                Ok(manage_native!(XArray::new(arr), rt))
+            }
         }), interner)?;
     Ok(())
 }
@@ -417,10 +494,64 @@ pub fn add_array_map(scope: &mut XCompilationScope, interner: &mut StringInterne
     Ok(())
 }
 
+pub fn add_array_sort(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    let t_arr = XArrayType::xtype(t.clone());
+
+    scope.add_func_intern(
+        "sort", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_arr.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t.clone(), t.clone()],
+                        return_type: X_INT.clone(),
+                    })),
+                    required: true,
+                },
+            ],
+            ret: t_arr.clone(),
+        }, |args, ns, _tca, rt| {
+            let (a0, a1) = eval!(args, ns, rt, 0,1);
+            let arr = &to_native!(a0, XArray).value;
+            let f = to_primitive!(a1, Function);
+            // first we check if the array is already sorted
+            let mut is_sorted = true;
+            for w in arr.windows(2) {
+                if to_primitive!(
+                    f.eval_values(vec![w[0].clone(), w[1].clone()], &ns, rt.clone())?,
+                    Int
+                ).is_positive() {
+                    is_sorted = false;
+                    break;
+                }
+            }
+            if is_sorted {
+                Ok(a0.clone().into())
+            } else {
+                let mut ret = arr.clone();
+                try_sort(&mut ret, |a, b| {
+                    Ok(
+                        to_primitive!(
+                            f.eval_values(vec![a.clone(), b.clone()], &ns, rt.clone())?,
+                            Int
+                        ).is_negative()
+                    )
+                })?;
+                Ok(manage_native!(XArray::new(ret), rt))
+            }
+        }), interner)?;
+    Ok(())
+}
+
 pub fn add_array_eq(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let eq_symbol = interner.get_or_intern_static("eq");
 
-    fn static_from_eq(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr)->Rc<XStaticFunction>{
+    fn static_from_eq(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr) -> Rc<XStaticFunction> {
         Rc::new(XStaticFunction::from_native(XFuncSpec {
             generic_params: None,
             params: vec![

@@ -1,4 +1,5 @@
 #![feature(trait_upcasting)]
+
 #[macro_use]
 extern crate lazy_static;
 extern crate derivative;
@@ -14,6 +15,7 @@ mod native_types;
 mod runtime;
 mod compile_err;
 mod parser;
+mod util;
 
 extern crate pest;
 #[macro_use]
@@ -51,7 +53,7 @@ use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompound
 fn main() {
     let input = r###"
 
-    let z = #"me"ep"# == 'me"ep';
+    let z = [1,2,3].add_rev(stack().push(4).push(5)).sort(sub::<int ,int>);
 
     "###;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -76,6 +78,7 @@ fn main() {
 
     add_rational_type(&mut root_scope, &mut interner).unwrap();
     add_rational_add(&mut root_scope, &mut interner).unwrap();
+    add_rational_sub(&mut root_scope, &mut interner).unwrap();
     add_rational_mul(&mut root_scope, &mut interner).unwrap();
     add_rational_floor(&mut root_scope, &mut interner).unwrap();
     add_rational_to_str(&mut root_scope, &mut interner).unwrap();
@@ -90,7 +93,6 @@ fn main() {
     add_bool_not(&mut root_scope, &mut interner).unwrap();
     add_bool_then(&mut root_scope, &mut interner).unwrap();
 
-
     add_if(&mut root_scope, &mut interner).unwrap();
     add_error(&mut root_scope, &mut interner).unwrap();
     add_cast(&mut root_scope, &mut interner).unwrap();
@@ -100,11 +102,14 @@ fn main() {
     add_array_get(&mut root_scope, &mut interner).unwrap();
     add_array_len(&mut root_scope, &mut interner).unwrap();
     add_array_add(&mut root_scope, &mut interner).unwrap();
+    add_array_add_stack(&mut root_scope, &mut interner).unwrap();
+    add_array_addrev_stack(&mut root_scope, &mut interner).unwrap();
     add_array_pop(&mut root_scope, &mut interner).unwrap();
     add_array_to_stack(&mut root_scope, &mut interner).unwrap();
     add_array_map(&mut root_scope, &mut interner).unwrap();
     add_array_push(&mut root_scope, &mut interner).unwrap();
     add_array_eq(&mut root_scope, &mut interner).unwrap();
+    add_array_sort(&mut root_scope, &mut interner).unwrap();
 
     add_stack_type(&mut root_scope, &mut interner).unwrap();
     add_stack_new(&mut root_scope, &mut interner).unwrap();

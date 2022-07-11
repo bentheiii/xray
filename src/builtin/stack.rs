@@ -6,11 +6,13 @@ use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
+use std::iter::from_fn;
 use std::mem::size_of;
 use std::sync::Arc;
 use crate::native_types::{NativeType, XNativeValue};
 use derivative::Derivative;
 use string_interner::StringInterner;
+use crate::CompilationError::PairNotType;
 
 #[derive(Debug, Clone)]
 pub struct XStackType {}
@@ -85,14 +87,18 @@ impl XStack {
         vec
     }
 
-    fn to_set(&self) -> HashSet<Rc<ManagedXValue>> {
-        let mut ret = HashSet::with_capacity(self.length);
+    pub fn iter(&self) -> impl Iterator<Item=Rc<ManagedXValue>> + '_ {
         let mut node = &self.head;
-        while let Some(ref n) = node {
-            ret.insert(n.value.clone());
-            node = &n.next;
-        }
-        ret
+        return from_fn(move || {
+            match &node {
+                None => None,
+                Some(n) => {
+                    let ret = n.value.clone();
+                    node = &n.next;
+                    Some(ret)
+                }
+            }
+        })
     }
 }
 
