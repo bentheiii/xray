@@ -34,7 +34,7 @@ use num::BigRational;
 use string_interner::StringInterner;
 
 use crate::builtin::int::{*};
-use crate::builtin::array::{*};
+use crate::builtin::sequence::{*};
 use crate::builtin::str::{*};
 use crate::builtin::bool::{*};
 use crate::builtin::rational::{*};
@@ -98,18 +98,18 @@ fn main() {
     add_cast(&mut root_scope, &mut interner).unwrap();
     add_debug(&mut root_scope, &mut interner).unwrap();
 
-    add_array_type(&mut root_scope, &mut interner).unwrap();
-    add_array_get(&mut root_scope, &mut interner).unwrap();
-    add_array_len(&mut root_scope, &mut interner).unwrap();
-    add_array_add(&mut root_scope, &mut interner).unwrap();
-    add_array_add_stack(&mut root_scope, &mut interner).unwrap();
-    add_array_addrev_stack(&mut root_scope, &mut interner).unwrap();
-    add_array_pop(&mut root_scope, &mut interner).unwrap();
-    add_array_to_stack(&mut root_scope, &mut interner).unwrap();
-    add_array_map(&mut root_scope, &mut interner).unwrap();
-    add_array_push(&mut root_scope, &mut interner).unwrap();
-    add_array_eq(&mut root_scope, &mut interner).unwrap();
-    add_array_sort(&mut root_scope, &mut interner).unwrap();
+    add_sequence_type(&mut root_scope, &mut interner).unwrap();
+    add_sequence_get(&mut root_scope, &mut interner).unwrap();
+    add_sequence_len(&mut root_scope, &mut interner).unwrap();
+    add_sequence_add(&mut root_scope, &mut interner).unwrap();
+    add_sequence_add_stack(&mut root_scope, &mut interner).unwrap();
+    add_sequence_addrev_stack(&mut root_scope, &mut interner).unwrap();
+    add_sequence_pop(&mut root_scope, &mut interner).unwrap();
+    add_sequence_to_stack(&mut root_scope, &mut interner).unwrap();
+    add_sequence_map(&mut root_scope, &mut interner).unwrap();
+    add_sequence_push(&mut root_scope, &mut interner).unwrap();
+    add_sequence_eq(&mut root_scope, &mut interner).unwrap();
+    add_sequence_sort(&mut root_scope, &mut interner).unwrap();
 
     add_stack_type(&mut root_scope, &mut interner).unwrap();
     add_stack_new(&mut root_scope, &mut interner).unwrap();

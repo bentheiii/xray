@@ -6,7 +6,7 @@ use std::mem::take;
 use std::rc::Rc;
 use std::sync::Arc;
 use num::{BigInt, BigRational};
-use crate::builtin::array::{XArray, XArrayType};
+use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::{CompilationError, manage_native, TracedCompilationError, XFuncSpec, XOptional, XOptionalType};
 use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScopeItem, XEvaluationScope, XFunctionFactory};
 use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XCompoundSpec, XType, CompoundKind};
@@ -535,7 +535,7 @@ impl XExpr {
             XExpr::LiteralString(_) => Ok(X_STRING.clone()),
             XExpr::Array(exprs) => {
                 let element_type = common_type(exprs.iter().map(|x| x.xtype()))?;
-                Ok(XType::XNative(Box::new(XArrayType {}), vec![element_type]).into())
+                Ok(XType::XNative(Box::new(XSequenceType {}), vec![element_type]).into())
             }
             XExpr::Set(exprs) => {
                 todo!()
@@ -590,7 +590,7 @@ impl XExpr {
             XExpr::LiteralRational(r) => Ok(ManagedXValue::new(XValue::Rational(r.clone()), runtime)?.into()),
             XExpr::LiteralString(s) => Ok(ManagedXValue::new(XValue::String(s.clone()), runtime)?.into()),
             XExpr::Array(exprs) => {
-                Ok(ManagedXValue::new(XValue::Native(Box::new(XArray::new(
+                Ok(ManagedXValue::new(XValue::Native(Box::new(XSequence::new(
                     exprs.iter().map(|x| x.eval(namespace, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?)))
                                       , runtime)?.into())
             }

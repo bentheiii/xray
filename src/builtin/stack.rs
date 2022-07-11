@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, intern, manage_native, to_native, XArray, XArrayType, XCompilationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, intern, manage_native, to_native, XSequence, XSequenceType, XCompilationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
@@ -175,11 +175,11 @@ pub fn add_stack_to_array(scope: &mut XCompilationScope, interner: &mut StringIn
                     required: true,
                 },
             ],
-            ret: XArrayType::xtype(t.clone()),
+            ret: XSequenceType::xtype(t.clone()),
         }, |args, ns, _tca, rt| {
             let (a0, ) = eval!(args, ns, rt, 0);
             let stk0 = to_native!(a0, XStack);
-            Ok(manage_native!(XArray::new(stk0.to_vec::<false>()), rt))
+            Ok(manage_native!(XSequence::new(stk0.to_vec::<false>()), rt))
         }), interner)?;
     Ok(())
 }
@@ -197,11 +197,11 @@ pub fn add_stack_to_array_reversed(scope: &mut XCompilationScope, interner: &mut
                     required: true,
                 },
             ],
-            ret: XArrayType::xtype(t.clone()),
+            ret: XSequenceType::xtype(t.clone()),
         }, |args, ns, _tca, rt| {
             let (a0, ) = eval!(args, ns, rt, 0);
             let stk0 = to_native!(a0, XStack);
-            Ok(manage_native!(XArray::new(stk0.to_vec::<true>()), rt))
+            Ok(manage_native!(XSequence::new(stk0.to_vec::<true>()), rt))
         }), interner)?;
     Ok(())
 }

@@ -20,33 +20,33 @@ use crate::xexpr::XExpr;
 
 
 #[derive(Debug, Clone)]
-pub struct XArrayType;
+pub struct XSequenceType;
 
-impl XArrayType {
+impl XSequenceType {
     pub fn xtype(t: Arc<XType>) -> Arc<XType> {
         Arc::new(XType::XNative(Box::new(Self {}), vec![t.clone()]))
     }
 }
 
-impl NativeType for XArrayType {
+impl NativeType for XSequenceType {
     fn generic_names(&self) -> Vec<String> {
         vec!["T".to_string()]
     }
-    fn name(&self) -> &str { "Array" }
+    fn name(&self) -> &str { "Sequence" }
 }
 
 #[derive(Debug)]
-pub struct XArray {
+pub struct XSequence {
     pub value: Vec<Rc<ManagedXValue>>,
 }
 
-impl XArray {
+impl XSequence {
     pub fn new(value: Vec<Rc<ManagedXValue>>) -> Self {
         Self { value }
     }
 }
 
-impl XNativeValue for XArray {
+impl XNativeValue for XSequence {
     fn size(&self) -> usize {
         self.value.len() * size_of::<usize>()
     }
@@ -67,11 +67,11 @@ fn value_to_idx(arr: &Vec<Rc<ManagedXValue>>, i: &BigInt) -> Result<usize, Strin
     Ok(idx)
 }
 
-pub fn add_array_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
-    scope.add_native_type_intern("Array", XArrayType::xtype(XType::generic_from_name("T", interner)), interner)
+pub fn add_sequence_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    scope.add_native_type_intern("Sequence", XSequenceType::xtype(XType::generic_from_name("T", interner)), interner)
 }
 
-pub fn add_array_get(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_get(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
 
     scope.add_func_intern(
@@ -79,7 +79,7 @@ pub fn add_array_get(scope: &mut XCompilationScope, interner: &mut StringInterne
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
-                    type_: XArrayType::xtype(t.clone()),
+                    type_: XSequenceType::xtype(t.clone()),
                     required: true,
                 },
                 XFuncParamSpec {
@@ -90,7 +90,7 @@ pub fn add_array_get(scope: &mut XCompilationScope, interner: &mut StringInterne
             ret: t,
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0,1);
-            let arr = &to_native!(a0, XArray).value;
+            let arr = &to_native!(a0, XSequence).value;
             let idx = to_primitive!(a1, Int);
             let idx = value_to_idx(&arr, idx)?;
             Ok(arr[idx].clone().into())
@@ -98,7 +98,7 @@ pub fn add_array_get(scope: &mut XCompilationScope, interner: &mut StringInterne
     Ok(())
 }
 
-pub fn add_array_len(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_len(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
 
     scope.add_func_intern(
@@ -106,22 +106,22 @@ pub fn add_array_len(scope: &mut XCompilationScope, interner: &mut StringInterne
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
-                    type_: XArrayType::xtype(t.clone()),
+                    type_: XSequenceType::xtype(t.clone()),
                     required: true,
                 },
             ],
             ret: X_INT.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, ) = eval!(args, ns, rt, 0);
-            let arr = &to_native!(a0, XArray).value;
+            let arr = &to_native!(a0, XSequence).value;
             Ok(ManagedXValue::new(XValue::Int(arr.len().into()), rt)?.into())
         }), interner)?;
     Ok(())
 }
 
-pub fn add_array_add(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_add(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XArrayType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t.clone());
 
     scope.add_func_intern(
         "add", XStaticFunction::from_native(XFuncSpec {
@@ -139,25 +139,25 @@ pub fn add_array_add(scope: &mut XCompilationScope, interner: &mut StringInterne
             ret: t_arr.clone(),
         }, |args, ns, tca, rt| {
             let (a0, ) = eval!(args, ns, rt, 0);
-            let vec0 = &to_native!(a0, XArray).value;
+            let vec0 = &to_native!(a0, XSequence).value;
             if vec0.is_empty() {
                 return Ok(args[1].eval(&ns, tca, rt)?);
             }
             let (a1, ) = eval!(args, ns, rt, 1);
-            let vec1 = &to_native!(a1, XArray).value;
+            let vec1 = &to_native!(a1, XSequence).value;
             if vec1.is_empty() {
                 return Ok(a0.clone().into());
             }
             let mut arr = vec0.clone();
             arr.extend(vec1.iter().cloned());
-            Ok(manage_native!(XArray::new(arr), rt))
+            Ok(manage_native!(XSequence::new(arr), rt))
         }), interner)?;
     Ok(())
 }
 
-pub fn add_array_add_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_add_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XArrayType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t.clone());
     let t_stack = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
@@ -176,7 +176,7 @@ pub fn add_array_add_stack(scope: &mut XCompilationScope, interner: &mut StringI
             ret: t_arr.clone(),
         }, |args, ns, tca, rt| {
             let (a0, ) = eval!(args, ns, rt, 0);
-            let vec0 = &to_native!(a0, XArray).value;
+            let vec0 = &to_native!(a0, XSequence).value;
             let (a1, ) = eval!(args, ns, rt, 1);
             let stk1 = to_native!(a1, XStack);
             if stk1.length == 0 {
@@ -186,15 +186,15 @@ pub fn add_array_add_stack(scope: &mut XCompilationScope, interner: &mut StringI
                 for v in stk1.iter() {
                     arr.push(v.clone());
                 }
-                Ok(manage_native!(XArray::new(arr), rt))
+                Ok(manage_native!(XSequence::new(arr), rt))
             }
         }), interner)?;
     Ok(())
 }
 
-pub fn add_array_addrev_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_addrev_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XArrayType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t.clone());
     let t_stack = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
@@ -213,7 +213,7 @@ pub fn add_array_addrev_stack(scope: &mut XCompilationScope, interner: &mut Stri
             ret: t_arr.clone(),
         }, |args, ns, tca, rt| {
             let (a0, ) = eval!(args, ns, rt, 0);
-            let vec0 = &to_native!(a0, XArray).value;
+            let vec0 = &to_native!(a0, XSequence).value;
             let (a1, ) = eval!(args, ns, rt, 1);
             let stk1 = to_native!(a1, XStack);
             if stk1.length == 0 {
@@ -225,15 +225,15 @@ pub fn add_array_addrev_stack(scope: &mut XCompilationScope, interner: &mut Stri
                     arr.push(v.clone());
                 }
                 arr[original_len..].reverse();
-                Ok(manage_native!(XArray::new(arr), rt))
+                Ok(manage_native!(XSequence::new(arr), rt))
             }
         }), interner)?;
     Ok(())
 }
 
-pub fn add_array_push(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_push(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XArrayType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t.clone());
 
     scope.add_func_intern(
         "push", XStaticFunction::from_native(XFuncSpec {
@@ -251,17 +251,17 @@ pub fn add_array_push(scope: &mut XCompilationScope, interner: &mut StringIntern
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0, 1);
-            let vec0 = &to_native!(a0, XArray).value;
+            let vec0 = &to_native!(a0, XSequence).value;
             let mut arr = vec0.clone();
             arr.push(a1.clone());
-            Ok(manage_native!(XArray::new(arr), rt))
+            Ok(manage_native!(XSequence::new(arr), rt))
         }), interner)?;
     Ok(())
 }
 
-pub fn add_array_rpush(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_rpush(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XArrayType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t.clone());
 
     scope.add_func_intern(
         "rpush", XStaticFunction::from_native(XFuncSpec {
@@ -279,17 +279,17 @@ pub fn add_array_rpush(scope: &mut XCompilationScope, interner: &mut StringInter
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0, 1);
-            let vec0 = &to_native!(a0, XArray).value;
+            let vec0 = &to_native!(a0, XSequence).value;
             let mut arr = vec![a1.clone()];
             arr.extend(vec0.iter().cloned());
-            Ok(manage_native!(XArray::new(arr), rt))
+            Ok(manage_native!(XSequence::new(arr), rt))
         }), interner)?;
     Ok(())
 }
 
-pub fn add_array_insert(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_insert(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XArrayType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t.clone());
 
     scope.add_func_intern(
         "insert", XStaticFunction::from_native(XFuncSpec {
@@ -311,21 +311,21 @@ pub fn add_array_insert(scope: &mut XCompilationScope, interner: &mut StringInte
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1, a2) = eval!(args, ns, rt, 0,1,2);
-            let arr = &to_native!(a0, XArray).value;
+            let arr = &to_native!(a0, XSequence).value;
             let idx = to_primitive!(a1, Int);
             let idx = value_to_idx(arr, idx)?;
             let mut ret: Vec<Rc<_>> = vec![];
             ret.extend(arr.iter().take(idx - 1).map(|x| x.clone()));
             ret.push(a2.clone());
             ret.extend(arr.iter().skip(idx - 1).map(|x| x.clone()));
-            Ok(manage_native!(XArray::new(ret), rt))
+            Ok(manage_native!(XSequence::new(ret), rt))
         }), interner)?;
     Ok(())
 }
 
-pub fn add_array_pop(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_pop(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XArrayType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t.clone());
 
     scope.add_func_intern(
         "pop", XStaticFunction::from_native(XFuncSpec {
@@ -343,20 +343,20 @@ pub fn add_array_pop(scope: &mut XCompilationScope, interner: &mut StringInterne
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0,1);
-            let arr = &to_native!(a0, XArray).value;
+            let arr = &to_native!(a0, XSequence).value;
             let idx = to_primitive!(a1, Int);
             let idx = value_to_idx(&arr, idx)?;
             let mut ret: Vec<Rc<_>> = vec![];
             ret.extend(arr.iter().take(idx).cloned());
             ret.extend(arr.iter().skip(idx + 1).cloned());
-            Ok(manage_native!(XArray::new(ret), rt))
+            Ok(manage_native!(XSequence::new(ret), rt))
         }), interner)?;
     Ok(())
 }
 
-pub fn add_array_set(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_set(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XArrayType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t.clone());
 
     scope.add_func_intern(
         "set", XStaticFunction::from_native(XFuncSpec {
@@ -378,21 +378,21 @@ pub fn add_array_set(scope: &mut XCompilationScope, interner: &mut StringInterne
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1, a2) = eval!(args, ns, rt, 0,1,2);
-            let arr = &to_native!(a0, XArray).value;
+            let arr = &to_native!(a0, XSequence).value;
             let idx = to_primitive!(a1, Int);
             let idx = value_to_idx(arr, idx)?;
             let mut ret: Vec<Rc<_>> = vec![];
             ret.extend(arr.iter().take(idx - 1).map(|x| x.clone()));
             ret.push(a2.clone());
             ret.extend(arr.iter().skip(idx).map(|x| x.clone()));
-            Ok(manage_native!(XArray::new(ret), rt))
+            Ok(manage_native!(XSequence::new(ret), rt))
         }), interner)?;
     Ok(())
 }
 
-pub fn add_array_swap(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_swap(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XArrayType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t.clone());
 
     scope.add_func_intern(
         "swap", XStaticFunction::from_native(XFuncSpec {
@@ -414,7 +414,7 @@ pub fn add_array_swap(scope: &mut XCompilationScope, interner: &mut StringIntern
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1, a2) = eval!(args, ns, rt, 0,1,2);
-            let arr = &to_native!(a0, XArray).value;
+            let arr = &to_native!(a0, XSequence).value;
             let idx1 = to_primitive!(a1, Int);
             let idx2 = to_primitive!(a2, Int);
             let mut idx1 = value_to_idx(arr, idx1)?;
@@ -431,12 +431,12 @@ pub fn add_array_swap(scope: &mut XCompilationScope, interner: &mut StringIntern
             ret.extend(arr.iter().skip(idx1 + 1).take(idx1 - idx2 - 1).cloned());
             ret.push(arr[idx1].clone());
             ret.extend(arr.iter().skip(idx2 + 1).cloned());
-            Ok(manage_native!(XArray::new(ret), rt))
+            Ok(manage_native!(XSequence::new(ret), rt))
         }), interner)?;
     Ok(())
 }
 
-pub fn add_array_to_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_to_stack(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
 
     scope.add_func_intern(
@@ -444,14 +444,14 @@ pub fn add_array_to_stack(scope: &mut XCompilationScope, interner: &mut StringIn
             generic_params: Some(intern!(interner, "T")),
             params: vec![
                 XFuncParamSpec {
-                    type_: XArrayType::xtype(t.clone()),
+                    type_: XSequenceType::xtype(t.clone()),
                     required: true,
                 },
             ],
             ret: XStackType::xtype(t.clone()),
         }, |args, ns, _tca, rt| {
             let (a0, ) = eval!(args, ns, rt, 0);
-            let arr = &to_native!(a0, XArray).value;
+            let arr = &to_native!(a0, XSequence).value;
             let mut ret = XStack::new();
             for x in arr {
                 ret = ret.push(x.clone());
@@ -461,7 +461,7 @@ pub fn add_array_to_stack(scope: &mut XCompilationScope, interner: &mut StringIn
     Ok(())
 }
 
-pub fn add_array_map(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_map(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let input_t = XType::generic_from_name("T_IN", interner);
     let output_t = XType::generic_from_name("T_OUT", interner);
 
@@ -470,7 +470,7 @@ pub fn add_array_map(scope: &mut XCompilationScope, interner: &mut StringInterne
             generic_params: Some(intern!(interner, "T_IN", "T_OUT")),
             params: vec![
                 XFuncParamSpec {
-                    type_: XArrayType::xtype(input_t.clone()),
+                    type_: XSequenceType::xtype(input_t.clone()),
                     required: true,
                 },
                 XFuncParamSpec {
@@ -481,22 +481,22 @@ pub fn add_array_map(scope: &mut XCompilationScope, interner: &mut StringInterne
                     required: true,
                 },
             ],
-            ret: XArrayType::xtype(output_t.clone()),
+            ret: XSequenceType::xtype(output_t.clone()),
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0,1);
-            let arr = &to_native!(a0, XArray).value;
+            let arr = &to_native!(a0, XSequence).value;
             let f = to_primitive!(a1, Function);
             let ret = arr.iter().map(|x| {
                 f.eval_values(vec![x.clone()], &ns, rt.clone())
             }).collect::<Result<_, _>>()?;
-            Ok(manage_native!(XArray::new(ret), rt))
+            Ok(manage_native!(XSequence::new(ret), rt))
         }), interner)?;
     Ok(())
 }
 
-pub fn add_array_sort(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_sort(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XArrayType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t.clone());
 
     scope.add_func_intern(
         "sort", XStaticFunction::from_native(XFuncSpec {
@@ -517,7 +517,7 @@ pub fn add_array_sort(scope: &mut XCompilationScope, interner: &mut StringIntern
             ret: t_arr.clone(),
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0,1);
-            let arr = &to_native!(a0, XArray).value;
+            let arr = &to_native!(a0, XSequence).value;
             let f = to_primitive!(a1, Function);
             // first we check if the array is already sorted
             let mut is_sorted = true;
@@ -542,13 +542,13 @@ pub fn add_array_sort(scope: &mut XCompilationScope, interner: &mut StringIntern
                         ).is_negative()
                     )
                 })?;
-                Ok(manage_native!(XArray::new(ret), rt))
+                Ok(manage_native!(XSequence::new(ret), rt))
             }
         }), interner)?;
     Ok(())
 }
 
-pub fn add_array_eq(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_sequence_eq(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let eq_symbol = interner.get_or_intern_static("eq");
 
     fn static_from_eq(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr) -> Rc<XStaticFunction> {
@@ -556,19 +556,19 @@ pub fn add_array_eq(scope: &mut XCompilationScope, interner: &mut StringInterner
             generic_params: None,
             params: vec![
                 XFuncParamSpec {
-                    type_: XArrayType::xtype(t0.clone()),
+                    type_: XSequenceType::xtype(t0.clone()),
                     required: true,
                 },
                 XFuncParamSpec {
-                    type_: XArrayType::xtype(t1.clone()),
+                    type_: XSequenceType::xtype(t1.clone()),
                     required: true,
                 },
             ],
             ret: X_BOOL.clone(),
         }, move |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0,1);
-            let arr0 = &to_native!(a0, XArray).value;
-            let arr1 = &to_native!(a1, XArray).value;
+            let arr0 = &to_native!(a0, XSequence).value;
+            let arr1 = &to_native!(a1, XSequence).value;
             if arr0.len() != arr1.len() {
                 return Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into());
             }

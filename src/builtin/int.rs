@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Integer, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, eval, Bind, XArray, XArrayType, XCompilationScope, XStaticFunction, XType, meval, manage_native, RTCell, CompilationError};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, eval, Bind, XSequence, XSequenceType, XCompilationScope, XStaticFunction, XType, meval, manage_native, RTCell, CompilationError};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
@@ -90,7 +90,7 @@ pub fn add_int_digits(scope: &mut XCompilationScope, interner: &mut StringIntern
                     required: false,
                 },
             ],
-            ret: XArrayType::xtype(X_INT.clone()),
+            ret: XSequenceType::xtype(X_INT.clone()),
         }, |args, ns, _tca, rt| {
             let (a0,) = eval!(args, ns, rt, 0);
             let n = to_primitive!(a0, Int);
@@ -102,7 +102,7 @@ pub fn add_int_digits(scope: &mut XCompilationScope, interner: &mut StringIntern
                 digits.push(n.mod_floor(&b));
                 n = n.div_floor(&b);
             }
-            Ok(manage_native!(XArray::new(digits.into_iter().map(|v| ManagedXValue::new(XValue::Int(v), rt.clone())).collect::<Result<_,_>>()?), rt.clone()))
+            Ok(manage_native!(XSequence::new(digits.into_iter().map(|v| ManagedXValue::new(XValue::Int(v), rt.clone())).collect::<Result<_,_>>()?), rt.clone()))
         }))?;
     Ok(())
 }
