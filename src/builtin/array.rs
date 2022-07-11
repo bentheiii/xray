@@ -35,7 +35,7 @@ impl NativeType for XArrayType {
     fn name(&self) -> &str { "Array" }
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug)]
 pub struct XArray {
     pub value: Vec<Rc<ManagedXValue>>,
 }

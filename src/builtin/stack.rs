@@ -32,11 +32,9 @@ impl NativeType for XStackType {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Derivative)]
-#[derivative(Hash)]
+#[derive(Debug)]
 pub struct StackNode {
     value: Rc<ManagedXValue>,
-    #[derivative(Hash = "ignore")]
     next: Option<Rc<StackNode>>,
 }
 
@@ -49,7 +47,7 @@ impl StackNode {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Hash)]
+#[derive(Debug)]
 pub struct XStack {
     pub head: Option<Rc<StackNode>>,
     pub length: usize,

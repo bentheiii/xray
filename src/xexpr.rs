@@ -16,8 +16,7 @@ use itertools::Itertools;
 use string_interner::{DefaultSymbol, StringInterner};
 use crate::runtime::{RTCell, Runtime};
 
-#[derive(Debug, Clone, Derivative)]
-#[derivative(Hash)]
+#[derive(Debug, Clone)]
 pub enum XStaticExpr {
     LiteralBool(bool),
     LiteralInt(i64),
@@ -30,7 +29,6 @@ pub enum XStaticExpr {
     Member(Box<XStaticExpr>, String),
     Ident(DefaultSymbol),
     SpecializedIdent(DefaultSymbol,
-                     #[derivative(Hash = "ignore")]
                      Vec<Arc<XType>>),
     Lambda(Vec<XExplicitArgSpec>, Box<XStaticExpr>),
 }
@@ -341,7 +339,7 @@ impl XStaticExpr {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum XExpr {
     LiteralBool(bool),
     LiteralInt(i64),
@@ -441,20 +439,16 @@ impl PartialEq for XStaticFunction {
 
 impl Eq for XStaticFunction {}
 
-#[derive(Debug, Clone, Eq, PartialEq, Derivative)]
-#[derivative(Hash)]
+#[derive(Debug, Clone)]
 pub struct XExplicitFuncSpec {
     pub generic_params: Option<Vec<DefaultSymbol>>,
     pub args: Vec<XExplicitArgSpec>,
-    #[derivative(Hash = "ignore")]
     pub ret: Arc<XType>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Derivative)]
-#[derivative(Hash)]
+#[derive(Debug, Clone)]
 pub struct XExplicitArgSpec {
     pub name: DefaultSymbol,
-    #[derivative(Hash = "ignore")]
     pub type_: Arc<XType>,
     pub default: Option<Rc<ManagedXValue>>,
 }

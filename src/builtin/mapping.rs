@@ -35,7 +35,7 @@ impl NativeType for XMappingType {
     fn name(&self) -> &str { "Mapping" }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub struct XMapping {
     pub inner: HashMap<u64, Vec<(Rc<ManagedXValue>, Rc<ManagedXValue>)>>,
     pub hash_func: Rc<ManagedXValue>,

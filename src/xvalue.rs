@@ -14,7 +14,7 @@ use crate::{XCompilationScope, XType};
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
 use crate::xscope::{Declaration, Identifier, XEvaluationScope};
 
-#[derive(Hash, Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum XValue {
     Int(BigInt),
     Rational(BigRational),
@@ -173,10 +173,7 @@ impl XValue{
     }
 }
 
-#[derive(Derivative)]
-#[derivative(Hash, PartialEq, Eq)]
 pub struct ManagedXValue {
-    #[derivative(Hash = "ignore", PartialEq = "ignore", )]
     pub runtime: RTCell,
     size: usize,  // this will be zero if the runtime has no size limit
     pub value: XValue

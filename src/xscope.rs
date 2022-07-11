@@ -275,7 +275,7 @@ impl<'p> XCompilationScope<'p> {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum Declaration {
     Value(DefaultSymbol, XExpr),
     Struct(XCompoundSpec),
