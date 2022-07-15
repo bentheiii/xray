@@ -39,7 +39,8 @@ impl NativeType for XSequenceType {
 #[derive(Debug)]
 pub enum XSequence {
     Empty,
-    Array(Vec<Rc<ManagedXValue>>),  // never empty
+    Array(Vec<Rc<ManagedXValue>>),
+    // never empty
     Range(i64, i64, i64),
     Map(Rc<ManagedXValue>, Rc<ManagedXValue>),
     Zip(Vec<Rc<ManagedXValue>>), // never empty //todo shortcut zip creation so that if any of the items are empty, Empty is returned instead
@@ -73,12 +74,12 @@ impl XSequence {
         }
     }
 
-    pub fn get(&self, idx: usize, ns: &XEvaluationScope, rt: RTCell) -> Result<Rc<ManagedXValue>, String>{
+    pub fn get(&self, idx: usize, ns: &XEvaluationScope, rt: RTCell) -> Result<Rc<ManagedXValue>, String> {
         match self {
             Self::Empty => unreachable!(),
             Self::Array(arr) => Ok(arr[idx].clone()),
             Self::Range(start, _, step) => {
-                let v = BigInt::from(*start) + idx*BigInt::from(*step);
+                let v = BigInt::from(*start) + idx * BigInt::from(*step);
                 Ok(ManagedXValue::new(XValue::Int(v), rt)?.into())
             }
             Self::Map(seq, func) => {
@@ -95,15 +96,15 @@ impl XSequence {
         }
     }
 
-    pub fn slice(&self, start_idx: usize, end_idx: usize, ns: &XEvaluationScope, rt: RTCell) -> Result<Vec<Rc<ManagedXValue>>, String>{  // todo make this return an iterator
+    pub fn slice(&self, start_idx: usize, end_idx: usize, ns: &XEvaluationScope, rt: RTCell) -> Result<Vec<Rc<ManagedXValue>>, String> {  // todo make this return an iterator
         match self {
             Self::Empty => Ok(vec![]),
             Self::Array(arr) => Ok(arr[start_idx..end_idx].to_vec()),
             Self::Range(start, _, step) => {
                 let step = BigInt::from(*step);
-                let mut current = BigInt::from(*start) + start_idx*&step;
+                let mut current = BigInt::from(*start) + start_idx * &step;
                 let mut ret = vec![ManagedXValue::new(XValue::Int(current.clone()), rt.clone())?.into()];
-                for _ in start_idx+1..end_idx {
+                for _ in start_idx + 1..end_idx {
                     current += &step;
                     ret.push(ManagedXValue::new(XValue::Int(current.clone()), rt.clone())?.into());
                 }
@@ -113,9 +114,9 @@ impl XSequence {
                 let seq = to_native!(seq, XSequence);
                 let func = to_primitive!(func, Function);
                 let ret = (start_idx..end_idx).map(|idx| {
-                    let original = seq.get(idx,ns,rt.clone())?;
+                    let original = seq.get(idx, ns, rt.clone())?;
                     func.eval_values(vec![original], ns, rt.clone())
-                }).collect::<Result<_,_>>()?;
+                }).collect::<Result<_, _>>()?;
                 Ok(ret)
             }
             Self::Zip(sequences) => {
@@ -131,8 +132,8 @@ impl XSequence {
         }
     }
 
-    fn is_empty(&self)->bool{
-        if let Self::Empty = self{
+    fn is_empty(&self) -> bool {
+        if let Self::Empty = self {
             true
         } else {
             false
@@ -443,12 +444,12 @@ pub fn add_sequence_pop(scope: &mut XCompilationScope, interner: &mut StringInte
             let seq = to_native!(a0, XSequence);
             let idx = to_primitive!(a1, Int);
             let idx = value_to_idx(&seq, idx)?;
-            if seq.len() == 1{
+            if seq.len() == 1 {
                 return Ok(manage_native!(XSequence::Empty, rt));
             }
             let mut ret: Vec<Rc<_>> = vec![];
             ret.extend(seq.slice(0, idx, ns, rt.clone())?);
-            ret.extend(seq.slice(idx+1, seq.len(), ns, rt.clone())?);
+            ret.extend(seq.slice(idx + 1, seq.len(), ns, rt.clone())?);
             Ok(manage_native!(XSequence::array(ret), rt))
         }), interner)?;
     Ok(())
@@ -484,7 +485,7 @@ pub fn add_sequence_set(scope: &mut XCompilationScope, interner: &mut StringInte
             let mut ret: Vec<Rc<_>> = vec![];
             ret.extend(seq.slice(0, idx, ns, rt.clone())?);
             ret.push(a2.clone());
-            ret.extend(seq.slice(idx+1, seq.len(), ns, rt.clone())?);
+            ret.extend(seq.slice(idx + 1, seq.len(), ns, rt.clone())?);
             Ok(manage_native!(XSequence::array(ret), rt))
         }), interner)?;
     Ok(())
@@ -528,9 +529,9 @@ pub fn add_sequence_swap(scope: &mut XCompilationScope, interner: &mut StringInt
             let mut ret = vec![];
             ret.extend(seq.slice(0, idx1, ns, rt.clone())?);
             ret.push(seq.get(idx2, ns, rt.clone())?);
-            ret.extend(seq.slice(idx1+1, idx2, ns, rt.clone())?);
+            ret.extend(seq.slice(idx1 + 1, idx2, ns, rt.clone())?);
             ret.push(seq.get(idx1, ns, rt.clone())?);
-            ret.extend(seq.slice(idx2+1, seq.len(), ns, rt.clone())?);
+            ret.extend(seq.slice(idx2 + 1, seq.len(), ns, rt.clone())?);
             Ok(manage_native!(XSequence::array(ret), rt))
         }), interner)?;
     Ok(())
@@ -640,6 +641,84 @@ pub fn add_sequence_sort(scope: &mut XCompilationScope, interner: &mut StringInt
                 })?;
                 Ok(manage_native!(XSequence::array(ret), rt))
             }
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_sequence_reduce3(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    let s = XType::generic_from_name("S", interner);
+    let t_arr = XSequenceType::xtype(t.clone());
+
+    scope.add_func_intern(
+        "reduce", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_arr.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: s.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![s.clone(), t.clone()],
+                        return_type: s.clone(),
+                    })),
+                    required: true,
+                },
+            ],
+            ret: s.clone(),
+        }, |args, ns, _tca, rt| {
+            let (a0, a1, a2) = eval!(args, ns, rt, 0,1,2);
+            let seq = to_native!(a0, XSequence);
+            let arr = seq.slice(0, seq.len(), ns, rt.clone())?;
+            let f = to_primitive!(a2, Function);
+            let mut ret = a1;
+            for i in arr{
+                ret = f.eval_values(vec![ret, i], ns, rt.clone())?;
+            }
+            Ok(ret.into())
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_sequence_reduce2(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    let t_arr = XSequenceType::xtype(t.clone());
+
+    scope.add_func_intern(
+        "reduce", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_arr.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t.clone(), t.clone()],
+                        return_type: t.clone(),
+                    })),
+                    required: true,
+                },
+            ],
+            ret: t.clone(),
+        }, |args, ns, _tca, rt| {
+            let (a0, a1) = eval!(args, ns, rt, 0,1);
+            let seq = to_native!(a0, XSequence);
+            if seq.is_empty(){
+                return Err("sequence is empty".to_string());
+            }
+            let arr = seq.slice(1, seq.len(), ns, rt.clone())?;
+            let f = to_primitive!(a1, Function);
+            let mut ret = seq.get(0, ns, rt.clone())?;
+            for i in arr{
+                ret = f.eval_values(vec![ret, i], ns, rt.clone())?;
+            }
+            Ok(ret.into())
         }), interner)?;
     Ok(())
 }

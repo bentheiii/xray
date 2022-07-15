@@ -53,8 +53,8 @@ use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompound
 fn main() {
     let input = r###"
 
-    let m = mapping((a: int)->{a%10}, eq::<int, int>).update([(1,2),(3,4),(4,5)]).discard(9);
-    let z = m.get(3);
+    let a = [1,2,3,4,5];
+    let z = a.reduce(0, (s: int, i: int) -> {s + if(i%2 == 0, 1, 0)});
 
     "###;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -112,6 +112,8 @@ fn main() {
     add_sequence_push(&mut root_scope, &mut interner).unwrap();
     add_sequence_eq(&mut root_scope, &mut interner).unwrap();
     add_sequence_sort(&mut root_scope, &mut interner).unwrap();
+    add_sequence_reduce2(&mut root_scope, &mut interner).unwrap();
+    add_sequence_reduce3(&mut root_scope, &mut interner).unwrap();
 
     add_stack_type(&mut root_scope, &mut interner).unwrap();
     add_stack_new(&mut root_scope, &mut interner).unwrap();
