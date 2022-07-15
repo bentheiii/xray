@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, RTCell, to_native, to_primitive, XCallableSpec, XCompilationScope, XEvaluationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, meval, RTCell, to_native, to_primitive, XCallableSpec, XCompilationScope, XEvaluationScope, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
@@ -59,7 +59,7 @@ impl XSequence {
                 if step.is_positive() && start < end {
                     (1 + (end - 1 - start) / step) as usize
                 } else {
-                    assert!(step.is_negative() && end > start);
+                    assert!(step.is_negative() && start > end);
                     (1 + (start - 1 - end) / -step) as usize
                 }
             }
@@ -677,7 +677,7 @@ pub fn add_sequence_reduce3(scope: &mut XCompilationScope, interner: &mut String
             let arr = seq.slice(0, seq.len(), ns, rt.clone())?;
             let f = to_primitive!(a2, Function);
             let mut ret = a1;
-            for i in arr{
+            for i in arr {
                 ret = f.eval_values(vec![ret, i], ns, rt.clone())?;
             }
             Ok(ret.into())
@@ -709,16 +709,64 @@ pub fn add_sequence_reduce2(scope: &mut XCompilationScope, interner: &mut String
         }, |args, ns, _tca, rt| {
             let (a0, a1) = eval!(args, ns, rt, 0,1);
             let seq = to_native!(a0, XSequence);
-            if seq.is_empty(){
+            if seq.is_empty() {
                 return Err("sequence is empty".to_string());
             }
             let arr = seq.slice(1, seq.len(), ns, rt.clone())?;
             let f = to_primitive!(a1, Function);
             let mut ret = seq.get(0, ns, rt.clone())?;
-            for i in arr{
+            for i in arr {
                 ret = f.eval_values(vec![ret, i], ns, rt.clone())?;
             }
             Ok(ret.into())
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_sequence_range(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t_arr = XSequenceType::xtype(X_INT.clone());
+
+    scope.add_func_intern(
+        "range", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: X_INT.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: X_INT.clone(),
+                    required: false,
+                },
+                XFuncParamSpec {
+                    type_: X_INT.clone(),
+                    required: false,
+                },
+            ],
+            ret: t_arr,
+        }, |args, ns, _tca, rt| {
+            let (start, end, step);
+            if args.len() == 1 {
+                let (a0, ) = eval!(args, ns, rt, 0);
+                end = to_primitive!(a0, Int).to_i64().ok_or("end out of bounds")?;
+                start = 0i64;
+                step = 1i64;
+            } else {
+                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let (a2, ) = meval!(args, ns, rt, 2);
+                start = to_primitive!(a0, Int).to_i64().ok_or("start out of bounds")?;
+                end = to_primitive!(a1, Int).to_i64().ok_or("end out of bounds")?;
+                step = a2.map_or(Ok(1i64), |a2| {
+                    to_primitive!(a2, Int).to_i64().ok_or("step out of bounds")
+                })?;
+            }
+            if step.is_zero() {
+                Err("invalid range, step size cannot be zero".to_string())
+            } else if (step.is_positive() && start >= end) || (step.is_negative() && start <= end){
+                Ok(manage_native!(XSequence::Empty, rt))
+            } else {
+                Ok(manage_native!(XSequence::Range(start, end, step), rt))
+            }
         }), interner)?;
     Ok(())
 }
