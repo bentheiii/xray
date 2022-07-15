@@ -1,6 +1,6 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, meval, RTCell, to_native, to_primitive, XCallableSpec, XCompilationScope, XEvaluationScope, XStaticFunction, XType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, meval, RTCell, to_native, to_primitive, XCallableSpec, XCompilationScope, XEvaluationScope, XOptionalType, XOptional, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
@@ -9,7 +9,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::mem::size_of;
 use std::num::NonZeroIsize;
-use std::ops::Deref;
+use std::ops::{Deref, Neg};
 use std::sync::Arc;
 use string_interner::StringInterner;
 use crate::builtin::stack::{XStack, XStackType};
@@ -822,6 +822,57 @@ pub fn add_sequence_filter(scope: &mut XCompilationScope, interner: &mut StringI
                 }
                 Ok(manage_native!(XSequence::array(ret), rt))
             }
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_sequence_nth(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    let t_arr = XSequenceType::xtype(t.clone());
+
+    scope.add_func_intern(
+        "nth", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_arr.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: X_INT.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t.clone()],
+                        return_type: X_BOOL.clone(),
+                    })),
+                    required: true,
+                },
+            ],
+            ret: XOptionalType::xtype(t.clone()),
+        }, |args, ns, _tca, rt| {
+            let (a0, a1, a2) = eval!(args, ns, rt, 0,1,2);
+            let seq = to_native!(a0, XSequence);
+            let mut arr = seq.slice(0, seq.len(), ns, rt.clone())?;
+            let mut matches_left = to_primitive!(a1, Int).clone();
+            if matches_left.is_zero(){
+                return Err("match_count must be non-zero".to_string());
+            }
+            if matches_left.is_negative(){
+                arr.reverse(); // todo improve
+                matches_left = matches_left.neg()
+            }
+            let f = to_primitive!(a2, Function);
+            for item in arr {
+                if *to_primitive!(f.eval_values(vec![item.clone()], ns, rt.clone())?, Bool) {
+                    matches_left -= 1;
+                    if matches_left.is_zero(){
+                        return Ok(manage_native!(XOptional{value: Some(item)}, rt));
+                    }
+                }
+            }
+            return Ok(manage_native!(XOptional{value: None}, rt))
         }), interner)?;
     Ok(())
 }
