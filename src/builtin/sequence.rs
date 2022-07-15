@@ -48,7 +48,7 @@ pub enum XSequence {
 
 impl XSequence {
     pub fn array(value: Vec<Rc<ManagedXValue>>) -> Self {
-        if value.is_empty(){
+        if value.is_empty() {
             Self::Empty
         } else {
             Self::Array(value)
@@ -856,10 +856,10 @@ pub fn add_sequence_nth(scope: &mut XCompilationScope, interner: &mut StringInte
             let seq = to_native!(a0, XSequence);
             let mut arr = seq.slice(0, seq.len(), ns, rt.clone())?;
             let mut matches_left = to_primitive!(a1, Int).clone();
-            if matches_left.is_zero(){
+            if matches_left.is_zero() {
                 return Err("match_count must be non-zero".to_string());
             }
-            if matches_left.is_negative(){
+            if matches_left.is_negative() {
                 arr.reverse(); // todo improve
                 matches_left = matches_left.neg()
             }
@@ -867,12 +867,12 @@ pub fn add_sequence_nth(scope: &mut XCompilationScope, interner: &mut StringInte
             for item in arr {
                 if *to_primitive!(f.eval_values(vec![item.clone()], ns, rt.clone())?, Bool) {
                     matches_left -= 1;
-                    if matches_left.is_zero(){
+                    if matches_left.is_zero() {
                         return Ok(manage_native!(XOptional{value: Some(item)}, rt));
                     }
                 }
             }
-            return Ok(manage_native!(XOptional{value: None}, rt))
+            return Ok(manage_native!(XOptional{value: None}, rt));
         }), interner)?;
     Ok(())
 }
@@ -910,9 +910,9 @@ pub fn add_sequence_take_while(scope: &mut XCompilationScope, interner: &mut Str
                     break;
                 }
             }
-            if end_idx == arr.len(){
+            if end_idx == arr.len() {
                 Ok(a0.clone().into())
-            } else{
+            } else {
                 arr.drain(end_idx..);
                 Ok(manage_native!(XSequence::array(arr), rt))
             }
@@ -953,10 +953,76 @@ pub fn add_sequence_skip_until(scope: &mut XCompilationScope, interner: &mut Str
                     break;
                 }
             }
-            if start_idx == 0{
+            if start_idx == 0 {
                 Ok(a0.clone().into())
-            } else{
+            } else {
                 arr = arr.drain(start_idx..).collect();
+                Ok(manage_native!(XSequence::array(arr), rt))
+            }
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_sequence_take(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    let t_arr = XSequenceType::xtype(t.clone());
+
+    scope.add_func_intern(
+        "take", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_arr.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: X_INT.clone(),
+                    required: true,
+                },
+            ],
+            ret: t_arr,
+        }, |args, ns, _tca, rt| {
+            let (a0, a1) = eval!(args, ns, rt, 0,1);
+            let seq = to_native!(a0, XSequence);
+            let end_idx = to_primitive!(a1, Int);
+            if end_idx.to_usize().map_or(true, |s| s >= seq.len()) {
+                Ok(a0.clone().into())
+            } else {
+                let arr = seq.slice(0, end_idx.to_usize().unwrap(), ns, rt.clone())?;
+                Ok(manage_native!(XSequence::array(arr), rt))
+            }
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_sequence_skip(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    let t_arr = XSequenceType::xtype(t.clone());
+
+    scope.add_func_intern(
+        "skip", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_arr.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: X_INT.clone(),
+                    required: true,
+                },
+            ],
+            ret: t_arr,
+        }, |args, ns, _tca, rt| {
+            let (a0, a1) = eval!(args, ns, rt, 0,1);
+            let seq = to_native!(a0, XSequence);
+            let start_idx = to_primitive!(a1, Int);
+            if start_idx.is_zero() {
+                Ok(a0.clone().into())
+            } else if start_idx.to_usize().map_or(true, |s| s > seq.len()) {
+                Ok(manage_native!(XSequence::Empty, rt))
+            } else {
+                let arr = seq.slice(start_idx.to_usize().unwrap(), seq.len(), ns, rt.clone())?;
                 Ok(manage_native!(XSequence::array(arr), rt))
             }
         }), interner)?;
