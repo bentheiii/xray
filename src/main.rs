@@ -53,8 +53,8 @@ use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompound
 fn main() {
     let input = r###"
 
-    let a = [1,-2,-3,-4];
-    let z = a.nth(-2, (x: int) -> {x < 0});
+    let a = [1,2,4,5,3,1,7,8];
+    let z = a.skip_until((x: int) -> {x <= 10});
 
     "###;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
@@ -117,6 +117,8 @@ fn main() {
     add_sequence_range(&mut root_scope, &mut interner).unwrap();
     add_sequence_filter(&mut root_scope, &mut interner).unwrap();
     add_sequence_nth(&mut root_scope, &mut interner).unwrap();
+    add_sequence_take_while(&mut root_scope, &mut interner).unwrap();
+    add_sequence_skip_until(&mut root_scope, &mut interner).unwrap();
 
     add_stack_type(&mut root_scope, &mut interner).unwrap();
     add_stack_new(&mut root_scope, &mut interner).unwrap();

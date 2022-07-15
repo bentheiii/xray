@@ -877,6 +877,92 @@ pub fn add_sequence_nth(scope: &mut XCompilationScope, interner: &mut StringInte
     Ok(())
 }
 
+pub fn add_sequence_take_while(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    let t_arr = XSequenceType::xtype(t.clone());
+
+    scope.add_func_intern(
+        "take_while", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_arr.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t.clone()],
+                        return_type: X_BOOL.clone(),
+                    })),
+                    required: true,
+                },
+            ],
+            ret: t_arr,
+        }, |args, ns, _tca, rt| {
+            let (a0, a1) = eval!(args, ns, rt, 0,1);
+            let seq = to_native!(a0, XSequence);
+            let mut arr = seq.slice(0, seq.len(), ns, rt.clone())?;
+            let f = to_primitive!(a1, Function);
+            let mut end_idx = arr.len();
+            for (i, item) in arr.iter().enumerate() {
+                if !*to_primitive!(f.eval_values(vec![item.clone()], ns, rt.clone())?, Bool) {
+                    end_idx = i;
+                    break;
+                }
+            }
+            if end_idx == arr.len(){
+                Ok(a0.clone().into())
+            } else{
+                arr.drain(end_idx..);
+                Ok(manage_native!(XSequence::array(arr), rt))
+            }
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_sequence_skip_until(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    let t_arr = XSequenceType::xtype(t.clone());
+
+    scope.add_func_intern(
+        "skip_until", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_arr.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t.clone()],
+                        return_type: X_BOOL.clone(),
+                    })),
+                    required: true,
+                },
+            ],
+            ret: t_arr,
+        }, |args, ns, _tca, rt| {
+            let (a0, a1) = eval!(args, ns, rt, 0,1);
+            let seq = to_native!(a0, XSequence);
+            let mut arr = seq.slice(0, seq.len(), ns, rt.clone())?;
+            let f = to_primitive!(a1, Function);
+            let mut start_idx = arr.len();
+            for (i, item) in arr.iter().enumerate() {
+                if *to_primitive!(f.eval_values(vec![item.clone()], ns, rt.clone())?, Bool) {
+                    start_idx = i;
+                    break;
+                }
+            }
+            if start_idx == 0{
+                Ok(a0.clone().into())
+            } else{
+                arr = arr.drain(start_idx..).collect();
+                Ok(manage_native!(XSequence::array(arr), rt))
+            }
+        }), interner)?;
+    Ok(())
+}
+
 pub fn add_sequence_eq(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     let eq_symbol = interner.get_or_intern_static("eq");
 
