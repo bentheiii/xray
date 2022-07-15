@@ -1,3 +1,7 @@
+use std::ops::Neg;
+use std::rc::Rc;
+use num::{BigInt, One, Zero};
+use crate::xvalue::XValue;
 #[macro_export]
 macro_rules! add_binop {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
@@ -122,4 +126,14 @@ macro_rules! manage_native {
     ($native: expr, $rt: expr) => {
         ManagedXValue::new(XValue::Native(Box::new($native)), $rt)?.into()
     };
+}
+
+pub fn xcmp<T: PartialOrd>(rhs: T, lhs: T)->XValue{
+    XValue::Int(if rhs < lhs{
+        BigInt::one().neg()
+    } else if rhs > lhs {
+        BigInt::one()
+    } else {
+        BigInt::zero()
+    })
 }

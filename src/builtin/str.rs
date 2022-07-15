@@ -4,8 +4,11 @@ use crate::{add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, Bind, XComp
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
+use std::collections::hash_map::DefaultHasher;
 use std::sync::Arc;
+use std::hash::{Hash, Hasher};
 use string_interner::StringInterner;
+use crate::builtin::core::xcmp;
 
 pub fn add_str_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_native_type(interner.get_or_intern_static("str"), X_STRING.clone())
@@ -31,3 +34,14 @@ add_ufunc_ref!(add_str_display, display, X_STRING, X_STRING, |a: Rc<ManagedXValu
         unreachable!();
     }
 });
+
+add_ufunc!(add_str_hash, hash, X_STRING, String, X_INT, |a: &String| {
+    Ok(XValue::Int({
+        let mut s = DefaultHasher::new();
+        a.hash(&mut s);
+        let hash = s.finish();
+        BigInt::from(hash)
+    }))
+});
+
+add_binop!(add_str_cmp, cmp, X_STRING, String, X_INT, |a,b| Ok(xcmp(a,b)));

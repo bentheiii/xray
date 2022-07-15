@@ -1,17 +1,18 @@
 use std::rc;
-use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
+use num::{BigInt, BigRational, Signed, ToPrimitive, One, Zero};
 use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, manage_native, to_primitive, XCompilationScope, XOptional, XOptionalType, XStaticFunction, XType};
 use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
 use std::sync::Arc;
 use string_interner::StringInterner;
+use crate::builtin::core::xcmp;
 
 pub fn add_bool_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_native_type(interner.get_or_intern_static("bool"), X_BOOL.clone())
 }
 
-add_binop!(add_bool_eq, pow, X_BOOL, Bool, X_BOOL, |a,b|
+add_binop!(add_bool_eq, eq, X_BOOL, Bool, X_BOOL, |a,b|
     Ok(XValue::Bool(a == b))
 );
 
@@ -110,3 +111,11 @@ pub fn add_bool_then(scope: &mut XCompilationScope, interner: &mut StringInterne
         }), interner)?;
     Ok(())
 }
+
+add_ufunc!(add_bool_hash, hash, X_BOOL, Bool, X_INT, |a:&bool| {
+    Ok(XValue::Int(if *a {One::one()} else {Zero::zero()}))
+});
+
+add_binop!(add_bool_cmp, cmp, X_BOOL, Bool, X_INT, |a,b|
+    Ok(xcmp(a,b))
+);

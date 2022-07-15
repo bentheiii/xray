@@ -6,6 +6,7 @@ use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
 use std::sync::Arc;
 use string_interner::StringInterner;
+use crate::builtin::core::xcmp;
 
 pub fn add_int_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
     scope.add_native_type(interner.get_or_intern_static("int"), X_INT.clone())
@@ -106,3 +107,30 @@ pub fn add_int_digits(scope: &mut XCompilationScope, interner: &mut StringIntern
         }))?;
     Ok(())
 }
+
+pub fn add_int_hash(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    scope.add_func_intern(
+        "hash", XStaticFunction::from_native(XFuncSpec {
+            generic_params: None,
+            params: vec![
+                XFuncParamSpec {
+                    type_: X_INT.clone(),
+                    required: true,
+                },
+            ],
+            ret: X_INT.clone(),
+        }, |args, ns, tca, rt| {
+            let (a0, ) = eval!(args, ns, rt, 0);
+            let v0 = to_primitive!(a0, Int);
+            if !v0.is_negative() && v0.bits() <= 64{
+                // the number is already within the bounds
+                return Ok(a0.into());
+            }
+            Ok(ManagedXValue::new(XValue::Int(
+                BigInt::from(v0.iter_u64_digits().next().unwrap_or(0))
+            ), rt)?.into())
+        }), interner)?;
+    Ok(())
+}
+
+add_binop!(add_int_cmp, cmp, X_INT, Int, X_INT, |a,b| Ok(xcmp(a,b)));

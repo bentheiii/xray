@@ -6,6 +6,7 @@ use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
 use std::sync::Arc;
 use string_interner::StringInterner;
+use crate::builtin::core::xcmp;
 use crate::XType::Int;
 
 pub fn add_rational_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
@@ -46,3 +47,10 @@ add_ufunc!(add_rational_trunc, trunc, X_RATIONAL, Rational, X_INT, |a:&BigRation
 add_ufunc!(add_rational_to_str, to_str, X_RATIONAL, Rational, X_RATIONAL, |a:&BigRational| {
     Ok(XValue::String(a.to_f64().ok_or("rational cannot be converted to float")?.to_string()).into())
 });
+
+add_ufunc!(add_rational_hash, hash, X_RATIONAL, Rational, X_INT, |a:&BigRational| {
+    let i = a.numer() ^ a.denom();
+    Ok(XValue::Int(BigInt::from(i.iter_u64_digits().next().unwrap_or(0))).into())
+});
+
+add_binop!(add_rational_cmp, cmp, X_RATIONAL, Rational, X_INT, |a,b| Ok(xcmp(a,b)));
