@@ -48,7 +48,11 @@ pub enum XSequence {
 
 impl XSequence {
     pub fn array(value: Vec<Rc<ManagedXValue>>) -> Self {
-        Self::Array(value)
+        if value.is_empty(){
+            Self::Empty
+        } else {
+            Self::Array(value)
+        }
     }
 
     pub fn len(&self) -> usize {
@@ -762,10 +766,61 @@ pub fn add_sequence_range(scope: &mut XCompilationScope, interner: &mut StringIn
             }
             if step.is_zero() {
                 Err("invalid range, step size cannot be zero".to_string())
-            } else if (step.is_positive() && start >= end) || (step.is_negative() && start <= end){
+            } else if (step.is_positive() && start >= end) || (step.is_negative() && start <= end) {
                 Ok(manage_native!(XSequence::Empty, rt))
             } else {
                 Ok(manage_native!(XSequence::Range(start, end, step), rt))
+            }
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_sequence_filter(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    let t_arr = XSequenceType::xtype(t.clone());
+
+    scope.add_func_intern(
+        "filter", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t_arr.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t.clone()],
+                        return_type: X_BOOL.clone(),
+                    })),
+                    required: true,
+                },
+            ],
+            ret: t_arr.clone(),
+        }, |args, ns, _tca, rt| {
+            let (a0, a1) = eval!(args, ns, rt, 0,1);
+            let seq = to_native!(a0, XSequence);
+            let arr = seq.slice(0, seq.len(), ns, rt.clone())?;
+            let f = to_primitive!(a1, Function);
+            // first we check if the seq already fully_matches
+            let mut first_drop_idx = None; // if this is not none, it is the first index we need to drop
+            for (i, item) in arr.iter().enumerate() {
+                if !*to_primitive!(f.eval_values(vec![item.clone()], ns, rt.clone())?, Bool) {
+                    first_drop_idx = Some(i);
+                    break;
+                }
+            }
+            if first_drop_idx.is_none() {
+                // no indices need to drop, we can just return the sequence
+                Ok(a0.clone().into())
+            } else {
+                let mut ret = (&arr[..first_drop_idx.unwrap()]).iter().cloned().collect::<Vec<_>>();
+
+                for item in arr.iter().skip(first_drop_idx.unwrap() + 1) {
+                    if *to_primitive!(f.eval_values(vec![item.clone()], ns, rt.clone())?, Bool) {
+                        ret.push(item.clone());
+                    }
+                }
+                Ok(manage_native!(XSequence::array(ret), rt))
             }
         }), interner)?;
     Ok(())
