@@ -1057,9 +1057,9 @@ pub fn add_sequence_eq(scope: &mut XCompilationScope, interner: &mut StringInter
             let arr0 = seq0.slice(0, seq0.len(), ns, rt.clone())?;
             let arr1 = seq1.slice(0, seq1.len(), ns, rt.clone())?;
             let mut ret = true;
+            let inner_equal_value = eq_expr.eval(ns, false, rt.clone())?.unwrap_value();
+            let inner_eq_func = to_primitive!(inner_equal_value, Function);
             for (x, y) in arr0.into_iter().zip(arr1.into_iter()) {
-                let inner_equal_value = eq_expr.eval(ns, false, rt.clone())?.unwrap_value();
-                let inner_eq_func = to_primitive!(inner_equal_value, Function);
                 let eq = inner_eq_func.eval_values(&vec![x, y], &ns, rt.clone())?;
                 let is_eq = to_primitive!(eq, Bool);
                 if !*is_eq {
@@ -1071,7 +1071,7 @@ pub fn add_sequence_eq(scope: &mut XCompilationScope, interner: &mut StringInter
         }))
     }
 
-    fn from_types(types: &Vec<Arc<XType>>, scope: &XCompilationScope, eq_symbol: Identifier) -> Result<Rc<XStaticFunction>, String> {
+    fn from_types(types: &[Arc<XType>], scope: &XCompilationScope, eq_symbol: Identifier) -> Result<Rc<XStaticFunction>, String> {
         if types.len() != 2 {
             return Err(format!("Expected 2 types, got {}", types.len()));
         }
@@ -1086,7 +1086,7 @@ pub fn add_sequence_eq(scope: &mut XCompilationScope, interner: &mut StringInter
             _ => return Err(format!("Expected sequence type, got {:?}", a1)),  // todo improve
         };
 
-        let inner_eq = scope.resolve_overload(eq_symbol, vec![t0.clone(), t1.clone()])?;  // todo ensure that the function returns a bool
+        let inner_eq = scope.resolve_overload(eq_symbol, &[t0.clone(), t1.clone()])?;  // todo ensure that the function returns a bool
 
         Ok(static_from_eq(t0, t1, inner_eq))
     }

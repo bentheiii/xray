@@ -35,6 +35,7 @@ use crate::builtin::generic::{*};
 use crate::builtin::optional::{*};
 use crate::builtin::stack::{*};
 use crate::builtin::mapping::{*};
+use crate::builtin::unknown::add_unknown_eq;
 use crate::compile_err::{CompilationError, TracedCompilationError};
 use crate::parser::{Rule, XRayParser};
 use crate::runtime::{RTCell};
@@ -86,6 +87,9 @@ pub fn std_compilation_scope<'a>(interner: &'_ mut StringInterner) -> XCompilati
     add_error(&mut ret, interner).unwrap();
     add_cast(&mut ret, interner).unwrap();
     add_debug(&mut ret, interner).unwrap();
+    add_ne(&mut ret, interner).unwrap();
+
+    add_unknown_eq(&mut ret, interner).unwrap();
 
     add_sequence_type(&mut ret, interner).unwrap();
     add_sequence_get(&mut ret, interner).unwrap();
@@ -139,6 +143,7 @@ pub fn std_compilation_scope<'a>(interner: &'_ mut StringInterner) -> XCompilati
     add_mapping_contains(&mut ret, interner).unwrap();
     add_mapping_pop(&mut ret, interner).unwrap();
     add_mapping_discard(&mut ret, interner).unwrap();
+
 
     ret
 }

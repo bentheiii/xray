@@ -3,7 +3,7 @@ fn my_map<T, V>(xs: Sequence<T>, f: (T) -> (V)) -> Sequence<V> {
         (input_idx == xs.len()).if(
             output,
             helper(input_idx+1, output.push(f(xs.get(input_idx))))
-            )
+        )
     }
     let output_stk = stack();
     helper(0, output_stk).to_array()

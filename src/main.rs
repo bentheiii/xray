@@ -13,7 +13,7 @@ use crate::pest::Parser;
 
 fn main() {
     let input = r###"
-    let z = (2.5).floor();
+    let z = (null() && error('')) == null();
     "###;
     let mut parser = XRayParser::parse(Rule::header, input).unwrap();
     let body = parser.next().unwrap();

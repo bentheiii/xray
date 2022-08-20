@@ -60,10 +60,8 @@ impl Bind {
     pub fn mix(mut self, other: &Bind) -> Option<Self> {
         for (k, v) in other.bound_generics.iter() {
             if let Some(existing) = self.bound_generics.get(k) {
-                if existing != v {
-                    let new_bind = existing.bind_in_assignment(v)?;
-                    self = self.mix(&new_bind)?;
-                }
+                let new_bind = existing.common_type(v)?;
+                self.bound_generics.insert(k.clone(), new_bind);
             } else {
                 self.bound_generics.insert(k.clone(), v.clone());
             }
@@ -161,7 +159,7 @@ impl XFuncSpec {
         (min, max)
     }
 
-    pub fn bind(&self, args: &Vec<Arc<XType>>) -> Option<Bind> {
+    pub fn bind(&self, args: &[Arc<XType>]) -> Option<Bind> {
         let (min, max) = self.arg_len_range();
         if args.len() < min || args.len() > max {
             return None;
@@ -170,6 +168,7 @@ impl XFuncSpec {
         for (arg, param) in args.into_iter().zip(self.params.iter()) {
             ret = ret.mix(&param.type_.bind_in_assignment(&arg)?)?;
         }
+        println!("!!! C {:?}", ret);
         Some(ret)
     }
 
@@ -204,6 +203,50 @@ pub struct XFuncParamSpec {
 impl XType {
     pub fn generic_from_name(name: &'static str, interner: &mut StringInterner) -> Arc<XType> {
         Arc::new(XType::XGeneric(interner.get_or_intern_static(name)))
+    }
+
+    pub fn common_type(self: &Arc<XType>, other: &Arc<XType>) -> Option<Arc<XType>> {
+        if self == other {
+            Some(self.clone())
+        } else {
+            match (self.as_ref(), other.as_ref()) {
+                (XType::Compound(k0, a, ref bind_a), XType::Compound(k1, b, ref bind_b)) => {
+                    if a != b || k0 != k1 {
+                        return None;
+                    }
+                    let mut bind = Bind::new();
+                    for (gen_name, (gen_arg0, gen_arg1)) in a.generic_names.iter().zip(a.generics_with_bind(bind_a).iter().zip(b.generics_with_bind(bind_b).iter()).rev()) {
+                        bind.bound_generics.insert(*gen_name, if let Some(v) = gen_arg0.common_type(gen_arg1) { v } else { return None; });
+                    }
+                    Some(XType::Compound(*k0, a.clone(), bind).into())
+                }
+                (XType::Tuple(types1), XType::Tuple(types2)) => {
+                    if types1.len() != types2.len() {
+                        return None;
+                    }
+                    let common_types = types1.iter().zip(types2.iter()).map(|(t1, t2)| t1.common_type(t2)).collect::<Option<Vec<_>>>()?;
+                    Some(XType::Tuple(common_types).into())
+                }
+                (_, XType::XUnknown) => Some(self.clone()),
+                (XType::XUnknown, _) => Some(other.clone()),
+                (XType::XNative(a, a_bind), XType::XNative(b, b_bind)) => {
+                    if a != b {
+                        return None;
+                    }
+                    let mut bind = vec![];
+                    for (a_v, b_v) in a_bind.iter().zip(b_bind.iter()) {
+                        // since the types are equal we can assume they have the same keys at binding
+                        if let Some(common) = a_v.common_type(b_v) {
+                            bind.push(common)
+                        } else {
+                            return None;
+                        }
+                    }
+                    Some(XType::XNative(a.clone(), bind).into())
+                }
+                _ => None
+            }
+        }
     }
 
     pub fn bind_in_assignment(&self, other: &Arc<XType>) -> Option<Bind> {
@@ -308,13 +351,14 @@ impl XType {
                 }
                 Some(bind)
             }
-            (_, XType::XUnknown) => Some(Bind::new()),
-            (XType::XUnknown, _) => Some(Bind::new()),
             (XType::XGeneric(ref a), _) => {
+                println!("!!! A {a:?} {other:?}");
                 Some(Bind::from([
                     (a.clone(), other.clone()),
                 ]))
             }
+            (_, XType::XUnknown) => Some(Bind::new()),
+            (XType::XUnknown, _) => Some(Bind::new()),
 
             _ => {
                 None
@@ -353,8 +397,8 @@ impl XType {
                 }
                 XType::Tuple(new_types).into()
             }
-            XType::Compound(ct, spec, main_bind)=>{
-                XType::Compound(*ct,spec.clone(),bind.clone()).into()
+            XType::Compound(ct, spec, main_bind) => {
+                XType::Compound(*ct, spec.clone(), bind.clone()).into()
             }
             _ => self.clone(),
         }

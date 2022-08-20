@@ -196,7 +196,7 @@ impl<'p> XCompilationScope<'p> {
         Ok(Declaration::UserFunction(name, item))
     }
 
-    pub fn add_dyn_func(&mut self, name: DefaultSymbol, func: impl Fn(Option<&Vec<XExpr>>, &Vec<Arc<XType>>, &XCompilationScope<'_>) -> Result<Rc<XStaticFunction>, String> + 'static) -> Result<(), CompilationError> {
+    pub fn add_dyn_func(&mut self, name: DefaultSymbol, func: impl Fn(Option<&[XExpr]>, &[Arc<XType>], &XCompilationScope<'_>) -> Result<Rc<XStaticFunction>, String> + 'static) -> Result<(), CompilationError> {
         // todo ensure no shadowing?
         Ok(self.functions.entry(name).or_insert_with(|| vec![]).push(Rc::new(XFunctionFactory::Dynamic(Rc::new(func)))))
     }
@@ -205,7 +205,7 @@ impl<'p> XCompilationScope<'p> {
         self.add_func(interner.get_or_intern_static(name), func)
     }
 
-    pub fn add_dyn_func_intern(&mut self, name: &'static str, func: impl Fn(Option<&Vec<XExpr>>, &Vec<Arc<XType>>, &XCompilationScope<'_>) -> Result<Rc<XStaticFunction>, String> + 'static, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    pub fn add_dyn_func_intern(&mut self, name: &'static str, func: impl Fn(Option<&[XExpr]>, &[Arc<XType>], &XCompilationScope<'_>) -> Result<Rc<XStaticFunction>, String> + 'static, interner: &mut StringInterner) -> Result<(), CompilationError> {
         self.add_dyn_func(interner.get_or_intern_static(name), func)
     }
 
@@ -269,13 +269,13 @@ impl<'p> XCompilationScope<'p> {
         Ok(ret)
     }
 
-    pub fn resolve_overload(&self, name: Identifier, types: Vec<Arc<XType>>) -> Result<XExpr, String> {
+    pub fn resolve_overload(&self, name: Identifier, types: &[Arc<XType>]) -> Result<XExpr, String> {
         let overloads = match self.get(name) {
             Some(XCompilationScopeItem::Overload(overloads)) => overloads,
             _ => return Err(format!("{:?} is not an overload", name)) // todo better error
         };
-        resolve_overload(overloads, None, &types, name, &self)
-            .map_err(|_| "overload resolution failed".to_string())
+        resolve_overload(overloads, None, types, name, &self)
+            .map_err(|e| format!("overload resolution failed for {types:?} ({e:?})"))
     }
 
     fn parse_param_specs(&self, param_pairs: Pair<Rule>, gen_param_names: &HashSet<String>, interner: &mut StringInterner, runtime: RTCell, fn_symbol: Option<Identifier>) -> Result<Vec<XExplicitArgSpec>, TracedCompilationError> {
@@ -376,7 +376,7 @@ impl<'p> XCompilationScope<'p> {
                 let compiled_output = self.to_expr(body_iter.next().unwrap(), interner, runtime)?.compile(&subscope).map_err(|e| e.trace(&input))?;
                 let output = Box::new(compiled_output.expr);
                 let out_type = output.xtype().map_err(|e| e.trace(&body))?; // todo improve trace?
-                if out_type != spec.ret {
+                if spec.ret.bind_in_assignment(&out_type).is_none() {
                     return Err(CompilationError::FunctionOutputTypeMismatch {
                         function_name: fn_symbol,
                         expected_type: spec.ret,

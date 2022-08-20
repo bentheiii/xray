@@ -324,7 +324,7 @@ pub fn add_optional_eq(scope: &mut XCompilationScope, interner: &mut StringInter
         }))
     }
 
-    fn from_types(types: &Vec<Arc<XType>>, scope: &XCompilationScope, eq_symbol: Identifier) -> Result<Rc<XStaticFunction>, String> {
+    fn from_types(types: &[Arc<XType>], scope: &XCompilationScope, eq_symbol: Identifier) -> Result<Rc<XStaticFunction>, String> {
         if types.len() != 2 {
             return Err(format!("Expected 2 types, got {}", types.len()));
         }
@@ -339,7 +339,7 @@ pub fn add_optional_eq(scope: &mut XCompilationScope, interner: &mut StringInter
             _ => return Err(format!("Expected optional type, got {:?}", a1)),  // todo improve
         };
 
-        let inner_eq = scope.resolve_overload(eq_symbol, vec![t0.clone(), t1.clone()])?;  // todo ensure that the function returns a bool
+        let inner_eq = scope.resolve_overload(eq_symbol, &[t0.clone(), t1.clone()])?;  // todo ensure that the function returns a bool
 
         Ok(static_from_eq(t0, t1, inner_eq))
     }

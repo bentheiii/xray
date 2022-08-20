@@ -72,59 +72,63 @@ impl CompilationResult {
     }
 }
 
-pub fn resolve_overload<'p>(overloads: Vec<Rc<XFunctionFactory>>, args: Option<&Vec<XExpr>>, arg_types: &Vec<Arc<XType>>, name: DefaultSymbol, namespace: &'p XCompilationScope<'p>) -> Result<XExpr, CompilationError> {
+pub fn resolve_overload<'p>(overloads: Vec<Rc<XFunctionFactory>>, args: Option<&[XExpr]>, arg_types: &[Arc<XType>], name: DefaultSymbol, namespace: &'p XCompilationScope<'p>) -> Result<XExpr, CompilationError> {
     let mut exact_matches = vec![];
-            let mut generic_matches = vec![];
-            let mut dynamic_failures = vec![];
-            let is_unknown = arg_types.iter().any(|t| t.is_unknown());
-            // if the bindings are unknown, then we prefer generic solutions over exact solutions
-            for overload in overloads {
-                let overload = match overload.as_ref() {
-                    XFunctionFactory::Static(overload) => overload.clone(),
-                    XFunctionFactory::Dynamic(dyn_func) => match dyn_func(args, arg_types, namespace) {
-                        Ok(overload) => overload,
-                        Err(err) => {
-                            dynamic_failures.push(err);
-                            continue;
-                        }
-                    }
-                };
-                let b = overload.bind(arg_types);
-                if let Some(bind) = b {
-                    if overload.is_generic() ^ is_unknown {
-                        &mut generic_matches
-                    } else {
-                        &mut exact_matches
-                    }.push(XExpr::KnownOverload(overload.clone(), bind));
+    let mut generic_matches = vec![];
+    let mut dynamic_failures = vec![];
+    let is_unknown = arg_types.iter().any(|t| t.is_unknown());
+    // if the bindings are unknown, then we prefer generic solutions over exact solutions
+    for overload in overloads {
+        let overload = match overload.as_ref() {
+            XFunctionFactory::Static(overload) => overload.clone(),
+            XFunctionFactory::Dynamic(dyn_func) => match dyn_func(args, arg_types, namespace) {
+                Ok(overload) => overload,
+                Err(err) => {
+                    dynamic_failures.push(err);
+                    continue;
                 }
             }
-            if exact_matches.len() == 1 {
-                return Ok(exact_matches.swap_remove(0));
+        };
+        let b = overload.bind(arg_types);
+        if let Some(bind) = b {
+            let item = XExpr::KnownOverload(overload.clone(), bind);
+            if overload.short_circut_overloads(){
+                return Ok(item);
             }
-            if exact_matches.len() > 1 {
-                return Err(CompilationError::AmbiguousOverload {
-                    name,
-                    is_generic: false,
-                    items: exact_matches,
-                    param_types: arg_types.clone(),
-                });
-            }
-            if generic_matches.len() == 1 {
-                return Ok(generic_matches.swap_remove(0));
-            }
-            if generic_matches.len() > 1 {
-                return Err(CompilationError::AmbiguousOverload {
-                    name,
-                    is_generic: true,
-                    items: generic_matches,
-                    param_types: arg_types.clone(),
-                });
-            }
-            Err(CompilationError::NoOverload {
-                name,
-                param_types: arg_types.clone(),
-                dynamic_failures
-            })
+            if overload.is_generic() ^ is_unknown {
+                &mut generic_matches
+            } else {
+                &mut exact_matches
+            }.push(item);
+        }
+    }
+    if exact_matches.len() == 1 {
+        return Ok(exact_matches.swap_remove(0));
+    }
+    if exact_matches.len() > 1 {
+        return Err(CompilationError::AmbiguousOverload {
+            name,
+            is_generic: false,
+            items: exact_matches,
+            param_types: arg_types.iter().cloned().collect(),
+        });
+    }
+    if generic_matches.len() == 1 {
+        return Ok(generic_matches.swap_remove(0));
+    }
+    if generic_matches.len() > 1 {
+        return Err(CompilationError::AmbiguousOverload {
+            name,
+            is_generic: true,
+            items: generic_matches,
+            param_types: arg_types.iter().cloned().collect(),
+        });
+    }
+    Err(CompilationError::NoOverload {
+        name,
+        param_types: arg_types.iter().cloned().collect(),
+        dynamic_failures,
+    })
 }
 
 impl XStaticExpr {
@@ -363,6 +367,8 @@ pub enum XExpr {
 
 #[derive(Clone)]  // todo why clone?
 pub enum XStaticFunction {
+    // identical to a native, with the exception that will short-circut overload resolution
+    ShortCircutNative(XFuncSpec, NativeCallable),
     Native(XFuncSpec, NativeCallable),
     UserFunction(UfData),
     Recourse(Rc<XFuncSpec>, usize),
@@ -401,7 +407,8 @@ impl UfData {
 impl XStaticFunction {
     pub fn to_function(self: Rc<Self>, closure: &XEvaluationScope<'_>) -> XFunction {
         match self.as_ref() {
-            XStaticFunction::Native(_, native) => XFunction::Native(native.clone()),
+            XStaticFunction::Native(_, native)
+            | XStaticFunction::ShortCircutNative(_, native) => XFunction::Native(native.clone()),
             XStaticFunction::UserFunction(uf) => {
                 let closure = uf.cvars.iter().map(|&name| (name, closure.get(name).unwrap().clone())).collect();
                 XFunction::UserFunction(self.clone(), closure)
@@ -410,16 +417,30 @@ impl XStaticFunction {
         }
     }
 
-    pub fn from_native(spec: XFuncSpec, native: impl Fn(&Vec<XExpr>, &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String> + 'static) -> XStaticFunction {
+    pub fn from_native(spec: XFuncSpec, native: impl Fn(&[XExpr], &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String> + 'static) -> XStaticFunction {
         XStaticFunction::Native(spec, Rc::new(native))
     }
 
+    pub fn from_native_short_circut(spec: XFuncSpec, native: impl Fn(&[XExpr], &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String> + 'static) -> XStaticFunction {
+        XStaticFunction::ShortCircutNative(spec, Rc::new(native))
+    }
+
+    pub fn short_circut_overloads(&self)->bool{
+        if let Self::ShortCircutNative(..) = self{
+            true
+        } else {
+            false
+        }
+    }
 }
 
 impl Debug for XStaticFunction {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             XStaticFunction::Native(spec, _) => {
+                write!(f, "Native({:?})", spec)
+            }
+            XStaticFunction::ShortCircutNative(spec, _) => {
                 write!(f, "Native({:?})", spec)
             }
             XStaticFunction::UserFunction(spec, ..) => {
@@ -470,30 +491,30 @@ impl XExplicitFuncSpec {
 }
 
 impl XStaticFunction {
-    pub fn bind(&self, args: &Vec<Arc<XType>>) -> Option<Bind> {
+    pub fn bind(&self, args: &[Arc<XType>]) -> Option<Bind> {
         match self {
-            XStaticFunction::Native(spec, _) => spec.bind(args),
+            XStaticFunction::Native(spec, _) | XStaticFunction::ShortCircutNative(spec, _) => spec.bind(args),
             XStaticFunction::Recourse(spec, ..) => spec.bind(args),
             XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().bind(args),
         }
     }
     pub fn rtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
-            XStaticFunction::Native(spec, _) => spec.rtype(bind),
+            XStaticFunction::Native(spec, _) | XStaticFunction::ShortCircutNative(spec, _) => spec.rtype(bind),
             XStaticFunction::Recourse(spec, ..) => spec.rtype(bind),
-            XStaticFunction::UserFunction(ud, ..) =>ud.spec.to_spec().rtype(bind),
+            XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().rtype(bind),
         }
     }
     pub fn is_generic(&self) -> bool {
         match self {
-            XStaticFunction::Native(spec, _) => spec.generic_params.is_some(),
+            XStaticFunction::Native(spec, _) | XStaticFunction::ShortCircutNative(spec, _) => spec.generic_params.is_some(),
             XStaticFunction::Recourse(spec, ..) => spec.generic_params.is_some(),
             XStaticFunction::UserFunction(ud, ..) => ud.spec.generic_params.is_some(),
         }
     }
     pub fn xtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
-            XStaticFunction::Native(spec, _) => spec.xtype(bind),
+            XStaticFunction::Native(spec, _) | XStaticFunction::ShortCircutNative(spec, _) => spec.xtype(bind),
             XStaticFunction::Recourse(spec, ..) => spec.xtype(bind),
             XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().xtype(bind),
         }
@@ -575,7 +596,7 @@ impl XExpr {
                     IdentItem::Value(xtype) => Ok(xtype.clone()),
                     IdentItem::Function(func) => Ok(func.xtype(&Bind::new())),
                 }
-            },
+            }
             XExpr::Tuple(items) => {
                 let types = items.iter().map(|x| x.xtype()).collect::<Result<Vec<_>, _>>()?;
                 Ok(Arc::new(XType::Tuple(types)))
@@ -591,7 +612,7 @@ impl XExpr {
             XExpr::LiteralFloat(r) => Ok(ManagedXValue::new(XValue::Float(*r), runtime)?.into()),
             XExpr::LiteralString(s) => Ok(ManagedXValue::new(XValue::String(s.clone()), runtime)?.into()),
             XExpr::Array(exprs) => {
-                let seq = if exprs.is_empty() {XSequence::Empty} else {
+                let seq = if exprs.is_empty() { XSequence::Empty } else {
                     XSequence::array(exprs.iter().map(|x| x.eval(namespace, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?)
                 };
                 Ok(ManagedXValue::new(XValue::Native(Box::new(seq)), runtime)?.into())
