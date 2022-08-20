@@ -1,6 +1,6 @@
 use std::fs;
 use string_interner::StringInterner;
-use xray;
+
 use xray::evaluation_scope::XEvaluationScope;
 use xray::runtime::RuntimeLimits;
 use xray::std_compilation_scope;
@@ -26,7 +26,7 @@ fn test_script(script_number: usize) {
         .expect(r#"function "main" not found"#);
     let main_output = &main_fn
         .to_function(&eval_scope)
-        .eval_values(&vec![], &eval_scope, runtime)
+        .eval_values(&[], &eval_scope, runtime)
         .unwrap()
         .value;
     if let XValue::Bool(true) = main_output {

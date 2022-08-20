@@ -62,9 +62,9 @@ impl Bind {
         for (k, v) in other.bound_generics.iter() {
             if let Some(existing) = self.bound_generics.get(k) {
                 let new_bind = existing.common_type(v)?;
-                self.bound_generics.insert(k.clone(), new_bind);
+                self.bound_generics.insert(*k, new_bind);
             } else {
-                self.bound_generics.insert(k.clone(), v.clone());
+                self.bound_generics.insert(*k, v.clone());
             }
         }
         Some(self)
@@ -111,8 +111,8 @@ impl XCompoundSpec {
             return None;
         }
         let mut ret = Bind::new();
-        for (arg, param) in args.into_iter().zip(self.fields.iter()) {
-            ret = ret.mix(&param.type_.bind_in_assignment(&arg)?)?;
+        for (arg, param) in args.iter().zip(self.fields.iter()) {
+            ret = ret.mix(&param.type_.bind_in_assignment(arg)?)?;
         }
         Some(ret)
     }
@@ -123,7 +123,7 @@ impl XCompoundSpec {
             if let Some(bound) = bind.get(name) {
                 ret.push(bound.clone());
             } else {
-                ret.push(Arc::new(XType::XGeneric(name.clone())));
+                ret.push(Arc::new(XType::XGeneric(*name)));
             }
         }
         ret
@@ -169,8 +169,8 @@ impl XFuncSpec {
             return None;
         }
         let mut ret = Bind::new();
-        for (arg, param) in args.into_iter().zip(self.params.iter()) {
-            ret = ret.mix(&param.type_.bind_in_assignment(&arg)?)?;
+        for (arg, param) in args.iter().zip(self.params.iter()) {
+            ret = ret.mix(&param.type_.bind_in_assignment(arg)?)?;
         }
         Some(ret)
     }
@@ -226,11 +226,7 @@ impl XType {
                     ) {
                         bind.bound_generics.insert(
                             *gen_name,
-                            if let Some(v) = gen_arg0.common_type(gen_arg1) {
-                                v
-                            } else {
-                                return None;
-                            },
+                            gen_arg0.common_type(gen_arg1)?,
                         );
                     }
                     Some(XType::Compound(*k0, a.clone(), bind).into())
@@ -285,14 +281,14 @@ impl XType {
                     .zip(b.generics_with_bind(bind_b).iter())
                     .rev()
                 {
-                    bind = bind.mix(&gen_arg0.bind_in_assignment(&gen_arg1)?)?;
+                    bind = bind.mix(&gen_arg0.bind_in_assignment(gen_arg1)?)?;
                 }
                 Some(bind)
             }
             (XType::XCallable(ref a), XType::XCallable(ref b)) => {
                 let mut total_binds = Bind::new();
                 for (a_type, b_type) in a.param_types.iter().zip(b.param_types.iter()) {
-                    if let Some(binds) = a_type.bind_in_assignment(&b_type) {
+                    if let Some(binds) = a_type.bind_in_assignment(b_type) {
                         total_binds = total_binds.mix(&binds)?;
                     } else {
                         return None;
@@ -375,7 +371,7 @@ impl XType {
                 }
                 Some(bind)
             }
-            (XType::XGeneric(ref a), _) => Some(Bind::from([(a.clone(), other.clone())])),
+            (XType::XGeneric(ref a), _) => Some(Bind::from([(*a, other.clone())])),
             (_, XType::XUnknown) => Some(Bind::new()),
             (XType::XUnknown, _) => Some(Bind::new()),
 
@@ -399,7 +395,7 @@ impl XType {
                 )
                 .into()
             }
-            XType::XGeneric(ref a) => bind.get(a).map(|b| b.clone()).unwrap_or(self.clone()),
+            XType::XGeneric(ref a) => bind.get(a).cloned().unwrap_or(self.clone()),
             XType::XTail(types) => match tail {
                 None => unreachable!(),
                 Some(t) => {
@@ -408,9 +404,9 @@ impl XType {
                             spec.generic_names
                                 .iter()
                                 .zip(types.iter())
-                                .map(|(n, t)| (n.clone(), t.clone().resolve_bind(bind, None))),
+                                .map(|(n, t)| (*n, t.clone().resolve_bind(bind, None))),
                         );
-                        Arc::new(XType::Compound(kind.clone(), spec.clone(), bind))
+                        Arc::new(XType::Compound(*kind, spec.clone(), bind))
                     } else {
                         unreachable!()
                     }
@@ -456,19 +452,19 @@ impl XType {
             XType::Float => "float".to_string(),
             XType::String => "string".to_string(),
             XType::Compound(_, ref a, ref b) => {
-                if a.generic_names.len() == 0 {
-                    format!("{}", interner.resolve(a.name.clone()).unwrap())
+                if a.generic_names.is_empty() {
+                    interner.resolve(a.name).unwrap().to_string()
                 } else {
                     format!(
                         "{}<{}>",
-                        interner.resolve(a.name.clone()).unwrap(),
+                        interner.resolve(a.name).unwrap(),
                         a.generic_names
                             .iter()
                             .map(|n| b
                                 .get(&n.clone())
                                 .map(|t| t.display_with_interner(interner))
                                 .unwrap_or_else(|| interner
-                                    .resolve(n.clone())
+                                    .resolve(*n)
                                     .unwrap()
                                     .to_string()))
                             .join(", ")
@@ -491,19 +487,19 @@ impl XType {
                     }
                     ret.push_str(&arg.type_.display_with_interner(interner));
                     if !arg.required {
-                        ret.push_str("?");
+                        ret.push('?');
                     }
                 }
                 ret.push_str(")->");
                 ret.push_str(&a.ret.display_with_interner(interner));
                 ret
             }
-            XType::XGeneric(ref a) => format!("{}", interner.resolve(a.clone()).unwrap()),
+            XType::XGeneric(ref a) => interner.resolve(*a).unwrap().to_string(),
             XType::XNative(ref a, bind) => format!(
                 "{}<{}>",
                 a.name(),
                 bind.iter()
-                    .map(|t| format!("{}", t.display_with_interner(interner)))
+                    .map(|t| t.display_with_interner(interner))
                     .join(", ")
             ),
             XType::Tuple(ref a) => format!(
@@ -575,10 +571,10 @@ pub fn common_type<T: Iterator<Item = Result<Arc<XType>, CompilationError>>>(
         if ret != v {
             // todo assignable?
             return Err(CompilationError::IncompatibleTypes {
-                type0: ret.clone(),
-                type1: v.clone(),
+                type0: ret,
+                type1: v,
             });
         }
     }
-    Ok(ret.clone())
+    Ok(ret)
 }

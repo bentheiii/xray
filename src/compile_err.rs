@@ -152,7 +152,7 @@ impl CompilationError {
             } => {
                 format!(
                     "Variable {} has type {}, but expected {}",
-                    interner.resolve(variable_name.clone()).unwrap(),
+                    interner.resolve(*variable_name).unwrap(),
                     actual_type.display_with_interner(interner),
                     expected_type.display_with_interner(interner)
                 )
@@ -163,9 +163,9 @@ impl CompilationError {
             } => {
                 format!(
                     "Required parameter {} after optional parameter in function {}",
-                    interner.resolve(param_name.clone()).unwrap(),
+                    interner.resolve(*param_name).unwrap(),
                     function_name.map_or("<lambda>", |function_name| interner
-                        .resolve(function_name.clone())
+                        .resolve(function_name)
                         .unwrap())
                 )
             }
@@ -176,8 +176,8 @@ impl CompilationError {
             } => {
                 format!(
                     "Error evaluating default value for parameter {} in function {}: {}",
-                    interner.resolve(param_name.clone()).unwrap(),
-                    function_name.map_or("<lambda>", |s| interner.resolve(s.clone()).unwrap()),
+                    interner.resolve(*param_name).unwrap(),
+                    function_name.map_or("<lambda>", |s| interner.resolve(s).unwrap()),
                     error
                 )
             }
@@ -188,7 +188,7 @@ impl CompilationError {
             } => {
                 format!(
                     "Function {} has output type {}, but expected {}",
-                    interner.resolve(function_name.clone()).unwrap(),
+                    interner.resolve(*function_name).unwrap(),
                     actual_type.display_with_interner(interner),
                     expected_type.display_with_interner(interner)
                 )
@@ -209,17 +209,17 @@ impl CompilationError {
             CompilationError::ValueIsNotType { name, item } => {
                 format!(
                     "{} is not of type (found {:?})",
-                    interner.resolve(name.clone()).unwrap(),
+                    interner.resolve(*name).unwrap(),
                     item,
                 )
             }
             CompilationError::PairNotType => {
-                format!("Expression cannot be interpreted as a typer")
+                "Expression cannot be interpreted as a typer".to_string()
             }
             CompilationError::NameAlreadyDefined { name, other } => {
                 format!(
                     "Name {} is already defined as {:?}",
-                    interner.resolve(name.clone()).unwrap(),
+                    interner.resolve(*name).unwrap(),
                     other
                 )
             }
@@ -232,7 +232,7 @@ impl CompilationError {
                 format!(
                     "Overload{} for {} is ambiguous for param types {:?}: {:?}",
                     if *is_generic { " (generic)" } else { "" },
-                    interner.resolve(name.clone()).unwrap(),
+                    interner.resolve(*name).unwrap(),
                     param_types,
                     items
                 )
@@ -244,7 +244,7 @@ impl CompilationError {
             } => {
                 format!(
                     "No overload for {} found for param types [{}]{}",
-                    interner.resolve(name.clone()).unwrap(),
+                    interner.resolve(*name).unwrap(),
                     param_types
                         .iter()
                         .map(|t| t.display_with_interner(interner))
@@ -257,7 +257,7 @@ impl CompilationError {
                 )
             }
             CompilationError::VariantConstructorOneArg => {
-                format!("Variant constructors must have exactly one argument")
+                "Variant constructors must have exactly one argument".to_string()
             }
             CompilationError::VariantConstructorTypeArgMismatch {
                 union_name,
@@ -268,7 +268,7 @@ impl CompilationError {
                 format!(
                     "Variant {} of union {} has type {}, but expected {}",
                     variant_name,
-                    interner.resolve(union_name.clone()).unwrap(),
+                    interner.resolve(*union_name).unwrap(),
                     actual_type.display_with_interner(interner),
                     expected_type.display_with_interner(interner)
                 )
@@ -280,7 +280,7 @@ impl CompilationError {
             } => {
                 format!(
                     "Struct {} has {} parameters, but expected {}",
-                    interner.resolve(struct_name.clone()).unwrap(),
+                    interner.resolve(*struct_name).unwrap(),
                     actual_count,
                     expected_count
                 )
@@ -292,7 +292,7 @@ impl CompilationError {
             } => {
                 format!(
                     "Struct {} has parameters of types [{:?}], but expected [{:?}]",
-                    interner.resolve(struct_name.clone()).unwrap(),
+                    interner.resolve(*struct_name).unwrap(),
                     actual_types
                         .iter()
                         .map(|t| t.display_with_interner(interner))
@@ -306,7 +306,7 @@ impl CompilationError {
             CompilationError::NonFunctionSpecialization { name, item } => {
                 format!(
                     "Cannot specialize non-function {} (found {:?})",
-                    interner.resolve(name.clone()).unwrap(),
+                    interner.resolve(*name).unwrap(),
                     item,
                 )
             }
@@ -318,7 +318,7 @@ impl CompilationError {
             } => {
                 format!("Specialized argument at index {} of function {} has type {:?}, but expected {:?}",
                         idx,
-                        interner.resolve(name.clone()).unwrap(),
+                        interner.resolve(*name).unwrap(),
                         actual_type,
                         expected_type,
                 )
@@ -326,7 +326,7 @@ impl CompilationError {
             CompilationError::FunctionNotFound { name } => {
                 format!(
                     "Function {} not found",
-                    interner.resolve(name.clone()).unwrap()
+                    interner.resolve(*name).unwrap()
                 )
             }
             CompilationError::MemberNotFound { spec, name } => {
@@ -363,25 +363,25 @@ impl CompilationError {
             CompilationError::ValueNotFound { name } => {
                 format!(
                     "Value {} not found",
-                    interner.resolve(name.clone()).unwrap()
+                    interner.resolve(*name).unwrap()
                 )
             }
             CompilationError::TypeAsVariable { name } => {
                 format!(
                     "Cannot use type {} as variable",
-                    interner.resolve(name.clone()).unwrap()
+                    interner.resolve(*name).unwrap()
                 )
             }
             CompilationError::GenericFunctionAsVariable { name } => {
                 format!(
                     "Cannot use generic function {} as variable",
-                    interner.resolve(name.clone()).unwrap()
+                    interner.resolve(*name).unwrap()
                 )
             }
             CompilationError::OverloadedFunctionAsVariable { name } => {
                 format!(
                     "Cannot use overloaded function {} as variable",
-                    interner.resolve(name.clone()).unwrap()
+                    interner.resolve(*name).unwrap()
                 )
             }
             CompilationError::IncompatibleTypes { type0, type1 } => {
@@ -406,7 +406,7 @@ impl CompilationError {
             CompilationError::DynamicFunctionAsVariable { name } => {
                 format!(
                     "Cannot use unspecialized dynamic function {} as variable",
-                    interner.resolve(name.clone()).unwrap()
+                    interner.resolve(*name).unwrap()
                 )
             }
         }
@@ -433,7 +433,7 @@ impl TracedCompilationError {
                     error.display_with_interner(interner),
                     start_line,
                     slc,
-                    <&CompilationError as Into<&'static str>>::into(&error)
+                    <&CompilationError as Into<&'static str>>::into(error)
                 )
             }
         }

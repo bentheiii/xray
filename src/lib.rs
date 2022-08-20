@@ -1,5 +1,6 @@
 #![allow(incomplete_features)]
 #![feature(trait_upcasting)]
+#![warn(clippy::use_self)]
 
 #[macro_use]
 extern crate lazy_static;
@@ -165,6 +166,6 @@ impl XCompilationScope<'_> {
         let body = XRayParser::parse(Rule::header, input)
             .map(|mut p| p.next().unwrap())
             .map_err(TracedCompilationError::Syntax)?;
-        self.feed(body, &HashSet::new(), interner, runtime.clone())
+        self.feed(body, &HashSet::new(), interner, runtime)
     }
 }

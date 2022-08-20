@@ -104,11 +104,11 @@ impl XFunction {
                     XStaticFunction::UserFunction(uf) => uf,
                     _ => unreachable!(),
                 };
-                let mut recursion_depth = 0 as usize;
+                let mut recursion_depth = 0_usize;
                 loop {
                     let closure_scope = if !closure.is_empty() {
                         let mut scope =
-                            XEvaluationScope::from_parent(&parent_scope, &self, runtime.clone())?;
+                            XEvaluationScope::from_parent(parent_scope, self, runtime.clone())?;
                         for (&name, value) in closure {
                             scope.add(name, value.clone());
                         }
@@ -119,9 +119,9 @@ impl XFunction {
                     let mut scope = XEvaluationScope::from_parent(
                         match closure_scope {
                             Some(ref scope) => scope,
-                            None => &parent_scope,
+                            None => parent_scope,
                         },
-                        &self,
+                        self,
                         runtime.clone(),
                     )?;
                     // explicit params
@@ -189,7 +189,7 @@ impl Debug for XFunction {
 
 impl PartialEq for XFunction {
     fn eq(&self, _: &Self) -> bool {
-        return false;
+        false
     }
 }
 

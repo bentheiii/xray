@@ -70,10 +70,10 @@ impl<'p> XEvaluationScope<'p> {
             match decl {
                 Declaration::Value(name, expr) => {
                     let value = expr.eval(self, false, runtime.clone())?.unwrap_value();
-                    self.add(name.clone(), value);
+                    self.add(*name, value);
                 }
                 Declaration::UserFunction(name, func) => {
-                    self.ud_functions.insert(name.clone(), func.clone());
+                    self.ud_functions.insert(*name, func.clone());
                 }
                 _ => {}
             }

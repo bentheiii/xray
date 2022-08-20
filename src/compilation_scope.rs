@@ -98,13 +98,13 @@ impl<'p> XCompilationScope<'p> {
 
     fn ancestors(&self) -> impl Iterator<Item = &XCompilationScope<'p>> {
         let mut scope = self;
-        return from_fn(move || {
-            if let Some(parent) = scope.parent.as_deref() {
+        from_fn(move || {
+            if let Some(parent) = scope.parent {
                 scope = parent;
                 return Some(parent);
             }
-            return None;
-        });
+            None
+        })
     }
 
     pub fn get(&self, name: DefaultSymbol) -> Option<XCompilationScopeItem> {
@@ -120,7 +120,7 @@ impl<'p> XCompilationScope<'p> {
             let mut overloads = scope
                 .functions
                 .get(&name)
-                .map_or_else(|| vec![], |x| x.clone());
+                .map_or_else(std::vec::Vec::new, |x| x.clone());
             match &scope.recourse {
                 Some((rec_name, spec)) if rec_name == &name => {
                     overloads.push(Rc::new(XFunctionFactory::Static(Rc::new(
@@ -129,7 +129,7 @@ impl<'p> XCompilationScope<'p> {
                 }
                 _ => (),
             }
-            if overloads.len() > 0 {
+            if !overloads.is_empty() {
                 for (depth, ancestor) in scope.ancestors().enumerate() {
                     if let Some(ancestor_overloads) = ancestor.functions.get(&name) {
                         let ancestor_overloads = ancestor_overloads.iter().map(|x| {
@@ -245,7 +245,7 @@ impl<'p> XCompilationScope<'p> {
         let item = Rc::new(func);
         self.functions
             .entry(name)
-            .or_insert_with(|| vec![])
+            .or_insert_with(std::vec::Vec::new)
             .push(Rc::new(XFunctionFactory::Static(item.clone())));
         Ok(Declaration::UserFunction(name, item))
     }
@@ -261,11 +261,12 @@ impl<'p> XCompilationScope<'p> {
             + 'static,
     ) -> Result<(), CompilationError> {
         // todo ensure no shadowing?
-        Ok(self
-            .functions
-            .entry(name)
-            .or_insert_with(|| vec![])
-            .push(Rc::new(XFunctionFactory::Dynamic(Rc::new(func)))))
+        self
+        .functions
+        .entry(name)
+        .or_insert_with(std::vec::Vec::new)
+        .push(Rc::new(XFunctionFactory::Dynamic(Rc::new(func))));
+        Ok(())
     }
 
     pub fn add_func_intern(
@@ -382,7 +383,7 @@ impl<'p> XCompilationScope<'p> {
             Some(XCompilationScopeItem::Overload(overloads)) => overloads,
             _ => return Err(format!("{:?} is not an overload", name)), // todo better error
         };
-        resolve_overload(overloads, None, types, name, &self)
+        resolve_overload(overloads, None, types, name, self)
             .map_err(|e| format!("overload resolution failed for {types:?} ({e:?})"))
     }
 
@@ -402,7 +403,7 @@ impl<'p> XCompilationScope<'p> {
                 let param_symbol = interner.get_or_intern(param_name);
                 let type_ = self.get_complete_type(
                     param_iter.next().unwrap(),
-                    &gen_param_names,
+                    gen_param_names,
                     interner,
                     None,
                 )?;
@@ -414,7 +415,7 @@ impl<'p> XCompilationScope<'p> {
                             .to_eval_scope(runtime.clone())
                             .map_err(|e| e.trace(&d))?;
                         self.to_expr(d.clone(), interner, runtime.clone())?
-                            .compile(&self)
+                            .compile(self)
                             .and_then(|c| {
                                 c.expr
                                     .eval(&e_scope, false, runtime.clone())
@@ -472,7 +473,7 @@ impl<'p> XCompilationScope<'p> {
                 let CompilationResult {
                     expr: compiled,
                     closure_vars: cvars,
-                } = expr.compile(&self).map_err(|e| e.trace(&input))?;
+                } = expr.compile(self).map_err(|e| e.trace(&input))?;
                 let symbol = interner.get_or_intern(var_name);
                 if let Some(complete_type) = complete_type {
                     let comp_xtype = compiled.xtype().map_err(|e| e.trace(&explicit_type_opt))?;
@@ -740,7 +741,7 @@ impl<'p> XCompilationScope<'p> {
                                         }
                                         .trace(&input));
                                     }
-                                    return Ok(Arc::new(XType::XNative(t.clone(), gen_params)));
+                                    Ok(Arc::new(XType::XNative(t.clone(), gen_params)))
                                 } else {
                                     Ok(t)
                                 }

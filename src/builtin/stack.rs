@@ -49,7 +49,7 @@ impl StackNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct XStack {
     pub head: Option<Rc<StackNode>>,
     pub length: usize,
@@ -57,10 +57,7 @@ pub struct XStack {
 
 impl XStack {
     pub fn new() -> Self {
-        XStack {
-            head: None,
-            length: 0,
-        }
+        Self::default()
     }
 
     pub fn push(&self, value: Rc<ManagedXValue>) -> Self {
@@ -89,14 +86,14 @@ impl XStack {
 
     pub fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue>> + '_ {
         let mut node = &self.head;
-        return from_fn(move || match &node {
+        from_fn(move || match &node {
             None => None,
             Some(n) => {
                 let ret = n.value.clone();
                 node = &n.next;
                 Some(ret)
             }
-        });
+        })
     }
 }
 
@@ -168,11 +165,11 @@ pub fn add_stack_push(
                         required: true,
                     },
                     XFuncParamSpec {
-                        type_: t.clone(),
+                        type_: t,
                         required: true,
                     },
                 ],
-                ret: t_stk.clone(),
+                ret: t_stk,
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
@@ -198,10 +195,10 @@ pub fn add_stack_to_array(
             XFuncSpec {
                 generic_params: Some(intern!(interner, "T")),
                 params: vec![XFuncParamSpec {
-                    type_: t_stk.clone(),
+                    type_: t_stk,
                     required: true,
                 }],
-                ret: XSequenceType::xtype(t.clone()),
+                ret: XSequenceType::xtype(t),
             },
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
@@ -227,10 +224,10 @@ pub fn add_stack_to_array_reversed(
             XFuncSpec {
                 generic_params: Some(intern!(interner, "T")),
                 params: vec![XFuncParamSpec {
-                    type_: t_stk.clone(),
+                    type_: t_stk,
                     required: true,
                 }],
-                ret: XSequenceType::xtype(t.clone()),
+                ret: XSequenceType::xtype(t),
             },
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
@@ -248,7 +245,7 @@ pub fn add_stack_len(
     interner: &mut StringInterner,
 ) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_stk = XStackType::xtype(t.clone());
+    let t_stk = XStackType::xtype(t);
 
     scope.add_func_intern(
         "len",
@@ -256,7 +253,7 @@ pub fn add_stack_len(
             XFuncSpec {
                 generic_params: Some(intern!(interner, "T")),
                 params: vec![XFuncParamSpec {
-                    type_: t_stk.clone(),
+                    type_: t_stk,
                     required: true,
                 }],
                 ret: X_INT.clone(),
@@ -285,10 +282,10 @@ pub fn add_stack_head(
             XFuncSpec {
                 generic_params: Some(intern!(interner, "T")),
                 params: vec![XFuncParamSpec {
-                    type_: t_stk.clone(),
+                    type_: t_stk,
                     required: true,
                 }],
-                ret: t.clone(),
+                ret: t,
             },
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
@@ -309,7 +306,7 @@ pub fn add_stack_tail(
     interner: &mut StringInterner,
 ) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_stk = XStackType::xtype(t.clone());
+    let t_stk = XStackType::xtype(t);
 
     scope.add_func_intern(
         "tail",
@@ -320,7 +317,7 @@ pub fn add_stack_tail(
                     type_: t_stk.clone(),
                     required: true,
                 }],
-                ret: t_stk.clone(),
+                ret: t_stk,
             },
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);

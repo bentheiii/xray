@@ -26,7 +26,7 @@ pub struct XSequenceType;
 
 impl XSequenceType {
     pub fn xtype(t: Arc<XType>) -> Arc<XType> {
-        Arc::new(XType::XNative(Box::new(Self {}), vec![t.clone()]))
+        Arc::new(XType::XNative(Box::new(Self {}), vec![t]))
     }
 }
 
@@ -90,12 +90,12 @@ impl XSequence {
             Self::Array(arr) => Ok(arr[idx].clone()),
             Self::Range(start, _, step) => {
                 let v = BigInt::from(*start) + idx * BigInt::from(*step);
-                Ok(ManagedXValue::new(XValue::Int(v), rt)?.into())
+                Ok(ManagedXValue::new(XValue::Int(v), rt)?)
             }
             Self::Map(seq, func) => {
                 let original = to_native!(seq, XSequence).get(idx, ns, rt.clone())?;
                 let f = to_primitive!(func, Function);
-                f.eval_values(&vec![original], ns, rt)
+                f.eval_values(&[original], ns, rt)
             }
             Self::Zip(sequences) => {
                 let items = sequences
@@ -122,10 +122,10 @@ impl XSequence {
                 let step = BigInt::from(*step);
                 let mut current = BigInt::from(*start) + start_idx * &step;
                 let mut ret =
-                    vec![ManagedXValue::new(XValue::Int(current.clone()), rt.clone())?.into()];
+                    vec![ManagedXValue::new(XValue::Int(current.clone()), rt.clone())?];
                 for _ in start_idx + 1..end_idx {
                     current += &step;
-                    ret.push(ManagedXValue::new(XValue::Int(current.clone()), rt.clone())?.into());
+                    ret.push(ManagedXValue::new(XValue::Int(current.clone()), rt.clone())?);
                 }
                 Ok(ret)
             }
@@ -135,7 +135,7 @@ impl XSequence {
                 let ret = (start_idx..end_idx)
                     .map(|idx| {
                         let original = seq.get(idx, ns, rt.clone())?;
-                        func.eval_values(&vec![original], ns, rt.clone())
+                        func.eval_values(&[original], ns, rt.clone())
                     })
                     .collect::<Result<_, _>>()?;
                 Ok(ret)
@@ -159,12 +159,8 @@ impl XSequence {
         }
     }
 
-    fn is_empty(&self) -> bool {
-        if let Self::Empty = self {
-            true
-        } else {
-            false
-        }
+    pub fn is_empty(&self) -> bool {
+        matches!(self, Self::Empty)
     }
 }
 
@@ -232,7 +228,7 @@ pub fn add_sequence_get(
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let arr = &to_native!(a0, XSequence);
                 let idx = to_primitive!(a1, Int);
-                let idx = value_to_idx(&arr, idx)?;
+                let idx = value_to_idx(arr, idx)?;
                 Ok(arr.get(idx, ns, rt)?.into())
             },
         ),
@@ -253,7 +249,7 @@ pub fn add_sequence_len(
             XFuncSpec {
                 generic_params: Some(intern!(interner, "T")),
                 params: vec![XFuncParamSpec {
-                    type_: XSequenceType::xtype(t.clone()),
+                    type_: XSequenceType::xtype(t),
                     required: true,
                 }],
                 ret: X_INT.clone(),
@@ -274,7 +270,7 @@ pub fn add_sequence_add(
     interner: &mut StringInterner,
 ) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XSequenceType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t);
 
     scope.add_func_intern(
         "add",
@@ -291,13 +287,13 @@ pub fn add_sequence_add(
                         required: true,
                     },
                 ],
-                ret: t_arr.clone(),
+                ret: t_arr,
             },
             |args, ns, tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let seq0 = to_native!(a0, XSequence);
                 if seq0.is_empty() {
-                    return Ok(args[1].eval(&ns, tca, rt)?);
+                    return args[1].eval(ns, tca, rt);
                 }
                 let (a1,) = eval!(args, ns, rt, 1);
                 let seq1 = to_native!(a1, XSequence);
@@ -320,7 +316,7 @@ pub fn add_sequence_add_stack(
 ) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_arr = XSequenceType::xtype(t.clone());
-    let t_stack = XStackType::xtype(t.clone());
+    let t_stack = XStackType::xtype(t);
 
     scope.add_func_intern(
         "add",
@@ -333,11 +329,11 @@ pub fn add_sequence_add_stack(
                         required: true,
                     },
                     XFuncParamSpec {
-                        type_: t_stack.clone(),
+                        type_: t_stack,
                         required: true,
                     },
                 ],
-                ret: t_arr.clone(),
+                ret: t_arr,
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
@@ -365,7 +361,7 @@ pub fn add_sequence_addrev_stack(
 ) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_arr = XSequenceType::xtype(t.clone());
-    let t_stack = XStackType::xtype(t.clone());
+    let t_stack = XStackType::xtype(t);
 
     scope.add_func_intern(
         "add_rev",
@@ -378,11 +374,11 @@ pub fn add_sequence_addrev_stack(
                         required: true,
                     },
                     XFuncParamSpec {
-                        type_: t_stack.clone(),
+                        type_: t_stack,
                         required: true,
                     },
                 ],
-                ret: t_arr.clone(),
+                ret: t_arr,
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
@@ -424,17 +420,17 @@ pub fn add_sequence_push(
                         required: true,
                     },
                     XFuncParamSpec {
-                        type_: t.clone(),
+                        type_: t,
                         required: true,
                     },
                 ],
-                ret: t_arr.clone(),
+                ret: t_arr,
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq0 = to_native!(a0, XSequence);
                 let mut arr = seq0.slice(0, seq0.len(), ns, rt.clone())?;
-                arr.push(a1.clone());
+                arr.push(a1);
                 Ok(manage_native!(XSequence::array(arr), rt))
             },
         ),
@@ -461,16 +457,16 @@ pub fn add_sequence_rpush(
                         required: true,
                     },
                     XFuncParamSpec {
-                        type_: t.clone(),
+                        type_: t,
                         required: true,
                     },
                 ],
-                ret: t_arr.clone(),
+                ret: t_arr,
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq0 = to_native!(a0, XSequence);
-                let mut arr = vec![a1.clone()];
+                let mut arr = vec![a1];
                 arr.extend(seq0.slice(0, seq0.len(), ns, rt.clone())?);
                 Ok(manage_native!(XSequence::array(arr), rt))
             },
@@ -506,7 +502,7 @@ pub fn add_sequence_insert(
                         required: true,
                     },
                 ],
-                ret: t_arr.clone(),
+                ret: t_arr,
             },
             |args, ns, _tca, rt| {
                 let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
@@ -515,7 +511,7 @@ pub fn add_sequence_insert(
                 let idx = value_to_idx(seq, idx)?;
                 let mut ret: Vec<Rc<_>> = vec![];
                 ret.extend(seq.slice(0, idx, ns, rt.clone())?);
-                ret.push(a2.clone());
+                ret.push(a2);
                 ret.extend(seq.slice(idx, seq.len(), ns, rt.clone())?);
                 Ok(manage_native!(XSequence::array(ret), rt))
             },
@@ -530,7 +526,7 @@ pub fn add_sequence_pop(
     interner: &mut StringInterner,
 ) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XSequenceType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t);
 
     scope.add_func_intern(
         "pop",
@@ -547,13 +543,13 @@ pub fn add_sequence_pop(
                         required: true,
                     },
                 ],
-                ret: t_arr.clone(),
+                ret: t_arr,
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq = to_native!(a0, XSequence);
                 let idx = to_primitive!(a1, Int);
-                let idx = value_to_idx(&seq, idx)?;
+                let idx = value_to_idx(seq, idx)?;
                 if seq.len() == 1 {
                     return Ok(manage_native!(XSequence::Empty, rt));
                 }
@@ -594,7 +590,7 @@ pub fn add_sequence_set(
                         required: true,
                     },
                 ],
-                ret: t_arr.clone(),
+                ret: t_arr,
             },
             |args, ns, _tca, rt| {
                 let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
@@ -603,7 +599,7 @@ pub fn add_sequence_set(
                 let idx = value_to_idx(seq, idx)?;
                 let mut ret: Vec<Rc<_>> = vec![];
                 ret.extend(seq.slice(0, idx, ns, rt.clone())?);
-                ret.push(a2.clone());
+                ret.push(a2);
                 ret.extend(seq.slice(idx + 1, seq.len(), ns, rt.clone())?);
                 Ok(manage_native!(XSequence::array(ret), rt))
             },
@@ -618,7 +614,7 @@ pub fn add_sequence_swap(
     interner: &mut StringInterner,
 ) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XSequenceType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t);
 
     scope.add_func_intern(
         "swap",
@@ -639,7 +635,7 @@ pub fn add_sequence_swap(
                         required: true,
                     },
                 ],
-                ret: t_arr.clone(),
+                ret: t_arr,
             },
             |args, ns, _tca, rt| {
                 let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
@@ -683,7 +679,7 @@ pub fn add_sequence_to_stack(
                     type_: XSequenceType::xtype(t.clone()),
                     required: true,
                 }],
-                ret: XStackType::xtype(t.clone()),
+                ret: XStackType::xtype(t),
             },
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
@@ -719,13 +715,13 @@ pub fn add_sequence_map(
                     },
                     XFuncParamSpec {
                         type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![input_t.clone()],
+                            param_types: vec![input_t],
                             return_type: output_t.clone(),
                         })),
                         required: true,
                     },
                 ],
-                ret: XSequenceType::xtype(output_t.clone()),
+                ret: XSequenceType::xtype(output_t),
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
@@ -756,13 +752,13 @@ pub fn add_sequence_sort(
                     },
                     XFuncParamSpec {
                         type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![t.clone(), t.clone()],
+                            param_types: vec![t.clone(), t],
                             return_type: X_INT.clone(),
                         })),
                         required: true,
                     },
                 ],
-                ret: t_arr.clone(),
+                ret: t_arr,
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
@@ -773,7 +769,7 @@ pub fn add_sequence_sort(
                 let mut is_sorted = true;
                 for w in arr.windows(2) {
                     if to_primitive!(
-                        f.eval_values(&vec![w[0].clone(), w[1].clone()], &ns, rt.clone())?,
+                        f.eval_values(&[w[0].clone(), w[1].clone()], ns, rt.clone())?,
                         Int
                     )
                     .is_positive()
@@ -785,10 +781,10 @@ pub fn add_sequence_sort(
                 if is_sorted {
                     Ok(a0.clone().into())
                 } else {
-                    let mut ret = arr.clone();
+                    let mut ret = arr;
                     try_sort(&mut ret, |a, b| -> Result<_, String> {
                         Ok(to_primitive!(
-                            f.eval_values(&vec![a.clone(), b.clone()], &ns, rt.clone())?,
+                            f.eval_values(&[a.clone(), b.clone()], ns, rt.clone())?,
                             Int
                         )
                         .is_negative())
@@ -817,7 +813,7 @@ pub fn add_sequence_reduce3(
                 generic_params: Some(intern!(interner, "T")),
                 params: vec![
                     XFuncParamSpec {
-                        type_: t_arr.clone(),
+                        type_: t_arr,
                         required: true,
                     },
                     XFuncParamSpec {
@@ -826,13 +822,13 @@ pub fn add_sequence_reduce3(
                     },
                     XFuncParamSpec {
                         type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![s.clone(), t.clone()],
+                            param_types: vec![s.clone(), t],
                             return_type: s.clone(),
                         })),
                         required: true,
                     },
                 ],
-                ret: s.clone(),
+                ret: s,
             },
             |args, ns, _tca, rt| {
                 let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
@@ -841,7 +837,7 @@ pub fn add_sequence_reduce3(
                 let f = to_primitive!(a2, Function);
                 let mut ret = a1;
                 for i in arr {
-                    ret = f.eval_values(&vec![ret, i], ns, rt.clone())?;
+                    ret = f.eval_values(&[ret, i], ns, rt.clone())?;
                 }
                 Ok(ret.into())
             },
@@ -865,7 +861,7 @@ pub fn add_sequence_reduce2(
                 generic_params: Some(intern!(interner, "T")),
                 params: vec![
                     XFuncParamSpec {
-                        type_: t_arr.clone(),
+                        type_: t_arr,
                         required: true,
                     },
                     XFuncParamSpec {
@@ -876,7 +872,7 @@ pub fn add_sequence_reduce2(
                         required: true,
                     },
                 ],
-                ret: t.clone(),
+                ret: t,
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
@@ -888,7 +884,7 @@ pub fn add_sequence_reduce2(
                 let f = to_primitive!(a1, Function);
                 let mut ret = seq.get(0, ns, rt.clone())?;
                 for i in arr {
-                    ret = f.eval_values(&vec![ret, i], ns, rt.clone())?;
+                    ret = f.eval_values(&[ret, i], ns, rt.clone())?;
                 }
                 Ok(ret.into())
             },
@@ -978,13 +974,13 @@ pub fn add_sequence_filter(
                     },
                     XFuncParamSpec {
                         type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![t.clone()],
+                            param_types: vec![t],
                             return_type: X_BOOL.clone(),
                         })),
                         required: true,
                     },
                 ],
-                ret: t_arr.clone(),
+                ret: t_arr,
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
@@ -994,27 +990,24 @@ pub fn add_sequence_filter(
                 // first we check if the seq already fully_matches
                 let mut first_drop_idx = None; // if this is not none, it is the first index we need to drop
                 for (i, item) in arr.iter().enumerate() {
-                    if !*to_primitive!(f.eval_values(&vec![item.clone()], ns, rt.clone())?, Bool) {
+                    if !*to_primitive!(f.eval_values(&[item.clone()], ns, rt.clone())?, Bool) {
                         first_drop_idx = Some(i);
                         break;
                     }
                 }
-                if first_drop_idx.is_none() {
-                    // no indices need to drop, we can just return the sequence
-                    Ok(a0.clone().into())
-                } else {
-                    let mut ret = (&arr[..first_drop_idx.unwrap()])
-                        .iter()
-                        .cloned()
-                        .collect::<Vec<_>>();
+                if let Some(first_drop_idx) = first_drop_idx {
+                    let mut ret = arr[..first_drop_idx].to_vec();
 
-                    for item in arr.iter().skip(first_drop_idx.unwrap() + 1) {
-                        if *to_primitive!(f.eval_values(&vec![item.clone()], ns, rt.clone())?, Bool)
+                    for item in arr.iter().skip(first_drop_idx + 1) {
+                        if *to_primitive!(f.eval_values(&[item.clone()], ns, rt.clone())?, Bool)
                         {
                             ret.push(item.clone());
                         }
                     }
                     Ok(manage_native!(XSequence::array(ret), rt))
+                } else {
+                    // no indices need to drop, we can just return the sequence
+                    Ok(a0.clone().into())
                 }
             },
         ),
@@ -1037,7 +1030,7 @@ pub fn add_sequence_nth(
                 generic_params: Some(intern!(interner, "T")),
                 params: vec![
                     XFuncParamSpec {
-                        type_: t_arr.clone(),
+                        type_: t_arr,
                         required: true,
                     },
                     XFuncParamSpec {
@@ -1052,7 +1045,7 @@ pub fn add_sequence_nth(
                         required: true,
                     },
                 ],
-                ret: XOptionalType::xtype(t.clone()),
+                ret: XOptionalType::xtype(t),
             },
             |args, ns, _tca, rt| {
                 let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
@@ -1068,14 +1061,14 @@ pub fn add_sequence_nth(
                 }
                 let f = to_primitive!(a2, Function);
                 for item in arr {
-                    if *to_primitive!(f.eval_values(&vec![item.clone()], ns, rt.clone())?, Bool) {
+                    if *to_primitive!(f.eval_values(&[item.clone()], ns, rt.clone())?, Bool) {
                         matches_left -= 1;
                         if matches_left.is_zero() {
                             return Ok(manage_native!(XOptional { value: Some(item) }, rt));
                         }
                     }
                 }
-                return Ok(manage_native!(XOptional { value: None }, rt));
+                Ok(manage_native!(XOptional { value: None }, rt))
             },
         ),
         interner,
@@ -1102,7 +1095,7 @@ pub fn add_sequence_take_while(
                     },
                     XFuncParamSpec {
                         type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![t.clone()],
+                            param_types: vec![t],
                             return_type: X_BOOL.clone(),
                         })),
                         required: true,
@@ -1117,7 +1110,7 @@ pub fn add_sequence_take_while(
                 let f = to_primitive!(a1, Function);
                 let mut end_idx = arr.len();
                 for (i, item) in arr.iter().enumerate() {
-                    if !*to_primitive!(f.eval_values(&vec![item.clone()], ns, rt.clone())?, Bool) {
+                    if !*to_primitive!(f.eval_values(&[item.clone()], ns, rt.clone())?, Bool) {
                         end_idx = i;
                         break;
                     }
@@ -1154,7 +1147,7 @@ pub fn add_sequence_skip_until(
                     },
                     XFuncParamSpec {
                         type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![t.clone()],
+                            param_types: vec![t],
                             return_type: X_BOOL.clone(),
                         })),
                         required: true,
@@ -1169,7 +1162,7 @@ pub fn add_sequence_skip_until(
                 let f = to_primitive!(a1, Function);
                 let mut start_idx = arr.len();
                 for (i, item) in arr.iter().enumerate() {
-                    if *to_primitive!(f.eval_values(&vec![item.clone()], ns, rt.clone())?, Bool) {
+                    if *to_primitive!(f.eval_values(&[item.clone()], ns, rt.clone())?, Bool) {
                         start_idx = i;
                         break;
                     }
@@ -1192,7 +1185,7 @@ pub fn add_sequence_take(
     interner: &mut StringInterner,
 ) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XSequenceType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t);
 
     scope.add_func_intern(
         "take",
@@ -1233,7 +1226,7 @@ pub fn add_sequence_skip(
     interner: &mut StringInterner,
 ) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
-    let t_arr = XSequenceType::xtype(t.clone());
+    let t_arr = XSequenceType::xtype(t);
 
     scope.add_func_intern(
         "skip",
@@ -1284,11 +1277,11 @@ pub fn add_sequence_eq(
                 generic_params: None,
                 params: vec![
                     XFuncParamSpec {
-                        type_: XSequenceType::xtype(t0.clone()),
+                        type_: XSequenceType::xtype(t0),
                         required: true,
                     },
                     XFuncParamSpec {
-                        type_: XSequenceType::xtype(t1.clone()),
+                        type_: XSequenceType::xtype(t1),
                         required: true,
                     },
                 ],
@@ -1307,14 +1300,14 @@ pub fn add_sequence_eq(
                 let inner_equal_value = eq_expr.eval(ns, false, rt.clone())?.unwrap_value();
                 let inner_eq_func = to_primitive!(inner_equal_value, Function);
                 for (x, y) in arr0.into_iter().zip(arr1.into_iter()) {
-                    let eq = inner_eq_func.eval_values(&vec![x, y], &ns, rt.clone())?;
+                    let eq = inner_eq_func.eval_values(&[x, y], ns, rt.clone())?;
                     let is_eq = to_primitive!(eq, Bool);
                     if !*is_eq {
                         ret = false;
                         break;
                     }
                 }
-                return Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into());
+                Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
             },
         ))
     }

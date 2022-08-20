@@ -60,7 +60,7 @@ impl CompilationResult {
         let mut closure_vars = vec![];
         for result in results {
             exprs.push(result.expr);
-            closure_vars.extend(result.closure_vars.iter().map(|s| s.clone()));
+            closure_vars.extend(result.closure_vars.iter().copied());
         }
         (exprs, closure_vars)
     }
@@ -117,7 +117,7 @@ pub fn resolve_overload<'p>(
             name,
             is_generic: false,
             items: exact_matches,
-            param_types: arg_types.iter().cloned().collect(),
+            param_types: arg_types.to_vec(),
         });
     }
     if generic_matches.len() == 1 {
@@ -128,12 +128,12 @@ pub fn resolve_overload<'p>(
             name,
             is_generic: true,
             items: generic_matches,
-            param_types: arg_types.iter().cloned().collect(),
+            param_types: arg_types.to_vec(),
         });
     }
     Err(CompilationError::NoOverload {
         name,
-        param_types: arg_types.iter().cloned().collect(),
+        param_types: arg_types.to_vec(),
         dynamic_failures,
     })
 }
@@ -173,7 +173,7 @@ impl XStaticExpr {
         match self {
             XStaticExpr::LiteralBool(v) => Ok(XExpr::LiteralBool(*v).into()),
             XStaticExpr::LiteralInt(v) => Ok(XExpr::LiteralInt(*v).into()),
-            XStaticExpr::LiteralFloat(v) => Ok(XExpr::LiteralFloat(v.clone()).into()),
+            XStaticExpr::LiteralFloat(v) => Ok(XExpr::LiteralFloat(*v).into()),
             XStaticExpr::LiteralString(v) => Ok(XExpr::LiteralString(v.clone()).into()),
             XStaticExpr::Array(items) => Ok(CompilationResult::from_multi(
                 compile_many(items, namespace)?,
@@ -216,7 +216,7 @@ impl XStaticExpr {
                                         ));
                                     } else {
                                         Err(CompilationError::VariantConstructorTypeArgMismatch {
-                                            union_name: spec.name.clone(),
+                                            union_name: spec.name,
                                             variant_name: member_name.clone(),
                                             expected_type: spec.fields[index].type_.clone(),
                                             actual_type: compiled_args[0].xtype()?,
@@ -260,7 +260,7 @@ impl XStaticExpr {
                                     .collect::<Result<Vec<_>, _>>()?;
                                 if arg_types.len() != spec.fields.len() {
                                     return Err(CompilationError::StructParamsLengthMismatch {
-                                        struct_name: spec.name.clone(),
+                                        struct_name: spec.name,
                                         expected_count: spec.fields.len(),
                                         actual_count: arg_types.len(),
                                     });
@@ -272,7 +272,7 @@ impl XStaticExpr {
                                     ))
                                 } else {
                                     Err(CompilationError::StructFieldTypeMismatch {
-                                        struct_name: spec.name.clone(),
+                                        struct_name: spec.name,
                                         expected_types: spec
                                             .fields
                                             .iter()
@@ -299,7 +299,7 @@ impl XStaticExpr {
                                 .and_then(|b| bind.mix(&b))
                                 .ok_or_else(|| {
                                     CompilationError::SpecializedFunctionTypeMismatch {
-                                        name: name.clone(),
+                                        name: *name,
                                         idx,
                                         actual_type: actual_type.clone(),
                                         expected_type: arg_type.clone(),
@@ -323,10 +323,10 @@ impl XStaticExpr {
                                 ))
                             }
                             Some(item) => Err(CompilationError::NonFunctionSpecialization {
-                                name: name.clone(),
+                                name: *name,
                                 item,
                             }),
-                            None => Err(CompilationError::FunctionNotFound { name: name.clone() }),
+                            None => Err(CompilationError::FunctionNotFound { name: *name }),
                         };
                     }
                     _ => {}
@@ -384,14 +384,14 @@ impl XStaticExpr {
                 }
             }
             XStaticExpr::Ident(name) => match namespace.get_with_depth(*name) {
-                None => Err(CompilationError::ValueNotFound { name: name.clone() }),
+                None => Err(CompilationError::ValueNotFound { name: *name }),
                 Some((
                     XCompilationScopeItem::Compound(..) | XCompilationScopeItem::NativeType(..),
                     _,
-                )) => Err(CompilationError::TypeAsVariable { name: name.clone() }),
+                )) => Err(CompilationError::TypeAsVariable { name: *name }),
                 Some((item, depth)) => {
                     let cvars = if depth != 0 && depth != namespace.height {
-                        vec![name.clone()]
+                        vec![*name]
                     } else {
                         vec![]
                     };
@@ -407,7 +407,7 @@ impl XStaticExpr {
                                     XFunctionFactory::Static(overload) => {
                                         if overload.is_generic() {
                                             Err(CompilationError::GenericFunctionAsVariable {
-                                                name: name.clone(),
+                                                name: *name,
                                             })
                                         } else {
                                             Ok(CompilationResult::new(
@@ -421,13 +421,13 @@ impl XStaticExpr {
                                     }
                                     XFunctionFactory::Dynamic(_) => {
                                         Err(CompilationError::DynamicFunctionAsVariable {
-                                            name: name.clone(),
+                                            name: *name,
                                         })
                                     }
                                 }
                             } else {
                                 Err(CompilationError::OverloadedFunctionAsVariable {
-                                    name: name.clone(),
+                                    name: *name,
                                 })
                             }
                         }
@@ -439,7 +439,7 @@ impl XStaticExpr {
                 match namespace.get_with_depth(*name) {
                     Some((XCompilationScopeItem::Overload(overloads), depth)) => {
                         let cvars = if depth != 0 && depth != namespace.height {
-                            vec![name.clone()]
+                            vec![*name]
                         } else {
                             vec![]
                         };
@@ -448,9 +448,9 @@ impl XStaticExpr {
                             cvars,
                         ))
                     }
-                    None => Err(CompilationError::FunctionNotFound { name: name.clone() }),
+                    None => Err(CompilationError::FunctionNotFound { name: *name }),
                     Some((item, _)) => Err(CompilationError::NonFunctionSpecialization {
-                        name: name.clone(),
+                        name: *name,
                         item,
                     }),
                 }
@@ -531,8 +531,8 @@ impl UfData {
         cvars: HashSet<DefaultSymbol>,
     ) -> UfData {
         UfData {
-            param_names: (&spec.args).iter().map(|p| p.name).collect(),
-            defaults: (&spec.args)
+            param_names: spec.args.iter().map(|p| p.name).collect(),
+            defaults: spec.args
                 .iter()
                 .skip_while(|p| p.default.is_none())
                 .map(|p| p.default.clone().unwrap())
@@ -544,7 +544,7 @@ impl UfData {
                 .into_iter()
                 .filter_map(|decl| {
                     if let Declaration::Value(name, expr) = decl {
-                        Some((name.clone(), expr.clone()))
+                        Some((name, expr))
                     } else {
                         None
                     }
@@ -564,7 +564,7 @@ impl XStaticFunction {
                 let closure = uf
                     .cvars
                     .iter()
-                    .map(|&name| (name, closure.get(name).unwrap().clone()))
+                    .map(|&name| (name, closure.get(name).unwrap()))
                     .collect();
                 XFunction::UserFunction(self.clone(), closure)
             }
@@ -618,7 +618,7 @@ impl Debug for XStaticFunction {
 
 impl PartialEq for XStaticFunction {
     fn eq(&self, _: &Self) -> bool {
-        return false;
+        false
     }
 }
 
@@ -746,7 +746,7 @@ impl XExpr {
                     return Ok(func.rtype(&Bind::new()));
                 }
                 Err(CompilationError::NotAFunction {
-                    type_: func_type.clone(),
+                    type_: func_type,
                 })
             }
             XExpr::Construct(spec, binding, ..) => Ok(Arc::new(XType::Compound(
@@ -765,12 +765,12 @@ impl XExpr {
                     XType::Compound(CompoundKind::Struct, spec, bind) => Ok(spec.fields[*idx]
                         .type_
                         .clone()
-                        .resolve_bind(&bind, Some(&obj_type))),
+                        .resolve_bind(bind, Some(&obj_type))),
                     XType::Compound(CompoundKind::Union, spec, bind) => {
                         let t = spec.fields[*idx]
                             .type_
                             .clone()
-                            .resolve_bind(&bind, Some(&obj_type));
+                            .resolve_bind(bind, Some(&obj_type));
                         Ok(XOptionalType::xtype(t))
                     }
                     XType::Tuple(fields) => Ok(fields[*idx].clone()),
@@ -831,14 +831,14 @@ impl XExpr {
                 let callable = func
                     .eval(namespace, false, runtime.clone())?
                     .unwrap_value()
-                    .clone();
+                    ;
                 let ret;
                 if let XValue::Function(xfunc) = &callable.value {
                     ret = xfunc.eval(args, namespace, tail_available, runtime)?;
                 } else {
                     return Err(format!("Expected function, got {:?}", callable));
                 }
-                return Ok(ret);
+                Ok(ret)
             }
             XExpr::Construct(_, _, args) | XExpr::Tuple(args) => {
                 let items = args
@@ -859,10 +859,10 @@ impl XExpr {
                             XOptional {
                                 value: Some(item.clone())
                             },
-                            runtime.clone()
+                            runtime
                         )
                     } else {
-                        manage_native!(XOptional { value: None }, runtime.clone())
+                        manage_native!(XOptional { value: None }, runtime)
                     }),
                     _ => Err(format!("Expected struct, got {:?}", obj)),
                 }
@@ -889,7 +889,7 @@ impl XExpr {
                         .ok_or_else(|| {
                             format!("Undefined identifier during evaluation: {:?}", name)
                         })?
-                        .clone()
+                        
                         .into())
                 }
             }
