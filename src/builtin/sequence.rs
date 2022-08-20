@@ -5,11 +5,7 @@ use crate::util::trysort::try_sort;
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::XType::XCallable;
-use crate::{
-    eval, intern, manage_native, meval, to_native,
-    to_primitive, CompilationError, Identifier, RTCell, XCallableSpec, XCompilationScope,
-    XEvaluationScope, XStaticFunction, XType,
-};
+use crate::{eval, intern, manage_native, meval, to_native, to_primitive, CompilationError, Identifier, RTCell, XCallableSpec, XCompilationScope, XEvaluationScope, XStaticFunction, XType, RootCompilationScope};
 use num::{BigInt, Signed, ToPrimitive, Zero};
 use rc::Rc;
 use std::borrow::Cow;
@@ -191,27 +187,25 @@ fn value_to_idx(arr: &XSequence, i: &BigInt) -> Result<usize, String> {
 }
 
 pub fn add_sequence_type(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    scope.add_native_type_intern(
+    let ([t], _) = scope.generics_from_names(["T"]);
+    scope.add_native_type(
         "Sequence",
-        XSequenceType::xtype(XType::generic_from_name("T", interner)),
-        interner,
+        XSequenceType::xtype(t),
     )
 }
 
 pub fn add_sequence_get(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
 
-    scope.add_func_intern(
+    scope.add_func(
         "get",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: XSequenceType::xtype(t.clone()),
@@ -232,22 +226,19 @@ pub fn add_sequence_get(
                 Ok(arr.get(idx, ns, rt)?.into())
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_len(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
 
-    scope.add_func_intern(
+    scope.add_func(
         "len",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![XFuncParamSpec {
                     type_: XSequenceType::xtype(t),
                     required: true,
@@ -260,23 +251,20 @@ pub fn add_sequence_len(
                 Ok(ManagedXValue::new(XValue::Int(arr.len().into()), rt)?.into())
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_add(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
 
-    scope.add_func_intern(
+    scope.add_func(
         "add",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -305,24 +293,21 @@ pub fn add_sequence_add(
                 Ok(manage_native!(XSequence::array(arr), rt))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_add_stack(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
     let t_stack = XStackType::xtype(t);
 
-    scope.add_func_intern(
+    scope.add_func(
         "add",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -350,24 +335,21 @@ pub fn add_sequence_add_stack(
                 }
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_addrev_stack(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
     let t_stack = XStackType::xtype(t);
 
-    scope.add_func_intern(
+    scope.add_func(
         "add_rev",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -397,23 +379,20 @@ pub fn add_sequence_addrev_stack(
                 }
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_push(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "push",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -434,23 +413,20 @@ pub fn add_sequence_push(
                 Ok(manage_native!(XSequence::array(arr), rt))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_rpush(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "rpush",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -471,23 +447,20 @@ pub fn add_sequence_rpush(
                 Ok(manage_native!(XSequence::array(arr), rt))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_insert(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "insert",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -516,23 +489,20 @@ pub fn add_sequence_insert(
                 Ok(manage_native!(XSequence::array(ret), rt))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_pop(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
 
-    scope.add_func_intern(
+    scope.add_func(
         "pop",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -559,23 +529,20 @@ pub fn add_sequence_pop(
                 Ok(manage_native!(XSequence::array(ret), rt))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_set(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "set",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -604,23 +571,20 @@ pub fn add_sequence_set(
                 Ok(manage_native!(XSequence::array(ret), rt))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_swap(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
 
-    scope.add_func_intern(
+    scope.add_func(
         "swap",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -659,22 +623,19 @@ pub fn add_sequence_swap(
                 Ok(manage_native!(XSequence::array(ret), rt))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_to_stack(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
 
-    scope.add_func_intern(
+    scope.add_func(
         "to_stack",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![XFuncParamSpec {
                     type_: XSequenceType::xtype(t.clone()),
                     required: true,
@@ -691,23 +652,19 @@ pub fn add_sequence_to_stack(
                 Ok(manage_native!(ret, rt))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_map(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let input_t = XType::generic_from_name("T_IN", interner);
-    let output_t = XType::generic_from_name("T_OUT", interner);
+    let ([input_t, output_t], params) = scope.generics_from_names(["T_IN", "T_OUT"]);
 
-    scope.add_func_intern(
+    scope.add_func(
         "map",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T_IN", "T_OUT")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: XSequenceType::xtype(input_t.clone()),
@@ -728,23 +685,20 @@ pub fn add_sequence_map(
                 Ok(manage_native!(XSequence::Map(a0, a1), rt))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_sort(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "sort",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -793,24 +747,20 @@ pub fn add_sequence_sort(
                 }
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_reduce3(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
-    let s = XType::generic_from_name("S", interner);
+    let ([t, s], params) = scope.generics_from_names(["T", "S"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "reduce",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr,
@@ -842,23 +792,20 @@ pub fn add_sequence_reduce3(
                 Ok(ret.into())
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_reduce2(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "reduce",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr,
@@ -889,22 +836,19 @@ pub fn add_sequence_reduce2(
                 Ok(ret.into())
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_range(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
     let t_arr = XSequenceType::xtype(X_INT.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "range",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: None,
                 params: vec![
                     XFuncParamSpec {
                         type_: X_INT.clone(),
@@ -950,23 +894,20 @@ pub fn add_sequence_range(
                 }
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_filter(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "filter",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -1011,23 +952,20 @@ pub fn add_sequence_filter(
                 }
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_nth(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "nth",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr,
@@ -1071,23 +1009,20 @@ pub fn add_sequence_nth(
                 Ok(manage_native!(XOptional { value: None }, rt))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_take_while(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "take_while",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -1123,23 +1058,20 @@ pub fn add_sequence_take_while(
                 }
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_skip_until(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "skip_until",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -1175,23 +1107,20 @@ pub fn add_sequence_skip_until(
                 }
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_take(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
 
-    scope.add_func_intern(
+    scope.add_func(
         "take",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -1216,23 +1145,20 @@ pub fn add_sequence_take(
                 }
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_skip(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
 
-    scope.add_func_intern(
+    scope.add_func(
         "skip",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t_arr.clone(),
@@ -1260,16 +1186,13 @@ pub fn add_sequence_skip(
                 }
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_sequence_eq(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let eq_symbol = interner.get_or_intern_static("eq");
+    let eq_symbol = scope.get_identifier("eq");
 
     fn static_from_eq(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr) -> Rc<XStaticFunction> {
         Rc::new(XStaticFunction::from_native(
@@ -1336,7 +1259,7 @@ pub fn add_sequence_eq(
         Ok(static_from_eq(t0, t1, inner_eq))
     }
 
-    scope.add_dyn_func(eq_symbol, move |_params, types, ns| {
+    scope.add_dyn_func("eq", move |_params, types, ns| {
         from_types(types, ns, eq_symbol)
     })
 }

@@ -6,11 +6,10 @@ use std::ops::Neg;
 macro_rules! add_binop {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
         pub fn $fn_name(
-            scope: &mut XCompilationScope<'_>,
-            interner: &mut StringInterner,
+            scope: &mut RootCompilationScope,
         ) -> Result<(), $crate::CompilationError> {
             scope.add_func(
-                interner.get_or_intern_static(stringify!($name)),
+                stringify!($name),
                 XStaticFunction::from_native(
                     XFuncSpec {
                         generic_params: None,
@@ -34,8 +33,7 @@ macro_rules! add_binop {
                         Ok(ManagedXValue::new(result?, rt.clone())?.into())
                     },
                 ),
-            )?;
-            Ok(())
+            )
         }
     };
 }
@@ -44,11 +42,10 @@ macro_rules! add_binop {
 macro_rules! add_ufunc_ref {
     ($fn_name:ident, $name:ident, $operand_type: ident, $return_type:ident, $func:expr) => {
         pub fn $fn_name(
-            scope: &mut XCompilationScope<'_>,
-            interner: &mut StringInterner,
+            scope: &mut RootCompilationScope,
         ) -> Result<(), $crate::CompilationError> {
             scope.add_func(
-                interner.get_or_intern_static(stringify!($name)),
+                stringify!($name),
                 XStaticFunction::from_native(
                     XFuncSpec {
                         generic_params: None,
@@ -63,8 +60,7 @@ macro_rules! add_ufunc_ref {
                         $func(a0, rt)
                     },
                 ),
-            )?;
-            Ok(())
+            )
         }
     };
 }

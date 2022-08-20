@@ -1,10 +1,7 @@
 use crate::builtin::core::xcmp;
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError,
-    XCompilationScope, XStaticFunction,
-};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError, XCompilationScope, XStaticFunction, RootCompilationScope};
 use num::bigint::Sign;
 use num::{BigInt, BigUint, Float, FromPrimitive, ToPrimitive, Zero};
 use rc::Rc;
@@ -12,10 +9,9 @@ use std::rc;
 use string_interner::StringInterner;
 
 pub fn add_float_type(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    scope.add_native_type(interner.get_or_intern_static("float"), X_FLOAT.clone())
+    scope.add_native_type("float", X_FLOAT.clone())
 }
 
 macro_rules! add_float_binop {

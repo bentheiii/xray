@@ -30,16 +30,14 @@ pub enum CompoundKind {
     Union,
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone, Default)]
 pub struct Bind {
     bound_generics: HashMap<Identifier, Arc<XType>>,
 }
 
 impl Bind {
     pub fn new() -> Self {
-        Self {
-            bound_generics: HashMap::new(),
-        }
+        Self::default()
     }
 
     pub fn from<T: Into<HashMap<Identifier, Arc<XType>>>>(bound_generics: T) -> Self {
@@ -435,12 +433,12 @@ impl XType {
         }
     }
 
-    pub fn display_with_interner(self: &Arc<Self>, interner: &StringInterner) -> String {
-        match self.as_ref() {
+    pub fn to_string_with_interner(&self, interner: &StringInterner) -> String {
+        match self {
             Self::Bool => "bool".to_string(),
             Self::Int => "int".to_string(),
             Self::Float => "float".to_string(),
-            Self::String => "string".to_string(),
+            Self::String => "str".to_string(),
             Self::Compound(_, ref a, ref b) => {
                 if a.generic_names.is_empty() {
                     interner.resolve(a.name).unwrap().to_string()
@@ -452,7 +450,7 @@ impl XType {
                             .iter()
                             .map(|n| b
                                 .get(&n.clone())
-                                .map(|t| t.display_with_interner(interner))
+                                .map(|t| t.to_string_with_interner(interner))
                                 .unwrap_or_else(|| interner
                                     .resolve(*n)
                                     .unwrap()
@@ -465,9 +463,9 @@ impl XType {
                 "({})->({})",
                 a.param_types
                     .iter()
-                    .map(|a| a.display_with_interner(interner))
+                    .map(|a| a.to_string_with_interner(interner))
                     .join(", "),
-                a.return_type.display_with_interner(interner)
+                a.return_type.to_string_with_interner(interner)
             ),
             Self::XFunc(ref a) => {
                 let mut ret = "(".to_string();
@@ -475,13 +473,13 @@ impl XType {
                     if i > 0 {
                         ret.push_str(", ");
                     }
-                    ret.push_str(&arg.type_.display_with_interner(interner));
+                    ret.push_str(&arg.type_.to_string_with_interner(interner));
                     if !arg.required {
                         ret.push('?');
                     }
                 }
                 ret.push_str(")->");
-                ret.push_str(&a.ret.display_with_interner(interner));
+                ret.push_str(&a.ret.to_string_with_interner(interner));
                 ret
             }
             Self::XGeneric(ref a) => interner.resolve(*a).unwrap().to_string(),
@@ -489,13 +487,13 @@ impl XType {
                 "{}<{}>",
                 a.name(),
                 bind.iter()
-                    .map(|t| t.display_with_interner(interner))
+                    .map(|t| t.to_string_with_interner(interner))
                     .join(", ")
             ),
             Self::Tuple(ref a) => format!(
                 "({})",
                 a.iter()
-                    .map(|t| t.display_with_interner(interner))
+                    .map(|t| t.to_string_with_interner(interner))
                     .join(", ")
             ),
             Self::XUnknown => "?".to_string(),

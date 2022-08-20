@@ -1,25 +1,20 @@
 use crate::xexpr::XExpr;
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{
-    add_ufunc, add_ufunc_ref, eval, intern, meval, to_primitive, CompilationError,
-    Identifier, XCompilationScope, XStaticFunction, XType,
-};
+use crate::{add_ufunc, add_ufunc_ref, eval, intern, meval, to_primitive, CompilationError, Identifier, XCompilationScope, XStaticFunction, XType, RootCompilationScope};
 use rc::Rc;
 use std::rc;
 use std::sync::Arc;
 use string_interner::StringInterner;
 
 pub fn add_if(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
-    scope.add_func(
-        interner.get_or_intern_static("if"),
+    let ([t], params) = scope.generics_from_names(["T"]);
+    scope.add_func("if",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: X_BOOL.clone(),
@@ -45,8 +40,7 @@ pub fn add_if(
                 .eval(ns, tca, rt)
             },
         ),
-    )?;
-    Ok(())
+    )
 }
 
 add_ufunc!(
@@ -59,15 +53,14 @@ add_ufunc!(
 );
 
 pub fn add_cast(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
-    scope.add_func_intern(
+    let ([t], params) = scope.generics_from_names(["T"]);
+    scope.add_func(
         "cast",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![XFuncParamSpec {
                     type_: t.clone(),
                     required: true,
@@ -76,21 +69,18 @@ pub fn add_cast(
             },
             |args, ns, tca, rt| args[0].eval(ns, tca, rt),
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_debug(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
-    scope.add_func_intern(
+    let ([t], params) = scope.generics_from_names(["T"]);
+    scope.add_func(
         "debug",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t.clone(),
@@ -111,21 +101,18 @@ pub fn add_debug(
                 Ok(a0.into())
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_is_error(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
-    scope.add_func_intern(
+    let ([t], params) = scope.generics_from_names(["T"]);
+    scope.add_func(
         "is_error",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![XFuncParamSpec {
                     type_: t,
                     required: true,
@@ -137,21 +124,18 @@ pub fn add_is_error(
                 Ok(ManagedXValue::new(XValue::Bool(a0.is_err()), rt)?.into())
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_if_error(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
-    scope.add_func_intern(
+    let ([t], params) = scope.generics_from_names(["T"]);
+    scope.add_func(
         "if_error",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "T")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: t.clone(),
@@ -169,16 +153,13 @@ pub fn add_if_error(
                 a0.or_else(|_e| args[1].eval(ns, tca, rt.clone()))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_ne(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let eq_symbol = interner.get_or_intern_static("eq");
+    let eq_symbol = scope.get_identifier("eq");
 
     fn static_from_eq(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr) -> Rc<XStaticFunction> {
         Rc::new(XStaticFunction::from_native(
@@ -224,7 +205,7 @@ pub fn add_ne(
     }
 
     scope.add_dyn_func(
-        interner.get_or_intern_static("ne"),
+        "ne",
         move |_params, types, ns| from_types(types, ns, eq_symbol),
     )
 }

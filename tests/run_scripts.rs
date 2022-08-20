@@ -7,22 +7,21 @@ use xray::std_compilation_scope;
 use xray::xvalue::XValue;
 
 fn test_script(script_number: usize) {
-    let mut interner = StringInterner::default();
-    let mut comp_scope = std_compilation_scope(&mut interner);
+    let mut comp_scope = std_compilation_scope();
     let file_path = format!("test_scripts/{:0>3}.xr", script_number);
     let input = fs::read_to_string(&file_path).expect(&file_path);
     let limits = RuntimeLimits::default();
     let runtime = limits.to_runtime();
     let decls = comp_scope
-        .feed_file(&input, &mut interner, runtime.clone())
-        .map_err(|e| e.display(&interner, &input))
+        .feed_file(&input, runtime.clone())
+        .map_err(|e| format!("{}", e))
         .unwrap();
 
     let mut eval_scope = XEvaluationScope::root();
     eval_scope.add_from(&decls, runtime.clone()).unwrap();
 
     let main_fn = eval_scope
-        .get_ud_func(interner.get_or_intern_static("main"))
+        .get_ud_func(comp_scope.get_identifier("main"))
         .expect(r#"function "main" not found"#);
     let main_output = &main_fn
         .to_function(&eval_scope)

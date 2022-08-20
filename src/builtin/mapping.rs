@@ -4,11 +4,7 @@ use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::XType::XCallable;
-use crate::{
-    eval, intern, manage_native, to_native, to_primitive,
-    CompilationError, RTCell, XCallableSpec, XCompilationScope, XEvaluationScope,
-    XStaticFunction, XType,
-};
+use crate::{eval, intern, manage_native, to_native, to_primitive, CompilationError, RTCell, XCallableSpec, XCompilationScope, XEvaluationScope, XStaticFunction, XType, RootCompilationScope};
 use num::{ToPrimitive};
 use rc::Rc;
 use std::collections::hash_map::Entry;
@@ -66,7 +62,7 @@ impl XMapping {
 
     fn with_update(
         &self,
-        items: impl Iterator<Item = (Rc<ManagedXValue>, Rc<ManagedXValue>)>,
+        items: impl Iterator<Item=(Rc<ManagedXValue>, Rc<ManagedXValue>)>,
         ns: &XEvaluationScope,
         rt: RTCell,
     ) -> Result<TailedEvalResult, String> {
@@ -78,8 +74,8 @@ impl XMapping {
                 hash_func.eval_values(&[k.clone()], ns, rt.clone())?,
                 Int
             )
-            .to_u64()
-            .ok_or("hash is out of bounds")?;
+                .to_u64()
+                .ok_or("hash is out of bounds")?;
 
             let spot = new_dict.entry(hash_key);
             match spot {
@@ -126,30 +122,24 @@ impl XNativeValue for XMapping {
 }
 
 pub fn add_mapping_type(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    scope.add_native_type_intern(
-        "Mapping",
-        XMappingType::xtype(
-            XType::generic_from_name("K", interner),
-            XType::generic_from_name("V", interner),
-        ),
-        interner,
+    let ([k, v], _) = scope.generics_from_names(["K", "V"]);
+    scope.add_native_type("Mapping",
+                          XMappingType::xtype(k, v),
     )
 }
 
 pub fn add_mapping_new(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let k = XType::generic_from_name("K", interner);
+    let ([k], params) = scope.generics_from_names(["K"]);
 
-    scope.add_func_intern(
+    scope.add_func(
         "mapping",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "K")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: Arc::new(XCallable(XCallableSpec {
@@ -176,24 +166,20 @@ pub fn add_mapping_new(
                 ))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_mapping_set(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let k = XType::generic_from_name("K", interner);
-    let v = XType::generic_from_name("V", interner);
+    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "set",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "K", "V")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: mp.clone(),
@@ -216,24 +202,20 @@ pub fn add_mapping_set(
                 mapping.with_update(once((a1, a2)), ns, rt)
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_mapping_update(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let k = XType::generic_from_name("K", interner);
-    let v = XType::generic_from_name("V", interner);
+    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "update",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "K", "V")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: mp.clone(),
@@ -261,24 +243,20 @@ pub fn add_mapping_update(
                 mapping.with_update(items, ns, rt)
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_mapping_get(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let k = XType::generic_from_name("K", interner);
-    let v = XType::generic_from_name("V", interner);
+    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "get",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "K", "V")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: mp,
@@ -299,8 +277,8 @@ pub fn add_mapping_get(
                     hash_func.eval_values(&[a1.clone()], ns, rt.clone())?,
                     Int
                 )
-                .to_u64()
-                .ok_or("hash is out of bounds")?;
+                    .to_u64()
+                    .ok_or("hash is out of bounds")?;
                 let spot = mapping.inner.get(&hash_key);
                 match spot {
                     None => Ok(manage_native!(XOptional { value: None }, rt)),
@@ -328,24 +306,20 @@ pub fn add_mapping_get(
                 }
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_mapping_len(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let k = XType::generic_from_name("K", interner);
-    let v = XType::generic_from_name("V", interner);
+    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k, v);
 
-    scope.add_func_intern(
+    scope.add_func(
         "len",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "K", "V")),
+                generic_params: Some(params),
                 params: vec![XFuncParamSpec {
                     type_: mp,
                     required: true,
@@ -353,30 +327,26 @@ pub fn add_mapping_len(
                 ret: X_INT.clone(),
             },
             |args, ns, _tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let (a0, ) = eval!(args, ns, rt, 0);
                 let mapping = to_native!(a0, XMapping);
                 let len: usize = mapping.inner.values().map(|v| v.len()).sum();
                 Ok(ManagedXValue::new(XValue::Int(len.into()), rt)?.into())
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_mapping_entries(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let k = XType::generic_from_name("K", interner);
-    let v = XType::generic_from_name("V", interner);
+    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
-    scope.add_func_intern(
+    scope.add_func(
         "entries",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "K", "V")),
+                generic_params: Some(params),
                 params: vec![XFuncParamSpec {
                     type_: mp,
                     required: true,
@@ -384,7 +354,7 @@ pub fn add_mapping_entries(
                 ret: XSequenceType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
             },
             |args, ns, _tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let (a0, ) = eval!(args, ns, rt, 0);
                 let mapping = to_native!(a0, XMapping);
                 let entries = mapping
                     .inner
@@ -401,24 +371,20 @@ pub fn add_mapping_entries(
                 Ok(manage_native!(XSequence::array(entries), rt))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_mapping_contains(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let k = XType::generic_from_name("K", interner);
-    let v = XType::generic_from_name("V", interner);
+    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 
-    scope.add_func_intern(
+    scope.add_func(
         "contains",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "K", "V")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: mp,
@@ -439,8 +405,8 @@ pub fn add_mapping_contains(
                     hash_func.eval_values(&[a1.clone()], ns, rt.clone())?,
                     Int
                 )
-                .to_u64()
-                .ok_or("hash is out of bounds")?;
+                    .to_u64()
+                    .ok_or("hash is out of bounds")?;
                 let spot = mapping.inner.get(&hash_key);
                 let mut ret = false;
                 if let Some(candidates) = spot {
@@ -458,24 +424,20 @@ pub fn add_mapping_contains(
                 Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_mapping_pop(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let k = XType::generic_from_name("K", interner);
-    let v = XType::generic_from_name("V", interner);
+    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 
-    scope.add_func_intern(
+    scope.add_func(
         "pop",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "K", "V")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: mp.clone(),
@@ -496,8 +458,8 @@ pub fn add_mapping_pop(
                     hash_func.eval_values(&[a1.clone()], ns, rt.clone())?,
                     Int
                 )
-                .to_u64()
-                .ok_or("hash is out of bounds")?;
+                    .to_u64()
+                    .ok_or("hash is out of bounds")?;
                 let spot = mapping.inner.get(&hash_key);
                 let mut new_spot = None;
                 if let Some(candidates) = spot {
@@ -539,24 +501,20 @@ pub fn add_mapping_pop(
                 }
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_mapping_discard(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let k = XType::generic_from_name("K", interner);
-    let v = XType::generic_from_name("V", interner);
+    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 
-    scope.add_func_intern(
+    scope.add_func(
         "discard",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: Some(intern!(interner, "K", "V")),
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: mp.clone(),
@@ -577,8 +535,8 @@ pub fn add_mapping_discard(
                     hash_func.eval_values(&[a1.clone()], ns, rt.clone())?,
                     Int
                 )
-                .to_u64()
-                .ok_or("hash is out of bounds")?;
+                    .to_u64()
+                    .ok_or("hash is out of bounds")?;
                 let spot = mapping.inner.get(&hash_key);
                 let mut new_spot = None;
                 if let Some(candidates) = spot {
@@ -620,7 +578,5 @@ pub fn add_mapping_discard(
                 }
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }

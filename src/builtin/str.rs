@@ -1,10 +1,7 @@
 use crate::builtin::core::xcmp;
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError,
-    XCompilationScope, XStaticFunction,
-};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError, XCompilationScope, XStaticFunction, RootCompilationScope};
 use num::{BigInt};
 use rc::Rc;
 use std::collections::hash_map::DefaultHasher;
@@ -13,10 +10,9 @@ use std::rc;
 use string_interner::StringInterner;
 
 pub fn add_str_type(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    scope.add_native_type(interner.get_or_intern_static("str"), X_STRING.clone())
+    scope.add_native_type("str", X_STRING.clone())
 }
 
 add_binop!(add_str_eq, eq, X_STRING, String, X_BOOL, |a, b| Ok(

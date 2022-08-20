@@ -2,20 +2,16 @@ use crate::builtin::core::xcmp;
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, manage_native, to_primitive, CompilationError,
-    XCompilationScope, XStaticFunction, XType,
-};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, eval, manage_native, to_primitive, CompilationError, XCompilationScope, XStaticFunction, XType, RootCompilationScope};
 use num::{One, Zero};
 use rc::Rc;
 use std::rc;
 use string_interner::StringInterner;
 
 pub fn add_bool_type(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    scope.add_native_type(interner.get_or_intern_static("bool"), X_BOOL.clone())
+    scope.add_native_type("bool", X_BOOL.clone())
 }
 
 add_binop!(add_bool_eq, eq, X_BOOL, Bool, X_BOOL, |a, b| Ok(
@@ -53,10 +49,9 @@ add_ufunc!(add_bool_not, not, X_BOOL, Bool, X_BOOL, |a: &bool| {
 });
 
 pub fn add_and(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    scope.add_func_intern(
+    scope.add_func(
         "and",
         XStaticFunction::from_native(
             XFuncSpec {
@@ -81,16 +76,13 @@ pub fn add_and(
                 Ok(a0.into())
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_or(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    scope.add_func_intern(
+    scope.add_func(
         "or",
         XStaticFunction::from_native(
             XFuncSpec {
@@ -115,22 +107,19 @@ pub fn add_or(
                 Ok(a0.into())
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_bool_then(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    let t = XType::generic_from_name("T", interner);
+    let ([t], params) = scope.generics_from_names(["T"]);
 
-    scope.add_func_intern(
+    scope.add_func(
         "then",
         XStaticFunction::from_native(
             XFuncSpec {
-                generic_params: None,
+                generic_params: Some(params),
                 params: vec![
                     XFuncParamSpec {
                         type_: X_BOOL.clone(),
@@ -158,9 +147,7 @@ pub fn add_bool_then(
                 ))
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 add_ufunc!(add_bool_hash, hash, X_BOOL, Bool, X_INT, |a: &bool| {

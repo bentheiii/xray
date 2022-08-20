@@ -1,4 +1,4 @@
-fn range(start: int, stop: int, step:int)->Sequence<int> {
+fn my_range(start: int, stop: int, step:int)->Sequence<int> {
     fn range_helper(ret: Stack<int>, i:int)->Stack<int> {
         (i >= stop).if(
             ret,
@@ -10,6 +10,6 @@ fn range(start: int, stop: int, step:int)->Sequence<int> {
 
 
 fn main()->bool {
-    let a = range(1,20,3);
+    let a = my_range(1,20,3);
     assert(a == [1,4,7,10,13,16,19])
 }

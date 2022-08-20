@@ -10,12 +10,12 @@ use num::{BigInt, BigRational, Integer, Signed, ToPrimitive, Zero};
 use rc::Rc;
 use std::rc;
 use string_interner::StringInterner;
+use crate::compilation_scope::RootCompilationScope;
 
 pub fn add_int_type(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope
 ) -> Result<(), CompilationError> {
-    scope.add_native_type(interner.get_or_intern_static("int"), X_INT.clone())
+    scope.add_native_type("int", X_INT.clone())
 }
 
 macro_rules! add_int_binop {
@@ -118,11 +118,10 @@ add_ufunc!(
 );
 
 pub fn add_int_digits(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
     scope.add_func(
-        interner.get_or_intern_static("digits"),
+        "digits",
         XStaticFunction::from_native(
             XFuncSpec {
                 generic_params: None,
@@ -160,15 +159,13 @@ pub fn add_int_digits(
                 ))
             },
         ),
-    )?;
-    Ok(())
+    )
 }
 
 pub fn add_int_hash(
-    scope: &mut XCompilationScope,
-    interner: &mut StringInterner,
+    scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
-    scope.add_func_intern(
+    scope.add_func(
         "hash",
         XStaticFunction::from_native(
             XFuncSpec {
@@ -193,9 +190,7 @@ pub fn add_int_hash(
                 .into())
             },
         ),
-        interner,
-    )?;
-    Ok(())
+    )
 }
 
 add_binop!(add_int_cmp, cmp, X_INT, Int, X_INT, |a, b| Ok(xcmp(a, b)));
