@@ -20,5 +20,5 @@ fn flatten<T>(nested: Nested<T>) -> Sequence<T> {
 
 fn main()->bool {
     let n: Nested<int> = Nested::y([Nested::x(1), Nested::y([Nested::x(2), Nested::x(10)]), Nested::x(11), Nested::y([Nested::x(3), Nested::x(4)])]);
-    assert(flatten(n) == [1, 2, 10, 11, 3, 4]);
+    assert(flatten(n) == [1, 2, 10, 11, 3, 4])
 }

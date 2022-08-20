@@ -4,7 +4,7 @@ fn foo(a: int, b: int ?= g*10) -> int {
     a + b
 }
 
-fn main() -> bar {
+fn main() -> bool {
     assert(foo(6) == 56)
     && assert(foo(6, 7) == 13)
 }

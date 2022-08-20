@@ -13,10 +13,11 @@ fn sum(x: Sequence<int>) -> int {
 }
 
 fn do(m: msg) -> int {
-    m::x.map(sum) || m::y.map(floor)
+    m::x.map(sum)
+    || m::y.map(floor).value()
 }
 
 fn main()->bool {
-    assert(do(msg::x([1,15,16]) == 32)
+    assert(do(msg::x([1,15,16])) == 32)
     && assert(do(msg::y(17/3)) == 5)
 }

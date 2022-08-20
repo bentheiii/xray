@@ -85,6 +85,50 @@ pub fn add_debug(scope: &mut XCompilationScope, interner: &mut StringInterner) -
     Ok(())
 }
 
+pub fn add_is_error(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    scope.add_func_intern(
+        "is_error", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t.clone(),
+                    required: true,
+                },
+            ],
+            ret: X_BOOL.clone(),
+        }, |args, ns, tca, rt| {
+            let a0 = args[0].eval(ns, false, rt.clone());
+            Ok(ManagedXValue::new(XValue::Bool(a0.is_err()), rt)?.into())
+        }), interner)?;
+    Ok(())
+}
+
+pub fn add_if_error(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+    let t = XType::generic_from_name("T", interner);
+    scope.add_func_intern(
+        "if_error", XStaticFunction::from_native(XFuncSpec {
+            generic_params: Some(intern!(interner, "T")),
+            params: vec![
+                XFuncParamSpec {
+                    type_: t.clone(),
+                    required: true,
+                },
+                XFuncParamSpec {
+                    type_: t.clone(),
+                    required: true,
+                },
+            ],
+            ret: t.clone(),
+        }, |args, ns, tca, rt| {
+            let a0 = args[0].eval(ns, false, rt.clone());
+            a0.or_else(
+                |_e| args[1].eval(ns, tca, rt.clone())
+            )
+        }), interner)?;
+    Ok(())
+}
+
 pub fn add_ne(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError>{
     let eq_symbol = interner.get_or_intern_static("eq");
 
@@ -128,3 +172,4 @@ pub fn add_ne(scope: &mut XCompilationScope, interner: &mut StringInterner) -> R
         from_types(types, ns, eq_symbol)
     })
 }
+

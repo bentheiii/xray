@@ -3,7 +3,7 @@ fn main()->bool{
     assert(a.skip(3) == [5,3,1,7,8])
     && assert(a.skip(0) == [1,2,4,5,3,1,7,8])
     && assert(a.skip(100) == [])
-    && assert(s.take(3) == [1,2,4])
-    && assert(s.take(0) == [])
-    && assert(s.take(1000) == [1,2,4,5,3,1,7,8])
+    && assert(a.take(3) == [1,2,4])
+    && assert(a.take(0) == [])
+    && assert(a.take(1000) == [1,2,4,5,3,1,7,8])
 }

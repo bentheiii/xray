@@ -88,6 +88,7 @@ pub fn std_compilation_scope<'a>(interner: &'_ mut StringInterner) -> XCompilati
     add_cast(&mut ret, interner).unwrap();
     add_debug(&mut ret, interner).unwrap();
     add_ne(&mut ret, interner).unwrap();
+    add_is_error(&mut ret, interner).unwrap();
 
     add_unknown_eq(&mut ret, interner).unwrap();
 

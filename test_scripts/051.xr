@@ -3,8 +3,8 @@ fn main() -> bool {
 
     assert(m.pop(3).get(3) == null())
     && assert(m.pop(4).get(3) == some(4))
-    && assert(is_error(m.pop(10))
-    && assert(m.discard(3).get(3) == null)
+    && assert(is_error(m.pop(10)))
+    && assert(m.discard(3).get(3) == null())
     && assert(m.discard(4).get(3) == some(4))
     && assert(m.discard(10).get(3) == some(4))
 }

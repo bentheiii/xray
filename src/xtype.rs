@@ -168,7 +168,6 @@ impl XFuncSpec {
         for (arg, param) in args.into_iter().zip(self.params.iter()) {
             ret = ret.mix(&param.type_.bind_in_assignment(&arg)?)?;
         }
-        println!("!!! C {:?}", ret);
         Some(ret)
     }
 
@@ -352,7 +351,6 @@ impl XType {
                 Some(bind)
             }
             (XType::XGeneric(ref a), _) => {
-                println!("!!! A {a:?} {other:?}");
                 Some(Bind::from([
                     (a.clone(), other.clone()),
                 ]))
