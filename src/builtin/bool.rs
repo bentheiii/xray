@@ -1,15 +1,14 @@
 use crate::builtin::core::xcmp;
 use crate::builtin::optional::{XOptional, XOptionalType};
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING, X_UNKNOWN};
+use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, manage_native, to_primitive, Bind, CompilationError,
+    add_binop, add_ufunc, add_ufunc_ref, eval, manage_native, to_primitive, CompilationError,
     XCompilationScope, XStaticFunction, XType,
 };
-use num::{BigInt, One, Signed, ToPrimitive, Zero};
+use num::{One, Zero};
 use rc::Rc;
 use std::rc;
-use std::sync::Arc;
 use string_interner::StringInterner;
 
 pub fn add_bool_type(
@@ -31,7 +30,7 @@ add_ufunc!(
     X_STRING,
     |a: &bool| {
         println!("{}", a);
-        Ok(XValue::String(a.to_string()).into())
+        Ok(XValue::String(a.to_string()))
     }
 );
 
@@ -40,7 +39,7 @@ add_ufunc_ref!(
     assert,
     X_BOOL,
     X_BOOL,
-    |a: Rc<ManagedXValue>, rt| {
+    |a: Rc<ManagedXValue>, _rt| {
         if let XValue::Bool(true) = a.value {
             Ok(a.into())
         } else {
@@ -50,7 +49,7 @@ add_ufunc_ref!(
 );
 
 add_ufunc!(add_bool_not, not, X_BOOL, Bool, X_BOOL, |a: &bool| {
-    Ok(XValue::Bool(!a).into())
+    Ok(XValue::Bool(!a))
 });
 
 pub fn add_and(
@@ -77,7 +76,7 @@ pub fn add_and(
             |args, ns, tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 if *to_primitive!(a0, Bool) {
-                    return Ok(args[1].eval(&ns, tca, rt)?);
+                    return args[1].eval(ns, tca, rt);
                 }
                 Ok(a0.into())
             },
@@ -111,7 +110,7 @@ pub fn add_or(
             |args, ns, tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 if !*to_primitive!(a0, Bool) {
-                    return Ok(args[1].eval(&ns, tca, rt)?);
+                    return args[1].eval(ns, tca, rt);
                 }
                 Ok(a0.into())
             },
@@ -142,9 +141,9 @@ pub fn add_bool_then(
                         required: true,
                     },
                 ],
-                ret: XOptionalType::xtype(t.clone()),
+                ret: XOptionalType::xtype(t),
             },
-            |args, ns, tca, rt| {
+            |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 Ok(manage_native!(
                     XOptional {

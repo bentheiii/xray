@@ -1,12 +1,10 @@
 use crate::xexpr::XExpr;
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING, X_UNKNOWN};
+use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, intern, meval, to_primitive, Bind, CompilationError,
+    add_ufunc, add_ufunc_ref, eval, intern, meval, to_primitive, CompilationError,
     Identifier, XCompilationScope, XStaticFunction, XType,
 };
-use mopa::Any;
-use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
 use rc::Rc;
 use std::rc;
 use std::sync::Arc;
@@ -44,7 +42,7 @@ pub fn add_if(
                     true => 1,
                     false => 2,
                 }]
-                .eval(&ns, tca, rt)
+                .eval(ns, tca, rt)
             },
         ),
     )?;
@@ -76,7 +74,7 @@ pub fn add_cast(
                 }],
                 ret: t,
             },
-            |args, ns, tca, rt| args[0].eval(&ns, tca, rt),
+            |args, ns, tca, rt| args[0].eval(ns, tca, rt),
         ),
         interner,
     )?;
@@ -105,7 +103,7 @@ pub fn add_debug(
                 ],
                 ret: t,
             },
-            |args, ns, tca, rt| {
+            |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let (a1,) = meval!(args, ns, rt, 1);
                 let b = to_primitive!(a1, String, "".to_string());
@@ -129,12 +127,12 @@ pub fn add_is_error(
             XFuncSpec {
                 generic_params: Some(intern!(interner, "T")),
                 params: vec![XFuncParamSpec {
-                    type_: t.clone(),
+                    type_: t,
                     required: true,
                 }],
                 ret: X_BOOL.clone(),
             },
-            |args, ns, tca, rt| {
+            |args, ns, _tca, rt| {
                 let a0 = args[0].eval(ns, false, rt.clone());
                 Ok(ManagedXValue::new(XValue::Bool(a0.is_err()), rt)?.into())
             },
@@ -164,7 +162,7 @@ pub fn add_if_error(
                         required: true,
                     },
                 ],
-                ret: t.clone(),
+                ret: t,
             },
             |args, ns, tca, rt| {
                 let a0 = args[0].eval(ns, false, rt.clone());
@@ -202,9 +200,9 @@ pub fn add_ne(
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let inner_equal_value = eq_expr.eval(ns, false, rt.clone())?.unwrap_value();
                 let inner_eq_func = to_primitive!(inner_equal_value, Function);
-                let eq = inner_eq_func.eval_values(&vec![a0, a1], &ns, rt.clone())?;
+                let eq = inner_eq_func.eval_values(&[a0, a1], ns, rt.clone())?;
                 let is_eq = to_primitive!(eq, Bool);
-                return Ok(ManagedXValue::new(XValue::Bool(!*is_eq), rt)?.into());
+                Ok(ManagedXValue::new(XValue::Bool(!*is_eq), rt)?.into())
             },
         ))
     }

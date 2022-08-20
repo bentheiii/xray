@@ -1,17 +1,12 @@
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::native_types::{NativeType, XNativeValue};
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING, X_UNKNOWN};
+use crate::xtype::{XFuncParamSpec, XFuncSpec, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::CompilationError::PairNotType;
 use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, intern, manage_native, to_native, Bind,
+    eval, intern, manage_native, to_native,
     CompilationError, XCompilationScope, XStaticFunction, XType,
 };
-use derivative::Derivative;
-use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
 use rc::Rc;
-use std::any::Any;
-use std::collections::{HashMap, HashSet};
 use std::iter::from_fn;
 use std::mem::size_of;
 use std::rc;
@@ -148,7 +143,7 @@ pub fn add_stack_new(
                 params: vec![],
                 ret: XStackType::xtype(X_UNKNOWN.clone()),
             },
-            |args, ns, _tca, rt| Ok(manage_native!(XStack::new(), rt)),
+            |_args, _ns, _tca, rt| Ok(manage_native!(XStack::new(), rt)),
         ),
         interner,
     )?;

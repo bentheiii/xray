@@ -1,15 +1,14 @@
 use crate::builtin::core::xcmp;
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING, X_UNKNOWN};
+use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, manage_native, meval, to_primitive, Bind,
-    CompilationError, RTCell, XCompilationScope, XStaticFunction, XType,
+    add_binop, add_ufunc, add_ufunc_ref, eval, manage_native, meval, to_primitive,
+    CompilationError, XCompilationScope, XStaticFunction,
 };
 use num::{BigInt, BigRational, Integer, Signed, ToPrimitive, Zero};
 use rc::Rc;
 use std::rc;
-use std::sync::Arc;
 use string_interner::StringInterner;
 
 pub fn add_int_type(
@@ -32,15 +31,15 @@ add_int_binop!(add_int_mod, mod, |a: &BigInt, b: &BigInt| {
     if b.is_zero() {
         Err(String::from("Modulo by zero"))
     } else {
-        Ok(XValue::Int(a % b).into())
+        Ok(XValue::Int(a % b))
     }
 });
-add_int_binop!(add_int_bit_or, bit_or, |a, b| Ok(XValue::Int(a | b).into()));
+add_int_binop!(add_int_bit_or, bit_or, |a, b| Ok(XValue::Int(a | b)));
 add_int_binop!(add_int_bit_and, bit_and, |a, b| Ok(
-    XValue::Int(a & b).into()
+    XValue::Int(a & b)
 ));
 add_int_binop!(add_int_bit_xor, bit_xor, |a, b| Ok(
-    XValue::Int(a ^ b).into()
+    XValue::Int(a ^ b)
 ));
 add_binop!(
     add_int_div,
@@ -53,7 +52,7 @@ add_binop!(
             Err(String::from("Division by zero"))
         } else {
             // todo quicker shortcut for small ints
-            Ok(XValue::Float(BigRational::new(a.clone(), b.clone()).to_f64().unwrap()).into())
+            Ok(XValue::Float(BigRational::new(a.clone(), b.clone()).to_f64().unwrap()))
         }
     }
 );
@@ -68,7 +67,7 @@ add_binop!(
     } else {
         match b.to_i32() {
             Some(b) => {
-                Ok(XValue::Float(BigRational::from(a.clone()).pow(b).to_f64().unwrap()).into())
+                Ok(XValue::Float(BigRational::from(a.clone()).pow(b).to_f64().unwrap()))
             }
             None => Err(String::from("exponent too high")),
         }
@@ -103,7 +102,7 @@ add_ufunc!(
     X_INT,
     Int,
     X_STRING,
-    |a: &BigInt| Ok(XValue::String(a.to_string()).into())
+    |a: &BigInt| Ok(XValue::String(a.to_string()))
 );
 
 add_ufunc!(
@@ -114,7 +113,7 @@ add_ufunc!(
     X_STRING,
     |a: &BigInt| {
         println!("{}", a);
-        Ok(XValue::String(a.to_string()).into())
+        Ok(XValue::String(a.to_string()))
     }
 );
 
@@ -143,7 +142,7 @@ pub fn add_int_digits(
                 let (a0,) = eval!(args, ns, rt, 0);
                 let n = to_primitive!(a0, Int);
                 let (a1,) = meval!(args, ns, rt, 1);
-                let b = to_primitive!(a1, Int, BigInt::from(10 as i64));
+                let b = to_primitive!(a1, Int, BigInt::from(10));
                 let mut digits = Vec::new();
                 let mut n = n.clone();
                 while !n.is_zero() {
@@ -157,7 +156,7 @@ pub fn add_int_digits(
                             .map(|v| ManagedXValue::new(XValue::Int(v), rt.clone()))
                             .collect::<Result<_, _>>()?
                     ),
-                    rt.clone()
+                    rt
                 ))
             },
         ),
@@ -180,7 +179,7 @@ pub fn add_int_hash(
                 }],
                 ret: X_INT.clone(),
             },
-            |args, ns, tca, rt| {
+            |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let v0 = to_primitive!(a0, Int);
                 if !v0.is_negative() && v0.bits() <= 64 {

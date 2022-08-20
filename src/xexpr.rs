@@ -2,24 +2,19 @@ use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::compilation_scope::{XCompilationScopeItem, XFunctionFactory};
 use crate::evaluation_scope::XEvaluationScope;
-use crate::runtime::{RTCell, Runtime};
+use crate::runtime::{RTCell};
 use crate::xtype::{
     common_type, Bind, CompoundKind, XCompoundSpec, XFuncParamSpec, XType, X_BOOL, X_FLOAT, X_INT,
     X_STRING,
 };
-use crate::xvalue::{DynBind, ManagedXValue, NativeCallable, XFunction, XValue};
+use crate::xvalue::{ManagedXValue, NativeCallable, XFunction, XValue};
 use crate::{
-    manage_native, CompilationError, Declaration, Identifier, TracedCompilationError,
+    manage_native, CompilationError, Declaration, Identifier,
     XCompilationScope, XFuncSpec,
 };
-use derivative::Derivative;
-use itertools::Itertools;
 use num::BigInt;
-use std::borrow::BorrowMut;
-use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashSet};
 use std::fmt::{Debug, Error, Formatter};
-use std::mem::take;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
@@ -31,7 +26,6 @@ pub enum XStaticExpr {
     LiteralFloat(f64),
     LiteralString(String),
     Array(Vec<XStaticExpr>),
-    Set(Vec<XStaticExpr>),
     Tuple(Vec<XStaticExpr>),
     Call(Box<XStaticExpr>, Vec<XStaticExpr>),
     Member(Box<XStaticExpr>, String),
@@ -57,7 +51,7 @@ impl From<XExpr> for CompilationResult {
 impl CompilationResult {
     pub fn new(expr: XExpr, closure_vars: Vec<DefaultSymbol>) -> Self {
         CompilationResult {
-            expr: expr,
+            expr,
             closure_vars,
         }
     }
@@ -69,9 +63,6 @@ impl CompilationResult {
             closure_vars.extend(result.closure_vars.iter().map(|s| s.clone()));
         }
         (exprs, closure_vars)
-    }
-    fn map(self, f: impl FnOnce(XExpr) -> XExpr) -> Self {
-        Self::new(f(self.expr), self.closure_vars)
     }
     fn from_multi(
         other: (Vec<XExpr>, Vec<DefaultSymbol>),
@@ -187,10 +178,6 @@ impl XStaticExpr {
             XStaticExpr::Array(items) => Ok(CompilationResult::from_multi(
                 compile_many(items, namespace)?,
                 XExpr::Array,
-            )),
-            XStaticExpr::Set(items) => Ok(CompilationResult::from_multi(
-                compile_many(items, namespace)?,
-                XExpr::Set,
             )),
             XStaticExpr::Call(func, args) => {
                 let (compiled_args, mut cvars) = compile_many(args, namespace)?;
@@ -503,7 +490,6 @@ pub enum XExpr {
     LiteralFloat(f64),
     LiteralString(String),
     Array(Vec<XExpr>),
-    Set(Vec<XExpr>),
     Tuple(Vec<XExpr>),
     Call(Box<XExpr>, Vec<XExpr>),
     Construct(Arc<XCompoundSpec>, Bind, Vec<XExpr>),
@@ -748,9 +734,6 @@ impl XExpr {
                 let element_type = common_type(exprs.iter().map(|x| x.xtype()))?;
                 Ok(XType::XNative(Box::new(XSequenceType {}), vec![element_type]).into())
             }
-            XExpr::Set(exprs) => {
-                todo!()
-            }
             XExpr::Call(func, _) => {
                 if let XExpr::KnownOverload(func, bind) = func.as_ref() {
                     return Ok(func.rtype(bind));
@@ -843,9 +826,6 @@ impl XExpr {
                     )
                 };
                 Ok(ManagedXValue::new(XValue::Native(Box::new(seq)), runtime)?.into())
-            }
-            XExpr::Set(exprs) => {
-                todo!()
             }
             XExpr::Call(func, args) => {
                 let callable = func

@@ -1,3 +1,4 @@
+#![allow(incomplete_features)]
 #![feature(trait_upcasting)]
 
 #[macro_use]
@@ -37,8 +38,6 @@ use crate::compile_err::{CompilationError, TracedCompilationError};
 use crate::parser::{Rule, XRayParser};
 use crate::pest::Parser;
 use crate::runtime::RTCell;
-use pest::error::Error;
-use pest::iterators::Pair;
 use std::collections::HashSet;
 use string_interner::{DefaultSymbol, StringInterner};
 
@@ -47,7 +46,7 @@ use crate::xexpr::{
     CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction,
 };
 use crate::xtype::{
-    Bind, CompoundKind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncParamSpec,
+    Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncParamSpec,
     XFuncSpec, XType,
 };
 

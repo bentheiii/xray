@@ -2,7 +2,7 @@ use crate::parser::Rule;
 use crate::runtime::RTCell;
 use crate::xexpr::{resolve_overload, XExpr, XStaticFunction};
 use crate::xtype::{CompoundKind, XCompoundSpec, XFuncSpec, XType};
-use crate::xvalue::{DynBind, ManagedXValue, XFunction};
+use crate::xvalue::{DynBind};
 use crate::{
     Bind, CompilationError, CompilationResult, Identifier, TracedCompilationError, UfData,
     XCallableSpec, XCompoundFieldSpec, XEvaluationScope, XExplicitArgSpec, XExplicitFuncSpec,
@@ -10,7 +10,6 @@ use crate::{
 };
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
 use std::iter;
 use std::iter::from_fn;
 use std::rc::Rc;
@@ -1034,4 +1033,18 @@ pub enum Declaration {
     Struct(XCompoundSpec),
     Union(XCompoundSpec),
     UserFunction(DefaultSymbol, Rc<XStaticFunction>),
+}
+
+struct RootCompilationScope{
+    scope: XCompilationScope<'static>,
+    interner: StringInterner,
+}
+
+impl RootCompilationScope{
+    fn new()->Self{
+        Self{
+            scope: XCompilationScope::root(),
+            interner: StringInterner::default(),
+        }
+    }
 }

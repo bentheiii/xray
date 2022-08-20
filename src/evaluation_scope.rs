@@ -1,26 +1,11 @@
-use crate::parser::Rule;
 use crate::runtime::RTCell;
-use crate::xexpr::{resolve_overload, XExpr, XStaticFunction};
-use crate::xtype::{CompoundKind, XCompoundSpec, XFuncSpec, XType};
-use crate::xvalue::{DynBind, ManagedXValue, XFunction};
-use crate::{
-    Bind, CompilationError, CompilationResult, TracedCompilationError, UfData, XCallableSpec,
-    XCompoundFieldSpec, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr,
-};
-use std::borrow::Cow;
-use std::collections::{HashMap, HashSet};
-use std::hash::{Hash, Hasher};
-use std::iter;
-use std::iter::from_fn;
+use crate::xexpr::{XStaticFunction};
+use crate::xvalue::{ManagedXValue, XFunction};
+use std::collections::{HashMap};
 use std::rc::Rc;
-use std::sync::Arc;
-use string_interner::{DefaultSymbol, StringInterner};
+use string_interner::{DefaultSymbol};
 
 use crate::compilation_scope::Declaration;
-use derivative::Derivative;
-use pest::iterators::Pair;
-use pest::prec_climber::Assoc::{Left, Right};
-use pest::prec_climber::{Operator, PrecClimber};
 
 pub struct XEvaluationScope<'p> {
     pub values: HashMap<DefaultSymbol, Rc<ManagedXValue>>,

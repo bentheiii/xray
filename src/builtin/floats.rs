@@ -1,16 +1,14 @@
 use crate::builtin::core::xcmp;
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING, X_UNKNOWN};
+use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::XType::Int;
 use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, Bind, CompilationError,
-    XCompilationScope, XStaticFunction, XType,
+    add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError,
+    XCompilationScope, XStaticFunction,
 };
 use num::bigint::Sign;
-use num::{BigInt, BigUint, Float, FromPrimitive, Signed, ToPrimitive, Zero};
+use num::{BigInt, BigUint, Float, FromPrimitive, ToPrimitive, Zero};
 use rc::Rc;
 use std::rc;
-use std::sync::Arc;
 use string_interner::StringInterner;
 
 pub fn add_float_type(
@@ -26,21 +24,21 @@ macro_rules! add_float_binop {
     };
 }
 
-add_float_binop!(add_float_add, add, |a, b| Ok(XValue::Float(a + b).into()));
-add_float_binop!(add_float_sub, sub, |a, b| Ok(XValue::Float(a - b).into()));
-add_float_binop!(add_float_mul, mul, |a, b| Ok(XValue::Float(a * b).into()));
+add_float_binop!(add_float_add, add, |a, b| Ok(XValue::Float(a + b)));
+add_float_binop!(add_float_sub, sub, |a, b| Ok(XValue::Float(a - b)));
+add_float_binop!(add_float_mul, mul, |a, b| Ok(XValue::Float(a * b)));
 add_float_binop!(add_float_mod, mod, |a: &f64, b: &f64| {
     if b.is_zero() {
         Err("modulo by zero".to_string())
     } else {
-        Ok(XValue::Float(a % b).into())
+        Ok(XValue::Float(a % b))
     }
 });
 add_float_binop!(add_float_div, div, |a: &f64, b: &f64| {
     if b.is_zero() {
         Err("division by zero".to_string())
     } else {
-        Ok(XValue::Float(a / b).into())
+        Ok(XValue::Float(a / b))
     }
 });
 add_binop!(
@@ -49,7 +47,7 @@ add_binop!(
     X_FLOAT,
     Float,
     X_BOOL,
-    |a: &f64, b: &f64| { Ok(XValue::Bool(a == b).into()) }
+    |a: &f64, b: &f64| { Ok(XValue::Bool(a == b)) }
 );
 
 fn whole_float_to_bigint(f: f64) -> BigInt {
@@ -66,13 +64,13 @@ fn whole_float_to_bigint(f: f64) -> BigInt {
 }
 
 add_ufunc!(add_float_floor, floor, X_FLOAT, Float, X_INT, |a: &f64| Ok(
-    XValue::Int(whole_float_to_bigint(a.floor())).into()
+    XValue::Int(whole_float_to_bigint(a.floor()))
 ));
 add_ufunc!(add_float_ceil, ceil, X_FLOAT, Float, X_INT, |a: &f64| Ok(
-    XValue::Int(whole_float_to_bigint(a.ceil())).into()
+    XValue::Int(whole_float_to_bigint(a.ceil()))
 ));
 add_ufunc!(add_float_trunc, trunc, X_FLOAT, Float, X_INT, |a: &f64| Ok(
-    XValue::Int(whole_float_to_bigint(a.trunc())).into()
+    XValue::Int(whole_float_to_bigint(a.trunc()))
 ));
 
 add_ufunc!(
@@ -87,7 +85,7 @@ add_ufunc!(
                 .ok_or("rational cannot be converted to float")?
                 .to_string(),
         )
-        .into())
+        )
     }
 );
 

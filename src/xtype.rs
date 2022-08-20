@@ -4,7 +4,6 @@ use crate::Identifier;
 use derivative::Derivative;
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
-use std::fmt::{write, Display, Formatter};
 use std::iter::FromIterator;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
@@ -424,7 +423,7 @@ impl XType {
                 }
                 XType::Tuple(new_types).into()
             }
-            XType::Compound(ct, spec, main_bind) => {
+            XType::Compound(ct, spec, _) => {
                 XType::Compound(*ct, spec.clone(), bind.clone()).into()
             }
             _ => self.clone(),
@@ -562,7 +561,7 @@ lazy_static! {
     pub static ref X_FLOAT: Arc<XType> = Arc::new(XType::Float);
     pub static ref X_STRING: Arc<XType> = Arc::new(XType::String);
     pub static ref X_UNKNOWN: Arc<XType> = Arc::new(XType::XUnknown);
-};
+}
 
 pub fn common_type<T: Iterator<Item = Result<Arc<XType>, CompilationError>>>(
     mut values: T,

@@ -1,14 +1,14 @@
 use crate::xvalue::XValue;
 use num::{BigInt, One, Zero};
 use std::ops::Neg;
-use std::rc::Rc;
+
 #[macro_export]
 macro_rules! add_binop {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
         pub fn $fn_name(
             scope: &mut XCompilationScope<'_>,
             interner: &mut StringInterner,
-        ) -> Result<(), crate::CompilationError> {
+        ) -> Result<(), $crate::CompilationError> {
             scope.add_func(
                 interner.get_or_intern_static(stringify!($name)),
                 XStaticFunction::from_native(
@@ -46,7 +46,7 @@ macro_rules! add_ufunc_ref {
         pub fn $fn_name(
             scope: &mut XCompilationScope<'_>,
             interner: &mut StringInterner,
-        ) -> Result<(), crate::CompilationError> {
+        ) -> Result<(), $crate::CompilationError> {
             scope.add_func(
                 interner.get_or_intern_static(stringify!($name)),
                 XStaticFunction::from_native(
@@ -77,7 +77,7 @@ macro_rules! add_ufunc {
             $name,
             $operand_type,
             $return_type,
-            |a: Rc<ManagedXValue>, rt: crate::runtime::RTCell| {
+            |a: Rc<ManagedXValue>, rt: $crate::runtime::RTCell| {
                 let result: Result<_, String> = $func(to_primitive!(a, $operand_variant));
                 Ok(ManagedXValue::new(result?, rt.clone())?.into())
             }

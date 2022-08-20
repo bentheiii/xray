@@ -1,8 +1,7 @@
 use crate::xtype::{X_BOOL, X_UNKNOWN};
 use crate::{
-    eval, CompilationError, XCompilationScope, XFuncParamSpec, XFuncSpec, XStaticFunction, XType,
+    CompilationError, XCompilationScope, XFuncParamSpec, XFuncSpec, XStaticFunction,
 };
-use std::fmt::format;
 use std::rc::Rc;
 use string_interner::StringInterner;
 
@@ -12,7 +11,7 @@ pub fn add_unknown_eq(
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func(
         interner.get_or_intern_static("eq"),
-        move |_params, types, ns| {
+        move |_params, types, _ns| {
             if types.len() != 2 {
                 return Err(format!("Expected 2 types, got {}", types.len()));
             }
@@ -40,7 +39,7 @@ pub fn add_unknown_eq(
                     ],
                     ret: X_BOOL.clone(),
                 },
-                move |args, ns, _tca, rt| Err("unknown eq applied".to_string()),
+                move |_args, _ns, _tca, _rt| Err("unknown eq applied".to_string()),
             )))
         },
     )

@@ -1,16 +1,15 @@
 use crate::builtin::core::xcmp;
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING, X_UNKNOWN};
+use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, Bind, CompilationError,
-    XCompilationScope, XStaticFunction, XType,
+    add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError,
+    XCompilationScope, XStaticFunction,
 };
-use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
+use num::{BigInt};
 use rc::Rc;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::rc;
-use std::sync::Arc;
 use string_interner::StringInterner;
 
 pub fn add_str_type(
@@ -36,7 +35,7 @@ add_ufunc_ref!(
     display,
     X_STRING,
     X_STRING,
-    |a: Rc<ManagedXValue>, rt| {
+    |a: Rc<ManagedXValue>, _rt| {
         if let XValue::String(s) = &a.value {
             println!("{}", s);
             Ok(a.into())

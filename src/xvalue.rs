@@ -1,15 +1,12 @@
 use crate::evaluation_scope::XEvaluationScope;
 use crate::native_types::XNativeValue;
-use crate::runtime::{RTCell, Runtime};
+use crate::runtime::{RTCell};
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
 use crate::{Identifier, XCompilationScope, XType};
-use derivative::Derivative;
 use num::BigInt;
 use std::borrow::Cow;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
-use std::hash::{Hash, Hasher};
 use std::mem::size_of;
 use std::ops::Deref;
 use std::rc::Rc;
@@ -55,7 +52,7 @@ impl XFunction {
         match self {
             XFunction::Native(native) => native(args, parent_scope, tail_available, runtime),
             XFunction::UserFunction(..) => {
-                let mut arguments = args
+                let arguments = args
                     .iter()
                     .map(|x| {
                         x.eval(parent_scope, false, runtime.clone())
@@ -198,21 +195,11 @@ impl PartialEq for XFunction {
 
 impl Eq for XFunction {}
 
-impl Hash for XFunction {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            XFunction::Native(_) => 0.hash(state),
-            XFunction::UserFunction(args, ..) => 1.hash(state),
-            XFunction::Recourse(..) => 2.hash(state),
-        }
-    }
-}
-
 impl XValue {
     pub fn size(&self) -> usize {
         match self {
             XValue::Int(i) => (i.bits() / 8) as usize,
-            XValue::Float(r) => (64 / 8),
+            XValue::Float(_) => 64 / 8,
             XValue::String(s) => s.len(),
             XValue::Bool(_) => 1,
             XValue::Function(XFunction::Native(_)) => size_of::<usize>(),

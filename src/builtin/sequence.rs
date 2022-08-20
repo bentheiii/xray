@@ -1,23 +1,20 @@
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::stack::{XStack, XStackType};
-use crate::native_types::{NativeType, RuntimeEquatable, XNativeValue};
+use crate::native_types::{NativeType, XNativeValue};
 use crate::util::trysort::try_sort;
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING, X_UNKNOWN};
+use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::XType::XCallable;
 use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, intern, manage_native, meval, to_native,
-    to_primitive, Bind, CompilationError, Identifier, RTCell, XCallableSpec, XCompilationScope,
+    eval, intern, manage_native, meval, to_native,
+    to_primitive, CompilationError, Identifier, RTCell, XCallableSpec, XCompilationScope,
     XEvaluationScope, XStaticFunction, XType,
 };
-use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
+use num::{BigInt, Signed, ToPrimitive, Zero};
 use rc::Rc;
-use std::any::{Any, TypeId};
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::mem::size_of;
-use std::num::NonZeroIsize;
-use std::ops::{Deref, Neg};
+use std::ops::{Neg};
 use std::rc;
 use std::sync::Arc;
 use string_interner::StringInterner;
@@ -342,7 +339,7 @@ pub fn add_sequence_add_stack(
                 ],
                 ret: t_arr.clone(),
             },
-            |args, ns, tca, rt| {
+            |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq0 = to_native!(a0, XSequence);
                 let stk1 = to_native!(a1, XStack);
@@ -387,7 +384,7 @@ pub fn add_sequence_addrev_stack(
                 ],
                 ret: t_arr.clone(),
             },
-            |args, ns, tca, rt| {
+            |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq0 = to_native!(a0, XSequence);
                 let stk1 = to_native!(a1, XStack);
