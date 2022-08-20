@@ -1,5 +1,5 @@
-use std::{mem, ptr};
 use std::mem::size_of;
+use std::{mem, ptr};
 
 // this is a copy-paste of the std implementation, with the added bonus that the comparison
 // function can fail
@@ -9,8 +9,8 @@ use std::mem::size_of;
 /// This is the integral subroutine of insertion sort.
 #[cfg(not(no_global_oom_handling))]
 fn insert_head<T, F, E>(v: &mut [T], is_less: &mut F) -> Result<(), E>
-    where
-        F: FnMut(&T, &T) -> Result<bool, E>,
+where
+    F: FnMut(&T, &T) -> Result<bool, E>,
 {
     if v.len() >= 2 && is_less(&v[1], &v[0])? {
         unsafe {
@@ -43,7 +43,10 @@ fn insert_head<T, F, E>(v: &mut [T], is_less: &mut F) -> Result<(), E>
             // If `is_less` panics at any point during the process, `hole` will get dropped and
             // fill the hole in `v` with `tmp`, thus ensuring that `v` still holds every object it
             // initially held exactly once.
-            let mut hole = InsertionHole { src: &*tmp, dest: &mut v[1] };
+            let mut hole = InsertionHole {
+                src: &*tmp,
+                dest: &mut v[1],
+            };
             ptr::copy_nonoverlapping(&v[1], &mut v[0], 1);
 
             for i in 2..v.len() {
@@ -83,8 +86,8 @@ fn insert_head<T, F, E>(v: &mut [T], is_less: &mut F) -> Result<(), E>
 /// to hold a copy of the shorter slice. Also, `T` must not be a zero-sized type.
 #[cfg(not(no_global_oom_handling))]
 unsafe fn merge<T, F, E>(v: &mut [T], mid: usize, buf: *mut T, is_less: &mut F) -> Result<(), E>
-    where
-        F: FnMut(&T, &T) -> Result<bool, E>,
+where
+    F: FnMut(&T, &T) -> Result<bool, E>,
 {
     let len = v.len();
     let v = v.as_mut_ptr();
@@ -113,7 +116,11 @@ unsafe fn merge<T, F, E>(v: &mut [T], mid: usize, buf: *mut T, is_less: &mut F) 
         // The left run is shorter.
         unsafe {
             ptr::copy_nonoverlapping(v, buf, mid);
-            hole = MergeHole { start: buf, end: buf.add(mid), dest: v };
+            hole = MergeHole {
+                start: buf,
+                end: buf.add(mid),
+                dest: v,
+            };
         }
 
         // Initially, these pointers point to the beginnings of their arrays.
@@ -137,7 +144,11 @@ unsafe fn merge<T, F, E>(v: &mut [T], mid: usize, buf: *mut T, is_less: &mut F) 
         // The right run is shorter.
         unsafe {
             ptr::copy_nonoverlapping(v_mid, buf, len - mid);
-            hole = MergeHole { start: buf, end: buf.add(len - mid), dest: v_mid };
+            hole = MergeHole {
+                start: buf,
+                end: buf.add(len - mid),
+                dest: v_mid,
+            };
         }
 
         // Initially, these pointers point past the ends of their arrays.
@@ -206,8 +217,8 @@ unsafe fn merge<T, F, E>(v: &mut [T], mid: usize, buf: *mut T, is_less: &mut F) 
 /// The invariants ensure that the total running time is *O*(*n* \* log(*n*)) worst-case.
 #[cfg(not(no_global_oom_handling))]
 pub fn try_sort<T, F, E>(v: &mut [T], mut is_less: F) -> Result<(), E>
-    where
-        F: FnMut(&T, &T) -> Result<bool, E>,
+where
+    F: FnMut(&T, &T) -> Result<bool, E>,
 {
     // Slices of up to this length get sorted using insertion sort.
     const MAX_INSERTION: usize = 20;
@@ -250,7 +261,8 @@ pub fn try_sort<T, F, E>(v: &mut [T], mut is_less: F) -> Result<(), E>
             start -= 1;
             unsafe {
                 if is_less(v.get_unchecked(start + 1), v.get_unchecked(start))? {
-                    while start > 0 && is_less(v.get_unchecked(start), v.get_unchecked(start - 1))? {
+                    while start > 0 && is_less(v.get_unchecked(start), v.get_unchecked(start - 1))?
+                    {
                         start -= 1;
                     }
                     v[start..end].reverse();
@@ -271,7 +283,10 @@ pub fn try_sort<T, F, E>(v: &mut [T], mut is_less: F) -> Result<(), E>
         }
 
         // Push this run onto the stack.
-        runs.push(Run { start, len: end - start });
+        runs.push(Run {
+            start,
+            len: end - start,
+        });
         end = start;
 
         // Merge some pairs of adjacent runs to satisfy the invariants.
@@ -286,7 +301,10 @@ pub fn try_sort<T, F, E>(v: &mut [T], mut is_less: F) -> Result<(), E>
                     &mut is_less,
                 )?;
             }
-            runs[r] = Run { start: left.start, len: left.len + right.len };
+            runs[r] = Run {
+                start: left.start,
+                len: left.len + right.len,
+            };
             runs.remove(r + 1);
         }
     }
@@ -313,11 +331,15 @@ pub fn try_sort<T, F, E>(v: &mut [T], mut is_less: F) -> Result<(), E>
         let n = runs.len();
         if n >= 2
             && (runs[n - 1].start == 0
-            || runs[n - 2].len <= runs[n - 1].len
-            || (n >= 3 && runs[n - 3].len <= runs[n - 2].len + runs[n - 1].len)
-            || (n >= 4 && runs[n - 4].len <= runs[n - 3].len + runs[n - 2].len))
+                || runs[n - 2].len <= runs[n - 1].len
+                || (n >= 3 && runs[n - 3].len <= runs[n - 2].len + runs[n - 1].len)
+                || (n >= 4 && runs[n - 4].len <= runs[n - 3].len + runs[n - 2].len))
         {
-            if n >= 3 && runs[n - 3].len < runs[n - 1].len { Some(n - 3) } else { Some(n - 2) }
+            if n >= 3 && runs[n - 3].len < runs[n - 1].len {
+                Some(n - 3)
+            } else {
+                Some(n - 2)
+            }
         } else {
             None
         }

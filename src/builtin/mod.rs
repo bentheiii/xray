@@ -1,11 +1,11 @@
-mod core;
-pub mod int;
-pub mod str;
 pub mod bool;
-pub mod generic;
+mod core;
 pub mod floats;
+pub mod generic;
+pub mod int;
+pub mod mapping;
+pub mod optional;
 pub mod sequence;
 pub mod stack;
-pub mod optional;
-pub mod mapping;
+pub mod str;
 pub mod unknown;

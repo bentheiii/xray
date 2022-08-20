@@ -1,13 +1,13 @@
+use crate::xvalue::XValue;
+use crate::XType;
+use derivative::Derivative;
+use dyn_clone::DynClone;
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
-use std::fmt::{Debug};
+use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 use std::sync::Arc;
-use dyn_clone::DynClone;
-use derivative::Derivative;
-use crate::XType;
-use crate::xvalue::XValue;
 
 pub trait NativeType: Send + Sync + Debug + DynClone {
     fn generic_names(&self) -> Vec<String>;
@@ -37,4 +37,3 @@ impl<S: 'static> RuntimeEquatable for S {
 pub trait XNativeValue: Debug + RuntimeEquatable {
     fn size(&self) -> usize;
 }
-

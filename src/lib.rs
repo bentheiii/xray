@@ -3,47 +3,55 @@
 #[macro_use]
 extern crate lazy_static;
 extern crate derivative;
-extern crate mopa;
 extern crate dyn_clone;
+extern crate mopa;
 
-pub mod xscope;
+pub mod builtin;
+pub mod compilation_scope;
+pub mod compile_err;
+pub mod evaluation_scope;
+pub mod native_types;
+pub mod parser;
+pub mod runtime;
+pub mod util;
+pub mod xexpr;
 pub mod xtype;
 pub mod xvalue;
-pub mod xexpr;
-pub mod builtin;
-pub mod native_types;
-pub mod runtime;
-pub mod compile_err;
-pub mod parser;
-pub mod util;
 
 extern crate pest;
 #[macro_use]
 pub extern crate pest_derive;
 
-use std::collections::HashSet;
-use pest::error::Error;
-use pest::iterators::Pair;
-use string_interner::StringInterner;
-use crate::pest::Parser;
-use crate::builtin::int::{*};
-use crate::builtin::sequence::{*};
-use crate::builtin::str::{*};
-use crate::builtin::bool::{*};
-use crate::builtin::floats::{*};
-use crate::builtin::generic::{*};
-use crate::builtin::optional::{*};
-use crate::builtin::stack::{*};
-use crate::builtin::mapping::{*};
+use crate::builtin::bool::*;
+use crate::builtin::floats::*;
+use crate::builtin::generic::*;
+use crate::builtin::int::*;
+use crate::builtin::mapping::*;
+use crate::builtin::optional::*;
+use crate::builtin::sequence::*;
+use crate::builtin::stack::*;
+use crate::builtin::str::*;
 use crate::builtin::unknown::add_unknown_eq;
+use crate::compilation_scope::{Declaration, XCompilationScope};
 use crate::compile_err::{CompilationError, TracedCompilationError};
 use crate::parser::{Rule, XRayParser};
-use crate::runtime::{RTCell};
+use crate::pest::Parser;
+use crate::runtime::RTCell;
+use pest::error::Error;
+use pest::iterators::Pair;
+use std::collections::HashSet;
+use string_interner::{DefaultSymbol, StringInterner};
 
-use crate::xexpr::{CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction};
-use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScopeItem, XEvaluationScope};
-use crate::xtype::{Bind, XCallableSpec, XFuncSpec, XCompoundFieldSpec, XCompoundSpec, XType, CompoundKind, XFuncParamSpec};
+use crate::evaluation_scope::XEvaluationScope;
+use crate::xexpr::{
+    CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction,
+};
+use crate::xtype::{
+    Bind, CompoundKind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncParamSpec,
+    XFuncSpec, XType,
+};
 
+pub type Identifier = DefaultSymbol;
 
 pub fn std_compilation_scope<'a>(interner: &'_ mut StringInterner) -> XCompilationScope<'a> {
     let mut ret = XCompilationScope::root();
@@ -145,13 +153,19 @@ pub fn std_compilation_scope<'a>(interner: &'_ mut StringInterner) -> XCompilati
     add_mapping_pop(&mut ret, interner).unwrap();
     add_mapping_discard(&mut ret, interner).unwrap();
 
-
     ret
 }
 
 impl XCompilationScope<'_> {
-    pub fn feed_file(&mut self, input: &str, interner: &mut StringInterner, runtime: RTCell) -> Result<Vec<Declaration>, TracedCompilationError> {
-        let body = XRayParser::parse(Rule::header, input).map(|mut p| p.next().unwrap()).map_err(TracedCompilationError::Syntax)?;
+    pub fn feed_file(
+        &mut self,
+        input: &str,
+        interner: &mut StringInterner,
+        runtime: RTCell,
+    ) -> Result<Vec<Declaration>, TracedCompilationError> {
+        let body = XRayParser::parse(Rule::header, input)
+            .map(|mut p| p.next().unwrap())
+            .map_err(TracedCompilationError::Syntax)?;
         self.feed(body, &HashSet::new(), interner, runtime.clone())
     }
 }

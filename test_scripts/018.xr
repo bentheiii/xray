@@ -7,5 +7,5 @@ fn product(arr: Sequence<int>) -> int {
 }
 
 fn main()->bool{
-    assert(product([227,3,5,29]).debug() == 98_745)
+    assert(product([227,3,5,29]) == 98_745)
 }

@@ -1,19 +1,22 @@
-use std::rc;
-use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, intern, manage_native, to_native, XCompilationScope, XStaticFunction, XType};
-use crate::xtype::{X_BOOL, X_INT, X_FLOAT, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
+use crate::native_types::{NativeType, XNativeValue};
+use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
+use crate::CompilationError::PairNotType;
+use crate::{
+    add_binop, add_ufunc, add_ufunc_ref, eval, intern, manage_native, to_native, Bind,
+    CompilationError, XCompilationScope, XStaticFunction, XType,
+};
+use derivative::Derivative;
+use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
 use rc::Rc;
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::iter::from_fn;
 use std::mem::size_of;
+use std::rc;
 use std::sync::Arc;
-use crate::native_types::{NativeType, XNativeValue};
-use derivative::Derivative;
 use string_interner::StringInterner;
-use crate::CompilationError::PairNotType;
 
 #[derive(Debug, Clone)]
 pub struct XStackType {}
@@ -44,7 +47,10 @@ impl StackNode {
         Rc::new(StackNode { value, next: None })
     }
     fn new(value: Rc<ManagedXValue>, next: Rc<StackNode>) -> Rc<StackNode> {
-        Rc::new(StackNode { value, next: Some(next) })
+        Rc::new(StackNode {
+            value,
+            next: Some(next),
+        })
     }
 }
 
@@ -65,7 +71,7 @@ impl XStack {
     pub fn push(&self, value: Rc<ManagedXValue>) -> Self {
         let node = match self.head {
             None => StackNode::first(value),
-            Some(ref head) => StackNode::new(value, head.clone())
+            Some(ref head) => StackNode::new(value, head.clone()),
         };
         XStack {
             head: Some(node),
@@ -86,18 +92,16 @@ impl XStack {
         vec
     }
 
-    pub fn iter(&self) -> impl Iterator<Item=Rc<ManagedXValue>> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue>> + '_ {
         let mut node = &self.head;
-        return from_fn(move || {
-            match &node {
-                None => None,
-                Some(n) => {
-                    let ret = n.value.clone();
-                    node = &n.next;
-                    Some(ret)
-                }
+        return from_fn(move || match &node {
+            None => None,
+            Some(n) => {
+                let ret = n.value.clone();
+                node = &n.next;
+                Some(ret)
             }
-        })
+        });
     }
 }
 
@@ -114,170 +118,231 @@ impl XNativeValue for XStack {
             managed_count += 1;
             node = &n.next;
         }
-        if node.is_none(){
-            managed_count+=1;
+        if node.is_none() {
+            managed_count += 1;
         }
         (managed_count + 1) * size_of::<usize>()
     }
 }
 
-pub fn add_stack_type(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
-    scope.add_native_type_intern("Stack", XStackType::xtype(XType::generic_from_name("T", interner)), interner)
+pub fn add_stack_type(
+    scope: &mut XCompilationScope,
+    interner: &mut StringInterner,
+) -> Result<(), CompilationError> {
+    scope.add_native_type_intern(
+        "Stack",
+        XStackType::xtype(XType::generic_from_name("T", interner)),
+        interner,
+    )
 }
 
-pub fn add_stack_new(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_stack_new(
+    scope: &mut XCompilationScope,
+    interner: &mut StringInterner,
+) -> Result<(), CompilationError> {
     scope.add_func_intern(
-        "stack", XStaticFunction::from_native(XFuncSpec {
-            generic_params: None,
-            params: vec![],
-            ret: XStackType::xtype(X_UNKNOWN.clone()),
-        }, |args, ns, _tca, rt| {
-            Ok(manage_native!(XStack::new(), rt))
-        }), interner)?;
+        "stack",
+        XStaticFunction::from_native(
+            XFuncSpec {
+                generic_params: None,
+                params: vec![],
+                ret: XStackType::xtype(X_UNKNOWN.clone()),
+            },
+            |args, ns, _tca, rt| Ok(manage_native!(XStack::new(), rt)),
+        ),
+        interner,
+    )?;
     Ok(())
 }
 
-pub fn add_stack_push(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_stack_push(
+    scope: &mut XCompilationScope,
+    interner: &mut StringInterner,
+) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
-        "push", XStaticFunction::from_native(XFuncSpec {
-            generic_params: Some(intern!(interner, "T")),
-            params: vec![
-                XFuncParamSpec {
-                    type_: t_stk.clone(),
-                    required: true,
-                },
-                XFuncParamSpec {
-                    type_: t.clone(),
-                    required: true,
-                },
-            ],
-            ret: t_stk.clone(),
-        }, |args, ns, _tca, rt| {
-            let (a0, a1) = eval!(args, ns, rt, 0, 1);
-            let stk0 = to_native!(a0, XStack);
-            Ok(manage_native!(stk0.push(a1), rt))
-        }), interner)?;
+        "push",
+        XStaticFunction::from_native(
+            XFuncSpec {
+                generic_params: Some(intern!(interner, "T")),
+                params: vec![
+                    XFuncParamSpec {
+                        type_: t_stk.clone(),
+                        required: true,
+                    },
+                    XFuncParamSpec {
+                        type_: t.clone(),
+                        required: true,
+                    },
+                ],
+                ret: t_stk.clone(),
+            },
+            |args, ns, _tca, rt| {
+                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let stk0 = to_native!(a0, XStack);
+                Ok(manage_native!(stk0.push(a1), rt))
+            },
+        ),
+        interner,
+    )?;
     Ok(())
 }
 
-pub fn add_stack_to_array(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_stack_to_array(
+    scope: &mut XCompilationScope,
+    interner: &mut StringInterner,
+) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
-        "to_array", XStaticFunction::from_native(XFuncSpec {
-            generic_params: Some(intern!(interner, "T")),
-            params: vec![
-                XFuncParamSpec {
+        "to_array",
+        XStaticFunction::from_native(
+            XFuncSpec {
+                generic_params: Some(intern!(interner, "T")),
+                params: vec![XFuncParamSpec {
                     type_: t_stk.clone(),
                     required: true,
-                },
-            ],
-            ret: XSequenceType::xtype(t.clone()),
-        }, |args, ns, _tca, rt| {
-            let (a0, ) = eval!(args, ns, rt, 0);
-            let stk0 = to_native!(a0, XStack);
-            Ok(manage_native!(XSequence::array(stk0.to_vec::<false>()), rt))
-        }), interner)?;
+                }],
+                ret: XSequenceType::xtype(t.clone()),
+            },
+            |args, ns, _tca, rt| {
+                let (a0,) = eval!(args, ns, rt, 0);
+                let stk0 = to_native!(a0, XStack);
+                Ok(manage_native!(XSequence::array(stk0.to_vec::<false>()), rt))
+            },
+        ),
+        interner,
+    )?;
     Ok(())
 }
 
-pub fn add_stack_to_array_reversed(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_stack_to_array_reversed(
+    scope: &mut XCompilationScope,
+    interner: &mut StringInterner,
+) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
-        "to_array_reversed", XStaticFunction::from_native(XFuncSpec {
-            generic_params: Some(intern!(interner, "T")),
-            params: vec![
-                XFuncParamSpec {
+        "to_array_reversed",
+        XStaticFunction::from_native(
+            XFuncSpec {
+                generic_params: Some(intern!(interner, "T")),
+                params: vec![XFuncParamSpec {
                     type_: t_stk.clone(),
                     required: true,
-                },
-            ],
-            ret: XSequenceType::xtype(t.clone()),
-        }, |args, ns, _tca, rt| {
-            let (a0, ) = eval!(args, ns, rt, 0);
-            let stk0 = to_native!(a0, XStack);
-            Ok(manage_native!(XSequence::array(stk0.to_vec::<true>()), rt))
-        }), interner)?;
+                }],
+                ret: XSequenceType::xtype(t.clone()),
+            },
+            |args, ns, _tca, rt| {
+                let (a0,) = eval!(args, ns, rt, 0);
+                let stk0 = to_native!(a0, XStack);
+                Ok(manage_native!(XSequence::array(stk0.to_vec::<true>()), rt))
+            },
+        ),
+        interner,
+    )?;
     Ok(())
 }
 
-pub fn add_stack_len(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_stack_len(
+    scope: &mut XCompilationScope,
+    interner: &mut StringInterner,
+) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
-        "len", XStaticFunction::from_native(XFuncSpec {
-            generic_params: Some(intern!(interner, "T")),
-            params: vec![
-                XFuncParamSpec {
+        "len",
+        XStaticFunction::from_native(
+            XFuncSpec {
+                generic_params: Some(intern!(interner, "T")),
+                params: vec![XFuncParamSpec {
                     type_: t_stk.clone(),
                     required: true,
-                },
-            ],
-            ret: X_INT.clone(),
-        }, |args, ns, _tca, rt| {
-            let (a0, ) = eval!(args, ns, rt, 0);
-            let stk0 = to_native!(a0, XStack);
-            Ok(ManagedXValue::new(XValue::Int(stk0.length.into()), rt)?.into())
-        }), interner)?;
+                }],
+                ret: X_INT.clone(),
+            },
+            |args, ns, _tca, rt| {
+                let (a0,) = eval!(args, ns, rt, 0);
+                let stk0 = to_native!(a0, XStack);
+                Ok(ManagedXValue::new(XValue::Int(stk0.length.into()), rt)?.into())
+            },
+        ),
+        interner,
+    )?;
     Ok(())
 }
 
-pub fn add_stack_head(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_stack_head(
+    scope: &mut XCompilationScope,
+    interner: &mut StringInterner,
+) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
-        "head", XStaticFunction::from_native(XFuncSpec {
-            generic_params: Some(intern!(interner, "T")),
-            params: vec![
-                XFuncParamSpec {
+        "head",
+        XStaticFunction::from_native(
+            XFuncSpec {
+                generic_params: Some(intern!(interner, "T")),
+                params: vec![XFuncParamSpec {
                     type_: t_stk.clone(),
                     required: true,
-                },
-            ],
-            ret: t.clone(),
-        }, |args, ns, _tca, rt| {
-            let (a0, ) = eval!(args, ns, rt, 0);
-            let stk0 = to_native!(a0, XStack);
-            match &stk0.head {
-                Some(v) => Ok(v.value.clone().into()),
-                None => Err("stack is empty".to_string()),
-            }
-        }), interner)?;
+                }],
+                ret: t.clone(),
+            },
+            |args, ns, _tca, rt| {
+                let (a0,) = eval!(args, ns, rt, 0);
+                let stk0 = to_native!(a0, XStack);
+                match &stk0.head {
+                    Some(v) => Ok(v.value.clone().into()),
+                    None => Err("stack is empty".to_string()),
+                }
+            },
+        ),
+        interner,
+    )?;
     Ok(())
 }
 
-pub fn add_stack_tail(scope: &mut XCompilationScope, interner: &mut StringInterner) -> Result<(), CompilationError> {
+pub fn add_stack_tail(
+    scope: &mut XCompilationScope,
+    interner: &mut StringInterner,
+) -> Result<(), CompilationError> {
     let t = XType::generic_from_name("T", interner);
     let t_stk = XStackType::xtype(t.clone());
 
     scope.add_func_intern(
-        "tail", XStaticFunction::from_native(XFuncSpec {
-            generic_params: Some(intern!(interner, "T")),
-            params: vec![
-                XFuncParamSpec {
+        "tail",
+        XStaticFunction::from_native(
+            XFuncSpec {
+                generic_params: Some(intern!(interner, "T")),
+                params: vec![XFuncParamSpec {
                     type_: t_stk.clone(),
                     required: true,
-                },
-            ],
-            ret: t_stk.clone(),
-        }, |args, ns, _tca, rt| {
-            let (a0, ) = eval!(args, ns, rt, 0);
-            let stk0 = to_native!(a0, XStack);
-            match &stk0.head {
-                Some(v) => Ok(manage_native!(XStack {
-                    head: v.next.clone(),
-                    length: stk0.length - 1,
-                }, rt)),
-                None => Err("stack is empty".to_string()),
-            }
-        }), interner)?;
+                }],
+                ret: t_stk.clone(),
+            },
+            |args, ns, _tca, rt| {
+                let (a0,) = eval!(args, ns, rt, 0);
+                let stk0 = to_native!(a0, XStack);
+                match &stk0.head {
+                    Some(v) => Ok(manage_native!(
+                        XStack {
+                            head: v.next.clone(),
+                            length: stk0.length - 1,
+                        },
+                        rt
+                    )),
+                    None => Err("stack is empty".to_string()),
+                }
+            },
+        ),
+        interner,
+    )?;
     Ok(())
 }

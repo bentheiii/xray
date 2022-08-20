@@ -1,32 +1,40 @@
+use crate::xvalue::XValue;
+use num::{BigInt, One, Zero};
 use std::ops::Neg;
 use std::rc::Rc;
-use num::{BigInt, One, Zero};
-use crate::xvalue::XValue;
 #[macro_export]
 macro_rules! add_binop {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
-        pub fn $fn_name(scope: &mut XCompilationScope<'_>, interner: &mut StringInterner) -> Result<(), crate::CompilationError> {
+        pub fn $fn_name(
+            scope: &mut XCompilationScope<'_>,
+            interner: &mut StringInterner,
+        ) -> Result<(), crate::CompilationError> {
             scope.add_func(
-                interner.get_or_intern_static(stringify!($name)), XStaticFunction::from_native(XFuncSpec {
-                    generic_params: None,
-                    params: vec![
-                        XFuncParamSpec {
-                            type_: $operand_type.clone(),
-                            required: true,
-                        },
-                        XFuncParamSpec {
-                            type_: $operand_type.clone(),
-                            required: true,
-                        },
-                    ],
-                    ret: $return_type.clone(),
-                }, |args, ns, _tca, rt| {
-                    let (a0,a1) = eval!(args, ns, rt, 0, 1);
-                    let v0 = to_primitive!(a0, $operand_variant);
-                    let v1 = to_primitive!(a1, $operand_variant);
-                    let result: Result<_, String> = $func(v0, v1);
-                    Ok(ManagedXValue::new(result?, rt.clone())?.into())
-                }))?;
+                interner.get_or_intern_static(stringify!($name)),
+                XStaticFunction::from_native(
+                    XFuncSpec {
+                        generic_params: None,
+                        params: vec![
+                            XFuncParamSpec {
+                                type_: $operand_type.clone(),
+                                required: true,
+                            },
+                            XFuncParamSpec {
+                                type_: $operand_type.clone(),
+                                required: true,
+                            },
+                        ],
+                        ret: $return_type.clone(),
+                    },
+                    |args, ns, _tca, rt| {
+                        let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                        let v0 = to_primitive!(a0, $operand_variant);
+                        let v1 = to_primitive!(a1, $operand_variant);
+                        let result: Result<_, String> = $func(v0, v1);
+                        Ok(ManagedXValue::new(result?, rt.clone())?.into())
+                    },
+                ),
+            )?;
             Ok(())
         }
     };
@@ -35,21 +43,27 @@ macro_rules! add_binop {
 #[macro_export]
 macro_rules! add_ufunc_ref {
     ($fn_name:ident, $name:ident, $operand_type: ident, $return_type:ident, $func:expr) => {
-        pub fn $fn_name(scope: &mut XCompilationScope<'_>, interner: &mut StringInterner) -> Result<(), crate::CompilationError> {
+        pub fn $fn_name(
+            scope: &mut XCompilationScope<'_>,
+            interner: &mut StringInterner,
+        ) -> Result<(), crate::CompilationError> {
             scope.add_func(
-                interner.get_or_intern_static(stringify!($name)), XStaticFunction::from_native(XFuncSpec {
-                    generic_params: None,
-                    params: vec![
-                        XFuncParamSpec {
+                interner.get_or_intern_static(stringify!($name)),
+                XStaticFunction::from_native(
+                    XFuncSpec {
+                        generic_params: None,
+                        params: vec![XFuncParamSpec {
                             type_: $operand_type.clone(),
                             required: true,
-                        },
-                    ],
-                    ret: $return_type.clone(),
-                }, |args, ns, _tca, rt| {
-                    let (a0,) = eval!(args, ns, rt, 0);
-                    $func(a0, rt)
-                }))?;
+                        }],
+                        ret: $return_type.clone(),
+                    },
+                    |args, ns, _tca, rt| {
+                        let (a0,) = eval!(args, ns, rt, 0);
+                        $func(a0, rt)
+                    },
+                ),
+            )?;
             Ok(())
         }
     };
@@ -58,10 +72,16 @@ macro_rules! add_ufunc_ref {
 #[macro_export]
 macro_rules! add_ufunc {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
-        add_ufunc_ref!($fn_name, $name, $operand_type, $return_type, |a: Rc<ManagedXValue>, rt: crate::runtime::RTCell| {
-            let result: Result<_, String> = $func(to_primitive!(a, $operand_variant));
-            Ok(ManagedXValue::new(result?, rt.clone())?.into())
-        });
+        add_ufunc_ref!(
+            $fn_name,
+            $name,
+            $operand_type,
+            $return_type,
+            |a: Rc<ManagedXValue>, rt: crate::runtime::RTCell| {
+                let result: Result<_, String> = $func(to_primitive!(a, $operand_variant));
+                Ok(ManagedXValue::new(result?, rt.clone())?.into())
+            }
+        );
     };
 }
 
@@ -69,9 +89,7 @@ macro_rules! add_ufunc {
 macro_rules! to_native {
     ($x: expr, $t: ty) => {
         match &$x.value {
-            XValue::Native(__b) => {
-                __b.as_ref()._as_any().downcast_ref::<$t>().unwrap()
-            },
+            XValue::Native(__b) => __b.as_ref()._as_any().downcast_ref::<$t>().unwrap(),
             _ => panic!("to_native: expected native value, got {:?}", $x.value),
         }
     };
@@ -128,8 +146,8 @@ macro_rules! manage_native {
     };
 }
 
-pub fn xcmp<T: PartialOrd>(rhs: T, lhs: T)->XValue{
-    XValue::Int(if rhs < lhs{
+pub fn xcmp<T: PartialOrd>(rhs: T, lhs: T) -> XValue {
+    XValue::Int(if rhs < lhs {
         BigInt::one().neg()
     } else if rhs > lhs {
         BigInt::one()
