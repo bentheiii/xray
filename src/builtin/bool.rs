@@ -1,7 +1,8 @@
 use std::rc;
-use num::{BigInt, BigRational, Signed, ToPrimitive, One, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, manage_native, to_primitive, XCompilationScope, XOptional, XOptionalType, XStaticFunction, XType};
-use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
+use num::{BigInt, Signed, ToPrimitive, One, Zero};
+use crate::builtin::optional::{XOptional, XOptionalType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, manage_native, to_primitive, XCompilationScope, XStaticFunction, XType};
+use crate::xtype::{X_BOOL, X_INT, X_FLOAT, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
 use std::sync::Arc;
@@ -21,7 +22,7 @@ add_ufunc!(add_bool_display, display, X_BOOL, Bool, X_STRING, |a:&bool| {
     Ok(XValue::String(a.to_string()).into())
 });
 
-add_ufunc_ref!(add_assert, display, X_BOOL, X_BOOL, |a:Rc<ManagedXValue>, rt| {
+add_ufunc_ref!(add_assert, assert, X_BOOL, X_BOOL, |a:Rc<ManagedXValue>, rt| {
     if let XValue::Bool(true) = a.value{
         Ok(a.into())
     }else{

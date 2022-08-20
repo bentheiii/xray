@@ -1,7 +1,9 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, RTCell, to_native, to_primitive, XSequence, XSequenceType, XCallableSpec, XCompilationScope, XEvaluationScope, XOptional, XOptionalType, XStaticFunction, XType};
-use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
+use crate::builtin::sequence::{XSequence, XSequenceType};
+use crate::builtin::optional::{XOptional, XOptionalType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, RTCell, to_native, to_primitive, XCallableSpec, XCompilationScope, XEvaluationScope, XStaticFunction, XType};
+use crate::xtype::{X_BOOL, X_INT, X_FLOAT, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
 use std::any::{Any, TypeId};
@@ -56,7 +58,7 @@ impl XMapping {
         let mut eq_func = None;
         let mut new_dict = self.inner.clone();
         for (k, v) in items {
-            let hash_key = to_primitive!(hash_func.eval_values(vec![k.clone()], &ns, rt.clone())?, Int).to_u64().ok_or("hash is out of bounds")?;
+            let hash_key = to_primitive!(hash_func.eval_values(&vec![k.clone()], &ns, rt.clone())?, Int).to_u64().ok_or("hash is out of bounds")?;
 
             let spot = new_dict.entry(hash_key);
             match spot {
@@ -69,7 +71,7 @@ impl XMapping {
                     }
                     let mut found = false;
                     for (i, (existing_k, existing_v)) in spot.get().iter().enumerate() {
-                        if *to_primitive!(eq_func.unwrap().eval_values(vec![existing_k.clone(), k.clone()], &ns, rt.clone())?, Bool) {
+                        if *to_primitive!(eq_func.unwrap().eval_values(&vec![existing_k.clone(), k.clone()], &ns, rt.clone())?, Bool) {
                             spot.get_mut()[i].1 = v.clone();
                             found = true;
                             break;
@@ -213,7 +215,7 @@ pub fn add_mapping_get(scope: &mut XCompilationScope, interner: &mut StringInter
             let (a0, a1) = eval!(args, ns, rt, 0, 1);
             let mapping = to_native!(a0, XMapping);
             let hash_func = to_primitive!(mapping.hash_func, Function);
-            let hash_key = to_primitive!(hash_func.eval_values(vec![a1.clone()], &ns, rt.clone())?, Int).to_u64().ok_or("hash is out of bounds")?;
+            let hash_key = to_primitive!(hash_func.eval_values(&vec![a1.clone()], &ns, rt.clone())?, Int).to_u64().ok_or("hash is out of bounds")?;
             let spot = mapping.inner.get(&hash_key);
             match spot {
                 None => {
@@ -222,7 +224,7 @@ pub fn add_mapping_get(scope: &mut XCompilationScope, interner: &mut StringInter
                 Some(candidates) => {
                     let eq_func = to_primitive!(mapping.eq_func, Function);
                     for (k, v) in candidates.iter() {
-                        if *to_primitive!(eq_func.eval_values(vec![a1.clone(), k.clone()], &ns, rt.clone())?, Bool) {
+                        if *to_primitive!(eq_func.eval_values(&vec![a1.clone(), k.clone()], &ns, rt.clone())?, Bool) {
                             return Ok(manage_native!(XOptional { value: Some(v.clone()) }, rt.clone()));
                         }
                     }
@@ -308,13 +310,13 @@ pub fn add_mapping_contains(scope: &mut XCompilationScope, interner: &mut String
             let (a0, a1) = eval!(args, ns, rt, 0, 1);
             let mapping = to_native!(a0, XMapping);
             let hash_func = to_primitive!(mapping.hash_func, Function);
-            let hash_key = to_primitive!(hash_func.eval_values(vec![a1.clone()], &ns, rt.clone())?, Int).to_u64().ok_or("hash is out of bounds")?;
+            let hash_key = to_primitive!(hash_func.eval_values(&vec![a1.clone()], &ns, rt.clone())?, Int).to_u64().ok_or("hash is out of bounds")?;
             let spot = mapping.inner.get(&hash_key);
             let mut ret = false;
             if let Some(candidates) = spot {
                 let eq_func = to_primitive!(mapping.eq_func, Function);
                 for (k, _) in candidates.iter() {
-                    if *to_primitive!(eq_func.eval_values(vec![a1.clone(), k.clone()], &ns, rt.clone())?, Bool) {
+                    if *to_primitive!(eq_func.eval_values(&vec![a1.clone(), k.clone()], &ns, rt.clone())?, Bool) {
                         ret = true;
                         break;
                     }
@@ -348,13 +350,13 @@ pub fn add_mapping_pop(scope: &mut XCompilationScope, interner: &mut StringInter
             let (a0, a1) = eval!(args, ns, rt, 0, 1);
             let mapping = to_native!(a0, XMapping);
             let hash_func = to_primitive!(mapping.hash_func, Function);
-            let hash_key = to_primitive!(hash_func.eval_values(vec![a1.clone()], &ns, rt.clone())?, Int).to_u64().ok_or("hash is out of bounds")?;
+            let hash_key = to_primitive!(hash_func.eval_values(&vec![a1.clone()], &ns, rt.clone())?, Int).to_u64().ok_or("hash is out of bounds")?;
             let spot = mapping.inner.get(&hash_key);
             let mut new_spot = None;
             if let Some(candidates) = spot {
                 let eq_func = to_primitive!(mapping.eq_func, Function);
                 for (i, (k, _)) in candidates.iter().enumerate() {
-                    if *to_primitive!(eq_func.eval_values(vec![a1.clone(), k.clone()], &ns, rt.clone())?, Bool) {
+                    if *to_primitive!(eq_func.eval_values(&vec![a1.clone(), k.clone()], &ns, rt.clone())?, Bool) {
                         new_spot = Some(candidates[..i].iter().cloned().chain(candidates[i + 1..].iter().cloned()).collect());
                         break;
                     }
@@ -399,13 +401,13 @@ pub fn add_mapping_discard(scope: &mut XCompilationScope, interner: &mut StringI
             let (a0, a1) = eval!(args, ns, rt, 0, 1);
             let mapping = to_native!(a0, XMapping);
             let hash_func = to_primitive!(mapping.hash_func, Function);
-            let hash_key = to_primitive!(hash_func.eval_values(vec![a1.clone()], &ns, rt.clone())?, Int).to_u64().ok_or("hash is out of bounds")?;
+            let hash_key = to_primitive!(hash_func.eval_values(&vec![a1.clone()], &ns, rt.clone())?, Int).to_u64().ok_or("hash is out of bounds")?;
             let spot = mapping.inner.get(&hash_key);
             let mut new_spot = None;
             if let Some(candidates) = spot {
                 let eq_func = to_primitive!(mapping.eq_func, Function);
                 for (i, (k, _)) in candidates.iter().enumerate() {
-                    if *to_primitive!(eq_func.eval_values(vec![a1.clone(), k.clone()], &ns, rt.clone())?, Bool) {
+                    if *to_primitive!(eq_func.eval_values(&vec![a1.clone(), k.clone()], &ns, rt.clone())?, Bool) {
                         new_spot = Some(candidates[..i].iter().cloned().chain(candidates[i + 1..].iter().cloned()).collect());
                         break;
                     }

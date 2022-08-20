@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
@@ -7,7 +8,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 use derivative::Derivative;
-use num::{BigInt, BigRational};
+use num::{BigInt};
 use crate::native_types::XNativeValue;
 use crate::runtime::{RTCell, Runtime};
 use crate::{XCompilationScope, XType};
@@ -17,7 +18,7 @@ use crate::xscope::{Declaration, Identifier, XEvaluationScope};
 #[derive(Debug)]
 pub enum XValue {
     Int(BigInt),
-    Rational(BigRational),
+    Float(f64),
     String(String),
     Bool(bool),
     Function(XFunction),
@@ -44,7 +45,7 @@ impl XFunction {
             }
             XFunction::UserFunction(..) => {
                 let mut arguments = args.iter().map(|x| x.eval(parent_scope, false, runtime.clone()).map(|r| r.unwrap_value())).collect::<Result<Vec<_>, _>>()?;
-                self.eval_values(arguments, parent_scope, runtime).map(|r| r.into())
+                self.eval_values(&arguments, parent_scope, runtime).map(|r| r.into())
             }
             XFunction::Recourse(depth) => {
                 if tail_available && *depth == 0 {
@@ -56,7 +57,7 @@ impl XFunction {
         }
     }
 
-    pub fn eval_values<'p>(&'p self, mut args: Vec<Rc<ManagedXValue>>, parent_scope: &XEvaluationScope<'p>, runtime: RTCell) -> Result<Rc<ManagedXValue>, String> {
+    pub fn eval_values<'p>(&'p self, args: &[Rc<ManagedXValue>], parent_scope: &XEvaluationScope<'p>, runtime: RTCell) -> Result<Rc<ManagedXValue>, String> {
         match self {
             XFunction::Native(native) => {
                 // we need to wrap all the values with dummy expressions, so that native functions can handle them
@@ -64,6 +65,7 @@ impl XFunction {
                 native(&args, parent_scope, false, runtime).map(|r| r.unwrap_value())
             }
             XFunction::UserFunction(func, closure) => {
+                let mut args = Cow::Borrowed(args);
                 let uf = match func.as_ref() {
                     XStaticFunction::UserFunction(uf) => uf,
                     _ => unreachable!(),
@@ -98,7 +100,7 @@ impl XFunction {
                     match uf.output.eval(&scope, true, runtime.clone())? {
                         TailedEvalResult::Value(value) => return Ok(value),
                         TailedEvalResult::TailCall(new_args) => {
-                            args = new_args;
+                            args = Cow::Owned(new_args);
                             recursion_depth += 1;
                             if let Some(recursion_limit) = runtime.borrow().limits.recursion_limit {
                                 if recursion_depth > recursion_limit {
@@ -160,7 +162,7 @@ impl XValue{
     pub fn size(&self) -> usize {
         match self {
             XValue::Int(i) => (i.bits() / 8) as usize,
-            XValue::Rational(r) => ((r.numer().bits() + r.denom().bits()) / 8) as usize,
+            XValue::Float(r) => (64 / 8),
             XValue::String(s) => s.len(),
             XValue::Bool(_) => 1,
             XValue::Function(XFunction::Native(_)) => size_of::<usize>(),

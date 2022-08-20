@@ -1,21 +1,21 @@
-fn mults_helper(m: int, n: int, ret: Array<int>) -> Array<int> {
+fn mults_helper(m: int, n: int, ret: Sequence<int>) -> Sequence<int> {
     (n==0).if(
         ret,
         mults_helper(m, n-1, [m*n] + ret)
     )
 }
-fn multiples(m: int, cols: int) -> Array<int> {
+fn multiples(m: int, cols: int) -> Sequence<int> {
     mults_helper(m, cols, [])
 }
 
-fn mt_h(x:int, y:int, ret:Array<Array<int>>) -> Array<Array<int>> {
+fn mt_h(x:int, y:int, ret:Sequence<Sequence<int>>) -> Sequence<Sequence<int>> {
     (x==0).if(
         ret,
         mt_h(x-1, y, [multiples(x,y)] + ret)
     )
 }
 
-fn mlt_table(x:int)->Array<Array<int>> {
+fn mlt_table(x:int)->Sequence<Sequence<int>> {
     mt_h(x, x, [])
 }
 
@@ -26,5 +26,5 @@ fn main()->bool{
         [3,6,9,12,15],
         [4,8,12,16,20],
         [5,10,15,20,25]
-    ]);
+    ])
 }

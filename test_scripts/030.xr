@@ -1,9 +1,9 @@
-let main()->bool{
+fn main()->bool{
     assert(some(15).map(neg) == some(-15))
     && assert(null().map(neg) == null())
     && assert(some(15).map_or(neg, 16) != -15)
     && assert(null.map_or(neg, 16) == 16)
-    && assert(some(15).map_or(neg, error('') == -15)
+    && assert(some(15).map_or(neg, error('') == -15))
 
     && assert(some(15) || 16 == 15)
     && assert(some(15) || cast::<int>(error('')) == 15)

@@ -1,7 +1,8 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, to_native, to_primitive, XSequence, XSequenceType, XCallableSpec, XCompilationScope, XStaticFunction, XType};
-use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
+use crate::builtin::sequence::{XSequence, XSequenceType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, to_native, to_primitive, XCallableSpec, XCompilationScope, XStaticFunction, XType};
+use crate::xtype::{X_BOOL, X_INT, X_FLOAT, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
 use std::any::Any;
@@ -104,7 +105,7 @@ pub fn add_optional_map(scope: &mut XCompilationScope, interner: &mut StringInte
                     let (a1, ) = eval!(args, ns, rt, 1);
                     let f1 = to_primitive!(a1, Function);
                     manage_native!(XOptional {
-                        value: Some(f1.eval_values(vec![v.clone()], &ns, rt.clone())?)
+                        value: Some(f1.eval_values(&vec![v.clone()], &ns, rt.clone())?)
                     }, rt)
                 }
             })
@@ -143,7 +144,7 @@ pub fn add_optional_map_or(scope: &mut XCompilationScope, interner: &mut StringI
                 Some(v) => {
                     let (a1, ) = eval!(args, ns, rt, 1);
                     let f1 = to_primitive!(a1, Function);
-                    Ok(f1.eval_values(vec![v.clone()], &ns, rt)?.into())
+                    Ok(f1.eval_values(&vec![v.clone()], &ns, rt)?.into())
                 }
             }
         }), interner)?;
@@ -314,7 +315,7 @@ pub fn add_optional_eq(scope: &mut XCompilationScope, interner: &mut StringInter
                 let v1 = opt1.clone().unwrap();
                 let inner_equal_value = eq_expr.eval(ns, false, rt.clone())?.unwrap_value();
                 let inner_eq_func = to_primitive!(inner_equal_value, Function);
-                let eq = inner_eq_func.eval_values(vec![v0.clone(), v1.clone()], &ns, rt.clone())?;
+                let eq = inner_eq_func.eval_values(&vec![v0.clone(), v1.clone()], &ns, rt.clone())?;
                 Ok(eq.into())
             } else{
                 Ok(ManagedXValue::new(XValue::Bool(opt0.is_some() == opt1.is_some()), rt)?.into())

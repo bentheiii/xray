@@ -13,7 +13,7 @@ use crate::xscope::Identifier;
 pub enum XType {
     Bool,
     Int,
-    Rational,
+    Float,
     String,
     XUnknown,
     Compound(CompoundKind, Arc<XCompoundSpec>, Bind),
@@ -21,7 +21,8 @@ pub enum XType {
     XFunc(XFuncSpec),
     XGeneric(Identifier),
     XNative(Box::<dyn NativeType>, Vec<Arc<XType>>),
-    Tuple(Vec<Arc<XType>>),  // the actual value of this type is a struct
+    Tuple(Vec<Arc<XType>>),
+    // the actual value of this type is a struct
     XTail(Vec<Arc<XType>>),
 }
 
@@ -59,8 +60,10 @@ impl Bind {
     pub fn mix(mut self, other: &Bind) -> Option<Self> {
         for (k, v) in other.bound_generics.iter() {
             if let Some(existing) = self.bound_generics.get(k) {
-                let new_bind = existing.bind_in_assignment(v)?;
-                self = self.mix(&new_bind)?;
+                if existing != v {
+                    let new_bind = existing.bind_in_assignment(v)?;
+                    self = self.mix(&new_bind)?;
+                }
             } else {
                 self.bound_generics.insert(k.clone(), v.clone());
             }
@@ -207,10 +210,10 @@ impl XType {
         match (self, other.as_ref()) {
             (XType::Bool, XType::Bool) => Some(Bind::new()),
             (XType::Int, XType::Int) => Some(Bind::new()),
-            (XType::Rational, XType::Rational) => Some(Bind::new()),
+            (XType::Float, XType::Float) => Some(Bind::new()),
             (XType::String, XType::String) => Some(Bind::new()),
-            (XType::Compound(k0, a, ref bind_a), XType::Compound(k1, b, ref bind_b))=> {
-                if a != b || k0 != k1{
+            (XType::Compound(k0, a, ref bind_a), XType::Compound(k1, b, ref bind_b)) => {
+                if a != b || k0 != k1 {
                     return None;
                 }
                 let mut bind = Bind::new();
@@ -307,9 +310,6 @@ impl XType {
             }
             (_, XType::XUnknown) => Some(Bind::new()),
             (XType::XUnknown, _) => Some(Bind::new()),
-            (XType::XGeneric(ref a), XType::XGeneric(ref b)) if a == b => {
-                Some(Bind::new())
-            }
             (XType::XGeneric(ref a), _) => {
                 Some(Bind::from([
                     (a.clone(), other.clone()),
@@ -332,10 +332,10 @@ impl XType {
             }
             XType::XGeneric(ref a) => bind.get(a).map(|b| b.clone()).unwrap_or(self.clone()),
             XType::XTail(types) => {
-                match tail{
+                match tail {
                     None => unreachable!(),
                     Some(t) => {
-                        if let XType::Compound(kind, spec, _) = t.as_ref(){
+                        if let XType::Compound(kind, spec, _) = t.as_ref() {
                             let bind = Bind::from_iter(
                                 spec.generic_names.iter().zip(types.iter()).map(|(n, t)| (n.clone(), t.clone().resolve_bind(bind, None)))
                             );
@@ -344,7 +344,6 @@ impl XType {
                             unreachable!()
                         }
                     }
-
                 }
             }
             XType::Tuple(types) => {
@@ -353,6 +352,9 @@ impl XType {
                     new_types.push(t.resolve_bind(bind, tail));
                 }
                 XType::Tuple(new_types).into()
+            }
+            XType::Compound(ct, spec, main_bind)=>{
+                XType::Compound(*ct,spec.clone(),bind.clone()).into()
             }
             _ => self.clone(),
         }
@@ -371,16 +373,16 @@ impl XType {
         }
     }
 
-    pub fn display_with_interner(self: &Arc<XType>, interner: &StringInterner)->String{
+    pub fn display_with_interner(self: &Arc<XType>, interner: &StringInterner) -> String {
         match self.as_ref() {
             XType::Bool => "bool".to_string(),
             XType::Int => "int".to_string(),
-            XType::Rational => "rational".to_string(),
+            XType::Float => "float".to_string(),
             XType::String => "string".to_string(),
             XType::Compound(_, ref a, ref b) => if a.generic_names.len() == 0 {
-                format!("{:?}", interner.resolve(a.name.clone()).unwrap())
+                format!("{}", interner.resolve(a.name.clone()).unwrap())
             } else {
-                format!("{:?}<{}>", interner.resolve(a.name.clone()).unwrap(),
+                format!("{}<{}>", interner.resolve(a.name.clone()).unwrap(),
                         a.generic_names.iter().map(|n| b.get(&n.clone())
                             .map(|t| t.display_with_interner(interner))
                             .unwrap_or_else(|| interner.resolve(n.clone()).unwrap().to_string()))
@@ -416,9 +418,9 @@ impl PartialEq<XType> for XType {
         match (self, other) {
             (XType::Bool, XType::Bool) => true,
             (XType::Int, XType::Int) => true,
-            (XType::Rational, XType::Rational) => true,
+            (XType::Float, XType::Float) => true,
             (XType::String, XType::String) => true,
-            (XType::Compound(k0, ref a, ref a_b), XType::Compound(k1, ref b, ref b_b)) => k0==k1 && a.name == b.name && a_b == b_b,
+            (XType::Compound(k0, ref a, ref a_b), XType::Compound(k1, ref b, ref b_b)) => k0 == k1 && a.name == b.name && a_b == b_b,
             (XType::XCallable(ref a), XType::XCallable(ref b)) => a.eq(b),
             (XType::XFunc(ref a), XType::XFunc(ref b)) => a.generic_params == b.generic_params && a.params.len() == b.params.len() && a.params.iter().zip(b.params.iter()).all(|(a, b)| a.type_.eq(&b.type_)),
             (XType::XCallable(ref a), XType::XFunc(ref b)) => b.generic_params.is_none() && a.param_types == b.params.iter().map(|p| p.type_.clone()).collect::<Vec<_>>() && a.return_type.eq(&b.ret),
@@ -434,7 +436,7 @@ impl PartialEq<XType> for XType {
 lazy_static!(
     pub static ref X_BOOL: Arc<XType> = Arc::new(XType::Bool);
     pub static ref X_INT: Arc<XType> = Arc::new(XType::Int);
-    pub static ref X_RATIONAL: Arc<XType> = Arc::new(XType::Rational);
+    pub static ref X_FLOAT: Arc<XType> = Arc::new(XType::Float);
     pub static ref X_STRING: Arc<XType> = Arc::new(XType::String);
     pub static ref X_UNKNOWN: Arc<XType> = Arc::new(XType::XUnknown);
 );
@@ -447,7 +449,7 @@ pub fn common_type<T: Iterator<Item=Result<Arc<XType>, CompilationError>>>(mut v
     for res in values.by_ref() {
         let v = res?;
         if ret != v { // todo assignable?
-            return Err(CompilationError::IncompatibleTypes {type0: ret.clone(), type1: v.clone()});
+            return Err(CompilationError::IncompatibleTypes { type0: ret.clone(), type1: v.clone() });
         }
     }
     Ok(ret.clone())

@@ -21,5 +21,5 @@ fn omega(n: int) -> int {
 }
 
 fn main()->bool{
-    assert(omega(25795) == 4);
+    assert(omega(25795) == 4)
 }

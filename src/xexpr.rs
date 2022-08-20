@@ -5,11 +5,12 @@ use std::fmt::{Debug, Error, Formatter};
 use std::mem::take;
 use std::rc::Rc;
 use std::sync::Arc;
-use num::{BigInt, BigRational};
+use num::BigInt;
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::{CompilationError, manage_native, TracedCompilationError, XFuncSpec, XOptional, XOptionalType};
+use crate::builtin::optional::{XOptional, XOptionalType};
+use crate::{CompilationError, manage_native, TracedCompilationError, XFuncSpec};
 use crate::xscope::{Declaration, Identifier, XCompilationScope, XCompilationScopeItem, XEvaluationScope, XFunctionFactory};
-use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_RATIONAL, X_STRING, XFuncParamSpec, XCompoundSpec, XType, CompoundKind};
+use crate::xtype::{Bind, common_type, X_BOOL, X_INT, X_FLOAT, X_STRING, XFuncParamSpec, XCompoundSpec, XType, CompoundKind};
 use crate::xvalue::{DynBind, ManagedXValue, NativeCallable, XFunction, XValue};
 use derivative::Derivative;
 use itertools::Itertools;
@@ -20,7 +21,7 @@ use crate::runtime::{RTCell, Runtime};
 pub enum XStaticExpr {
     LiteralBool(bool),
     LiteralInt(i64),
-    LiteralRational(BigRational),
+    LiteralFloat(f64),
     LiteralString(String),
     Array(Vec<XStaticExpr>),
     Set(Vec<XStaticExpr>),
@@ -149,7 +150,7 @@ impl XStaticExpr {
         match self {
             XStaticExpr::LiteralBool(v) => Ok(XExpr::LiteralBool(*v).into()),
             XStaticExpr::LiteralInt(v) => Ok(XExpr::LiteralInt(*v).into()),
-            XStaticExpr::LiteralRational(v) => Ok(XExpr::LiteralRational(v.clone()).into()),
+            XStaticExpr::LiteralFloat(v) => Ok(XExpr::LiteralFloat(v.clone()).into()),
             XStaticExpr::LiteralString(v) => Ok(XExpr::LiteralString(v.clone()).into()),
             XStaticExpr::Array(items) => Ok(CompilationResult::from_multi(compile_many(items, namespace)?, XExpr::Array)),
             XStaticExpr::Set(items) => Ok(CompilationResult::from_multi(compile_many(items, namespace)?, XExpr::Set)),
@@ -343,7 +344,7 @@ impl XStaticExpr {
 pub enum XExpr {
     LiteralBool(bool),
     LiteralInt(i64),
-    LiteralRational(BigRational),
+    LiteralFloat(f64),
     LiteralString(String),
     Array(Vec<XExpr>),
     Set(Vec<XExpr>),
@@ -480,7 +481,7 @@ impl XStaticFunction {
         match self {
             XStaticFunction::Native(spec, _) => spec.rtype(bind),
             XStaticFunction::Recourse(spec, ..) => spec.rtype(bind),
-            XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().rtype(bind),
+            XStaticFunction::UserFunction(ud, ..) =>ud.spec.to_spec().rtype(bind),
         }
     }
     pub fn is_generic(&self) -> bool {
@@ -531,7 +532,7 @@ impl XExpr {
         match self {
             XExpr::LiteralBool(_) => Ok(X_BOOL.clone()),
             XExpr::LiteralInt(_) => Ok(X_INT.clone()),
-            XExpr::LiteralRational(_) => Ok(X_RATIONAL.clone()),
+            XExpr::LiteralFloat(_) => Ok(X_FLOAT.clone()),
             XExpr::LiteralString(_) => Ok(X_STRING.clone()),
             XExpr::Array(exprs) => {
                 let element_type = common_type(exprs.iter().map(|x| x.xtype()))?;
@@ -587,7 +588,7 @@ impl XExpr {
         match &self {
             XExpr::LiteralBool(b) => Ok(ManagedXValue::new(XValue::Bool(*b), runtime)?.into()),
             XExpr::LiteralInt(i) => Ok(ManagedXValue::new(XValue::Int(BigInt::from(*i)), runtime)?.into()),
-            XExpr::LiteralRational(r) => Ok(ManagedXValue::new(XValue::Rational(r.clone()), runtime)?.into()),
+            XExpr::LiteralFloat(r) => Ok(ManagedXValue::new(XValue::Float(*r), runtime)?.into()),
             XExpr::LiteralString(s) => Ok(ManagedXValue::new(XValue::String(s.clone()), runtime)?.into()),
             XExpr::Array(exprs) => {
                 let seq = if exprs.is_empty() {XSequence::Empty} else {

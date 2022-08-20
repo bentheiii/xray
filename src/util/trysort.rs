@@ -8,9 +8,9 @@ use std::mem::size_of;
 ///
 /// This is the integral subroutine of insertion sort.
 #[cfg(not(no_global_oom_handling))]
-fn insert_head<T, F>(v: &mut [T], is_less: &mut F) -> Result<(), String>
+fn insert_head<T, F, E>(v: &mut [T], is_less: &mut F) -> Result<(), E>
     where
-        F: FnMut(&T, &T) -> Result<bool, String>,
+        F: FnMut(&T, &T) -> Result<bool, E>,
 {
     if v.len() >= 2 && is_less(&v[1], &v[0])? {
         unsafe {
@@ -82,9 +82,9 @@ fn insert_head<T, F>(v: &mut [T], is_less: &mut F) -> Result<(), String>
 /// The two slices must be non-empty and `mid` must be in bounds. Buffer `buf` must be long enough
 /// to hold a copy of the shorter slice. Also, `T` must not be a zero-sized type.
 #[cfg(not(no_global_oom_handling))]
-unsafe fn merge<T, F>(v: &mut [T], mid: usize, buf: *mut T, is_less: &mut F) -> Result<(), String>
+unsafe fn merge<T, F, E>(v: &mut [T], mid: usize, buf: *mut T, is_less: &mut F) -> Result<(), E>
     where
-        F: FnMut(&T, &T) -> Result<bool, String>,
+        F: FnMut(&T, &T) -> Result<bool, E>,
 {
     let len = v.len();
     let v = v.as_mut_ptr();
@@ -205,9 +205,9 @@ unsafe fn merge<T, F>(v: &mut [T], mid: usize, buf: *mut T, is_less: &mut F) -> 
 ///
 /// The invariants ensure that the total running time is *O*(*n* \* log(*n*)) worst-case.
 #[cfg(not(no_global_oom_handling))]
-pub fn try_sort<T, F>(v: &mut [T], mut is_less: F) -> Result<(), String>
+pub fn try_sort<T, F, E>(v: &mut [T], mut is_less: F) -> Result<(), E>
     where
-        F: FnMut(&T, &T) -> Result<bool, String>,
+        F: FnMut(&T, &T) -> Result<bool, E>,
 {
     // Slices of up to this length get sorted using insertion sort.
     const MAX_INSERTION: usize = 20;

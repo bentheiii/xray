@@ -1,4 +1,4 @@
-fn map<T, V>(xs: Array<T>, f: (T) -> (V)) -> Array<V> {
+fn my_map<T, V>(xs: Sequence<T>, f: (T) -> (V)) -> Sequence<V> {
     fn helper(input_idx: int, output: Stack<V>)->Stack<V> {
         (input_idx == xs.len()).if(
             output,
@@ -9,11 +9,11 @@ fn map<T, V>(xs: Array<T>, f: (T) -> (V)) -> Array<V> {
     helper(0, output_stk).to_array()
 }
 
-fn inverse(x: int) -> rational {
+fn inverse(x: int) -> float {
     1 / x
 }
 
 
 fn main()->bool {
-    assert(map([1,9,3,7], inverse) == [1.0, 1/9, 1/3, 1/7]);
+    assert(my_map([1,9,3,7], inverse) == [1.0, 1/9, 1/3, 1/7])
 }

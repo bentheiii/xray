@@ -1,9 +1,9 @@
 fn foo(s: Set<int>)->Set<int> {
-    s | set[17, 2]
+    s | set(17, 2)
 }
 
 fn main()->bool {
-    let x = set[2,3,5,7,11,13];
+    let x = set(2,3,5,7,11,13);
     let z = foo(x);
-    assert(z == set[2,3,5,7,11,13,17]);
+    assert(z == set(2,3,5,7,11,13,17))
 }

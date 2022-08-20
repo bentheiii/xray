@@ -1,4 +1,4 @@
-fn foo(t: (Array<int>, int)) -> Optional<int>{
+fn foo(t: (Sequence<int>, int)) -> Optional<int>{
     fn helper(i: int) -> Optional<int> {
         if(i < t::item0.len(),
             if(t::item0.get(i) == t::item1,

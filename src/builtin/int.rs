@@ -1,7 +1,8 @@
 use std::rc;
 use num::{BigInt, BigRational, Integer, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, eval, Bind, XSequence, XSequenceType, XCompilationScope, XStaticFunction, XType, meval, manage_native, RTCell, CompilationError};
-use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
+use crate::builtin::sequence::{XSequence, XSequenceType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, eval, Bind, XCompilationScope, XStaticFunction, XType, meval, manage_native, RTCell, CompilationError};
+use crate::xtype::{X_BOOL, X_INT, X_FLOAT, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{XValue, ManagedXValue};
 use rc::Rc;
 use std::sync::Arc;
@@ -29,20 +30,21 @@ add_int_binop!(add_int_mod, mod, |a: &BigInt, b : &BigInt| {
 add_int_binop!(add_int_bit_or, bit_or, |a,b| Ok(XValue::Int(a | b).into()));
 add_int_binop!(add_int_bit_and, bit_and, |a,b| Ok(XValue::Int(a & b).into()));
 add_int_binop!(add_int_bit_xor, bit_xor, |a,b| Ok(XValue::Int(a ^ b).into()));
-add_binop!(add_int_div, div, X_INT, Int, X_RATIONAL, |a: &BigInt, b : &BigInt| {
+add_binop!(add_int_div, div, X_INT, Int, X_FLOAT, |a: &BigInt, b : &BigInt| {
         if b.is_zero() {
             Err(String::from("Division by zero"))
         } else {
-            Ok(XValue::Rational(BigRational::new(a.clone(), b.clone())).into())
+            // todo quicker shortcut for small ints
+            Ok(XValue::Float(BigRational::new(a.clone(), b.clone()).to_f64().unwrap()).into())
         }
     }
 );
-add_binop!(add_int_pow, pow, X_INT, Int, X_RATIONAL, |a: &BigInt,b: &BigInt|
+add_binop!(add_int_pow, pow, X_INT, Int, X_FLOAT, |a: &BigInt,b: &BigInt|
     if !b.is_positive() && a.is_zero() {
         Err(String::from("cannot raise zero to a non-positive power"))
     } else {
         match b.to_i32() {
-            Some(b) => Ok(XValue::Rational(BigRational::from(a.clone()).pow(b)).into()),
+            Some(b) => Ok(XValue::Float(BigRational::from(a.clone()).pow(b).to_f64().unwrap()).into()),
             None => Err(String::from("exponent too high"))
         }
     }

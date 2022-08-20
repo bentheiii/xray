@@ -1,4 +1,4 @@
-fn range(start: int, stop: int, step:int)->Array<int> {
+fn range(start: int, stop: int, step:int)->Sequence<int> {
     fn range_helper(ret: Stack<int>, i:int)->Stack<int> {
         (i >= stop).if(
             ret,

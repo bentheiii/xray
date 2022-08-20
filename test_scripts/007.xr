@@ -1,7 +1,7 @@
 fn assert<T>(cond:bool, on_ok: T) -> T {
-    if(cond, on_ok, panic('assertion failed'))
+    if(cond, on_ok, error('assertion failed'))
 }
 
 fn main()->bool{
-    assert(assert(true, 55), 55);
+    assert(assert(true, 55) == 55)
 }

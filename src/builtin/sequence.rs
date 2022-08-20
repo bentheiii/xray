@@ -1,7 +1,8 @@
 use std::rc;
 use num::{BigInt, BigRational, Signed, ToPrimitive, Zero};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, meval, RTCell, to_native, to_primitive, XCallableSpec, XCompilationScope, XEvaluationScope, XOptionalType, XOptional, XStaticFunction, XType};
-use crate::xtype::{X_BOOL, X_INT, X_RATIONAL, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
+use crate::builtin::optional::{XOptional, XOptionalType};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, Bind, CompilationError, eval, Identifier, intern, manage_native, meval, RTCell, to_native, to_primitive, XCallableSpec, XCompilationScope, XEvaluationScope, XStaticFunction, XType};
+use crate::xtype::{X_BOOL, X_INT, X_FLOAT, X_STRING, X_UNKNOWN, XFuncParamSpec, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 use rc::Rc;
 use std::any::{Any, TypeId};
@@ -89,7 +90,7 @@ impl XSequence {
             Self::Map(seq, func) => {
                 let original = to_native!(seq, XSequence).get(idx, ns, rt.clone())?;
                 let f = to_primitive!(func, Function);
-                f.eval_values(vec![original], ns, rt)
+                f.eval_values(&vec![original], ns, rt)
             }
             Self::Zip(sequences) => {
                 let items = sequences.iter()
@@ -119,7 +120,7 @@ impl XSequence {
                 let func = to_primitive!(func, Function);
                 let ret = (start_idx..end_idx).map(|idx| {
                     let original = seq.get(idx, ns, rt.clone())?;
-                    func.eval_values(vec![original], ns, rt.clone())
+                    func.eval_values(&vec![original], ns, rt.clone())
                 }).collect::<Result<_, _>>()?;
                 Ok(ret)
             }
@@ -624,7 +625,7 @@ pub fn add_sequence_sort(scope: &mut XCompilationScope, interner: &mut StringInt
             let mut is_sorted = true;
             for w in arr.windows(2) {
                 if to_primitive!(
-                    f.eval_values(vec![w[0].clone(), w[1].clone()], &ns, rt.clone())?,
+                    f.eval_values(&vec![w[0].clone(), w[1].clone()], &ns, rt.clone())?,
                     Int
                 ).is_positive() {
                     is_sorted = false;
@@ -635,10 +636,10 @@ pub fn add_sequence_sort(scope: &mut XCompilationScope, interner: &mut StringInt
                 Ok(a0.clone().into())
             } else {
                 let mut ret = arr.clone();
-                try_sort(&mut ret, |a, b| {
+                try_sort(&mut ret, |a, b|->Result<_, String> {
                     Ok(
                         to_primitive!(
-                            f.eval_values(vec![a.clone(), b.clone()], &ns, rt.clone())?,
+                            f.eval_values(&vec![a.clone(), b.clone()], &ns, rt.clone())?,
                             Int
                         ).is_negative()
                     )
@@ -682,7 +683,7 @@ pub fn add_sequence_reduce3(scope: &mut XCompilationScope, interner: &mut String
             let f = to_primitive!(a2, Function);
             let mut ret = a1;
             for i in arr {
-                ret = f.eval_values(vec![ret, i], ns, rt.clone())?;
+                ret = f.eval_values(&vec![ret, i], ns, rt.clone())?;
             }
             Ok(ret.into())
         }), interner)?;
@@ -720,7 +721,7 @@ pub fn add_sequence_reduce2(scope: &mut XCompilationScope, interner: &mut String
             let f = to_primitive!(a1, Function);
             let mut ret = seq.get(0, ns, rt.clone())?;
             for i in arr {
-                ret = f.eval_values(vec![ret, i], ns, rt.clone())?;
+                ret = f.eval_values(&vec![ret, i], ns, rt.clone())?;
             }
             Ok(ret.into())
         }), interner)?;
@@ -804,7 +805,7 @@ pub fn add_sequence_filter(scope: &mut XCompilationScope, interner: &mut StringI
             // first we check if the seq already fully_matches
             let mut first_drop_idx = None; // if this is not none, it is the first index we need to drop
             for (i, item) in arr.iter().enumerate() {
-                if !*to_primitive!(f.eval_values(vec![item.clone()], ns, rt.clone())?, Bool) {
+                if !*to_primitive!(f.eval_values(&vec![item.clone()], ns, rt.clone())?, Bool) {
                     first_drop_idx = Some(i);
                     break;
                 }
@@ -816,7 +817,7 @@ pub fn add_sequence_filter(scope: &mut XCompilationScope, interner: &mut StringI
                 let mut ret = (&arr[..first_drop_idx.unwrap()]).iter().cloned().collect::<Vec<_>>();
 
                 for item in arr.iter().skip(first_drop_idx.unwrap() + 1) {
-                    if *to_primitive!(f.eval_values(vec![item.clone()], ns, rt.clone())?, Bool) {
+                    if *to_primitive!(f.eval_values(&vec![item.clone()], ns, rt.clone())?, Bool) {
                         ret.push(item.clone());
                     }
                 }
@@ -865,7 +866,7 @@ pub fn add_sequence_nth(scope: &mut XCompilationScope, interner: &mut StringInte
             }
             let f = to_primitive!(a2, Function);
             for item in arr {
-                if *to_primitive!(f.eval_values(vec![item.clone()], ns, rt.clone())?, Bool) {
+                if *to_primitive!(f.eval_values(&vec![item.clone()], ns, rt.clone())?, Bool) {
                     matches_left -= 1;
                     if matches_left.is_zero() {
                         return Ok(manage_native!(XOptional{value: Some(item)}, rt));
@@ -905,7 +906,7 @@ pub fn add_sequence_take_while(scope: &mut XCompilationScope, interner: &mut Str
             let f = to_primitive!(a1, Function);
             let mut end_idx = arr.len();
             for (i, item) in arr.iter().enumerate() {
-                if !*to_primitive!(f.eval_values(vec![item.clone()], ns, rt.clone())?, Bool) {
+                if !*to_primitive!(f.eval_values(&vec![item.clone()], ns, rt.clone())?, Bool) {
                     end_idx = i;
                     break;
                 }
@@ -948,7 +949,7 @@ pub fn add_sequence_skip_until(scope: &mut XCompilationScope, interner: &mut Str
             let f = to_primitive!(a1, Function);
             let mut start_idx = arr.len();
             for (i, item) in arr.iter().enumerate() {
-                if *to_primitive!(f.eval_values(vec![item.clone()], ns, rt.clone())?, Bool) {
+                if *to_primitive!(f.eval_values(&vec![item.clone()], ns, rt.clone())?, Bool) {
                     start_idx = i;
                     break;
                 }
@@ -1059,7 +1060,7 @@ pub fn add_sequence_eq(scope: &mut XCompilationScope, interner: &mut StringInter
             for (x, y) in arr0.into_iter().zip(arr1.into_iter()) {
                 let inner_equal_value = eq_expr.eval(ns, false, rt.clone())?.unwrap_value();
                 let inner_eq_func = to_primitive!(inner_equal_value, Function);
-                let eq = inner_eq_func.eval_values(vec![x, y], &ns, rt.clone())?;
+                let eq = inner_eq_func.eval_values(&vec![x, y], &ns, rt.clone())?;
                 let is_eq = to_primitive!(eq, Bool);
                 if !*is_eq {
                     ret = false;

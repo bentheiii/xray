@@ -1,6 +1,6 @@
 struct Choice<T> (
     a: T,
-    b: Array<T>
+    b: Sequence<T>
 )
 
 fn choose<T>(c: Choice<T>, i: int) -> T {

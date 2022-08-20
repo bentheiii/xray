@@ -4,11 +4,11 @@ fn collatz_step(n: int)->int{
         3*n+1
     )
 }
-fn collatz_helper(n: int, ret: Array<int>)->Array<int>{
-    if (n == 1, [1] + ret, collatz_helper(collatz_step(n), [n] + ret))
+fn collatz_helper(n: int, ret: Sequence<int>)->Sequence<int>{
+    if (n == 1, ret + [1], collatz_helper(collatz_step(n), ret + [n]))
 }
 
-fn collatz(n: int)->Array<int>{
+fn collatz(n: int)->Sequence<int>{
     collatz_helper(n, [])
 }
 

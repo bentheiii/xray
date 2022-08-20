@@ -10,21 +10,25 @@ use crate::xexpr::XExpr;
 use strum::IntoStaticStr;
 
 #[derive(Debug)]
-pub struct TracedCompilationError(CompilationError, ((usize, usize), usize), ((usize, usize), usize));
+pub enum TracedCompilationError {
+    Syntax(pest::error::Error<Rule>),
+    Compilation(CompilationError, ((usize, usize), usize), ((usize, usize), usize)),
+}
 
 #[derive(Debug, IntoStaticStr)]
 pub enum CompilationError {
-    VariableTypeMismatch{
+    VariableTypeMismatch {
         variable_name: Identifier,
         expected_type: Arc<XType>,
         actual_type: Arc<XType>,
     },
-    RequiredParamsAfterOptionalParams{
+    RequiredParamsAfterOptionalParams {
         function_name: Option<Identifier>,
         param_name: Identifier,
     },
     DefaultEvaluationError {
-        function_name: Option<Identifier>,  // None for lambda function
+        function_name: Option<Identifier>,
+        // None for lambda function
         param_name: Identifier,
         error: String,  // todo fix when we have proper eval error handling
     },
@@ -122,156 +126,156 @@ pub enum CompilationError {
         type0: Arc<XType>,
         type1: Arc<XType>,
     },
-    NotAFunction {type_: Arc<XType>},
-    NotACompound {type_: Arc<XType>},
+    NotAFunction { type_: Arc<XType> },
+    NotACompound { type_: Arc<XType> },
     DynamicFunctionAsVariable {
         name: Identifier,
     },
 }
 
-impl CompilationError{
-    pub fn display_with_interner(&self, interner: &StringInterner)->String{
+impl CompilationError {
+    pub fn display_with_interner(&self, interner: &StringInterner) -> String {
         match self {
-            CompilationError::VariableTypeMismatch{variable_name, expected_type, actual_type} => {
+            CompilationError::VariableTypeMismatch { variable_name, expected_type, actual_type } => {
                 format!("Variable {} has type {}, but expected {}",
-                    interner.resolve(variable_name.clone()).unwrap(),
-                    actual_type.display_with_interner(interner),
-                    expected_type.display_with_interner(interner)
+                        interner.resolve(variable_name.clone()).unwrap(),
+                        actual_type.display_with_interner(interner),
+                        expected_type.display_with_interner(interner)
                 )
             }
-            CompilationError::RequiredParamsAfterOptionalParams{function_name, param_name} => {
+            CompilationError::RequiredParamsAfterOptionalParams { function_name, param_name } => {
                 format!("Required parameter {} after optional parameter in function {}",
-                    interner.resolve(param_name.clone()).unwrap(),
-                    function_name.map_or("<lambda>",|function_name|interner.resolve(function_name.clone()).unwrap())
+                        interner.resolve(param_name.clone()).unwrap(),
+                        function_name.map_or("<lambda>", |function_name| interner.resolve(function_name.clone()).unwrap())
                 )
             }
-            CompilationError::DefaultEvaluationError{function_name, param_name, error} => {
+            CompilationError::DefaultEvaluationError { function_name, param_name, error } => {
                 format!("Error evaluating default value for parameter {} in function {}: {}",
-                    interner.resolve(param_name.clone()).unwrap(),
-                    function_name.map_or("<lambda>" ,|s| interner.resolve(s.clone()).unwrap()),
-                    error
+                        interner.resolve(param_name.clone()).unwrap(),
+                        function_name.map_or("<lambda>", |s| interner.resolve(s.clone()).unwrap()),
+                        error
                 )
             }
-            CompilationError::FunctionOutputTypeMismatch{function_name, expected_type, actual_type} => {
+            CompilationError::FunctionOutputTypeMismatch { function_name, expected_type, actual_type } => {
                 format!("Function {} has output type {}, but expected {}",
-                    interner.resolve(function_name.clone()).unwrap(),
-                    actual_type.display_with_interner(interner),
-                    expected_type.display_with_interner(interner)
+                        interner.resolve(function_name.clone()).unwrap(),
+                        actual_type.display_with_interner(interner),
+                        expected_type.display_with_interner(interner)
                 )
             }
-            CompilationError::TypeNotFound{name} => {
+            CompilationError::TypeNotFound { name } => {
                 format!("Type {} not found", name)
             }
-            CompilationError::GenericParamCountMismatch{type_name, expected_count, actual_count} => {
+            CompilationError::GenericParamCountMismatch { type_name, expected_count, actual_count } => {
                 format!("Type {} has {} generic parameters, but expected {}",
-                    type_name,
-                    actual_count,
-                    expected_count
+                        type_name,
+                        actual_count,
+                        expected_count
                 )
             }
-            CompilationError::ValueIsNotType{name, item} => {
+            CompilationError::ValueIsNotType { name, item } => {
                 format!("{} is not of type (found {:?})",
-                    interner.resolve(name.clone()).unwrap(),
-                    item,
+                        interner.resolve(name.clone()).unwrap(),
+                        item,
                 )
             }
             CompilationError::PairNotType => {
                 format!("Expression cannot be interpreted as a typer")
             }
-            CompilationError::NameAlreadyDefined {name, other} => {
+            CompilationError::NameAlreadyDefined { name, other } => {
                 format!("Name {} is already defined as {:?}", interner.resolve(name.clone()).unwrap(), other)
             }
-            CompilationError::AmbiguousOverload {name, is_generic, items, param_types} => {
+            CompilationError::AmbiguousOverload { name, is_generic, items, param_types } => {
                 format!("Overload{} for {} is ambiguous for param types {:?}: {:?}",
-                    if *is_generic { " (generic)" } else { "" },
-                    interner.resolve(name.clone()).unwrap(),
-                    param_types,
-                    items
+                        if *is_generic { " (generic)" } else { "" },
+                        interner.resolve(name.clone()).unwrap(),
+                        param_types,
+                        items
                 )
             }
-            CompilationError::NoOverload {name,param_types, dynamic_failures} => {
+            CompilationError::NoOverload { name, param_types, dynamic_failures } => {
                 format!("No overload for {} found for param types [{}]{}",
-                    interner.resolve(name.clone()).unwrap(),
-                    param_types.iter().map(|t| t.display_with_interner(interner)).join(", "),
-                    if dynamic_failures.is_empty() { "".to_string() } else { " dynamic failures: ".to_owned()+&dynamic_failures.join(", ") },
+                        interner.resolve(name.clone()).unwrap(),
+                        param_types.iter().map(|t| t.display_with_interner(interner)).join(", "),
+                        if dynamic_failures.is_empty() { "".to_string() } else { " dynamic failures: ".to_owned() + &dynamic_failures.join(", ") },
                 )
             }
             CompilationError::VariantConstructorOneArg => {
                 format!("Variant constructors must have exactly one argument")
             }
-            CompilationError::VariantConstructorTypeArgMismatch {union_name, variant_name, expected_type, actual_type} => {
+            CompilationError::VariantConstructorTypeArgMismatch { union_name, variant_name, expected_type, actual_type } => {
                 format!("Variant {} of union {} has type {}, but expected {}",
-                    variant_name,
-                    interner.resolve(union_name.clone()).unwrap(),
-                    actual_type.display_with_interner(interner),
-                    expected_type.display_with_interner(interner)
+                        variant_name,
+                        interner.resolve(union_name.clone()).unwrap(),
+                        actual_type.display_with_interner(interner),
+                        expected_type.display_with_interner(interner)
                 )
             }
-            CompilationError::StructParamsLengthMismatch {struct_name, expected_count, actual_count} => {
+            CompilationError::StructParamsLengthMismatch { struct_name, expected_count, actual_count } => {
                 format!("Struct {} has {} parameters, but expected {}",
-                    interner.resolve(struct_name.clone()).unwrap(),
-                    actual_count,
-                    expected_count
+                        interner.resolve(struct_name.clone()).unwrap(),
+                        actual_count,
+                        expected_count
                 )
             }
-            CompilationError::StructFieldTypeMismatch {struct_name, expected_types, actual_types} => {
+            CompilationError::StructFieldTypeMismatch { struct_name, expected_types, actual_types } => {
                 format!("Struct {} has parameters of types [{:?}], but expected [{:?}]",
-                    interner.resolve(struct_name.clone()).unwrap(),
-                    actual_types.iter().map(|t| t.display_with_interner(interner)).join(", "),
-                    expected_types.iter().map(|t| t.display_with_interner(interner)).join(", ")
+                        interner.resolve(struct_name.clone()).unwrap(),
+                        actual_types.iter().map(|t| t.display_with_interner(interner)).join(", "),
+                        expected_types.iter().map(|t| t.display_with_interner(interner)).join(", ")
                 )
             }
-            CompilationError::NonFunctionSpecialization {name, item} => {
+            CompilationError::NonFunctionSpecialization { name, item } => {
                 format!("Cannot specialize non-function {} (found {:?})",
-                    interner.resolve(name.clone()).unwrap(),
-                    item,
+                        interner.resolve(name.clone()).unwrap(),
+                        item,
                 )
             }
-            CompilationError::SpecializedFunctionTypeMismatch {name, idx, expected_type, actual_type} => {
+            CompilationError::SpecializedFunctionTypeMismatch { name, idx, expected_type, actual_type } => {
                 format!("Specialized argument at index {} of function {} has type {:?}, but expected {:?}",
-                    idx,
-                    interner.resolve(name.clone()).unwrap(),
-                    actual_type,
-                    expected_type,
+                        idx,
+                        interner.resolve(name.clone()).unwrap(),
+                        actual_type,
+                        expected_type,
                 )
             }
-            CompilationError::FunctionNotFound {name} => {
+            CompilationError::FunctionNotFound { name } => {
                 format!("Function {} not found", interner.resolve(name.clone()).unwrap())
             }
-            CompilationError::MemberNotFound {spec, name} => {
+            CompilationError::MemberNotFound { spec, name } => {
                 format!("Member {} not found in compound {}", name, interner.resolve(spec.name).unwrap())
             }
-            CompilationError::NonCompoundMemberAccess {xtype} => {
+            CompilationError::NonCompoundMemberAccess { xtype } => {
                 format!("Cannot access member of non-compound type {}", xtype.display_with_interner(interner))
             }
-            CompilationError::NonItemTupleAccess {member} => {
+            CompilationError::NonItemTupleAccess { member } => {
                 format!("Member access to tuple must be of the for \"item<positive number>\", got {:?}", member)
             }
-            CompilationError::TupleIndexOutOfBounds {tuple_type, index, max: max_index } => {
+            CompilationError::TupleIndexOutOfBounds { tuple_type, index, max: max_index } => {
                 format!("Tuple index {} out of bounds for tuple {} of size {}", index, tuple_type.display_with_interner(interner), max_index)
             }
-            CompilationError::ValueNotFound {name} => {
+            CompilationError::ValueNotFound { name } => {
                 format!("Value {} not found", interner.resolve(name.clone()).unwrap())
             }
-            CompilationError::TypeAsVariable {name} => {
+            CompilationError::TypeAsVariable { name } => {
                 format!("Cannot use type {} as variable", interner.resolve(name.clone()).unwrap())
             }
-            CompilationError::GenericFunctionAsVariable {name} => {
+            CompilationError::GenericFunctionAsVariable { name } => {
                 format!("Cannot use generic function {} as variable", interner.resolve(name.clone()).unwrap())
             }
-            CompilationError::OverloadedFunctionAsVariable {name} => {
+            CompilationError::OverloadedFunctionAsVariable { name } => {
                 format!("Cannot use overloaded function {} as variable", interner.resolve(name.clone()).unwrap())
             }
-            CompilationError::IncompatibleTypes {type0, type1} => {
+            CompilationError::IncompatibleTypes { type0, type1 } => {
                 format!("Incompatible types: {} and {}", type0.display_with_interner(interner), type1.display_with_interner(interner))
             }
-            CompilationError::NotAFunction {type_} => {
+            CompilationError::NotAFunction { type_ } => {
                 format!("expression does not evaluate to a function (got {})", type_.display_with_interner(interner))
             }
-            CompilationError::NotACompound {type_} => {
+            CompilationError::NotACompound { type_ } => {
                 format!("expression does not evaluate to a compound (got {})", type_.display_with_interner(interner))
             }
-            CompilationError::DynamicFunctionAsVariable {name} => {
+            CompilationError::DynamicFunctionAsVariable { name } => {
                 format!("Cannot use unspecialized dynamic function {} as variable", interner.resolve(name.clone()).unwrap())
             }
         }
@@ -283,15 +287,18 @@ impl CompilationError{
         }
         let start = input.as_span().start_pos();
         let end = input.as_span().end_pos();
-        TracedCompilationError(self, pos_to_coors(&start), pos_to_coors(&end))
+        TracedCompilationError::Compilation(self, pos_to_coors(&start), pos_to_coors(&end))
     }
 }
 
 impl TracedCompilationError {
     pub fn display(&self, interner: &StringInterner, input: &str) -> String {
-        let ((start_line, _), start_pos) = self.1;
-        let (_, end_pos) = self.2;
-        let slc = &input[start_pos..=end_pos];
-        format!("{} {{{}| {}}} [{}]", self.0.display_with_interner(interner), start_line, slc, <&CompilationError as Into<&'static str>>::into(&self.0))
+        match self {
+            Self::Syntax(error) => format!("{}", error),
+            Self::Compilation(error, ((start_line, _), start_pos), (_, end_pos)) => {
+                let slc = &input[*start_pos..*end_pos];
+                format!("{} {{{}| {}}} [{}]", error.display_with_interner(interner), start_line, slc, <&CompilationError as Into<&'static str>>::into(&error))
+            }
+        }
     }
 }

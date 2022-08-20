@@ -8,7 +8,7 @@ fn next_divisor(n: int, a: int) -> int {
     )
 }
 
-fn divisors_helper(n: int, a: int, ret: Array<int>)-> Array<int> {
+fn divisors_helper(n: int, a: int, ret: Sequence<int>)-> Sequence<int> {
     let next = next_divisor(n, a);
     if(next == -1,
         ret+[n],
@@ -16,10 +16,10 @@ fn divisors_helper(n: int, a: int, ret: Array<int>)-> Array<int> {
     )
 }
 
-fn divisors(n: int) -> Array<int> {
+fn divisors(n: int) -> Sequence<int> {
     divisors_helper(n, 2, [])
 }
 
 fn main()->bool{
-    assert(divisors(25795) == [5,7,11,67]);
+    assert(divisors(25795) == [5,7,11,67])
 }

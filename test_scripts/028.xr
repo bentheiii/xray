@@ -12,5 +12,5 @@ fn inc_1_twice(x: int) -> int {
 }
 
 fn main()->bool{
-    assert (inc_1_twice(3) == 5);
+    assert (inc_1_twice(3) == 5)
 }

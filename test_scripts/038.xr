@@ -1,11 +1,11 @@
 union Nested<T> (
     x: T,
-    y: Array<Nested<T>>
+    y: Sequence<Nested<T>>
 )
 
-fn flatten<T>(nested: Nested<T>) -> Array<T> {
+fn flatten<T>(nested: Nested<T>) -> Sequence<T> {
     fn helper(n: Nested<T>, ret: Stack<T>) -> Stack<T> {
-        fn arr_helper(y: Array<Nested<T>>, idx: int, ret0: Stack<T>) -> Stack<T> {
+        fn arr_helper(y: Sequence<Nested<T>>, idx: int, ret0: Stack<T>) -> Stack<T> {
             if (idx == y.len(),
                 ret0,
                 arr_helper(y, idx + 1, helper(y.get(idx), ret0)))

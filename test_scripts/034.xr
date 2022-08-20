@@ -1,17 +1,17 @@
 union unn(
     a: int,
-    b: rational
+    b: float
 )
 struct strct(
     a: int,
-    b: rational
+    b: float
 )
 
-fn foo(x: unn, y: strct)->rational {
-    fn handle_a(v: int)->rational {
+fn foo(x: unn, y: strct)->float {
+    fn handle_a(v: int)->float {
         ((v*y::a)/1) + y::b
     }
-    fn handle_b(v: rational)->rational {
+    fn handle_b(v: float)->float {
         v*(y::a/1) + y::b
     }
 

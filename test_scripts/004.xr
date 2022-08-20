@@ -1,7 +1,8 @@
 struct Point (x: int, y:int)
+
 fn norm(p: Point) -> int {
-    let x = p.x;
-    let y = p.y;
+    let x = p::x;
+    let y = p::y;
     x * x + y * y
 }
 
