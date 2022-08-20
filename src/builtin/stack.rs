@@ -38,11 +38,11 @@ pub struct StackNode {
 }
 
 impl StackNode {
-    fn first(value: Rc<ManagedXValue>) -> Rc<StackNode> {
-        Rc::new(StackNode { value, next: None })
+    fn first(value: Rc<ManagedXValue>) -> Rc<Self> {
+        Rc::new(Self { value, next: None })
     }
-    fn new(value: Rc<ManagedXValue>, next: Rc<StackNode>) -> Rc<StackNode> {
-        Rc::new(StackNode {
+    fn new(value: Rc<ManagedXValue>, next: Rc<Self>) -> Rc<Self> {
+        Rc::new(Self {
             value,
             next: Some(next),
         })
@@ -65,7 +65,7 @@ impl XStack {
             None => StackNode::first(value),
             Some(ref head) => StackNode::new(value, head.clone()),
         };
-        XStack {
+        Self {
             head: Some(node),
             length: self.length + 1,
         }

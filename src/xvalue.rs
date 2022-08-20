@@ -50,8 +50,8 @@ impl XFunction {
         runtime: RTCell,
     ) -> Result<TailedEvalResult, String> {
         match self {
-            XFunction::Native(native) => native(args, parent_scope, tail_available, runtime),
-            XFunction::UserFunction(..) => {
+            Self::Native(native) => native(args, parent_scope, tail_available, runtime),
+            Self::UserFunction(..) => {
                 let arguments = args
                     .iter()
                     .map(|x| {
@@ -62,7 +62,7 @@ impl XFunction {
                 self.eval_values(&arguments, parent_scope, runtime)
                     .map(|r| r.into())
             }
-            XFunction::Recourse(depth) => {
+            Self::Recourse(depth) => {
                 if tail_available && *depth == 0 {
                     let arguments = args
                         .iter()
@@ -90,7 +90,7 @@ impl XFunction {
         runtime: RTCell,
     ) -> Result<Rc<ManagedXValue>, String> {
         match self {
-            XFunction::Native(native) => {
+            Self::Native(native) => {
                 // we need to wrap all the values with dummy expressions, so that native functions can handle them
                 let args = args
                     .iter()
@@ -98,7 +98,7 @@ impl XFunction {
                     .collect::<Vec<_>>();
                 native(&args, parent_scope, false, runtime).map(|r| r.unwrap_value())
             }
-            XFunction::UserFunction(func, closure) => {
+            Self::UserFunction(func, closure) => {
                 let mut args = Cow::Borrowed(args);
                 let uf = match func.as_ref() {
                     XStaticFunction::UserFunction(uf) => uf,
@@ -162,7 +162,7 @@ impl XFunction {
                     }
                 }
             }
-            XFunction::Recourse(depth) => parent_scope
+            Self::Recourse(depth) => parent_scope
                 .ancestor(*depth)
                 .recourse
                 .unwrap()
@@ -174,13 +174,13 @@ impl XFunction {
 impl Debug for XFunction {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
-            XFunction::Native(_) => {
+            Self::Native(_) => {
                 write!(f, "Native()")
             }
-            XFunction::UserFunction(params, ..) => {
+            Self::UserFunction(params, ..) => {
                 write!(f, "UserFunction({:?})", params)
             }
-            XFunction::Recourse(..) => {
+            Self::Recourse(..) => {
                 write!(f, "Recourse()")
             }
         }
@@ -198,18 +198,18 @@ impl Eq for XFunction {}
 impl XValue {
     pub fn size(&self) -> usize {
         match self {
-            XValue::Int(i) => (i.bits() / 8) as usize,
-            XValue::Float(_) => 64 / 8,
-            XValue::String(s) => s.len(),
-            XValue::Bool(_) => 1,
-            XValue::Function(XFunction::Native(_)) => size_of::<usize>(),
-            XValue::Function(XFunction::UserFunction(_, closure)) => {
+            Self::Int(i) => (i.bits() / 8) as usize,
+            Self::Float(_) => 64 / 8,
+            Self::String(s) => s.len(),
+            Self::Bool(_) => 1,
+            Self::Function(XFunction::Native(_)) => size_of::<usize>(),
+            Self::Function(XFunction::UserFunction(_, closure)) => {
                 size_of::<usize>() + closure.len() * size_of::<usize>()
             }
-            XValue::Function(XFunction::Recourse(..)) => size_of::<usize>(),
-            XValue::StructInstance(items) => items.len() * size_of::<usize>(),
-            XValue::UnionInstance(_, item) => item.size() + size_of::<usize>(),
-            XValue::Native(n) => size_of::<usize>() + n.size(),
+            Self::Function(XFunction::Recourse(..)) => size_of::<usize>(),
+            Self::StructInstance(items) => items.len() * size_of::<usize>(),
+            Self::UnionInstance(_, item) => item.size() + size_of::<usize>(),
+            Self::Native(n) => size_of::<usize>() + n.size(),
         }
     }
 }
@@ -233,7 +233,7 @@ impl Drop for ManagedXValue {
 }
 
 impl ManagedXValue {
-    pub fn new(value: XValue, runtime: RTCell) -> Result<Rc<ManagedXValue>, String> {
+    pub fn new(value: XValue, runtime: RTCell) -> Result<Rc<Self>, String> {
         let size;
         {
             let size_limit = runtime.borrow().limits.size_limit;
@@ -250,7 +250,7 @@ impl ManagedXValue {
                 size = 0;
             }
         }
-        Ok(Rc::new(ManagedXValue {
+        Ok(Rc::new(Self {
             runtime,
             size,
             value,

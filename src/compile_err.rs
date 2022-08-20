@@ -145,7 +145,7 @@ pub enum CompilationError {
 impl CompilationError {
     pub fn display_with_interner(&self, interner: &StringInterner) -> String {
         match self {
-            CompilationError::VariableTypeMismatch {
+            Self::VariableTypeMismatch {
                 variable_name,
                 expected_type,
                 actual_type,
@@ -157,7 +157,7 @@ impl CompilationError {
                     expected_type.display_with_interner(interner)
                 )
             }
-            CompilationError::RequiredParamsAfterOptionalParams {
+            Self::RequiredParamsAfterOptionalParams {
                 function_name,
                 param_name,
             } => {
@@ -169,7 +169,7 @@ impl CompilationError {
                         .unwrap())
                 )
             }
-            CompilationError::DefaultEvaluationError {
+            Self::DefaultEvaluationError {
                 function_name,
                 param_name,
                 error,
@@ -181,7 +181,7 @@ impl CompilationError {
                     error
                 )
             }
-            CompilationError::FunctionOutputTypeMismatch {
+            Self::FunctionOutputTypeMismatch {
                 function_name,
                 expected_type,
                 actual_type,
@@ -193,10 +193,10 @@ impl CompilationError {
                     expected_type.display_with_interner(interner)
                 )
             }
-            CompilationError::TypeNotFound { name } => {
+            Self::TypeNotFound { name } => {
                 format!("Type {} not found", name)
             }
-            CompilationError::GenericParamCountMismatch {
+            Self::GenericParamCountMismatch {
                 type_name,
                 expected_count,
                 actual_count,
@@ -206,24 +206,24 @@ impl CompilationError {
                     type_name, actual_count, expected_count
                 )
             }
-            CompilationError::ValueIsNotType { name, item } => {
+            Self::ValueIsNotType { name, item } => {
                 format!(
                     "{} is not of type (found {:?})",
                     interner.resolve(*name).unwrap(),
                     item,
                 )
             }
-            CompilationError::PairNotType => {
+            Self::PairNotType => {
                 "Expression cannot be interpreted as a typer".to_string()
             }
-            CompilationError::NameAlreadyDefined { name, other } => {
+            Self::NameAlreadyDefined { name, other } => {
                 format!(
                     "Name {} is already defined as {:?}",
                     interner.resolve(*name).unwrap(),
                     other
                 )
             }
-            CompilationError::AmbiguousOverload {
+            Self::AmbiguousOverload {
                 name,
                 is_generic,
                 items,
@@ -237,7 +237,7 @@ impl CompilationError {
                     items
                 )
             }
-            CompilationError::NoOverload {
+            Self::NoOverload {
                 name,
                 param_types,
                 dynamic_failures,
@@ -256,10 +256,10 @@ impl CompilationError {
                     },
                 )
             }
-            CompilationError::VariantConstructorOneArg => {
+            Self::VariantConstructorOneArg => {
                 "Variant constructors must have exactly one argument".to_string()
             }
-            CompilationError::VariantConstructorTypeArgMismatch {
+            Self::VariantConstructorTypeArgMismatch {
                 union_name,
                 variant_name,
                 expected_type,
@@ -273,7 +273,7 @@ impl CompilationError {
                     expected_type.display_with_interner(interner)
                 )
             }
-            CompilationError::StructParamsLengthMismatch {
+            Self::StructParamsLengthMismatch {
                 struct_name,
                 expected_count,
                 actual_count,
@@ -285,7 +285,7 @@ impl CompilationError {
                     expected_count
                 )
             }
-            CompilationError::StructFieldTypeMismatch {
+            Self::StructFieldTypeMismatch {
                 struct_name,
                 expected_types,
                 actual_types,
@@ -303,14 +303,14 @@ impl CompilationError {
                         .join(", ")
                 )
             }
-            CompilationError::NonFunctionSpecialization { name, item } => {
+            Self::NonFunctionSpecialization { name, item } => {
                 format!(
                     "Cannot specialize non-function {} (found {:?})",
                     interner.resolve(*name).unwrap(),
                     item,
                 )
             }
-            CompilationError::SpecializedFunctionTypeMismatch {
+            Self::SpecializedFunctionTypeMismatch {
                 name,
                 idx,
                 expected_type,
@@ -323,32 +323,32 @@ impl CompilationError {
                         expected_type,
                 )
             }
-            CompilationError::FunctionNotFound { name } => {
+            Self::FunctionNotFound { name } => {
                 format!(
                     "Function {} not found",
                     interner.resolve(*name).unwrap()
                 )
             }
-            CompilationError::MemberNotFound { spec, name } => {
+            Self::MemberNotFound { spec, name } => {
                 format!(
                     "Member {} not found in compound {}",
                     name,
                     interner.resolve(spec.name).unwrap()
                 )
             }
-            CompilationError::NonCompoundMemberAccess { xtype } => {
+            Self::NonCompoundMemberAccess { xtype } => {
                 format!(
                     "Cannot access member of non-compound type {}",
                     xtype.display_with_interner(interner)
                 )
             }
-            CompilationError::NonItemTupleAccess { member } => {
+            Self::NonItemTupleAccess { member } => {
                 format!(
                     "Member access to tuple must be of the for \"item<positive number>\", got {:?}",
                     member
                 )
             }
-            CompilationError::TupleIndexOutOfBounds {
+            Self::TupleIndexOutOfBounds {
                 tuple_type,
                 index,
                 max: max_index,
@@ -360,50 +360,50 @@ impl CompilationError {
                     max_index
                 )
             }
-            CompilationError::ValueNotFound { name } => {
+            Self::ValueNotFound { name } => {
                 format!(
                     "Value {} not found",
                     interner.resolve(*name).unwrap()
                 )
             }
-            CompilationError::TypeAsVariable { name } => {
+            Self::TypeAsVariable { name } => {
                 format!(
                     "Cannot use type {} as variable",
                     interner.resolve(*name).unwrap()
                 )
             }
-            CompilationError::GenericFunctionAsVariable { name } => {
+            Self::GenericFunctionAsVariable { name } => {
                 format!(
                     "Cannot use generic function {} as variable",
                     interner.resolve(*name).unwrap()
                 )
             }
-            CompilationError::OverloadedFunctionAsVariable { name } => {
+            Self::OverloadedFunctionAsVariable { name } => {
                 format!(
                     "Cannot use overloaded function {} as variable",
                     interner.resolve(*name).unwrap()
                 )
             }
-            CompilationError::IncompatibleTypes { type0, type1 } => {
+            Self::IncompatibleTypes { type0, type1 } => {
                 format!(
                     "Incompatible types: {} and {}",
                     type0.display_with_interner(interner),
                     type1.display_with_interner(interner)
                 )
             }
-            CompilationError::NotAFunction { type_ } => {
+            Self::NotAFunction { type_ } => {
                 format!(
                     "expression does not evaluate to a function (got {})",
                     type_.display_with_interner(interner)
                 )
             }
-            CompilationError::NotACompound { type_ } => {
+            Self::NotACompound { type_ } => {
                 format!(
                     "expression does not evaluate to a compound (got {})",
                     type_.display_with_interner(interner)
                 )
             }
-            CompilationError::DynamicFunctionAsVariable { name } => {
+            Self::DynamicFunctionAsVariable { name } => {
                 format!(
                     "Cannot use unspecialized dynamic function {} as variable",
                     interner.resolve(*name).unwrap()

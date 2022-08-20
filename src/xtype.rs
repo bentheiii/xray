@@ -19,7 +19,7 @@ pub enum XType {
     XCallable(XCallableSpec),
     XFunc(XFuncSpec),
     XGeneric(Identifier),
-    XNative(Box<dyn NativeType>, Vec<Arc<XType>>),
+    XNative(Box<dyn NativeType>, Vec<Arc<Self>>),
     Tuple(Vec<Arc<XType>>),
     // the actual value of this type is a struct
     XTail(Vec<Arc<XType>>),
@@ -38,13 +38,13 @@ pub struct Bind {
 
 impl Bind {
     pub fn new() -> Self {
-        Bind {
+        Self {
             bound_generics: HashMap::new(),
         }
     }
 
     pub fn from<T: Into<HashMap<Identifier, Arc<XType>>>>(bound_generics: T) -> Self {
-        Bind {
+        Self {
             bound_generics: bound_generics.into(),
         }
     }
@@ -53,12 +53,12 @@ impl Bind {
     where
         HashMap<Identifier, Arc<XType>>: FromIterator<T::Item>,
     {
-        Bind {
+        Self {
             bound_generics: FromIterator::from_iter(bound_generics),
         }
     }
 
-    pub fn mix(mut self, other: &Bind) -> Option<Self> {
+    pub fn mix(mut self, other: &Self) -> Option<Self> {
         for (k, v) in other.bound_generics.iter() {
             if let Some(existing) = self.bound_generics.get(k) {
                 let new_bind = existing.common_type(v)?;
@@ -93,12 +93,12 @@ impl XCompoundSpec {
         name: Identifier,
         generic_names: Vec<Identifier>,
         fields: Vec<XCompoundFieldSpec>,
-    ) -> XCompoundSpec {
+    ) -> Self {
         let mut indices = BTreeMap::new();
         for (i, field) in fields.iter().enumerate() {
             indices.insert(field.name.clone(), i);
         }
-        XCompoundSpec {
+        Self {
             name,
             generic_names,
             fields,
@@ -180,7 +180,7 @@ impl XFuncSpec {
     }
 
     pub fn xtype(&self, bind: &Bind) -> Arc<XType> {
-        Arc::new(XType::XFunc(XFuncSpec {
+        Arc::new(XType::XFunc(Self {
             generic_params: None,
             params: self
                 .params
@@ -204,16 +204,16 @@ pub struct XFuncParamSpec {
 }
 
 impl XType {
-    pub fn generic_from_name(name: &'static str, interner: &mut StringInterner) -> Arc<XType> {
-        Arc::new(XType::XGeneric(interner.get_or_intern_static(name)))
+    pub fn generic_from_name(name: &'static str, interner: &mut StringInterner) -> Arc<Self> {
+        Arc::new(Self::XGeneric(interner.get_or_intern_static(name)))
     }
 
-    pub fn common_type(self: &Arc<XType>, other: &Arc<XType>) -> Option<Arc<XType>> {
+    pub fn common_type(self: &Arc<Self>, other: &Arc<Self>) -> Option<Arc<Self>> {
         if self == other {
             Some(self.clone())
         } else {
             match (self.as_ref(), other.as_ref()) {
-                (XType::Compound(k0, a, ref bind_a), XType::Compound(k1, b, ref bind_b)) => {
+                (Self::Compound(k0, a, ref bind_a), Self::Compound(k1, b, ref bind_b)) => {
                     if a != b || k0 != k1 {
                         return None;
                     }
@@ -229,9 +229,9 @@ impl XType {
                             gen_arg0.common_type(gen_arg1)?,
                         );
                     }
-                    Some(XType::Compound(*k0, a.clone(), bind).into())
+                    Some(Self::Compound(*k0, a.clone(), bind).into())
                 }
-                (XType::Tuple(types1), XType::Tuple(types2)) => {
+                (Self::Tuple(types1), Self::Tuple(types2)) => {
                     if types1.len() != types2.len() {
                         return None;
                     }
@@ -240,11 +240,11 @@ impl XType {
                         .zip(types2.iter())
                         .map(|(t1, t2)| t1.common_type(t2))
                         .collect::<Option<Vec<_>>>()?;
-                    Some(XType::Tuple(common_types).into())
+                    Some(Self::Tuple(common_types).into())
                 }
-                (_, XType::XUnknown) => Some(self.clone()),
-                (XType::XUnknown, _) => Some(other.clone()),
-                (XType::XNative(a, a_bind), XType::XNative(b, b_bind)) => {
+                (_, Self::XUnknown) => Some(self.clone()),
+                (Self::XUnknown, _) => Some(other.clone()),
+                (Self::XNative(a, a_bind), Self::XNative(b, b_bind)) => {
                     if a != b {
                         return None;
                     }
@@ -257,20 +257,20 @@ impl XType {
                             return None;
                         }
                     }
-                    Some(XType::XNative(a.clone(), bind).into())
+                    Some(Self::XNative(a.clone(), bind).into())
                 }
                 _ => None,
             }
         }
     }
 
-    pub fn bind_in_assignment(&self, other: &Arc<XType>) -> Option<Bind> {
+    pub fn bind_in_assignment(&self, other: &Arc<Self>) -> Option<Bind> {
         match (self, other.as_ref()) {
-            (XType::Bool, XType::Bool) => Some(Bind::new()),
-            (XType::Int, XType::Int) => Some(Bind::new()),
-            (XType::Float, XType::Float) => Some(Bind::new()),
-            (XType::String, XType::String) => Some(Bind::new()),
-            (XType::Compound(k0, a, ref bind_a), XType::Compound(k1, b, ref bind_b)) => {
+            (Self::Bool, Self::Bool) => Some(Bind::new()),
+            (Self::Int, Self::Int) => Some(Bind::new()),
+            (Self::Float, Self::Float) => Some(Bind::new()),
+            (Self::String, Self::String) => Some(Bind::new()),
+            (Self::Compound(k0, a, ref bind_a), Self::Compound(k1, b, ref bind_b)) => {
                 if a != b || k0 != k1 {
                     return None;
                 }
@@ -285,7 +285,7 @@ impl XType {
                 }
                 Some(bind)
             }
-            (XType::XCallable(ref a), XType::XCallable(ref b)) => {
+            (Self::XCallable(ref a), Self::XCallable(ref b)) => {
                 let mut total_binds = Bind::new();
                 for (a_type, b_type) in a.param_types.iter().zip(b.param_types.iter()) {
                     if let Some(binds) = a_type.bind_in_assignment(b_type) {
@@ -301,7 +301,7 @@ impl XType {
                 }
                 Some(total_binds)
             }
-            (XType::XFunc(ref a), XType::XFunc(ref b)) => {
+            (Self::XFunc(ref a), Self::XFunc(ref b)) => {
                 let (a_min, a_max) = a.arg_len_range();
                 let (b_min, b_max) = b.arg_len_range();
                 if a_min < b_min || a_max > b_max {
@@ -322,7 +322,7 @@ impl XType {
                 }
                 Some(total_binds)
             }
-            (XType::XCallable(ref a), XType::XFunc(ref b)) => {
+            (Self::XCallable(ref a), Self::XFunc(ref b)) => {
                 let (b_min, b_max) = b.arg_len_range();
                 if a.param_types.len() < b_min || a.param_types.len() > b_max {
                     return None;
@@ -342,7 +342,7 @@ impl XType {
                 }
                 Some(total_binds)
             }
-            (XType::XNative(a, a_bind), XType::XNative(b, b_bind)) => {
+            (Self::XNative(a, a_bind), Self::XNative(b, b_bind)) => {
                 if a != b {
                     return None;
                 }
@@ -357,7 +357,7 @@ impl XType {
                 }
                 Some(bind)
             }
-            (XType::Tuple(types1), XType::Tuple(types2)) => {
+            (Self::Tuple(types1), Self::Tuple(types2)) => {
                 if types1.len() != types2.len() {
                     return None;
                 }
@@ -371,21 +371,21 @@ impl XType {
                 }
                 Some(bind)
             }
-            (XType::XGeneric(ref a), _) => Some(Bind::from([(*a, other.clone())])),
-            (_, XType::XUnknown) => Some(Bind::new()),
-            (XType::XUnknown, _) => Some(Bind::new()),
+            (Self::XGeneric(ref a), _) => Some(Bind::from([(*a, other.clone())])),
+            (_, Self::XUnknown) => Some(Bind::new()),
+            (Self::XUnknown, _) => Some(Bind::new()),
 
             _ => None,
         }
     }
-    pub fn resolve_bind(self: &Arc<XType>, bind: &Bind, tail: Option<&Arc<XType>>) -> Arc<XType> {
+    pub fn resolve_bind(self: &Arc<Self>, bind: &Bind, tail: Option<&Arc<Self>>) -> Arc<Self> {
         match self.as_ref() {
-            XType::XNative(a, ref a_bind) => {
+            Self::XNative(a, ref a_bind) => {
                 let mut new_bind = HashMap::new();
                 for (k, a_v) in a.generic_names().iter().zip(a_bind.iter()) {
                     new_bind.insert(k.clone(), a_v.clone().resolve_bind(bind, tail));
                 }
-                XType::XNative(
+                Self::XNative(
                     a.clone(),
                     a.generic_names()
                         .iter()
@@ -395,63 +395,63 @@ impl XType {
                 )
                 .into()
             }
-            XType::XGeneric(ref a) => bind.get(a).cloned().unwrap_or(self.clone()),
-            XType::XTail(types) => match tail {
+            Self::XGeneric(ref a) => bind.get(a).cloned().unwrap_or(self.clone()),
+            Self::XTail(types) => match tail {
                 None => unreachable!(),
                 Some(t) => {
-                    if let XType::Compound(kind, spec, _) = t.as_ref() {
+                    if let Self::Compound(kind, spec, _) = t.as_ref() {
                         let bind = Bind::from_iter(
                             spec.generic_names
                                 .iter()
                                 .zip(types.iter())
                                 .map(|(n, t)| (*n, t.clone().resolve_bind(bind, None))),
                         );
-                        Arc::new(XType::Compound(*kind, spec.clone(), bind))
+                        Arc::new(Self::Compound(*kind, spec.clone(), bind))
                     } else {
                         unreachable!()
                     }
                 }
             },
-            XType::Tuple(types) => {
+            Self::Tuple(types) => {
                 let mut new_types = Vec::new();
                 for t in types.iter() {
                     new_types.push(t.resolve_bind(bind, tail));
                 }
-                XType::Tuple(new_types).into()
+                Self::Tuple(new_types).into()
             }
-            XType::Compound(ct, spec, _) => {
-                XType::Compound(*ct, spec.clone(), bind.clone()).into()
+            Self::Compound(ct, spec, _) => {
+                Self::Compound(*ct, spec.clone(), bind.clone()).into()
             }
             _ => self.clone(),
         }
     }
 
-    pub fn is_unknown(self: &Arc<XType>) -> bool {
+    pub fn is_unknown(self: &Arc<Self>) -> bool {
         match self.as_ref() {
-            XType::XUnknown => true,
-            XType::XNative(_, types) | XType::Tuple(types) => {
+            Self::XUnknown => true,
+            Self::XNative(_, types) | Self::Tuple(types) => {
                 types.iter().cloned().any(|t| t.is_unknown())
             }
-            XType::XCallable(spec) => {
+            Self::XCallable(spec) => {
                 spec.param_types.iter().cloned().any(|t| t.is_unknown())
                     || spec.return_type.is_unknown()
             }
-            XType::XFunc(spec) => {
+            Self::XFunc(spec) => {
                 spec.params.iter().any(|t| t.type_.clone().is_unknown()) || spec.ret.is_unknown()
             }
-            XType::Compound(.., bind) => bind.iter().any(|(_, t)| t.is_unknown()),
-            XType::XTail(bind) => bind.iter().cloned().any(|t| t.is_unknown()),
+            Self::Compound(.., bind) => bind.iter().any(|(_, t)| t.is_unknown()),
+            Self::XTail(bind) => bind.iter().cloned().any(|t| t.is_unknown()),
             _ => false,
         }
     }
 
-    pub fn display_with_interner(self: &Arc<XType>, interner: &StringInterner) -> String {
+    pub fn display_with_interner(self: &Arc<Self>, interner: &StringInterner) -> String {
         match self.as_ref() {
-            XType::Bool => "bool".to_string(),
-            XType::Int => "int".to_string(),
-            XType::Float => "float".to_string(),
-            XType::String => "string".to_string(),
-            XType::Compound(_, ref a, ref b) => {
+            Self::Bool => "bool".to_string(),
+            Self::Int => "int".to_string(),
+            Self::Float => "float".to_string(),
+            Self::String => "string".to_string(),
+            Self::Compound(_, ref a, ref b) => {
                 if a.generic_names.is_empty() {
                     interner.resolve(a.name).unwrap().to_string()
                 } else {
@@ -471,7 +471,7 @@ impl XType {
                     )
                 }
             }
-            XType::XCallable(ref a) => format!(
+            Self::XCallable(ref a) => format!(
                 "({})->({})",
                 a.param_types
                     .iter()
@@ -479,7 +479,7 @@ impl XType {
                     .join(", "),
                 a.return_type.display_with_interner(interner)
             ),
-            XType::XFunc(ref a) => {
+            Self::XFunc(ref a) => {
                 let mut ret = "(".to_string();
                 for (i, arg) in a.params.iter().enumerate() {
                     if i > 0 {
@@ -494,38 +494,38 @@ impl XType {
                 ret.push_str(&a.ret.display_with_interner(interner));
                 ret
             }
-            XType::XGeneric(ref a) => interner.resolve(*a).unwrap().to_string(),
-            XType::XNative(ref a, bind) => format!(
+            Self::XGeneric(ref a) => interner.resolve(*a).unwrap().to_string(),
+            Self::XNative(ref a, bind) => format!(
                 "{}<{}>",
                 a.name(),
                 bind.iter()
                     .map(|t| t.display_with_interner(interner))
                     .join(", ")
             ),
-            XType::Tuple(ref a) => format!(
+            Self::Tuple(ref a) => format!(
                 "({})",
                 a.iter()
                     .map(|t| t.display_with_interner(interner))
                     .join(", ")
             ),
-            XType::XUnknown => "?".to_string(),
-            XType::XTail(_) => "tail".to_string(), // todo make unreachable
+            Self::XUnknown => "?".to_string(),
+            Self::XTail(_) => "tail".to_string(), // todo make unreachable
         }
     }
 }
 
-impl PartialEq<XType> for XType {
-    fn eq(&self, other: &XType) -> bool {
+impl PartialEq<Self> for XType {
+    fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (XType::Bool, XType::Bool) => true,
-            (XType::Int, XType::Int) => true,
-            (XType::Float, XType::Float) => true,
-            (XType::String, XType::String) => true,
-            (XType::Compound(k0, ref a, ref a_b), XType::Compound(k1, ref b, ref b_b)) => {
+            (Self::Bool, Self::Bool) => true,
+            (Self::Int, Self::Int) => true,
+            (Self::Float, Self::Float) => true,
+            (Self::String, Self::String) => true,
+            (Self::Compound(k0, ref a, ref a_b), Self::Compound(k1, ref b, ref b_b)) => {
                 k0 == k1 && a.name == b.name && a_b == b_b
             }
-            (XType::XCallable(ref a), XType::XCallable(ref b)) => a.eq(b),
-            (XType::XFunc(ref a), XType::XFunc(ref b)) => {
+            (Self::XCallable(ref a), Self::XCallable(ref b)) => a.eq(b),
+            (Self::XFunc(ref a), Self::XFunc(ref b)) => {
                 a.generic_params == b.generic_params
                     && a.params.len() == b.params.len()
                     && a.params
@@ -533,18 +533,18 @@ impl PartialEq<XType> for XType {
                         .zip(b.params.iter())
                         .all(|(a, b)| a.type_.eq(&b.type_))
             }
-            (XType::XCallable(ref a), XType::XFunc(ref b)) => {
+            (Self::XCallable(ref a), Self::XFunc(ref b)) => {
                 b.generic_params.is_none()
                     && a.param_types == b.params.iter().map(|p| p.type_.clone()).collect::<Vec<_>>()
                     && a.return_type.eq(&b.ret)
             }
-            (XType::XFunc(_), XType::XCallable(_)) => other == self,
-            (XType::XUnknown, XType::XUnknown) => true,
-            (XType::XGeneric(ref a), XType::XGeneric(ref b)) => a == b,
-            (XType::XNative(a, ref a_bind), XType::XNative(b, ref b_bind)) => {
+            (Self::XFunc(_), Self::XCallable(_)) => other == self,
+            (Self::XUnknown, Self::XUnknown) => true,
+            (Self::XGeneric(ref a), Self::XGeneric(ref b)) => a == b,
+            (Self::XNative(a, ref a_bind), Self::XNative(b, ref b_bind)) => {
                 a == b && a_bind == b_bind
             }
-            (XType::Tuple(ref a), XType::Tuple(ref b)) => {
+            (Self::Tuple(ref a), Self::Tuple(ref b)) => {
                 a.len() == b.len() && a.iter().zip(b.iter()).all(|(a, b)| a.eq(b))
             }
             _ => false,

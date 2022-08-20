@@ -70,10 +70,10 @@ impl XSequence {
                     (1 + (start - 1 - end) / -step) as usize
                 }
             }
-            Self::Map(seq, ..) => to_native!(seq, XSequence).len(),
+            Self::Map(seq, ..) => to_native!(seq, Self).len(),
             Self::Zip(sequences) => sequences
                 .iter()
-                .map(|seq| to_native!(seq, XSequence).len())
+                .map(|seq| to_native!(seq, Self).len())
                 .min()
                 .unwrap(),
         }
@@ -93,14 +93,14 @@ impl XSequence {
                 Ok(ManagedXValue::new(XValue::Int(v), rt)?)
             }
             Self::Map(seq, func) => {
-                let original = to_native!(seq, XSequence).get(idx, ns, rt.clone())?;
+                let original = to_native!(seq, Self).get(idx, ns, rt.clone())?;
                 let f = to_primitive!(func, Function);
                 f.eval_values(&[original], ns, rt)
             }
             Self::Zip(sequences) => {
                 let items = sequences
                     .iter()
-                    .map(|seq| to_native!(seq, XSequence).get(idx, ns, rt.clone()))
+                    .map(|seq| to_native!(seq, Self).get(idx, ns, rt.clone()))
                     .collect::<Result<_, _>>()?;
                 Ok(ManagedXValue::new(XValue::StructInstance(items), rt)?)
             }
@@ -130,7 +130,7 @@ impl XSequence {
                 Ok(ret)
             }
             Self::Map(seq, func) => {
-                let seq = to_native!(seq, XSequence);
+                let seq = to_native!(seq, Self);
                 let func = to_primitive!(func, Function);
                 let ret = (start_idx..end_idx)
                     .map(|idx| {
@@ -143,7 +143,7 @@ impl XSequence {
             Self::Zip(sequences) => {
                 let sequences = sequences
                     .iter()
-                    .map(|seq| to_native!(seq, XSequence))
+                    .map(|seq| to_native!(seq, Self))
                     .collect::<Vec<_>>();
                 let ret = (start_idx..end_idx)
                     .map(|idx| {

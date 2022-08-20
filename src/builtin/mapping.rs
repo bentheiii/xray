@@ -113,7 +113,7 @@ impl XMapping {
         }
 
         Ok(manage_native!(
-            XMapping::new(self.hash_func.clone(), self.eq_func.clone(), new_dict),
+            Self::new(self.hash_func.clone(), self.eq_func.clone(), new_dict),
             rt
         ))
     }

@@ -41,7 +41,7 @@ pub struct CompilationResult {
 
 impl From<XExpr> for CompilationResult {
     fn from(expr: XExpr) -> Self {
-        CompilationResult {
+        Self {
             expr,
             closure_vars: vec![],
         }
@@ -50,7 +50,7 @@ impl From<XExpr> for CompilationResult {
 
 impl CompilationResult {
     pub fn new(expr: XExpr, closure_vars: Vec<DefaultSymbol>) -> Self {
-        CompilationResult {
+        Self {
             expr,
             closure_vars,
         }
@@ -141,17 +141,17 @@ pub fn resolve_overload<'p>(
 impl XStaticExpr {
     pub fn new_call(
         name: &'static str,
-        args: Vec<XStaticExpr>,
+        args: Vec<Self>,
         interner: &mut StringInterner,
-    ) -> XStaticExpr {
-        XStaticExpr::Call(
-            Box::new(XStaticExpr::Ident(interner.get_or_intern_static(name))),
+    ) -> Self {
+        Self::Call(
+            Box::new(Self::Ident(interner.get_or_intern_static(name))),
             args,
         )
     }
 
-    pub fn new_call_sym(name: Identifier, args: Vec<XStaticExpr>) -> XStaticExpr {
-        XStaticExpr::Call(Box::new(XStaticExpr::Ident(name)), args)
+    pub fn new_call_sym(name: Identifier, args: Vec<Self>) -> Self {
+        Self::Call(Box::new(Self::Ident(name)), args)
     }
 
     pub fn compile<'p>(
@@ -171,20 +171,20 @@ impl XStaticExpr {
         }
 
         match self {
-            XStaticExpr::LiteralBool(v) => Ok(XExpr::LiteralBool(*v).into()),
-            XStaticExpr::LiteralInt(v) => Ok(XExpr::LiteralInt(*v).into()),
-            XStaticExpr::LiteralFloat(v) => Ok(XExpr::LiteralFloat(*v).into()),
-            XStaticExpr::LiteralString(v) => Ok(XExpr::LiteralString(v.clone()).into()),
-            XStaticExpr::Array(items) => Ok(CompilationResult::from_multi(
+            Self::LiteralBool(v) => Ok(XExpr::LiteralBool(*v).into()),
+            Self::LiteralInt(v) => Ok(XExpr::LiteralInt(*v).into()),
+            Self::LiteralFloat(v) => Ok(XExpr::LiteralFloat(*v).into()),
+            Self::LiteralString(v) => Ok(XExpr::LiteralString(v.clone()).into()),
+            Self::Array(items) => Ok(CompilationResult::from_multi(
                 compile_many(items, namespace)?,
                 XExpr::Array,
             )),
-            XStaticExpr::Call(func, args) => {
+            Self::Call(func, args) => {
                 let (compiled_args, mut cvars) = compile_many(args, namespace)?;
                 match func.as_ref() {
-                    XStaticExpr::Member(obj, member_name) => {
+                    Self::Member(obj, member_name) => {
                         //special case: member access can be a variant constructor
-                        if let XStaticExpr::Ident(name) = obj.as_ref() {
+                        if let Self::Ident(name) = obj.as_ref() {
                             if let Some(XCompilationScopeItem::Compound(
                                 CompoundKind::Union,
                                 spec,
@@ -231,7 +231,7 @@ impl XStaticExpr {
                             }
                         }
                     }
-                    XStaticExpr::Ident(name) => {
+                    Self::Ident(name) => {
                         match namespace.get(*name) {
                             Some(XCompilationScopeItem::Overload(overloads)) => {
                                 let arg_types = compiled_args
@@ -285,7 +285,7 @@ impl XStaticExpr {
                             _ => {}
                         }
                     }
-                    XStaticExpr::SpecializedIdent(name, arg_types) => {
+                    Self::SpecializedIdent(name, arg_types) => {
                         let actual_arg_types = compiled_args
                             .iter()
                             .map(|x| x.xtype())
@@ -341,7 +341,7 @@ impl XStaticExpr {
                     cvars,
                 ))
             }
-            XStaticExpr::Member(obj, member_name) => {
+            Self::Member(obj, member_name) => {
                 let obj_compiled = obj.compile(namespace)?;
                 let obj_type = obj_compiled.expr.xtype()?;
                 match obj_type.as_ref() {
@@ -383,7 +383,7 @@ impl XStaticExpr {
                     }),
                 }
             }
-            XStaticExpr::Ident(name) => match namespace.get_with_depth(*name) {
+            Self::Ident(name) => match namespace.get_with_depth(*name) {
                 None => Err(CompilationError::ValueNotFound { name: *name }),
                 Some((
                     XCompilationScopeItem::Compound(..) | XCompilationScopeItem::NativeType(..),
@@ -435,7 +435,7 @@ impl XStaticExpr {
                     }
                 }
             },
-            XStaticExpr::SpecializedIdent(name, arg_types) => {
+            Self::SpecializedIdent(name, arg_types) => {
                 match namespace.get_with_depth(*name) {
                     Some((XCompilationScopeItem::Overload(overloads), depth)) => {
                         let cvars = if depth != 0 && depth != namespace.height {
@@ -455,7 +455,7 @@ impl XStaticExpr {
                     }),
                 }
             }
-            XStaticExpr::Lambda(args, body) => {
+            Self::Lambda(args, body) => {
                 let mut subscope = XCompilationScope::from_parent_lambda(namespace);
                 for param in args {
                     subscope.add_param(param.name, param.type_.clone())?;
@@ -475,7 +475,7 @@ impl XStaticExpr {
                     )),
                 ))));
             }
-            XStaticExpr::Tuple(items) => Ok(CompilationResult::from_multi(
+            Self::Tuple(items) => Ok(CompilationResult::from_multi(
                 compile_many(items, namespace)?,
                 XExpr::Tuple,
             )),
@@ -529,8 +529,8 @@ impl UfData {
         declarations: Vec<Declaration>,
         output: Box<XExpr>,
         cvars: HashSet<DefaultSymbol>,
-    ) -> UfData {
-        UfData {
+    ) -> Self {
+        Self {
             param_names: spec.args.iter().map(|p| p.name).collect(),
             defaults: spec.args
                 .iter()
@@ -557,10 +557,10 @@ impl UfData {
 impl XStaticFunction {
     pub fn to_function(self: Rc<Self>, closure: &XEvaluationScope<'_>) -> XFunction {
         match self.as_ref() {
-            XStaticFunction::Native(_, native) | XStaticFunction::ShortCircutNative(_, native) => {
+            Self::Native(_, native) | Self::ShortCircutNative(_, native) => {
                 XFunction::Native(native.clone())
             }
-            XStaticFunction::UserFunction(uf) => {
+            Self::UserFunction(uf) => {
                 let closure = uf
                     .cvars
                     .iter()
@@ -568,7 +568,7 @@ impl XStaticFunction {
                     .collect();
                 XFunction::UserFunction(self.clone(), closure)
             }
-            XStaticFunction::Recourse(_, depth) => XFunction::Recourse(*depth),
+            Self::Recourse(_, depth) => XFunction::Recourse(*depth),
         }
     }
 
@@ -576,16 +576,16 @@ impl XStaticFunction {
         spec: XFuncSpec,
         native: impl Fn(&[XExpr], &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String>
             + 'static,
-    ) -> XStaticFunction {
-        XStaticFunction::Native(spec, Rc::new(native))
+    ) -> Self {
+        Self::Native(spec, Rc::new(native))
     }
 
     pub fn from_native_short_circut(
         spec: XFuncSpec,
         native: impl Fn(&[XExpr], &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String>
             + 'static,
-    ) -> XStaticFunction {
-        XStaticFunction::ShortCircutNative(spec, Rc::new(native))
+    ) -> Self {
+        Self::ShortCircutNative(spec, Rc::new(native))
     }
 
     pub fn short_circut_overloads(&self) -> bool {
@@ -600,16 +600,16 @@ impl XStaticFunction {
 impl Debug for XStaticFunction {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
-            XStaticFunction::Native(spec, _) => {
+            Self::Native(spec, _) => {
                 write!(f, "Native({:?})", spec)
             }
-            XStaticFunction::ShortCircutNative(spec, _) => {
+            Self::ShortCircutNative(spec, _) => {
                 write!(f, "Native({:?})", spec)
             }
-            XStaticFunction::UserFunction(spec, ..) => {
+            Self::UserFunction(spec, ..) => {
                 write!(f, "UserFunction({:?})", spec)
             }
-            XStaticFunction::Recourse(spec, ..) => {
+            Self::Recourse(spec, ..) => {
                 write!(f, "Recourse({:?})", spec)
             }
         }
@@ -658,38 +658,38 @@ impl XExplicitFuncSpec {
 impl XStaticFunction {
     pub fn bind(&self, args: &[Arc<XType>]) -> Option<Bind> {
         match self {
-            XStaticFunction::Native(spec, _) | XStaticFunction::ShortCircutNative(spec, _) => {
+            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => {
                 spec.bind(args)
             }
-            XStaticFunction::Recourse(spec, ..) => spec.bind(args),
-            XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().bind(args),
+            Self::Recourse(spec, ..) => spec.bind(args),
+            Self::UserFunction(ud, ..) => ud.spec.to_spec().bind(args),
         }
     }
     pub fn rtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
-            XStaticFunction::Native(spec, _) | XStaticFunction::ShortCircutNative(spec, _) => {
+            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => {
                 spec.rtype(bind)
             }
-            XStaticFunction::Recourse(spec, ..) => spec.rtype(bind),
-            XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().rtype(bind),
+            Self::Recourse(spec, ..) => spec.rtype(bind),
+            Self::UserFunction(ud, ..) => ud.spec.to_spec().rtype(bind),
         }
     }
     pub fn is_generic(&self) -> bool {
         match self {
-            XStaticFunction::Native(spec, _) | XStaticFunction::ShortCircutNative(spec, _) => {
+            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => {
                 spec.generic_params.is_some()
             }
-            XStaticFunction::Recourse(spec, ..) => spec.generic_params.is_some(),
-            XStaticFunction::UserFunction(ud, ..) => ud.spec.generic_params.is_some(),
+            Self::Recourse(spec, ..) => spec.generic_params.is_some(),
+            Self::UserFunction(ud, ..) => ud.spec.generic_params.is_some(),
         }
     }
     pub fn xtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
-            XStaticFunction::Native(spec, _) | XStaticFunction::ShortCircutNative(spec, _) => {
+            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => {
                 spec.xtype(bind)
             }
-            XStaticFunction::Recourse(spec, ..) => spec.xtype(bind),
-            XStaticFunction::UserFunction(ud, ..) => ud.spec.to_spec().xtype(bind),
+            Self::Recourse(spec, ..) => spec.xtype(bind),
+            Self::UserFunction(ud, ..) => ud.spec.to_spec().xtype(bind),
         }
     }
 }
@@ -709,8 +709,8 @@ pub enum TailedEvalResult {
 impl TailedEvalResult {
     pub fn unwrap_value(self) -> Rc<ManagedXValue> {
         match self {
-            TailedEvalResult::Value(v) => v,
-            TailedEvalResult::TailCall(_) => {
+            Self::Value(v) => v,
+            Self::TailCall(_) => {
                 panic!("TailedEvalResult::unwrap_value called on a tail call")
             }
         }
@@ -719,23 +719,23 @@ impl TailedEvalResult {
 
 impl From<Rc<ManagedXValue>> for TailedEvalResult {
     fn from(v: Rc<ManagedXValue>) -> Self {
-        TailedEvalResult::Value(v)
+        Self::Value(v)
     }
 }
 
 impl XExpr {
     pub fn xtype(&self) -> Result<Arc<XType>, CompilationError> {
         match self {
-            XExpr::LiteralBool(_) => Ok(X_BOOL.clone()),
-            XExpr::LiteralInt(_) => Ok(X_INT.clone()),
-            XExpr::LiteralFloat(_) => Ok(X_FLOAT.clone()),
-            XExpr::LiteralString(_) => Ok(X_STRING.clone()),
-            XExpr::Array(exprs) => {
+            Self::LiteralBool(_) => Ok(X_BOOL.clone()),
+            Self::LiteralInt(_) => Ok(X_INT.clone()),
+            Self::LiteralFloat(_) => Ok(X_FLOAT.clone()),
+            Self::LiteralString(_) => Ok(X_STRING.clone()),
+            Self::Array(exprs) => {
                 let element_type = common_type(exprs.iter().map(|x| x.xtype()))?;
                 Ok(XType::XNative(Box::new(XSequenceType {}), vec![element_type]).into())
             }
-            XExpr::Call(func, _) => {
-                if let XExpr::KnownOverload(func, bind) = func.as_ref() {
+            Self::Call(func, _) => {
+                if let Self::KnownOverload(func, bind) = func.as_ref() {
                     return Ok(func.rtype(bind));
                 }
                 let func_type = func.xtype()?;
@@ -749,17 +749,17 @@ impl XExpr {
                     type_: func_type,
                 })
             }
-            XExpr::Construct(spec, binding, ..) => Ok(Arc::new(XType::Compound(
+            Self::Construct(spec, binding, ..) => Ok(Arc::new(XType::Compound(
                 CompoundKind::Struct,
                 spec.clone(),
                 binding.clone(),
             ))),
-            XExpr::Variant(spec, binding, ..) => Ok(Arc::new(XType::Compound(
+            Self::Variant(spec, binding, ..) => Ok(Arc::new(XType::Compound(
                 CompoundKind::Union,
                 spec.clone(),
                 binding.clone(),
             ))),
-            XExpr::Member(obj, idx) => {
+            Self::Member(obj, idx) => {
                 let obj_type = obj.xtype()?;
                 match obj_type.as_ref() {
                     XType::Compound(CompoundKind::Struct, spec, bind) => Ok(spec.fields[*idx]
@@ -779,20 +779,20 @@ impl XExpr {
                     }),
                 }
             }
-            XExpr::KnownOverload(func, bind) => Ok(func.xtype(bind)),
-            XExpr::Lambda(func) => Ok(func.xtype(&Bind::new())),
-            XExpr::Ident(_, item) => match item.as_ref() {
+            Self::KnownOverload(func, bind) => Ok(func.xtype(bind)),
+            Self::Lambda(func) => Ok(func.xtype(&Bind::new())),
+            Self::Ident(_, item) => match item.as_ref() {
                 IdentItem::Value(xtype) => Ok(xtype.clone()),
                 IdentItem::Function(func) => Ok(func.xtype(&Bind::new())),
             },
-            XExpr::Tuple(items) => {
+            Self::Tuple(items) => {
                 let types = items
                     .iter()
                     .map(|x| x.xtype())
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(Arc::new(XType::Tuple(types)))
             }
-            XExpr::Dummy(_) => unreachable!(),
+            Self::Dummy(_) => unreachable!(),
         }
     }
 
@@ -803,15 +803,15 @@ impl XExpr {
         runtime: RTCell,
     ) -> Result<TailedEvalResult, String> {
         match &self {
-            XExpr::LiteralBool(b) => Ok(ManagedXValue::new(XValue::Bool(*b), runtime)?.into()),
-            XExpr::LiteralInt(i) => {
+            Self::LiteralBool(b) => Ok(ManagedXValue::new(XValue::Bool(*b), runtime)?.into()),
+            Self::LiteralInt(i) => {
                 Ok(ManagedXValue::new(XValue::Int(BigInt::from(*i)), runtime)?.into())
             }
-            XExpr::LiteralFloat(r) => Ok(ManagedXValue::new(XValue::Float(*r), runtime)?.into()),
-            XExpr::LiteralString(s) => {
+            Self::LiteralFloat(r) => Ok(ManagedXValue::new(XValue::Float(*r), runtime)?.into()),
+            Self::LiteralString(s) => {
                 Ok(ManagedXValue::new(XValue::String(s.clone()), runtime)?.into())
             }
-            XExpr::Array(exprs) => {
+            Self::Array(exprs) => {
                 let seq = if exprs.is_empty() {
                     XSequence::Empty
                 } else {
@@ -827,7 +827,7 @@ impl XExpr {
                 };
                 Ok(ManagedXValue::new(XValue::Native(Box::new(seq)), runtime)?.into())
             }
-            XExpr::Call(func, args) => {
+            Self::Call(func, args) => {
                 let callable = func
                     .eval(namespace, false, runtime.clone())?
                     .unwrap_value()
@@ -840,7 +840,7 @@ impl XExpr {
                 }
                 Ok(ret)
             }
-            XExpr::Construct(_, _, args) | XExpr::Tuple(args) => {
+            Self::Construct(_, _, args) | Self::Tuple(args) => {
                 let items = args
                     .iter()
                     .map(|x| {
@@ -850,7 +850,7 @@ impl XExpr {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(ManagedXValue::new(XValue::StructInstance(items), runtime)?.into())
             }
-            XExpr::Member(obj, idx) => {
+            Self::Member(obj, idx) => {
                 let obj = obj.eval(namespace, false, runtime.clone())?.unwrap_value();
                 match &obj.value {
                     XValue::StructInstance(items) => Ok(items[*idx].clone().into()),
@@ -867,16 +867,16 @@ impl XExpr {
                     _ => Err(format!("Expected struct, got {:?}", obj)),
                 }
             }
-            XExpr::Variant(.., idx, expr) => {
+            Self::Variant(.., idx, expr) => {
                 let obj = expr.eval(namespace, false, runtime.clone())?.unwrap_value();
                 Ok(ManagedXValue::new(XValue::UnionInstance(*idx, obj), runtime)?.into())
             }
-            XExpr::KnownOverload(func, ..) | XExpr::Lambda(func) => Ok(ManagedXValue::new(
+            Self::KnownOverload(func, ..) | Self::Lambda(func) => Ok(ManagedXValue::new(
                 XValue::Function(func.clone().to_function(namespace)),
                 runtime,
             )?
             .into()),
-            XExpr::Ident(name, item) => {
+            Self::Ident(name, item) => {
                 if let IdentItem::Function(func) = item.as_ref() {
                     Ok(ManagedXValue::new(
                         XValue::Function(func.clone().to_function(namespace)),
@@ -893,7 +893,7 @@ impl XExpr {
                         .into())
                 }
             }
-            XExpr::Dummy(val) => Ok(val.clone().into()),
+            Self::Dummy(val) => Ok(val.clone().into()),
         }
     }
 }
