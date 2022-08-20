@@ -15,6 +15,7 @@ use std::iter::from_fn;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
+use std::iter::FromIterator;
 
 use derivative::Derivative;
 use pest::iterators::Pair;

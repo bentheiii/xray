@@ -98,7 +98,7 @@ pub fn resolve_overload<'p>(
         let b = overload.bind(arg_types);
         if let Some(bind) = b {
             let item = XExpr::KnownOverload(overload.clone(), bind);
-            if overload.short_circut_overloads() {
+            if overload.short_circuit_overloads() {
                 return Ok(item);
             }
             if overload.is_generic() ^ is_unknown {
@@ -588,12 +588,8 @@ impl XStaticFunction {
         Self::ShortCircutNative(spec, Rc::new(native))
     }
 
-    pub fn short_circut_overloads(&self) -> bool {
-        if let Self::ShortCircutNative(..) = self {
-            true
-        } else {
-            false
-        }
+    pub fn short_circuit_overloads(&self) -> bool {
+        matches!(self, Self::ShortCircutNative(..))
     }
 }
 

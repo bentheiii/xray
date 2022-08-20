@@ -1,7 +1,6 @@
 use crate::native_types::NativeType;
 use crate::CompilationError;
 use crate::Identifier;
-use derivative::Derivative;
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
 use std::iter::FromIterator;
@@ -49,15 +48,6 @@ impl Bind {
         }
     }
 
-    pub fn from_iter<T: Iterator>(bound_generics: T) -> Self
-    where
-        HashMap<Identifier, Arc<XType>>: FromIterator<T::Item>,
-    {
-        Self {
-            bound_generics: FromIterator::from_iter(bound_generics),
-        }
-    }
-
     pub fn mix(mut self, other: &Self) -> Option<Self> {
         for (k, v) in other.bound_generics.iter() {
             if let Some(existing) = self.bound_generics.get(k) {
@@ -79,7 +69,16 @@ impl Bind {
     }
 }
 
-#[derive(Clone, Hash, Debug, Eq, PartialEq)]
+impl<I> FromIterator<I> for Bind where HashMap<Identifier, Arc<XType>>: FromIterator<I>{
+    fn from_iter<T: IntoIterator<Item=I>>(iter: T) -> Self {
+        Self {
+            bound_generics: FromIterator::from_iter(iter),
+        }
+    }
+
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct XCompoundSpec {
     pub name: Identifier,
     // this is the full qualified name
@@ -130,29 +129,22 @@ impl XCompoundSpec {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Derivative)]
-#[derivative(Hash)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct XCompoundFieldSpec {
     pub name: String,
-    #[derivative(Hash = "ignore")]
     pub type_: Arc<XType>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Derivative)]
-#[derivative(Hash)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct XCallableSpec {
-    #[derivative(Hash = "ignore")]
     pub param_types: Vec<Arc<XType>>,
-    #[derivative(Hash = "ignore")]
     pub return_type: Arc<XType>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Derivative)]
-#[derivative(Hash)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct XFuncSpec {
     pub generic_params: Option<Vec<DefaultSymbol>>,
     pub params: Vec<XFuncParamSpec>,
-    #[derivative(Hash = "ignore")]
     pub ret: Arc<XType>,
 }
 
@@ -195,10 +187,8 @@ impl XFuncSpec {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Derivative)]
-#[derivative(Hash)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct XFuncParamSpec {
-    #[derivative(Hash = "ignore")]
     pub type_: Arc<XType>,
     pub required: bool,
 }
@@ -395,7 +385,7 @@ impl XType {
                 )
                 .into()
             }
-            Self::XGeneric(ref a) => bind.get(a).cloned().unwrap_or(self.clone()),
+            Self::XGeneric(ref a) => bind.get(a).cloned().unwrap_or_else(|| self.clone()),
             Self::XTail(types) => match tail {
                 None => unreachable!(),
                 Some(t) => {
