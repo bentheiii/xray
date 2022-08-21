@@ -1,5 +1,6 @@
 use crate::xvalue::XValue;
-use num::{BigInt, One, Zero};
+use num_traits::{One, Zero};
+use num_bigint::BigInt;
 use std::ops::Neg;
 
 #[macro_export]

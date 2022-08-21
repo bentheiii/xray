@@ -1,7 +1,7 @@
 use crate::xtype::{X_BOOL, X_UNKNOWN};
-use crate::{CompilationError, RootCompilationScope, XCompilationScope, XFuncParamSpec, XFuncSpec, XStaticFunction};
+use crate::{CompilationError, RootCompilationScope, XFuncParamSpec, XFuncSpec, XStaticFunction};
 use std::rc::Rc;
-use string_interner::StringInterner;
+
 
 pub fn add_unknown_eq(
     scope: &mut RootCompilationScope,

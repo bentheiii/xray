@@ -5,15 +5,16 @@ use crate::util::trysort::try_sort;
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::XType::XCallable;
-use crate::{eval, intern, manage_native, meval, to_native, to_primitive, CompilationError, Identifier, RTCell, XCallableSpec, XCompilationScope, XEvaluationScope, XStaticFunction, XType, RootCompilationScope};
-use num::{BigInt, Signed, ToPrimitive, Zero};
+use crate::{eval, manage_native, meval, to_native, to_primitive, CompilationError, Identifier, RTCell, XCallableSpec, XCompilationScope, XEvaluationScope, XStaticFunction, XType, RootCompilationScope};
+use num_traits::{Signed, ToPrimitive, Zero};
 use rc::Rc;
 use std::borrow::Cow;
 use std::mem::size_of;
 use std::ops::{Neg};
 use std::rc;
 use std::sync::Arc;
-use string_interner::StringInterner;
+use num_bigint::BigInt;
+
 
 use crate::xexpr::XExpr;
 

@@ -1,12 +1,12 @@
 use crate::builtin::core::xcmp;
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError, XCompilationScope, XStaticFunction, RootCompilationScope};
-use num::bigint::Sign;
-use num::{BigInt, BigUint, Float, FromPrimitive, ToPrimitive, Zero};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError, XStaticFunction, RootCompilationScope};
+use num_bigint::{BigInt, BigUint, Sign};
+use num_traits::{Float, FromPrimitive, ToPrimitive, Zero};
 use rc::Rc;
 use std::rc;
-use string_interner::StringInterner;
+
 
 pub fn add_float_type(
     scope: &mut RootCompilationScope,

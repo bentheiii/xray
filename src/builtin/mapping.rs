@@ -4,8 +4,8 @@ use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::XType::XCallable;
-use crate::{eval, intern, manage_native, to_native, to_primitive, CompilationError, RTCell, XCallableSpec, XCompilationScope, XEvaluationScope, XStaticFunction, XType, RootCompilationScope};
-use num::{ToPrimitive};
+use crate::{eval, manage_native, to_native, to_primitive, CompilationError, RTCell, XCallableSpec, XEvaluationScope, XStaticFunction, XType, RootCompilationScope};
+use num_traits::{ToPrimitive};
 use rc::Rc;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -13,7 +13,7 @@ use std::iter::{once};
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
-use string_interner::StringInterner;
+
 
 use crate::xexpr::{TailedEvalResult};
 

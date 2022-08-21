@@ -2,7 +2,7 @@ use std::fmt::{Debug, Display, Formatter};
 use crate::compilation_scope::XCompilationScopeItem;
 use crate::parser::Rule;
 use crate::xexpr::XExpr;
-use crate::{Identifier, intern};
+use crate::{Identifier};
 use crate::{XCompoundSpec, XType};
 use itertools::Itertools;
 use pest::iterators::Pair;
@@ -191,7 +191,7 @@ macro_rules! trivial_resolve {
     ($type_: ty) => {
         impl Resolve for $type_ {
             type Output = Self;
-            fn resolve(&self, interner: &StringInterner) -> Self::Output {
+            fn resolve(&self, _interner: &StringInterner) -> Self::Output {
                 self.clone()
             }
         }
@@ -546,7 +546,6 @@ impl Display for ResolvedCompilationError {
                        name,
                        param_types
                            .iter()
-                           .map(|t| t)
                            .join(", "),
                        if dynamic_failures.is_empty() {
                            "".to_string()
@@ -594,11 +593,9 @@ impl Display for ResolvedCompilationError {
                        struct_name,
                        actual_types
                            .iter()
-                           .map(|t| t)
                            .join(", "),
                        expected_types
                            .iter()
-                           .map(|t| t)
                            .join(", ")
                 )
             }

@@ -1,11 +1,11 @@
 use crate::xexpr::XExpr;
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{add_ufunc, add_ufunc_ref, eval, intern, meval, to_primitive, CompilationError, Identifier, XCompilationScope, XStaticFunction, XType, RootCompilationScope};
+use crate::{add_ufunc, add_ufunc_ref, eval, meval, to_primitive, CompilationError, Identifier, XCompilationScope, XStaticFunction, XType, RootCompilationScope};
 use rc::Rc;
 use std::rc;
 use std::sync::Arc;
-use string_interner::StringInterner;
+
 
 pub fn add_if(
     scope: &mut RootCompilationScope,

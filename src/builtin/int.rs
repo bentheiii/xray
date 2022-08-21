@@ -4,12 +4,15 @@ use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
     add_binop, add_ufunc, add_ufunc_ref, eval, manage_native, meval, to_primitive,
-    CompilationError, XCompilationScope, XStaticFunction,
+    CompilationError, XStaticFunction,
 };
-use num::{BigInt, BigRational, Integer, Signed, ToPrimitive, Zero};
+use num_bigint::BigInt;
+use num_traits::{Signed, ToPrimitive, Zero};
+use num_integer::Integer;
 use rc::Rc;
 use std::rc;
-use string_interner::StringInterner;
+use num_rational::BigRational;
+
 use crate::compilation_scope::RootCompilationScope;
 
 pub fn add_int_type(

@@ -6,7 +6,6 @@
 extern crate lazy_static;
 extern crate derivative;
 extern crate dyn_clone;
-extern crate mopa;
 
 pub mod builtin;
 pub mod compilation_scope;
@@ -36,11 +35,11 @@ use crate::builtin::str::*;
 use crate::builtin::unknown::add_unknown_eq;
 use crate::compilation_scope::{Declaration, RootCompilationScope, XCompilationScope};
 use crate::compile_err::{CompilationError, TracedCompilationError};
-use crate::parser::{Rule, XRayParser};
-use crate::pest::Parser;
+use crate::parser::{XRayParser};
+
 use crate::runtime::RTCell;
-use std::collections::HashSet;
-use string_interner::{DefaultSymbol, StringInterner};
+
+use string_interner::{DefaultSymbol};
 
 use crate::evaluation_scope::XEvaluationScope;
 use crate::xexpr::{

@@ -12,7 +12,7 @@ use crate::{
     manage_native, CompilationError, Declaration, Identifier,
     XCompilationScope, XFuncSpec,
 };
-use num::BigInt;
+use num_bigint::BigInt;
 use std::collections::{HashSet};
 use std::fmt::{Debug, Error, Formatter};
 use std::rc::Rc;

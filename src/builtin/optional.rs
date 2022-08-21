@@ -3,11 +3,11 @@ use crate::xexpr::XExpr;
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::XType::XCallable;
-use crate::{eval, intern, manage_native, to_native, to_primitive, CompilationError, Identifier, XCallableSpec, XCompilationScope, XStaticFunction, XType, RootCompilationScope};
+use crate::{eval, manage_native, to_native, to_primitive, CompilationError, Identifier, XCallableSpec, XCompilationScope, XStaticFunction, XType, RootCompilationScope};
 use rc::Rc;
 use std::rc;
 use std::sync::Arc;
-use string_interner::StringInterner;
+
 
 #[derive(Debug, Clone)]
 pub struct XOptionalType {}

@@ -3,7 +3,7 @@ use crate::native_types::XNativeValue;
 use crate::runtime::{RTCell};
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
 use crate::{Identifier, XCompilationScope, XType};
-use num::BigInt;
+use num_bigint::BigInt;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};

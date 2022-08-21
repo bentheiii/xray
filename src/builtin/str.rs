@@ -1,13 +1,13 @@
 use crate::builtin::core::xcmp;
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError, XCompilationScope, XStaticFunction, RootCompilationScope};
-use num::{BigInt};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError, XStaticFunction, RootCompilationScope};
+use num_bigint::{BigInt};
 use rc::Rc;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::rc;
-use string_interner::StringInterner;
+
 
 pub fn add_str_type(
     scope: &mut RootCompilationScope,

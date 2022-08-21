@@ -1,7 +1,7 @@
 use crate::parser::Rule;
 use crate::runtime::RTCell;
 use crate::xexpr::{resolve_overload, XExpr, XStaticFunction};
-use crate::xtype::{CompoundKind, X_INT, XCompoundSpec, XFuncSpec, XType};
+use crate::xtype::{CompoundKind, XCompoundSpec, XFuncSpec, XType};
 use crate::xvalue::{DynBind};
 use crate::{Bind, CompilationError, CompilationResult, Identifier, TracedCompilationError, UfData, XCallableSpec, XCompoundFieldSpec, XEvaluationScope, XExplicitArgSpec, XExplicitFuncSpec, XRayParser, XStaticExpr};
 use std::borrow::Cow;
@@ -1101,5 +1101,11 @@ impl Deref for RootCompilationScope{
 
     fn deref(&self) -> &Self::Target {
         &self.scope
+    }
+}
+
+impl Default for RootCompilationScope{
+    fn default() -> Self {
+        Self::new()
     }
 }

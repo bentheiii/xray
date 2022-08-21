@@ -1,15 +1,15 @@
 extern crate pest;
 
-use std::collections::HashSet;
-use std::thread::scope;
-use string_interner::StringInterner;
+
+
+
 use xray::compilation_scope::XCompilationScopeItem;
 use xray::evaluation_scope::XEvaluationScope;
-use xray::parser::{Rule, XRayParser};
+
 use xray::runtime::RuntimeLimits;
 use xray::std_compilation_scope;
 
-use crate::pest::Parser;
+
 
 fn main() {
     let input = r###"

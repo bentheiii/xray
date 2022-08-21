@@ -2,11 +2,11 @@ use crate::builtin::core::xcmp;
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, eval, manage_native, to_primitive, CompilationError, XCompilationScope, XStaticFunction, XType, RootCompilationScope};
-use num::{One, Zero};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, eval, manage_native, to_primitive, CompilationError, XStaticFunction, RootCompilationScope};
+use num_traits::{One, Zero};
 use rc::Rc;
 use std::rc;
-use string_interner::StringInterner;
+
 
 pub fn add_bool_type(
     scope: &mut RootCompilationScope,

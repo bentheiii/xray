@@ -2,13 +2,13 @@ use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{eval, intern, manage_native, to_native, CompilationError, XCompilationScope, XStaticFunction, XType, RootCompilationScope};
+use crate::{eval, manage_native, to_native, CompilationError, XStaticFunction, XType, RootCompilationScope};
 use rc::Rc;
 use std::iter::from_fn;
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
-use string_interner::StringInterner;
+
 
 #[derive(Debug, Clone)]
 pub struct XStackType {}
