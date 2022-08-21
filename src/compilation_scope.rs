@@ -2,25 +2,29 @@ use crate::parser::Rule;
 use crate::runtime::RTCell;
 use crate::xexpr::{resolve_overload, XExpr, XStaticFunction};
 use crate::xtype::{CompoundKind, XCompoundSpec, XFuncSpec, XType};
-use crate::xvalue::{DynBind};
-use crate::{Bind, CompilationError, CompilationResult, Identifier, TracedCompilationError, UfData, XCallableSpec, XCompoundFieldSpec, XEvaluationScope, XExplicitArgSpec, XExplicitFuncSpec, XRayParser, XStaticExpr};
+use crate::xvalue::DynBind;
+use crate::{
+    Bind, CompilationError, CompilationResult, Identifier, TracedCompilationError, UfData,
+    XCallableSpec, XCompoundFieldSpec, XEvaluationScope, XExplicitArgSpec, XExplicitFuncSpec,
+    XRayParser, XStaticExpr,
+};
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::iter;
 use std::iter::from_fn;
+use std::iter::FromIterator;
+use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
-use std::iter::FromIterator;
-use std::ops::Deref;
 
+use crate::compile_err::ResolvedTracedCompilationError;
+use crate::pest::Parser;
 use derivative::Derivative;
 use pest::iterators::Pair;
 use pest::prec_climber::Assoc::{Left, Right};
 use pest::prec_climber::{Operator, PrecClimber};
-use crate::compile_err::ResolvedTracedCompilationError;
-use crate::pest::Parser;
 
 pub struct XCompilationScope<'p> {
     pub values: HashMap<Identifier, (Option<XExpr>, Arc<XType>)>,
@@ -97,7 +101,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    fn ancestors(&self) -> impl Iterator<Item=&XCompilationScope<'p>> {
+    fn ancestors(&self) -> impl Iterator<Item = &XCompilationScope<'p>> {
         let mut scope = self;
         from_fn(move || {
             if let Some(parent) = scope.parent {
@@ -183,7 +187,7 @@ impl<'p> XCompilationScope<'p> {
                                         .map(|x| {
                                             if let XFunctionFactory::Static(stat) = x.as_ref() {
                                                 if let XStaticFunction::Recourse(spec, ..) =
-                                                stat.as_ref()
+                                                    stat.as_ref()
                                                 {
                                                     Rc::new(XFunctionFactory::Static(Rc::new(
                                                         XStaticFunction::Recourse(
@@ -255,15 +259,14 @@ impl<'p> XCompilationScope<'p> {
         &mut self,
         name: DefaultSymbol,
         func: impl Fn(
-            Option<&[XExpr]>,
-            &[Arc<XType>],
-            &XCompilationScope<'_>,
-        ) -> Result<Rc<XStaticFunction>, String>
-        + 'static,
+                Option<&[XExpr]>,
+                &[Arc<XType>],
+                &XCompilationScope<'_>,
+            ) -> Result<Rc<XStaticFunction>, String>
+            + 'static,
     ) -> Result<(), CompilationError> {
         // todo ensure no shadowing?
-        self
-            .functions
+        self.functions
             .entry(name)
             .or_insert_with(std::vec::Vec::new)
             .push(Rc::new(XFunctionFactory::Dynamic(Rc::new(func))));
@@ -283,11 +286,11 @@ impl<'p> XCompilationScope<'p> {
         &mut self,
         name: &'static str,
         func: impl Fn(
-            Option<&[XExpr]>,
-            &[Arc<XType>],
-            &XCompilationScope<'_>,
-        ) -> Result<Rc<XStaticFunction>, String>
-        + 'static,
+                Option<&[XExpr]>,
+                &[Arc<XType>],
+                &XCompilationScope<'_>,
+            ) -> Result<Rc<XStaticFunction>, String>
+            + 'static,
         interner: &mut StringInterner,
     ) -> Result<(), CompilationError> {
         self.add_dyn_func(interner.get_or_intern_static(name), func)
@@ -484,7 +487,7 @@ impl<'p> XCompilationScope<'p> {
                             expected_type: complete_type,
                             actual_type: comp_xtype,
                         }
-                            .trace(&input));
+                        .trace(&input));
                     }
                 }
                 self.closure_variables.extend(cvars);
@@ -530,7 +533,7 @@ impl<'p> XCompilationScope<'p> {
                         function_name: Some(fn_symbol),
                         param_name: out_of_order_param.name,
                     }
-                        .trace(&input));
+                    .trace(&input));
                 }
                 let rtype = self.get_complete_type(
                     inners.next().unwrap(),
@@ -569,7 +572,7 @@ impl<'p> XCompilationScope<'p> {
                         expected_type: spec.ret,
                         actual_type: out_type,
                     }
-                        .trace(&input));
+                    .trace(&input));
                 }
                 let cvars = subscope
                     .closure_variables
@@ -729,7 +732,7 @@ impl<'p> XCompilationScope<'p> {
                             return Err(CompilationError::TypeNotFound {
                                 name: name.to_string(),
                             }
-                                .trace(&input));
+                            .trace(&input));
                         }
                         match t.unwrap() {
                             XCompilationScopeItem::NativeType(t) => {
@@ -740,7 +743,7 @@ impl<'p> XCompilationScope<'p> {
                                             expected_count: t.generic_names().len(),
                                             actual_count: gen_params.len(),
                                         }
-                                            .trace(&input));
+                                        .trace(&input));
                                     }
                                     Ok(Arc::new(XType::XNative(t.clone(), gen_params)))
                                 } else {
@@ -754,7 +757,7 @@ impl<'p> XCompilationScope<'p> {
                                         expected_count: t.generic_names.len(),
                                         actual_count: gen_params.len(),
                                     }
-                                        .trace(&input));
+                                    .trace(&input));
                                 }
                                 let bind = Bind::from_iter(
                                     t.generic_names.iter().cloned().zip(gen_params.into_iter()),
@@ -765,7 +768,7 @@ impl<'p> XCompilationScope<'p> {
                                 name: symbol,
                                 item: other,
                             }
-                                .trace(&input)),
+                            .trace(&input)),
                         }
                     }
                 }
@@ -994,7 +997,7 @@ impl<'p> XCompilationScope<'p> {
                         function_name: None,
                         param_name: out_of_order_param.name,
                     }
-                        .trace(&input));
+                    .trace(&input));
                 }
                 let body = iter.next().unwrap();
                 let ret = self.to_expr(body.clone(), interner, runtime)?;
@@ -1050,32 +1053,55 @@ impl RootCompilationScope {
         }
     }
 
-    pub fn add_native_type(&mut self, name: &'static str, type_: Arc<XType>) -> Result<(), CompilationError> {
-        self.scope.add_native_type(self.interner.get_or_intern_static(name), type_)
+    pub fn add_native_type(
+        &mut self,
+        name: &'static str,
+        type_: Arc<XType>,
+    ) -> Result<(), CompilationError> {
+        self.scope
+            .add_native_type(self.interner.get_or_intern_static(name), type_)
     }
 
-    pub fn add_func(&mut self, name: &'static str, func: XStaticFunction) -> Result<(), CompilationError> {
-        self.scope.add_func(self.interner.get_or_intern_static(name), func).map(|_| ())
+    pub fn add_func(
+        &mut self,
+        name: &'static str,
+        func: XStaticFunction,
+    ) -> Result<(), CompilationError> {
+        self.scope
+            .add_func(self.interner.get_or_intern_static(name), func)
+            .map(|_| ())
     }
 
-    pub fn add_dyn_func(&mut self, name: &'static str, func: impl Fn(
-            Option<&[XExpr]>,
-            &[Arc<XType>],
-            &XCompilationScope<'_>,
-        ) -> Result<Rc<XStaticFunction>, String>
-        + 'static)->Result<(), CompilationError>{
-        self.scope.add_dyn_func(self.interner.get_or_intern_static(name), func).map(|_| ())
+    pub fn add_dyn_func(
+        &mut self,
+        name: &'static str,
+        func: impl Fn(
+                Option<&[XExpr]>,
+                &[Arc<XType>],
+                &XCompilationScope<'_>,
+            ) -> Result<Rc<XStaticFunction>, String>
+            + 'static,
+    ) -> Result<(), CompilationError> {
+        self.scope
+            .add_dyn_func(self.interner.get_or_intern_static(name), func)
+            .map(|_| ())
     }
 
-    pub fn generics_from_names<const N: usize>(&mut self, names: [&'static str; N]) -> ([Arc<XType>; N], Vec<Identifier>) {
-        let (v0, v1) = names.iter().map(|name| {
-            let ident = self.interner.get_or_intern_static(name);
-            (XType::XGeneric(ident).into(), ident)
-        }).unzip::<_,_,Vec<_>, Vec<_>>();
+    pub fn generics_from_names<const N: usize>(
+        &mut self,
+        names: [&'static str; N],
+    ) -> ([Arc<XType>; N], Vec<Identifier>) {
+        let (v0, v1) = names
+            .iter()
+            .map(|name| {
+                let ident = self.interner.get_or_intern_static(name);
+                (XType::XGeneric(ident).into(), ident)
+            })
+            .unzip::<_, _, Vec<_>, Vec<_>>();
         (v0.try_into().unwrap(), v1)
     }
 
-    pub fn get_identifier(&mut self, name: &'static str) ->Identifier{
+    pub fn get_identifier(&mut self, name: &'static str) -> Identifier {
         self.interner.get_or_intern_static(name)
     }
 
@@ -1087,16 +1113,17 @@ impl RootCompilationScope {
         let body = XRayParser::parse(Rule::header, input)
             .map(|mut p| p.next().unwrap())
             .map_err(ResolvedTracedCompilationError::Syntax)?;
-        self.scope.feed(body, &HashSet::new(), &mut self.interner, runtime)
+        self.scope
+            .feed(body, &HashSet::new(), &mut self.interner, runtime)
             .map_err(|e| e.resolve_with_input(&self.interner, input))
     }
 
-    pub fn describe_type(&self, t: impl Deref<Target=XType>)->String{
+    pub fn describe_type(&self, t: impl Deref<Target = XType>) -> String {
         t.to_string_with_interner(&self.interner)
     }
 }
 
-impl Deref for RootCompilationScope{
+impl Deref for RootCompilationScope {
     type Target = XCompilationScope<'static>;
 
     fn deref(&self) -> &Self::Target {
@@ -1104,7 +1131,7 @@ impl Deref for RootCompilationScope{
     }
 }
 
-impl Default for RootCompilationScope{
+impl Default for RootCompilationScope {
     fn default() -> Self {
         Self::new()
     }

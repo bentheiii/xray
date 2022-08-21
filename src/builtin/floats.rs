@@ -1,16 +1,17 @@
 use crate::builtin::core::xcmp;
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError, XStaticFunction, RootCompilationScope};
-use num_bigint::{BigInt, BigUint, Sign};
-use num_traits::{Float, FromPrimitive, ToPrimitive, Zero};
+use crate::{
+    add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError,
+    RootCompilationScope, XStaticFunction,
+};
+
+use crate::util::lazy_bigint::LazyBigint;
+use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use rc::Rc;
 use std::rc;
 
-
-pub fn add_float_type(
-    scope: &mut RootCompilationScope,
-) -> Result<(), CompilationError> {
+pub fn add_float_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     scope.add_native_type("float", X_FLOAT.clone())
 }
 
@@ -46,27 +47,14 @@ add_binop!(
     |a: &f64, b: &f64| { Ok(XValue::Bool(a == b)) }
 );
 
-fn whole_float_to_bigint(f: f64) -> BigInt {
-    let (mantissa, exponent, sign) = f.integer_decode();
-    let bigint_sign = if sign == 1 { Sign::Plus } else { Sign::Minus };
-
-    let mut numer: BigUint = FromPrimitive::from_u64(mantissa).unwrap();
-    if exponent < 0 {
-        numer >>= (-exponent) as usize;
-    } else {
-        numer <<= exponent as usize;
-    }
-    BigInt::from_biguint(bigint_sign, numer)
-}
-
 add_ufunc!(add_float_floor, floor, X_FLOAT, Float, X_INT, |a: &f64| Ok(
-    XValue::Int(whole_float_to_bigint(a.floor()))
+    XValue::Int(LazyBigint::from_f64(a.floor()).unwrap())
 ));
 add_ufunc!(add_float_ceil, ceil, X_FLOAT, Float, X_INT, |a: &f64| Ok(
-    XValue::Int(whole_float_to_bigint(a.ceil()))
+    XValue::Int(LazyBigint::from_f64(a.ceil()).unwrap())
 ));
 add_ufunc!(add_float_trunc, trunc, X_FLOAT, Float, X_INT, |a: &f64| Ok(
-    XValue::Int(whole_float_to_bigint(a.trunc()))
+    XValue::Int(LazyBigint::from_f64(a.trunc()).unwrap())
 ));
 
 add_ufunc!(
@@ -80,8 +68,7 @@ add_ufunc!(
             a.to_f64()
                 .ok_or("rational cannot be converted to float")?
                 .to_string(),
-        )
-        )
+        ))
     }
 );
 

@@ -67,13 +67,15 @@ impl Bind {
     }
 }
 
-impl<I> FromIterator<I> for Bind where HashMap<Identifier, Arc<XType>>: FromIterator<I>{
-    fn from_iter<T: IntoIterator<Item=I>>(iter: T) -> Self {
+impl<I> FromIterator<I> for Bind
+where
+    HashMap<Identifier, Arc<XType>>: FromIterator<I>,
+{
+    fn from_iter<T: IntoIterator<Item = I>>(iter: T) -> Self {
         Self {
             bound_generics: FromIterator::from_iter(iter),
         }
     }
-
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -212,10 +214,8 @@ impl XType {
                             .zip(b.generics_with_bind(bind_b).iter())
                             .rev(),
                     ) {
-                        bind.bound_generics.insert(
-                            *gen_name,
-                            gen_arg0.common_type(gen_arg1)?,
-                        );
+                        bind.bound_generics
+                            .insert(*gen_name, gen_arg0.common_type(gen_arg1)?);
                     }
                     Some(Self::Compound(*k0, a.clone(), bind).into())
                 }
@@ -407,9 +407,7 @@ impl XType {
                 }
                 Self::Tuple(new_types).into()
             }
-            Self::Compound(ct, spec, _) => {
-                Self::Compound(*ct, spec.clone(), bind.clone()).into()
-            }
+            Self::Compound(ct, spec, _) => Self::Compound(*ct, spec.clone(), bind.clone()).into(),
             _ => self.clone(),
         }
     }
@@ -451,10 +449,7 @@ impl XType {
                             .map(|n| b
                                 .get(&n.clone())
                                 .map(|t| t.to_string_with_interner(interner))
-                                .unwrap_or_else(|| interner
-                                    .resolve(*n)
-                                    .unwrap()
-                                    .to_string()))
+                                .unwrap_or_else(|| interner.resolve(*n).unwrap().to_string()))
                             .join(", ")
                     )
                 }

@@ -22,6 +22,7 @@ pub mod xvalue;
 extern crate pest;
 #[macro_use]
 pub extern crate pest_derive;
+extern crate core;
 
 use crate::builtin::bool::*;
 use crate::builtin::floats::*;
@@ -35,19 +36,18 @@ use crate::builtin::str::*;
 use crate::builtin::unknown::add_unknown_eq;
 use crate::compilation_scope::{Declaration, RootCompilationScope, XCompilationScope};
 use crate::compile_err::{CompilationError, TracedCompilationError};
-use crate::parser::{XRayParser};
+use crate::parser::XRayParser;
 
 use crate::runtime::RTCell;
 
-use string_interner::{DefaultSymbol};
+use string_interner::DefaultSymbol;
 
 use crate::evaluation_scope::XEvaluationScope;
 use crate::xexpr::{
     CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction,
 };
 use crate::xtype::{
-    Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncParamSpec,
-    XFuncSpec, XType,
+    Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncParamSpec, XFuncSpec, XType,
 };
 
 pub type Identifier = DefaultSymbol;

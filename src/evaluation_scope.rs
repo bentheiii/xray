@@ -1,9 +1,9 @@
 use crate::runtime::RTCell;
-use crate::xexpr::{XStaticFunction};
+use crate::xexpr::XStaticFunction;
 use crate::xvalue::{ManagedXValue, XFunction};
-use std::collections::{HashMap};
+use std::collections::HashMap;
 use std::rc::Rc;
-use string_interner::{DefaultSymbol};
+use string_interner::DefaultSymbol;
 
 use crate::compilation_scope::Declaration;
 

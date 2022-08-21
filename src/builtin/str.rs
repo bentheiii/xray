@@ -1,17 +1,18 @@
 use crate::builtin::core::xcmp;
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError, XStaticFunction, RootCompilationScope};
-use num_bigint::{BigInt};
+use crate::{
+    add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError,
+    RootCompilationScope, XStaticFunction,
+};
+
+use crate::util::lazy_bigint::LazyBigint;
 use rc::Rc;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::rc;
 
-
-pub fn add_str_type(
-    scope: &mut RootCompilationScope,
-) -> Result<(), CompilationError> {
+pub fn add_str_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     scope.add_native_type("str", X_STRING.clone())
 }
 
@@ -46,7 +47,7 @@ add_ufunc!(add_str_hash, hash, X_STRING, String, X_INT, |a: &String| {
         let mut s = DefaultHasher::new();
         a.hash(&mut s);
         let hash = s.finish();
-        BigInt::from(hash)
+        LazyBigint::from(hash)
     }))
 });
 

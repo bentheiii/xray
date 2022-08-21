@@ -1,12 +1,12 @@
-use std::fmt::{Debug, Display, Formatter};
 use crate::compilation_scope::XCompilationScopeItem;
 use crate::parser::Rule;
 use crate::xexpr::XExpr;
-use crate::{Identifier};
+use crate::Identifier;
 use crate::{XCompoundSpec, XType};
 use itertools::Itertools;
 use pest::iterators::Pair;
 use pest::Position;
+use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use string_interner::StringInterner;
 use strum::IntoStaticStr;
@@ -159,7 +159,7 @@ impl Resolve for Identifier {
     }
 }
 
-impl Resolve for XCompoundSpec{
+impl Resolve for XCompoundSpec {
     type Output = String;
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
         interner.resolve(self.name).unwrap().to_string()
@@ -195,7 +195,7 @@ macro_rules! trivial_resolve {
                 self.clone()
             }
         }
-    }
+    };
 }
 
 trivial_resolve!(String);
@@ -217,9 +217,18 @@ macro_rules! resolve_variants {
 impl Resolve for CompilationError {
     type Output = ResolvedCompilationError;
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
-        resolve_variants!(self, interner,
-            VariableTypeMismatch { variable_name, expected_type, actual_type },
-            RequiredParamsAfterOptionalParams { function_name, param_name },
+        resolve_variants!(
+            self,
+            interner,
+            VariableTypeMismatch {
+                variable_name,
+                expected_type,
+                actual_type
+            },
+            RequiredParamsAfterOptionalParams {
+                function_name,
+                param_name
+            },
             DefaultEvaluationError {
                 function_name,
                 param_name,
@@ -237,7 +246,7 @@ impl Resolve for CompilationError {
                 actual_count,
             },
             ValueIsNotType { name, item },
-            PairNotType{},
+            PairNotType {},
             NameAlreadyDefined { name, other },
             AmbiguousOverload {
                 name,
@@ -250,7 +259,7 @@ impl Resolve for CompilationError {
                 param_types,
                 dynamic_failures,
             },
-            VariantConstructorOneArg{},
+            VariantConstructorOneArg {},
             VariantConstructorTypeArgMismatch {
                 union_name,
                 variant_name,
@@ -307,9 +316,17 @@ impl CompilationError {
 }
 
 impl TracedCompilationError {
-    pub fn resolve_with_input(self, interner: &StringInterner, input: &str) -> ResolvedTracedCompilationError {
+    pub fn resolve_with_input(
+        self,
+        interner: &StringInterner,
+        input: &str,
+    ) -> ResolvedTracedCompilationError {
         let Self(err, ((start_line, _), start_pos), (_, end_pos)) = self;
-        ResolvedTracedCompilationError::Compilation(err.resolve(interner), start_line, input[start_pos..end_pos].to_string())
+        ResolvedTracedCompilationError::Compilation(
+            err.resolve(interner),
+            start_line,
+            input[start_pos..end_pos].to_string(),
+        )
     }
 }
 
@@ -451,21 +468,21 @@ impl Display for ResolvedCompilationError {
                 expected_type,
                 actual_type,
             } => {
-                write!(f,
-                       "Variable {} has type {}, but expected {}",
-                       variable_name,
-                       actual_type,
-                       expected_type
+                write!(
+                    f,
+                    "Variable {} has type {}, but expected {}",
+                    variable_name, actual_type, expected_type
                 )
             }
             Self::RequiredParamsAfterOptionalParams {
                 function_name,
                 param_name,
             } => {
-                write!(f,
-                       "Required parameter {} after optional parameter in function {}",
-                       param_name,
-                       function_name.as_deref().unwrap_or("<lambda>")
+                write!(
+                    f,
+                    "Required parameter {} after optional parameter in function {}",
+                    param_name,
+                    function_name.as_deref().unwrap_or("<lambda>")
                 )
             }
             Self::DefaultEvaluationError {
@@ -473,11 +490,12 @@ impl Display for ResolvedCompilationError {
                 param_name,
                 error,
             } => {
-                write!(f,
-                       "Error evaluating default value for parameter {} in function {}: {}",
-                       param_name,
-                       function_name.as_deref().unwrap_or("<lambda>"),
-                       error
+                write!(
+                    f,
+                    "Error evaluating default value for parameter {} in function {}: {}",
+                    param_name,
+                    function_name.as_deref().unwrap_or("<lambda>"),
+                    error
                 )
             }
             Self::FunctionOutputTypeMismatch {
@@ -485,11 +503,10 @@ impl Display for ResolvedCompilationError {
                 expected_type,
                 actual_type,
             } => {
-                write!(f,
-                       "Function {} has output type {}, but expected {}",
-                       function_name,
-                       actual_type,
-                       expected_type
+                write!(
+                    f,
+                    "Function {} has output type {}, but expected {}",
+                    function_name, actual_type, expected_type
                 )
             }
             Self::TypeNotFound { name } => {
@@ -500,27 +517,20 @@ impl Display for ResolvedCompilationError {
                 expected_count,
                 actual_count,
             } => {
-                write!(f,
-                       "Type {} has {} generic parameters, but expected {}",
-                       type_name, actual_count, expected_count
+                write!(
+                    f,
+                    "Type {} has {} generic parameters, but expected {}",
+                    type_name, actual_count, expected_count
                 )
             }
             Self::ValueIsNotType { name, item } => {
-                write!(f,
-                       "{} is not of type (found {:?})",
-                       name,
-                       item,
-                )
+                write!(f, "{} is not of type (found {:?})", name, item,)
             }
             Self::PairNotType => {
-                write!(f, "Expression cannot be interpreted as a type", )
+                write!(f, "Expression cannot be interpreted as a type",)
             }
             Self::NameAlreadyDefined { name, other } => {
-                write!(f,
-                       "Name {} is already defined as {:?}",
-                       name,
-                       other
-                )
+                write!(f, "Name {} is already defined as {:?}", name, other)
             }
             Self::AmbiguousOverload {
                 name,
@@ -528,12 +538,13 @@ impl Display for ResolvedCompilationError {
                 items,
                 param_types,
             } => {
-                write!(f,
-                       "Overload{} for {} is ambiguous for param types {}: {:?}",
-                       if *is_generic { " (generic)" } else { "" },
-                       name,
-                       param_types.iter().format(","),
-                       items
+                write!(
+                    f,
+                    "Overload{} for {} is ambiguous for param types {}: {:?}",
+                    if *is_generic { " (generic)" } else { "" },
+                    name,
+                    param_types.iter().format(","),
+                    items
                 )
             }
             Self::NoOverload {
@@ -541,17 +552,16 @@ impl Display for ResolvedCompilationError {
                 param_types,
                 dynamic_failures,
             } => {
-                write!(f,
-                       "No overload for {} found for param types [{}]{}",
-                       name,
-                       param_types
-                           .iter()
-                           .join(", "),
-                       if dynamic_failures.is_empty() {
-                           "".to_string()
-                       } else {
-                           " dynamic failures: ".to_owned() + &dynamic_failures.join(", ")
-                       },
+                write!(
+                    f,
+                    "No overload for {} found for param types [{}]{}",
+                    name,
+                    param_types.iter().join(", "),
+                    if dynamic_failures.is_empty() {
+                        "".to_string()
+                    } else {
+                        " dynamic failures: ".to_owned() + &dynamic_failures.join(", ")
+                    },
                 )
             }
             Self::VariantConstructorOneArg => {
@@ -563,12 +573,10 @@ impl Display for ResolvedCompilationError {
                 expected_type,
                 actual_type,
             } => {
-                write!(f,
-                       "Variant {} of union {} has type {}, but expected {}",
-                       variant_name,
-                       union_name,
-                       actual_type,
-                       expected_type
+                write!(
+                    f,
+                    "Variant {} of union {} has type {}, but expected {}",
+                    variant_name, union_name, actual_type, expected_type
                 )
             }
             Self::StructParamsLengthMismatch {
@@ -576,11 +584,10 @@ impl Display for ResolvedCompilationError {
                 expected_count,
                 actual_count,
             } => {
-                write!(f,
-                       "Struct {} has {} parameters, but expected {}",
-                       struct_name,
-                       actual_count,
-                       expected_count
+                write!(
+                    f,
+                    "Struct {} has {} parameters, but expected {}",
+                    struct_name, actual_count, expected_count
                 )
             }
             Self::StructFieldTypeMismatch {
@@ -588,22 +595,19 @@ impl Display for ResolvedCompilationError {
                 expected_types,
                 actual_types,
             } => {
-                write!(f,
-                       "Struct {} has parameters of types [{:?}], but expected [{:?}]",
-                       struct_name,
-                       actual_types
-                           .iter()
-                           .join(", "),
-                       expected_types
-                           .iter()
-                           .join(", ")
+                write!(
+                    f,
+                    "Struct {} has parameters of types [{:?}], but expected [{:?}]",
+                    struct_name,
+                    actual_types.iter().join(", "),
+                    expected_types.iter().join(", ")
                 )
             }
             Self::NonFunctionSpecialization { name, item } => {
-                write!(f,
-                       "Cannot specialize non-function {} (found {:?})",
-                       name,
-                       item,
+                write!(
+                    f,
+                    "Cannot specialize non-function {} (found {:?})",
+                    name, item,
                 )
             }
             Self::SpecializedFunctionTypeMismatch {
@@ -612,36 +616,26 @@ impl Display for ResolvedCompilationError {
                 expected_type,
                 actual_type,
             } => {
-                write!(f, "Specialized argument at index {} of function {} has type {}, but expected {}",
-                       idx,
-                       name,
-                       actual_type,
-                       expected_type,
+                write!(
+                    f,
+                    "Specialized argument at index {} of function {} has type {}, but expected {}",
+                    idx, name, actual_type, expected_type,
                 )
             }
             Self::FunctionNotFound { name } => {
-                write!(f,
-                       "Function {} not found",
-                       name
-                )
+                write!(f, "Function {} not found", name)
             }
             Self::MemberNotFound { spec, name } => {
-                write!(f,
-                       "Member {} not found in compound {}",
-                       name,
-                       spec
-                )
+                write!(f, "Member {} not found in compound {}", name, spec)
             }
             Self::NonCompoundMemberAccess { xtype } => {
-                write!(f,
-                       "Cannot access member of non-compound type {}",
-                       xtype
-                )
+                write!(f, "Cannot access member of non-compound type {}", xtype)
             }
             Self::NonItemTupleAccess { member } => {
-                write!(f,
-                       "Member access to tuple must be of the for \"item<positive number>\", got {:?}",
-                       member
+                write!(
+                    f,
+                    "Member access to tuple must be of the for \"item<positive number>\", got {:?}",
+                    member
                 )
             }
             Self::TupleIndexOutOfBounds {
@@ -649,60 +643,46 @@ impl Display for ResolvedCompilationError {
                 index,
                 max: max_index,
             } => {
-                write!(f,
-                       "Tuple index {} out of bounds for tuple {} of size {}",
-                       index,
-                       tuple_type,
-                       max_index
+                write!(
+                    f,
+                    "Tuple index {} out of bounds for tuple {} of size {}",
+                    index, tuple_type, max_index
                 )
             }
             Self::ValueNotFound { name } => {
-                write!(f,
-                       "Value {} not found",
-                       name
-                )
+                write!(f, "Value {} not found", name)
             }
             Self::TypeAsVariable { name } => {
-                write!(f,
-                       "Cannot use type {} as variable",
-                       name
-                )
+                write!(f, "Cannot use type {} as variable", name)
             }
             Self::GenericFunctionAsVariable { name } => {
-                write!(f,
-                       "Cannot use generic function {} as variable",
-                       name
-                )
+                write!(f, "Cannot use generic function {} as variable", name)
             }
             Self::OverloadedFunctionAsVariable { name } => {
-                write!(f,
-                       "Cannot use overloaded function {} as variable",
-                       name
-                )
+                write!(f, "Cannot use overloaded function {} as variable", name)
             }
             Self::IncompatibleTypes { type0, type1 } => {
-                write!(f,
-                       "Incompatible types: {} and {}",
-                       type0,
-                       type1
-                )
+                write!(f, "Incompatible types: {} and {}", type0, type1)
             }
             Self::NotAFunction { type_ } => {
-                write!(f,
-                       "expression does not evaluate to a function (got {})",
-                       type_
+                write!(
+                    f,
+                    "expression does not evaluate to a function (got {})",
+                    type_
                 )
             }
             Self::NotACompound { type_ } => {
-                write!(f,
-                       "expression does not evaluate to a compound (got {})",
-                       type_
+                write!(
+                    f,
+                    "expression does not evaluate to a compound (got {})",
+                    type_
                 )
             }
             Self::DynamicFunctionAsVariable { name } => {
-                write!(f,
-                       "Cannot use unspecialized dynamic function {} as variable",
-                       name
+                write!(
+                    f,
+                    "Cannot use unspecialized dynamic function {} as variable",
+                    name
                 )
             }
         }
@@ -718,12 +698,14 @@ impl Display for ResolvedTracedCompilationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Syntax(e) => Display::fmt(e, f),
-            Self::Compilation(r, start_line, errant_area) => write!(f, "{} {{{}| {}}} [{}]",
-                                                                    r,
-                                                                    start_line,
-                                                                    errant_area,
-                                                                    <&ResolvedCompilationError as Into<&'static str>>::into(r)
-            )
+            Self::Compilation(r, start_line, errant_area) => write!(
+                f,
+                "{} {{{}| {}}} [{}]",
+                r,
+                start_line,
+                errant_area,
+                <&ResolvedCompilationError as Into<&'static str>>::into(r)
+            ),
         }
     }
 }

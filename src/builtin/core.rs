@@ -1,14 +1,13 @@
 use crate::xvalue::XValue;
 use num_traits::{One, Zero};
-use num_bigint::BigInt;
+
+use crate::util::lazy_bigint::LazyBigint;
 use std::ops::Neg;
 
 #[macro_export]
 macro_rules! add_binop {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
-        pub fn $fn_name(
-            scope: &mut RootCompilationScope,
-        ) -> Result<(), $crate::CompilationError> {
+        pub fn $fn_name(scope: &mut RootCompilationScope) -> Result<(), $crate::CompilationError> {
             scope.add_func(
                 stringify!($name),
                 XStaticFunction::from_native(
@@ -42,9 +41,7 @@ macro_rules! add_binop {
 #[macro_export]
 macro_rules! add_ufunc_ref {
     ($fn_name:ident, $name:ident, $operand_type: ident, $return_type:ident, $func:expr) => {
-        pub fn $fn_name(
-            scope: &mut RootCompilationScope,
-        ) -> Result<(), $crate::CompilationError> {
+        pub fn $fn_name(scope: &mut RootCompilationScope) -> Result<(), $crate::CompilationError> {
             scope.add_func(
                 stringify!($name),
                 XStaticFunction::from_native(
@@ -145,10 +142,10 @@ macro_rules! manage_native {
 
 pub fn xcmp<T: PartialOrd>(rhs: T, lhs: T) -> XValue {
     XValue::Int(if rhs < lhs {
-        BigInt::one().neg()
+        LazyBigint::one().neg()
     } else if rhs > lhs {
-        BigInt::one()
+        LazyBigint::one()
     } else {
-        BigInt::zero()
+        LazyBigint::zero()
     })
 }

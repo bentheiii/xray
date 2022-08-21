@@ -1,9 +1,10 @@
 use crate::evaluation_scope::XEvaluationScope;
 use crate::native_types::XNativeValue;
-use crate::runtime::{RTCell};
+use crate::runtime::RTCell;
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
 use crate::{Identifier, XCompilationScope, XType};
-use num_bigint::BigInt;
+
+use crate::util::lazy_bigint::LazyBigint;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
@@ -14,7 +15,7 @@ use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum XValue {
-    Int(BigInt),
+    Int(LazyBigint),
     Float(f64),
     String(String),
     Bool(bool),
@@ -162,11 +163,11 @@ impl XFunction {
                     }
                 }
             }
-            Self::Recourse(depth) => parent_scope
-                .ancestor(*depth)
-                .recourse
-                .unwrap()
-                .eval_values(args, parent_scope, runtime),
+            Self::Recourse(depth) => parent_scope.ancestor(*depth).recourse.unwrap().eval_values(
+                args,
+                parent_scope,
+                runtime,
+            ),
         }
     }
 }
@@ -198,7 +199,7 @@ impl Eq for XFunction {}
 impl XValue {
     pub fn size(&self) -> usize {
         match self {
-            Self::Int(i) => (i.bits() / 8) as usize,
+            Self::Int(i) => size_of::<LazyBigint>() + (i.bits() / 8_u64) as usize,
             Self::Float(_) => 64 / 8,
             Self::String(s) => s.len(),
             Self::Bool(_) => 1,

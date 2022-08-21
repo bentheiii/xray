@@ -2,18 +2,18 @@ use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::compilation_scope::{XCompilationScopeItem, XFunctionFactory};
 use crate::evaluation_scope::XEvaluationScope;
-use crate::runtime::{RTCell};
+use crate::runtime::RTCell;
 use crate::xtype::{
     common_type, Bind, CompoundKind, XCompoundSpec, XFuncParamSpec, XType, X_BOOL, X_FLOAT, X_INT,
     X_STRING,
 };
 use crate::xvalue::{ManagedXValue, NativeCallable, XFunction, XValue};
 use crate::{
-    manage_native, CompilationError, Declaration, Identifier,
-    XCompilationScope, XFuncSpec,
+    manage_native, CompilationError, Declaration, Identifier, XCompilationScope, XFuncSpec,
 };
-use num_bigint::BigInt;
-use std::collections::{HashSet};
+
+use crate::util::lazy_bigint::LazyBigint;
+use std::collections::HashSet;
 use std::fmt::{Debug, Error, Formatter};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -50,10 +50,7 @@ impl From<XExpr> for CompilationResult {
 
 impl CompilationResult {
     pub fn new(expr: XExpr, closure_vars: Vec<DefaultSymbol>) -> Self {
-        Self {
-            expr,
-            closure_vars,
-        }
+        Self { expr, closure_vars }
     }
     fn join(results: Vec<Self>) -> (Vec<XExpr>, Vec<DefaultSymbol>) {
         let mut exprs = vec![];
@@ -139,11 +136,7 @@ pub fn resolve_overload<'p>(
 }
 
 impl XStaticExpr {
-    pub fn new_call(
-        name: &'static str,
-        args: Vec<Self>,
-        interner: &mut StringInterner,
-    ) -> Self {
+    pub fn new_call(name: &'static str, args: Vec<Self>, interner: &mut StringInterner) -> Self {
         Self::Call(
             Box::new(Self::Ident(interner.get_or_intern_static(name))),
             args,
@@ -426,35 +419,30 @@ impl XStaticExpr {
                                     }
                                 }
                             } else {
-                                Err(CompilationError::OverloadedFunctionAsVariable {
-                                    name: *name,
-                                })
+                                Err(CompilationError::OverloadedFunctionAsVariable { name: *name })
                             }
                         }
                         _ => unreachable!(),
                     }
                 }
             },
-            Self::SpecializedIdent(name, arg_types) => {
-                match namespace.get_with_depth(*name) {
-                    Some((XCompilationScopeItem::Overload(overloads), depth)) => {
-                        let cvars = if depth != 0 && depth != namespace.height {
-                            vec![*name]
-                        } else {
-                            vec![]
-                        };
-                        Ok(CompilationResult::new(
-                            resolve_overload(overloads, None, arg_types, *name, namespace)?,
-                            cvars,
-                        ))
-                    }
-                    None => Err(CompilationError::FunctionNotFound { name: *name }),
-                    Some((item, _)) => Err(CompilationError::NonFunctionSpecialization {
-                        name: *name,
-                        item,
-                    }),
+            Self::SpecializedIdent(name, arg_types) => match namespace.get_with_depth(*name) {
+                Some((XCompilationScopeItem::Overload(overloads), depth)) => {
+                    let cvars = if depth != 0 && depth != namespace.height {
+                        vec![*name]
+                    } else {
+                        vec![]
+                    };
+                    Ok(CompilationResult::new(
+                        resolve_overload(overloads, None, arg_types, *name, namespace)?,
+                        cvars,
+                    ))
                 }
-            }
+                None => Err(CompilationError::FunctionNotFound { name: *name }),
+                Some((item, _)) => {
+                    Err(CompilationError::NonFunctionSpecialization { name: *name, item })
+                }
+            },
             Self::Lambda(args, body) => {
                 let mut subscope = XCompilationScope::from_parent_lambda(namespace);
                 for param in args {
@@ -532,7 +520,8 @@ impl UfData {
     ) -> Self {
         Self {
             param_names: spec.args.iter().map(|p| p.name).collect(),
-            defaults: spec.args
+            defaults: spec
+                .args
                 .iter()
                 .skip_while(|p| p.default.is_none())
                 .map(|p| p.default.clone().unwrap())
@@ -654,18 +643,14 @@ impl XExplicitFuncSpec {
 impl XStaticFunction {
     pub fn bind(&self, args: &[Arc<XType>]) -> Option<Bind> {
         match self {
-            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => {
-                spec.bind(args)
-            }
+            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => spec.bind(args),
             Self::Recourse(spec, ..) => spec.bind(args),
             Self::UserFunction(ud, ..) => ud.spec.to_spec().bind(args),
         }
     }
     pub fn rtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
-            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => {
-                spec.rtype(bind)
-            }
+            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => spec.rtype(bind),
             Self::Recourse(spec, ..) => spec.rtype(bind),
             Self::UserFunction(ud, ..) => ud.spec.to_spec().rtype(bind),
         }
@@ -681,9 +666,7 @@ impl XStaticFunction {
     }
     pub fn xtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
-            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => {
-                spec.xtype(bind)
-            }
+            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => spec.xtype(bind),
             Self::Recourse(spec, ..) => spec.xtype(bind),
             Self::UserFunction(ud, ..) => ud.spec.to_spec().xtype(bind),
         }
@@ -741,9 +724,7 @@ impl XExpr {
                 if let XType::XFunc(func) = func_type.as_ref() {
                     return Ok(func.rtype(&Bind::new()));
                 }
-                Err(CompilationError::NotAFunction {
-                    type_: func_type,
-                })
+                Err(CompilationError::NotAFunction { type_: func_type })
             }
             Self::Construct(spec, binding, ..) => Ok(Arc::new(XType::Compound(
                 CompoundKind::Struct,
@@ -801,7 +782,7 @@ impl XExpr {
         match &self {
             Self::LiteralBool(b) => Ok(ManagedXValue::new(XValue::Bool(*b), runtime)?.into()),
             Self::LiteralInt(i) => {
-                Ok(ManagedXValue::new(XValue::Int(BigInt::from(*i)), runtime)?.into())
+                Ok(ManagedXValue::new(XValue::Int(LazyBigint::from(*i)), runtime)?.into())
             }
             Self::LiteralFloat(r) => Ok(ManagedXValue::new(XValue::Float(*r), runtime)?.into()),
             Self::LiteralString(s) => {
@@ -824,10 +805,7 @@ impl XExpr {
                 Ok(ManagedXValue::new(XValue::Native(Box::new(seq)), runtime)?.into())
             }
             Self::Call(func, args) => {
-                let callable = func
-                    .eval(namespace, false, runtime.clone())?
-                    .unwrap_value()
-                    ;
+                let callable = func.eval(namespace, false, runtime.clone())?.unwrap_value();
                 let ret;
                 if let XValue::Function(xfunc) = &callable.value {
                     ret = xfunc.eval(args, namespace, tail_available, runtime)?;
@@ -885,7 +863,6 @@ impl XExpr {
                         .ok_or_else(|| {
                             format!("Undefined identifier during evaluation: {:?}", name)
                         })?
-                        
                         .into())
                 }
             }

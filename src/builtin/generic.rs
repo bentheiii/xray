@@ -1,17 +1,18 @@
 use crate::xexpr::XExpr;
 use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{add_ufunc, add_ufunc_ref, eval, meval, to_primitive, CompilationError, Identifier, XCompilationScope, XStaticFunction, XType, RootCompilationScope};
+use crate::{
+    add_ufunc, add_ufunc_ref, eval, meval, to_primitive, CompilationError, Identifier,
+    RootCompilationScope, XCompilationScope, XStaticFunction, XType,
+};
 use rc::Rc;
 use std::rc;
 use std::sync::Arc;
 
-
-pub fn add_if(
-    scope: &mut RootCompilationScope,
-) -> Result<(), CompilationError> {
+pub fn add_if(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
-    scope.add_func("if",
+    scope.add_func(
+        "if",
         XStaticFunction::from_native(
             XFuncSpec {
                 generic_params: Some(params),
@@ -52,9 +53,7 @@ add_ufunc!(
     |a: &String| Err(a.clone())
 );
 
-pub fn add_cast(
-    scope: &mut RootCompilationScope,
-) -> Result<(), CompilationError> {
+pub fn add_cast(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "cast",
@@ -72,9 +71,7 @@ pub fn add_cast(
     )
 }
 
-pub fn add_debug(
-    scope: &mut RootCompilationScope,
-) -> Result<(), CompilationError> {
+pub fn add_debug(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "debug",
@@ -104,9 +101,7 @@ pub fn add_debug(
     )
 }
 
-pub fn add_is_error(
-    scope: &mut RootCompilationScope,
-) -> Result<(), CompilationError> {
+pub fn add_is_error(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "is_error",
@@ -127,9 +122,7 @@ pub fn add_is_error(
     )
 }
 
-pub fn add_if_error(
-    scope: &mut RootCompilationScope,
-) -> Result<(), CompilationError> {
+pub fn add_if_error(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if_error",
@@ -156,9 +149,7 @@ pub fn add_if_error(
     )
 }
 
-pub fn add_ne(
-    scope: &mut RootCompilationScope,
-) -> Result<(), CompilationError> {
+pub fn add_ne(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let eq_symbol = scope.get_identifier("eq");
 
     fn static_from_eq(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr) -> Rc<XStaticFunction> {
@@ -204,8 +195,7 @@ pub fn add_ne(
         Ok(static_from_eq(t0, t1, inner_eq))
     }
 
-    scope.add_dyn_func(
-        "ne",
-        move |_params, types, ns| from_types(types, ns, eq_symbol),
-    )
+    scope.add_dyn_func("ne", move |_params, types, ns| {
+        from_types(types, ns, eq_symbol)
+    })
 }
