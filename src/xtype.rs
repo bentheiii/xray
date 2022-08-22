@@ -31,7 +31,7 @@ pub enum CompoundKind {
     Union,
 }
 
-impl Display for CompoundKind{
+impl Display for CompoundKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Struct => write!(f, "struct"),
@@ -46,17 +46,17 @@ pub struct Bind {
 }
 
 impl Bind {
-    pub fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self::default()
     }
 
-    pub fn from<T: Into<HashMap<Identifier, Arc<XType>>>>(bound_generics: T) -> Self {
+    pub(crate) fn from<T: Into<HashMap<Identifier, Arc<XType>>>>(bound_generics: T) -> Self {
         Self {
             bound_generics: bound_generics.into(),
         }
     }
 
-    pub fn mix(mut self, other: &Self) -> Option<Self> {
+    pub(crate) fn mix(mut self, other: &Self) -> Option<Self> {
         for (k, v) in other.bound_generics.iter() {
             if let Some(existing) = self.bound_generics.get(k) {
                 let new_bind = existing.common_type(v)?;
@@ -68,20 +68,20 @@ impl Bind {
         Some(self)
     }
 
-    pub fn get(&self, id: &Identifier) -> Option<&Arc<XType>> {
+    fn get(&self, id: &Identifier) -> Option<&Arc<XType>> {
         self.bound_generics.get(id)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&Identifier, &Arc<XType>)> {
+    fn iter(&self) -> impl Iterator<Item=(&Identifier, &Arc<XType>)> {
         self.bound_generics.iter()
     }
 }
 
 impl<I> FromIterator<I> for Bind
-where
-    HashMap<Identifier, Arc<XType>>: FromIterator<I>,
+    where
+        HashMap<Identifier, Arc<XType>>: FromIterator<I>,
 {
-    fn from_iter<T: IntoIterator<Item = I>>(iter: T) -> Self {
+    fn from_iter<T: IntoIterator<Item=I>>(iter: T) -> Self {
         Self {
             bound_generics: FromIterator::from_iter(iter),
         }
@@ -90,15 +90,15 @@ where
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct XCompoundSpec {
-    pub name: Identifier,
+    pub(crate) name: Identifier,
     // this is the full qualified name
-    pub generic_names: Vec<Identifier>,
-    pub fields: Vec<XCompoundFieldSpec>,
-    pub indices: BTreeMap<String, usize>,
+    pub(crate) generic_names: Vec<Identifier>,
+    pub(crate) fields: Vec<XCompoundFieldSpec>,
+    pub(crate) indices: BTreeMap<String, usize>,
 }
 
 impl XCompoundSpec {
-    pub fn new(
+    pub(crate) fn new(
         name: Identifier,
         generic_names: Vec<Identifier>,
         fields: Vec<XCompoundFieldSpec>,
@@ -115,7 +115,7 @@ impl XCompoundSpec {
         }
     }
 
-    pub fn bind(&self, args: &Vec<Arc<XType>>) -> Option<Bind> {
+    pub(crate) fn bind(&self, args: &Vec<Arc<XType>>) -> Option<Bind> {
         if args.len() != self.fields.len() {
             return None;
         }
@@ -126,7 +126,7 @@ impl XCompoundSpec {
         Some(ret)
     }
 
-    pub fn generics_with_bind(&self, bind: &Bind) -> Vec<Arc<XType>> {
+    fn generics_with_bind(&self, bind: &Bind) -> Vec<Arc<XType>> {
         let mut ret = Vec::new();
         for name in self.generic_names.iter() {
             if let Some(bound) = bind.get(name) {
@@ -159,13 +159,13 @@ pub struct XFuncSpec {
 }
 
 impl XFuncSpec {
-    pub fn arg_len_range(&self) -> (usize, usize) {
+    fn arg_len_range(&self) -> (usize, usize) {
         let max = self.params.len();
         let min = self.params.iter().take_while(|a| a.required).count();
         (min, max)
     }
 
-    pub fn bind(&self, args: &[Arc<XType>]) -> Option<Bind> {
+    pub(crate) fn bind(&self, args: &[Arc<XType>]) -> Option<Bind> {
         let (min, max) = self.arg_len_range();
         if args.len() < min || args.len() > max {
             return None;
@@ -177,11 +177,11 @@ impl XFuncSpec {
         Some(ret)
     }
 
-    pub fn rtype(&self, bind: &Bind) -> Arc<XType> {
+    pub(crate) fn rtype(&self, bind: &Bind) -> Arc<XType> {
         self.ret.clone().resolve_bind(bind, None)
     }
 
-    pub fn xtype(&self, bind: &Bind) -> Arc<XType> {
+    pub(crate) fn xtype(&self, bind: &Bind) -> Arc<XType> {
         Arc::new(XType::XFunc(Self {
             generic_params: None,
             params: self
@@ -199,16 +199,12 @@ impl XFuncSpec {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct XFuncParamSpec {
-    pub type_: Arc<XType>,
-    pub required: bool,
+    pub(crate) type_: Arc<XType>,
+    pub(crate) required: bool,
 }
 
 impl XType {
-    pub fn generic_from_name(name: &'static str, interner: &mut StringInterner) -> Arc<Self> {
-        Arc::new(Self::XGeneric(interner.get_or_intern_static(name)))
-    }
-
-    pub fn common_type(self: &Arc<Self>, other: &Arc<Self>) -> Option<Arc<Self>> {
+    fn common_type(self: &Arc<Self>, other: &Arc<Self>) -> Option<Arc<Self>> {
         if self == other {
             Some(self.clone())
         } else {
@@ -262,7 +258,7 @@ impl XType {
         }
     }
 
-    pub fn bind_in_assignment(&self, other: &Arc<Self>) -> Option<Bind> {
+    pub(crate) fn bind_in_assignment(&self, other: &Arc<Self>) -> Option<Bind> {
         match (self, other.as_ref()) {
             (Self::Bool, Self::Bool) => Some(Bind::new()),
             (Self::Int, Self::Int) => Some(Bind::new()),
@@ -376,7 +372,7 @@ impl XType {
             _ => None,
         }
     }
-    pub fn resolve_bind(self: &Arc<Self>, bind: &Bind, tail: Option<&Arc<Self>>) -> Arc<Self> {
+    pub(crate) fn resolve_bind(self: &Arc<Self>, bind: &Bind, tail: Option<&Arc<Self>>) -> Arc<Self> {
         match self.as_ref() {
             Self::XNative(a, ref a_bind) => {
                 let mut new_bind = HashMap::new();
@@ -391,7 +387,7 @@ impl XType {
                         .cloned()
                         .collect(),
                 )
-                .into()
+                    .into()
             }
             Self::XGeneric(ref a) => bind.get(a).cloned().unwrap_or_else(|| self.clone()),
             Self::XTail(types) => match tail {
@@ -422,7 +418,7 @@ impl XType {
         }
     }
 
-    pub fn is_unknown(self: &Arc<Self>) -> bool {
+    pub(crate) fn is_unknown(self: &Arc<Self>) -> bool {
         match self.as_ref() {
             Self::XUnknown => true,
             Self::XNative(_, types) | Self::Tuple(types) => {
@@ -441,7 +437,7 @@ impl XType {
         }
     }
 
-    pub fn to_string_with_interner(&self, interner: &StringInterner) -> String {
+    pub(crate) fn to_string_with_interner(&self, interner: &StringInterner) -> String {
         match self {
             Self::Bool => "bool".to_string(),
             Self::Int => "int".to_string(),
@@ -522,9 +518,9 @@ impl PartialEq<Self> for XType {
                 a.generic_params == b.generic_params
                     && a.params.len() == b.params.len()
                     && a.params
-                        .iter()
-                        .zip(b.params.iter())
-                        .all(|(a, b)| a.type_.eq(&b.type_))
+                    .iter()
+                    .zip(b.params.iter())
+                    .all(|(a, b)| a.type_.eq(&b.type_))
             }
             (Self::XCallable(ref a), Self::XFunc(ref b)) => {
                 b.generic_params.is_none()
@@ -552,22 +548,19 @@ lazy_static! {
     pub static ref X_UNKNOWN: Arc<XType> = Arc::new(XType::XUnknown);
 }
 
-pub fn common_type<T: Iterator<Item = Result<Arc<XType>, CompilationError>>>(
+pub(crate) fn common_type<T: Iterator<Item=Result<Arc<XType>, CompilationError>>>(
     mut values: T,
 ) -> Result<Arc<XType>, CompilationError> {
-    let ret = match values.next() {
+    let mut ret = match values.next() {
         None => return Ok(X_UNKNOWN.clone()),
         Some(v) => v?,
     };
     for res in values.by_ref() {
         let v = res?;
-        if ret != v {
-            // todo assignable?
-            return Err(CompilationError::IncompatibleTypes {
-                type0: ret,
-                type1: v,
-            });
-        }
+        ret = ret.common_type(&v).ok_or_else(|| CompilationError::IncompatibleTypes {
+            type0: ret,
+            type1: v,
+        })?;
     }
     Ok(ret)
 }

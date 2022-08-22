@@ -606,13 +606,13 @@ pub struct XExplicitFuncSpec {
 
 #[derive(Debug)]
 pub struct XExplicitArgSpec {
-    pub name: DefaultSymbol,
-    pub type_: Arc<XType>,
-    pub default: Option<Rc<ManagedXValue>>,
+    pub(crate) name: DefaultSymbol,
+    pub(crate) type_: Arc<XType>,
+    pub(crate) default: Option<Rc<ManagedXValue>>,
 }
 
 impl XExplicitFuncSpec {
-    pub fn to_spec(&self) -> XFuncSpec {
+    pub(crate) fn to_spec(&self) -> XFuncSpec {
         XFuncSpec {
             generic_params: self.generic_params.clone(),
             params: self
@@ -629,21 +629,21 @@ impl XExplicitFuncSpec {
 }
 
 impl XStaticFunction {
-    pub fn bind(&self, args: &[Arc<XType>]) -> Option<Bind> {
+    fn bind(&self, args: &[Arc<XType>]) -> Option<Bind> {
         match self {
             Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => spec.bind(args),
             Self::Recourse(spec, ..) => spec.bind(args),
             Self::UserFunction(ud, ..) => ud.spec.to_spec().bind(args),
         }
     }
-    pub fn rtype(&self, bind: &Bind) -> Arc<XType> {
+    fn rtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
             Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => spec.rtype(bind),
             Self::Recourse(spec, ..) => spec.rtype(bind),
             Self::UserFunction(ud, ..) => ud.spec.to_spec().rtype(bind),
         }
     }
-    pub fn is_generic(&self) -> bool {
+    fn is_generic(&self) -> bool {
         match self {
             Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => {
                 spec.generic_params.is_some()
@@ -652,7 +652,7 @@ impl XStaticFunction {
             Self::UserFunction(ud, ..) => ud.spec.generic_params.is_some(),
         }
     }
-    pub fn xtype(&self, bind: &Bind) -> Arc<XType> {
+    fn xtype(&self, bind: &Bind) -> Arc<XType> {
         match self {
             Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => spec.xtype(bind),
             Self::Recourse(spec, ..) => spec.xtype(bind),
@@ -661,7 +661,7 @@ impl XStaticFunction {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone)]
 pub enum IdentItem {
     Value(Arc<XType>),
     Function(Rc<XStaticFunction>),
@@ -674,7 +674,7 @@ pub enum TailedEvalResult {
 }
 
 impl TailedEvalResult {
-    pub fn unwrap_value(self) -> Rc<ManagedXValue> {
+    pub(crate) fn unwrap_value(self) -> Rc<ManagedXValue> {
         match self {
             Self::Value(v) => v,
             Self::TailCall(_) => {
@@ -691,7 +691,7 @@ impl From<Rc<ManagedXValue>> for TailedEvalResult {
 }
 
 impl XExpr {
-    pub fn xtype(&self) -> Result<Arc<XType>, CompilationError> {
+    pub(crate) fn xtype(&self) -> Result<Arc<XType>, CompilationError> {
         match self {
             Self::LiteralBool(_) => Ok(X_BOOL.clone()),
             Self::LiteralInt(_) => Ok(X_INT.clone()),
@@ -761,7 +761,7 @@ impl XExpr {
         }
     }
 
-    pub fn eval<'p>(
+    pub(crate) fn eval<'p>(
         &self,
         namespace: &XEvaluationScope<'p>,
         tail_available: bool,
