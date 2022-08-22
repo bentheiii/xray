@@ -16,7 +16,7 @@ use std::rc;
 use crate::compilation_scope::RootCompilationScope;
 use crate::util::lazy_bigint::LazyBigint;
 
-pub fn add_int_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_int_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     scope.add_native_type("int", X_INT.clone())
 }
 
@@ -130,7 +130,7 @@ add_ufunc!(
     }
 );
 
-pub fn add_int_digits(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_int_digits(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     scope.add_func(
         "digits",
         XStaticFunction::from_native(
@@ -173,7 +173,7 @@ pub fn add_int_digits(scope: &mut RootCompilationScope) -> Result<(), Compilatio
     )
 }
 
-pub fn add_int_hash(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_int_hash(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     scope.add_func(
         "hash",
         XStaticFunction::from_native(

@@ -11,7 +11,7 @@ use num_traits::{FromPrimitive, ToPrimitive, Zero};
 use rc::Rc;
 use std::rc;
 
-pub fn add_float_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_float_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     scope.add_native_type("float", X_FLOAT.clone())
 }
 

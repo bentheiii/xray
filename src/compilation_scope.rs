@@ -27,26 +27,26 @@ use pest::prec_climber::Assoc::{Left, Right};
 use pest::prec_climber::{Operator, PrecClimber};
 
 pub struct XCompilationScope<'p> {
-    pub values: HashMap<Identifier, (Option<XExpr>, Arc<XType>)>,
-    pub types: HashMap<Identifier, Arc<XType>>,
-    pub structs: HashMap<Identifier, Arc<XCompoundSpec>>,
-    pub unions: HashMap<Identifier, Arc<XCompoundSpec>>,
-    pub functions: HashMap<Identifier, Vec<Rc<XFunctionFactory>>>,
-    pub recourse: Option<(Identifier, Rc<XFuncSpec>)>,
-    pub closure_variables: HashSet<Identifier>,
-    pub parent: Option<&'p XCompilationScope<'p>>,
+    values: HashMap<Identifier, (Option<XExpr>, Arc<XType>)>,
+    types: HashMap<Identifier, Arc<XType>>,
+    structs: HashMap<Identifier, Arc<XCompoundSpec>>,
+    unions: HashMap<Identifier, Arc<XCompoundSpec>>,
+    functions: HashMap<Identifier, Vec<Rc<XFunctionFactory>>>,
+    recourse: Option<(Identifier, Rc<XFuncSpec>)>,
+    closure_variables: HashSet<Identifier>,
+    parent: Option<&'p XCompilationScope<'p>>,
 
-    pub height: usize,
+    pub(crate) height: usize,
 }
 
-#[derive(Derivative, Clone)]
+#[derive(Derivative)]
 #[derivative(Debug)]
 pub enum XFunctionFactory {
     Static(Rc<XStaticFunction>),
     Dynamic(#[derivative(Debug = "ignore")] DynBind),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum XCompilationScopeItem {
     Value(Arc<XType>),
     NativeType(Arc<XType>),
@@ -55,7 +55,7 @@ pub enum XCompilationScopeItem {
 }
 
 impl<'p> XCompilationScope<'p> {
-    pub fn root() -> Self {
+    fn root() -> Self {
         XCompilationScope {
             values: HashMap::new(),
             types: HashMap::new(),
@@ -116,7 +116,7 @@ impl<'p> XCompilationScope<'p> {
         self.get_with_depth(name).map(|i| i.0)
     }
 
-    pub fn get_with_depth(&self, name: DefaultSymbol) -> Option<(XCompilationScopeItem, usize)> {
+    pub(crate) fn get_with_depth(&self, name: DefaultSymbol) -> Option<(XCompilationScopeItem, usize)> {
         fn helper(
             scope: &XCompilationScope<'_>,
             name: DefaultSymbol,
@@ -214,7 +214,7 @@ impl<'p> XCompilationScope<'p> {
         helper(self, name, 0)
     }
 
-    pub fn add_param(
+    pub(crate) fn add_param(
         &mut self,
         name: DefaultSymbol,
         type_: Arc<XType>,
@@ -227,7 +227,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    pub fn add_var(
+    pub(crate) fn add_var(
         &mut self,
         name: DefaultSymbol,
         expr: XExpr,
@@ -241,7 +241,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    pub fn add_func(
+    pub(crate) fn add_func(
         &mut self,
         name: DefaultSymbol,
         func: XStaticFunction,
@@ -255,7 +255,7 @@ impl<'p> XCompilationScope<'p> {
         Ok(Declaration::UserFunction(name, item))
     }
 
-    pub fn add_dyn_func(
+    pub(crate) fn add_dyn_func(
         &mut self,
         name: DefaultSymbol,
         func: impl Fn(
@@ -273,30 +273,7 @@ impl<'p> XCompilationScope<'p> {
         Ok(())
     }
 
-    pub fn add_func_intern(
-        &mut self,
-        name: &'static str,
-        func: XStaticFunction,
-        interner: &mut StringInterner,
-    ) -> Result<Declaration, CompilationError> {
-        self.add_func(interner.get_or_intern_static(name), func)
-    }
-
-    pub fn add_dyn_func_intern(
-        &mut self,
-        name: &'static str,
-        func: impl Fn(
-                Option<&[XExpr]>,
-                &[Arc<XType>],
-                &XCompilationScope<'_>,
-            ) -> Result<Rc<XStaticFunction>, String>
-            + 'static,
-        interner: &mut StringInterner,
-    ) -> Result<(), CompilationError> {
-        self.add_dyn_func(interner.get_or_intern_static(name), func)
-    }
-
-    pub fn add_compound(
+    pub(crate) fn add_compound(
         &mut self,
         name: DefaultSymbol,
         kind: CompoundKind,
@@ -329,7 +306,7 @@ impl<'p> XCompilationScope<'p> {
         Ok(Declaration::Union(union_spec))
     }
 
-    pub fn add_native_type(
+    pub(crate) fn add_native_type(
         &mut self,
         name: DefaultSymbol,
         type_: Arc<XType>,
@@ -342,16 +319,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    pub fn add_native_type_intern(
-        &mut self,
-        name: &'static str,
-        type_: Arc<XType>,
-        interner: &mut StringInterner,
-    ) -> Result<(), CompilationError> {
-        self.add_native_type(interner.get_or_intern_static(name), type_)
-    }
-
-    pub fn to_eval_scope(&self, runtime: RTCell) -> Result<XEvaluationScope, CompilationError> {
+    pub(crate) fn to_eval_scope(&self, runtime: RTCell) -> Result<XEvaluationScope, CompilationError> {
         let mut ret = XEvaluationScope::root();
         let mut current_scope = Some(self);
         while let Some(s) = current_scope {

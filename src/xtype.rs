@@ -3,6 +3,7 @@ use crate::CompilationError;
 use crate::Identifier;
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
+use std::fmt::{Display, Formatter};
 use std::iter::FromIterator;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
@@ -28,6 +29,15 @@ pub enum XType {
 pub enum CompoundKind {
     Struct,
     Union,
+}
+
+impl Display for CompoundKind{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Struct => write!(f, "struct"),
+            Self::Union => write!(f, "union"),
+        }
+    }
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Default)]

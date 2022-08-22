@@ -536,13 +536,13 @@ impl UfData {
 }
 
 impl XStaticFunction {
-    pub fn to_function(self: Rc<Self>, closure: &XEvaluationScope<'_>) -> XFunction {
+    pub fn to_function(self: &Rc<Self>, closure: &XEvaluationScope<'_>) -> XFunction {
         match self.as_ref() {
             Self::Native(_, native) | Self::ShortCircutNative(_, native) => {
                 XFunction::Native(native.clone())
             }
             Self::UserFunction(..) => {
-                let key = RcHash(self);
+                let key = RcHash(self.clone());
                 closure.get_ud_func(key).clone()
             }
             Self::Recourse(_, depth) => XFunction::Recourse(*depth),

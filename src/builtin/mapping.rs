@@ -117,12 +117,12 @@ impl XNativeValue for XMapping {
     }
 }
 
-pub fn add_mapping_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([k, v], _) = scope.generics_from_names(["K", "V"]);
     scope.add_native_type("Mapping", XMappingType::xtype(k, v))
 }
 
-pub fn add_mapping_new(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_new(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([k], params) = scope.generics_from_names(["K"]);
 
     scope.add_func(
@@ -159,7 +159,7 @@ pub fn add_mapping_new(scope: &mut RootCompilationScope) -> Result<(), Compilati
     )
 }
 
-pub fn add_mapping_set(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_set(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -193,7 +193,7 @@ pub fn add_mapping_set(scope: &mut RootCompilationScope) -> Result<(), Compilati
     )
 }
 
-pub fn add_mapping_update(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_update(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -229,7 +229,7 @@ pub fn add_mapping_update(scope: &mut RootCompilationScope) -> Result<(), Compil
     )
 }
 
-pub fn add_mapping_get(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_get(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -284,7 +284,7 @@ pub fn add_mapping_get(scope: &mut RootCompilationScope) -> Result<(), Compilati
     )
 }
 
-pub fn add_mapping_len(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_len(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k, v);
 
@@ -309,7 +309,7 @@ pub fn add_mapping_len(scope: &mut RootCompilationScope) -> Result<(), Compilati
     )
 }
 
-pub fn add_mapping_entries(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_entries(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -345,7 +345,7 @@ pub fn add_mapping_entries(scope: &mut RootCompilationScope) -> Result<(), Compi
     )
 }
 
-pub fn add_mapping_contains(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_contains(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 
@@ -394,7 +394,7 @@ pub fn add_mapping_contains(scope: &mut RootCompilationScope) -> Result<(), Comp
     )
 }
 
-pub fn add_mapping_pop(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_pop(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 
@@ -467,7 +467,7 @@ pub fn add_mapping_pop(scope: &mut RootCompilationScope) -> Result<(), Compilati
     )
 }
 
-pub fn add_mapping_discard(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_discard(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 

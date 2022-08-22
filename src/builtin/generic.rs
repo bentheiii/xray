@@ -9,7 +9,7 @@ use rc::Rc;
 use std::rc;
 use std::sync::Arc;
 
-pub fn add_if(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_if(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if",
@@ -53,7 +53,7 @@ add_ufunc!(
     |a: &String| Err(a.clone())
 );
 
-pub fn add_cast(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_cast(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "cast",
@@ -71,7 +71,7 @@ pub fn add_cast(scope: &mut RootCompilationScope) -> Result<(), CompilationError
     )
 }
 
-pub fn add_debug(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_debug(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "debug",
@@ -101,7 +101,7 @@ pub fn add_debug(scope: &mut RootCompilationScope) -> Result<(), CompilationErro
     )
 }
 
-pub fn add_is_error(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_is_error(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "is_error",
@@ -122,7 +122,7 @@ pub fn add_is_error(scope: &mut RootCompilationScope) -> Result<(), CompilationE
     )
 }
 
-pub fn add_if_error(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_if_error(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if_error",
@@ -149,7 +149,7 @@ pub fn add_if_error(scope: &mut RootCompilationScope) -> Result<(), CompilationE
     )
 }
 
-pub fn add_ne(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_ne(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let eq_symbol = scope.get_identifier("eq");
 
     fn static_from_eq(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr) -> Rc<XStaticFunction> {

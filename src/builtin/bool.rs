@@ -10,7 +10,7 @@ use num_traits::{One, Zero};
 use rc::Rc;
 use std::rc;
 
-pub fn add_bool_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_bool_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     scope.add_native_type("bool", X_BOOL.clone())
 }
 
@@ -48,7 +48,7 @@ add_ufunc!(add_bool_not, not, X_BOOL, Bool, X_BOOL, |a: &bool| {
     Ok(XValue::Bool(!a))
 });
 
-pub fn add_and(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_and(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     scope.add_func(
         "and",
         XStaticFunction::from_native(
@@ -77,7 +77,7 @@ pub fn add_and(scope: &mut RootCompilationScope) -> Result<(), CompilationError>
     )
 }
 
-pub fn add_or(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_or(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     scope.add_func(
         "or",
         XStaticFunction::from_native(
@@ -106,7 +106,7 @@ pub fn add_or(scope: &mut RootCompilationScope) -> Result<(), CompilationError> 
     )
 }
 
-pub fn add_bool_then(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_bool_then(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
     scope.add_func(

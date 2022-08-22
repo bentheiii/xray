@@ -10,6 +10,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use string_interner::StringInterner;
 use strum::IntoStaticStr;
+use crate::xtype::CompoundKind;
 
 #[derive(Debug)]
 pub struct TracedCompilationError(
@@ -166,6 +167,19 @@ impl Resolve for XCompoundSpec {
     }
 }
 
+impl Resolve for XCompilationScopeItem {
+    type  Output = ResolvedCompilationScopeItem;
+
+    fn resolve(&self, interner: &StringInterner) -> Self::Output {
+        match self {
+            Self::Value(t) => ResolvedCompilationScopeItem::Value(t.resolve(interner)),
+            Self::NativeType(..) => ResolvedCompilationScopeItem::NativeType,
+            Self::Compound(k, ..) => ResolvedCompilationScopeItem::Compound(*k),
+            Self::Overload(overloads) => ResolvedCompilationScopeItem::Overloads(overloads.len())
+        }
+    }
+}
+
 impl<T: Resolve> Resolve for Arc<T> {
     type Output = T::Output;
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
@@ -201,7 +215,6 @@ macro_rules! trivial_resolve {
 trivial_resolve!(String);
 trivial_resolve!(bool);
 trivial_resolve!(usize);
-trivial_resolve!(XCompilationScopeItem);
 trivial_resolve!(Vec<XExpr>);
 
 macro_rules! resolve_variants {
@@ -338,6 +351,25 @@ impl Display for ResolvedType {
     }
 }
 
+pub enum ResolvedCompilationScopeItem{
+    Value(ResolvedType),
+    NativeType,
+    Compound(CompoundKind),
+    Overloads(usize),
+}
+
+impl Display for ResolvedCompilationScopeItem{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Value(t) => write!(f, "variable of type {t}"),
+            Self::NativeType => write!(f, "native type"),
+            Self::Compound(k) => write!(f, "{k}"),
+            Self::Overloads(1) => write!(f, "function"),
+            Self::Overloads(len) => write!(f, "{len} overloaded functions")
+        }
+    }
+}
+
 #[derive(IntoStaticStr)]
 pub enum ResolvedCompilationError {
     VariableTypeMismatch {
@@ -370,12 +402,12 @@ pub enum ResolvedCompilationError {
     },
     ValueIsNotType {
         name: String,
-        item: XCompilationScopeItem,
+        item: ResolvedCompilationScopeItem,
     },
     PairNotType,
     NameAlreadyDefined {
         name: String,
-        other: XCompilationScopeItem,
+        other: ResolvedCompilationScopeItem,
     },
     AmbiguousOverload {
         name: String,
@@ -407,7 +439,7 @@ pub enum ResolvedCompilationError {
     },
     NonFunctionSpecialization {
         name: String,
-        item: XCompilationScopeItem,
+        item: ResolvedCompilationScopeItem,
     },
     SpecializedFunctionTypeMismatch {
         name: String,
@@ -524,13 +556,13 @@ impl Display for ResolvedCompilationError {
                 )
             }
             Self::ValueIsNotType { name, item } => {
-                write!(f, "{} is not of type (found {:?})", name, item,)
+                write!(f, "{} is not of type (found {})", name, item,)
             }
             Self::PairNotType => {
                 write!(f, "Expression cannot be interpreted as a type",)
             }
             Self::NameAlreadyDefined { name, other } => {
-                write!(f, "Name {} is already defined as {:?}", name, other)
+                write!(f, "Name {} is already defined as {}", name, other)
             }
             Self::AmbiguousOverload {
                 name,
@@ -606,7 +638,7 @@ impl Display for ResolvedCompilationError {
             Self::NonFunctionSpecialization { name, item } => {
                 write!(
                     f,
-                    "Cannot specialize non-function {} (found {:?})",
+                    "Cannot specialize non-function {} (found {})",
                     name, item,
                 )
             }

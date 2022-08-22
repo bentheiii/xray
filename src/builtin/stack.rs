@@ -115,12 +115,12 @@ impl XNativeValue for XStack {
     }
 }
 
-pub fn add_stack_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Stack", XStackType::xtype(t))
 }
 
-pub fn add_stack_new(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_new(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     scope.add_func(
         "stack",
         XStaticFunction::from_native(
@@ -134,7 +134,7 @@ pub fn add_stack_new(scope: &mut RootCompilationScope) -> Result<(), Compilation
     )
 }
 
-pub fn add_stack_push(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_push(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -164,7 +164,7 @@ pub fn add_stack_push(scope: &mut RootCompilationScope) -> Result<(), Compilatio
     )
 }
 
-pub fn add_stack_to_array(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_to_array(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -188,7 +188,7 @@ pub fn add_stack_to_array(scope: &mut RootCompilationScope) -> Result<(), Compil
     )
 }
 
-pub fn add_stack_to_array_reversed(
+pub(crate) fn add_stack_to_array_reversed(
     scope: &mut RootCompilationScope,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -214,7 +214,7 @@ pub fn add_stack_to_array_reversed(
     )
 }
 
-pub fn add_stack_len(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_len(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t);
 
@@ -238,7 +238,7 @@ pub fn add_stack_len(scope: &mut RootCompilationScope) -> Result<(), Compilation
     )
 }
 
-pub fn add_stack_head(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_head(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -265,7 +265,7 @@ pub fn add_stack_head(scope: &mut RootCompilationScope) -> Result<(), Compilatio
     )
 }
 
-pub fn add_stack_tail(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_tail(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t);
 

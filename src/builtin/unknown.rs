@@ -2,7 +2,7 @@ use crate::xtype::{X_BOOL, X_UNKNOWN};
 use crate::{CompilationError, RootCompilationScope, XFuncParamSpec, XFuncSpec, XStaticFunction};
 use std::rc::Rc;
 
-pub fn add_unknown_eq(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_unknown_eq(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     scope.add_dyn_func("eq", move |_params, types, _ns| {
         if types.len() != 2 {
             return Err(format!("Expected 2 types, got {}", types.len()));

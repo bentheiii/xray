@@ -12,7 +12,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::rc;
 
-pub fn add_str_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_str_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     scope.add_native_type("str", X_STRING.clone())
 }
 

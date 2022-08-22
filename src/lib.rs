@@ -69,11 +69,25 @@ pub fn std_compilation_scope() -> RootCompilationScope {
     add_int_neg(&mut ret).unwrap();
     add_int_to_str(&mut ret).unwrap();
     add_int_digits(&mut ret).unwrap();
+    add_int_bit_or(&mut ret).unwrap();
+    add_int_bit_xor(&mut ret).unwrap();
+    add_int_bit_and(&mut ret).unwrap();
+    add_int_pow(&mut ret).unwrap();
+    add_int_ne(&mut ret).unwrap();
+    add_int_pow(&mut ret).unwrap();
+    add_int_display(&mut ret).unwrap();
+    add_int_hash(&mut ret).unwrap();
+    add_int_cmp(&mut ret).unwrap();
 
     add_float_type(&mut ret).unwrap();
     add_float_add(&mut ret).unwrap();
     add_float_sub(&mut ret).unwrap();
     add_float_mul(&mut ret).unwrap();
+    add_float_mod(&mut ret).unwrap();
+    add_float_div(&mut ret).unwrap();
+    add_float_ceil(&mut ret).unwrap();
+    add_float_trunc(&mut ret).unwrap();
+    add_float_cmp(&mut ret).unwrap();
     add_float_floor(&mut ret).unwrap();
     add_float_to_str(&mut ret).unwrap();
     add_float_eq(&mut ret).unwrap();
@@ -82,6 +96,8 @@ pub fn std_compilation_scope() -> RootCompilationScope {
     add_str_eq(&mut ret).unwrap();
     add_str_add(&mut ret).unwrap();
     add_str_display(&mut ret).unwrap();
+    add_str_hash(&mut ret).unwrap();
+    add_str_cmp(&mut ret).unwrap();
 
     add_bool_type(&mut ret).unwrap();
     add_and(&mut ret).unwrap();
@@ -89,6 +105,9 @@ pub fn std_compilation_scope() -> RootCompilationScope {
     add_bool_not(&mut ret).unwrap();
     add_bool_then(&mut ret).unwrap();
     add_bool_eq(&mut ret).unwrap();
+    add_bool_display(&mut ret).unwrap();
+    add_bool_hash(&mut ret).unwrap();
+    add_bool_cmp(&mut ret).unwrap();
 
     add_if(&mut ret).unwrap();
     add_assert(&mut ret).unwrap();
@@ -97,6 +116,7 @@ pub fn std_compilation_scope() -> RootCompilationScope {
     add_debug(&mut ret).unwrap();
     add_ne(&mut ret).unwrap();
     add_is_error(&mut ret).unwrap();
+    add_if_error(&mut ret).unwrap();
 
     add_unknown_eq(&mut ret).unwrap();
 
@@ -121,6 +141,10 @@ pub fn std_compilation_scope() -> RootCompilationScope {
     add_sequence_skip_until(&mut ret).unwrap();
     add_sequence_take(&mut ret).unwrap();
     add_sequence_skip(&mut ret).unwrap();
+    add_sequence_rpush(&mut ret).unwrap();
+    add_sequence_insert(&mut ret).unwrap();
+    add_sequence_set(&mut ret).unwrap();
+    add_sequence_swap(&mut ret).unwrap();
 
     add_stack_type(&mut ret).unwrap();
     add_stack_new(&mut ret).unwrap();
@@ -143,6 +167,7 @@ pub fn std_compilation_scope() -> RootCompilationScope {
     add_optional_has_value(&mut ret).unwrap();
     add_optional_eq(&mut ret).unwrap();
 
+    add_mapping_type(&mut ret).unwrap();
     add_mapping_new(&mut ret).unwrap();
     add_mapping_set(&mut ret).unwrap();
     add_mapping_get(&mut ret).unwrap();
