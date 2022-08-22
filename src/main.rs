@@ -33,7 +33,7 @@ fn main() {
         eval_scope.add_from(&decl, runtime.clone()).unwrap();
     }
     println!("z={:?}", eval_scope.get_value(z_ident).unwrap().value);
-    let z_static = root_scope.get(z_ident).unwrap();
+    let z_static = root_scope.get("z").unwrap();
     if let XCompilationScopeItem::Value(t) = z_static {
         println!("z: {:?}", root_scope.describe_type(t));
     } else {

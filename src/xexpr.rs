@@ -492,7 +492,6 @@ pub enum XExpr {
     Dummy(Rc<ManagedXValue>),
 }
 
-#[derive(Clone)] // todo why clone?
 pub enum XStaticFunction {
     // identical to a native, with the exception that will short-circut overload resolution
     ShortCircutNative(XFuncSpec, NativeCallable),
@@ -501,7 +500,7 @@ pub enum XStaticFunction {
     Recourse(Rc<XFuncSpec>, usize),
 }
 
-#[derive(Clone, Debug)] // todo better debug
+#[derive(Debug)] // todo better debug
 pub struct UfData {
     pub spec: XExplicitFuncSpec,
     pub output: Box<XExpr>,

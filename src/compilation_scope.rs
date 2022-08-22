@@ -69,7 +69,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    pub fn from_parent(
+    fn from_parent(
         parent: &'p XCompilationScope<'p>,
         recourse_name: DefaultSymbol,
         recourse_spec: XFuncSpec,
@@ -87,7 +87,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    pub fn from_parent_lambda(parent: &'p XCompilationScope<'p>) -> Self {
+    pub(crate) fn from_parent_lambda(parent: &'p XCompilationScope<'p>) -> Self {
         XCompilationScope {
             values: HashMap::new(),
             types: HashMap::new(),
@@ -112,7 +112,7 @@ impl<'p> XCompilationScope<'p> {
         })
     }
 
-    pub fn get(&self, name: DefaultSymbol) -> Option<XCompilationScopeItem> {
+    pub(crate) fn get(&self, name: DefaultSymbol) -> Option<XCompilationScopeItem> {
         self.get_with_depth(name).map(|i| i.0)
     }
 
@@ -227,7 +227,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    pub(crate) fn add_var(
+    fn add_var(
         &mut self,
         name: DefaultSymbol,
         expr: XExpr,
@@ -241,7 +241,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    pub(crate) fn add_func(
+    fn add_func(
         &mut self,
         name: DefaultSymbol,
         func: XStaticFunction,
@@ -255,7 +255,7 @@ impl<'p> XCompilationScope<'p> {
         Ok(Declaration::UserFunction(name, item))
     }
 
-    pub(crate) fn add_dyn_func(
+    fn add_dyn_func(
         &mut self,
         name: DefaultSymbol,
         func: impl Fn(
@@ -273,7 +273,7 @@ impl<'p> XCompilationScope<'p> {
         Ok(())
     }
 
-    pub(crate) fn add_compound(
+    fn add_compound(
         &mut self,
         name: DefaultSymbol,
         kind: CompoundKind,
@@ -306,7 +306,7 @@ impl<'p> XCompilationScope<'p> {
         Ok(Declaration::Union(union_spec))
     }
 
-    pub(crate) fn add_native_type(
+    fn add_native_type(
         &mut self,
         name: DefaultSymbol,
         type_: Arc<XType>,
@@ -319,7 +319,7 @@ impl<'p> XCompilationScope<'p> {
         }
     }
 
-    pub(crate) fn to_eval_scope(&self, runtime: RTCell) -> Result<XEvaluationScope, CompilationError> {
+    fn to_eval_scope(&self, runtime: RTCell) -> Result<XEvaluationScope, CompilationError> {
         let mut ret = XEvaluationScope::root();
         let mut current_scope = Some(self);
         while let Some(s) = current_scope {
@@ -346,7 +346,7 @@ impl<'p> XCompilationScope<'p> {
         Ok(ret)
     }
 
-    pub fn resolve_overload(
+    pub(crate) fn resolve_overload(
         &self,
         name: Identifier,
         types: &[Arc<XType>],
@@ -410,7 +410,7 @@ impl<'p> XCompilationScope<'p> {
             .collect::<Result<Vec<_>, _>>()
     }
 
-    pub fn feed(
+    fn feed(
         &mut self,
         input: Pair<Rule>,
         parent_gen_param_names: &HashSet<String>,
@@ -1000,7 +1000,7 @@ lazy_static! {
     };
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum Declaration {
     Value(DefaultSymbol, XExpr),
     Struct(XCompoundSpec),
@@ -1089,13 +1089,9 @@ impl RootCompilationScope {
     pub fn describe_type(&self, t: impl Deref<Target = XType>) -> String {
         t.to_string_with_interner(&self.interner)
     }
-}
 
-impl Deref for RootCompilationScope {
-    type Target = XCompilationScope<'static>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.scope
+    pub fn get(&self, name: &str)->Option<XCompilationScopeItem>{
+        self.interner.get(name).and_then(|i| self.scope.get(i))
     }
 }
 
