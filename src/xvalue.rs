@@ -38,7 +38,7 @@ pub type DynBind = Rc<
 #[derive(Clone)]
 pub enum XFunction {
     Native(NativeCallable),
-    UserFunction(Rc<XStaticFunction>, HashMap<Identifier, Rc<ManagedXValue>>),
+    UserFunction(Rc<XStaticFunction>, Rc<HashMap<Identifier, Rc<ManagedXValue>>>),
     Recourse(usize),
 }
 
@@ -110,8 +110,8 @@ impl XFunction {
                     let closure_scope = if !closure.is_empty() {
                         let mut scope =
                             XEvaluationScope::from_parent(parent_scope, self, runtime.clone())?;
-                        for (&name, value) in closure {
-                            scope.add(name, value.clone());
+                        for (&name, value) in closure.as_ref() {
+                            scope.add_value(name, value.clone());
                         }
                         Some(Box::new(scope))
                     } else {
@@ -127,7 +127,7 @@ impl XFunction {
                     )?;
                     // explicit params
                     for (&name, arg) in uf.param_names.iter().zip(args.iter()) {
-                        scope.add(name, arg.clone());
+                        scope.add_value(name, arg.clone());
                     }
                     //default params
                     // we only want the defaults that haven't been specified
@@ -138,14 +138,13 @@ impl XFunction {
                         .zip(uf.param_names.iter().skip(args.len()).rev())
                         .rev()
                     {
-                        scope.add(name, value.clone());
+                        scope.add_value(name, value.clone());
                     }
-                    for (name, expr) in &uf.variable_declarations {
-                        scope.add(
-                            *name,
-                            expr.eval(&scope, false, runtime.clone())?.unwrap_value(),
-                        );
+
+                    for decl in &uf.declarations{
+                        scope.add_from(decl, runtime.clone())?
                     }
+
                     match uf.output.eval(&scope, true, runtime.clone())? {
                         TailedEvalResult::Value(value) => return Ok(value),
                         TailedEvalResult::TailCall(new_args) => {

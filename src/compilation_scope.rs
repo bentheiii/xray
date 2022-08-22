@@ -369,7 +369,7 @@ impl<'p> XCompilationScope<'p> {
                                 continue;
                             }
                         };
-                        ret.add(*name, value);
+                        ret.add_value(*name, value);
                     }
                 }
             }

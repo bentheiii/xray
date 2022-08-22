@@ -30,10 +30,10 @@ expression3 = _{
     | NUMBER_ANY
     | container
     | "(" ~ expression ~ ")"
+    | lambda_func
     | tuple
     | specialized_cname
     | CNAME
-    | lambda_func
 }
  container = { "[" ~ container_elements? ~ ","? ~ "]" }
   container_elements = {expression ~ (","~expression)*}

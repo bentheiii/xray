@@ -17,13 +17,15 @@ fn test_script(script_number: usize) {
         .unwrap();
 
     let mut eval_scope = XEvaluationScope::root();
-    eval_scope.add_from(&decls, runtime.clone()).unwrap();
+    for decl in decls{
+        eval_scope.add_from(&decl, runtime.clone()).unwrap();
+    }
 
     let main_fn = eval_scope
-        .get_ud_func(comp_scope.get_identifier("main"))
+        .get_unique_ud_func(comp_scope.get_identifier("main"))
+        .expect(r#"function "main" found more than once"#)
         .expect(r#"function "main" not found"#);
     let main_output = &main_fn
-        .to_function(&eval_scope)
         .eval_values(&[], &eval_scope, runtime)
         .unwrap()
         .value;

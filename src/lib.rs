@@ -81,6 +81,7 @@ pub fn std_compilation_scope() -> RootCompilationScope {
     add_str_type(&mut ret).unwrap();
     add_str_eq(&mut ret).unwrap();
     add_str_add(&mut ret).unwrap();
+    add_str_display(&mut ret).unwrap();
 
     add_bool_type(&mut ret).unwrap();
     add_and(&mut ret).unwrap();
