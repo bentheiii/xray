@@ -149,11 +149,11 @@ impl XStaticExpr {
     }
 
     pub(crate) fn compile<'p>(
-        &self,
+        self,
         namespace: &'p XCompilationScope<'p>,
     ) -> Result<CompilationResult, CompilationError> {
         fn compile_many<'p>(
-            exprs: &Vec<XStaticExpr>,
+            exprs: impl IntoIterator<Item=XStaticExpr>,
             namespace: &'p XCompilationScope<'p>,
         ) -> Result<(Vec<XExpr>, Vec<DefaultSymbol>), CompilationError> {
             let mut ret = vec![];
@@ -165,10 +165,10 @@ impl XStaticExpr {
         }
 
         match self {
-            Self::LiteralBool(v) => Ok(XExpr::LiteralBool(*v).into()),
-            Self::LiteralInt(v) => Ok(XExpr::LiteralInt(*v).into()),
-            Self::LiteralFloat(v) => Ok(XExpr::LiteralFloat(*v).into()),
-            Self::LiteralString(v) => Ok(XExpr::LiteralString(v.clone()).into()),
+            Self::LiteralBool(v) => Ok(XExpr::LiteralBool(v).into()),
+            Self::LiteralInt(v) => Ok(XExpr::LiteralInt(v).into()),
+            Self::LiteralFloat(v) => Ok(XExpr::LiteralFloat(v).into()),
+            Self::LiteralString(v) => Ok(XExpr::LiteralString(v).into()),
             Self::Array(items) => Ok(CompilationResult::from_multi(
                 compile_many(items, namespace)?,
                 XExpr::Array,
@@ -341,7 +341,7 @@ impl XStaticExpr {
                 let obj_type = obj_compiled.expr.xtype()?;
                 match obj_type.as_ref() {
                     XType::Compound(_, spec, _) => {
-                        if let Some(&index) = spec.indices.get(member_name) {
+                        if let Some(&index) = spec.indices.get(&member_name) {
                             Ok(CompilationResult::new(
                                 XExpr::Member(Box::new(obj_compiled.expr), index),
                                 obj_compiled.closure_vars,
@@ -378,21 +378,21 @@ impl XStaticExpr {
                     }),
                 }
             }
-            Self::Ident(name) => match namespace.get_with_depth(*name) {
-                None => Err(CompilationError::ValueNotFound { name: *name }),
+            Self::Ident(name) => match namespace.get_with_depth(name) {
+                None => Err(CompilationError::ValueNotFound { name }),
                 Some((
                     XCompilationScopeItem::Compound(..) | XCompilationScopeItem::NativeType(..),
                     _,
-                )) => Err(CompilationError::TypeAsVariable { name: *name }),
+                )) => Err(CompilationError::TypeAsVariable { name }),
                 Some((item, depth)) => {
                     let cvars = if depth != 0 && depth != namespace.height {
-                        vec![*name]
+                        vec![name]
                     } else {
                         vec![]
                     };
                     match &item {
                         XCompilationScopeItem::Value(t) => Ok(CompilationResult::new(
-                            XExpr::Ident(*name, Box::new(IdentItem::Value(t.clone()))),
+                            XExpr::Ident(name, Box::new(IdentItem::Value(t.clone()))),
                             cvars,
                         )),
                         XCompilationScopeItem::Overload(overloads) => {
@@ -402,12 +402,12 @@ impl XStaticExpr {
                                     XFunctionFactory::Static(overload) => {
                                         if overload.is_generic() {
                                             Err(CompilationError::GenericFunctionAsVariable {
-                                                name: *name,
+                                                name,
                                             })
                                         } else {
                                             Ok(CompilationResult::new(
                                                 XExpr::Ident(
-                                                    *name,
+                                                    name,
                                                     Box::new(IdentItem::Function(overload.clone())),
                                                 ),
                                                 cvars,
@@ -416,38 +416,38 @@ impl XStaticExpr {
                                     }
                                     XFunctionFactory::Dynamic(_) => {
                                         Err(CompilationError::DynamicFunctionAsVariable {
-                                            name: *name,
+                                            name,
                                         })
                                     }
                                 }
                             } else {
-                                Err(CompilationError::OverloadedFunctionAsVariable { name: *name })
+                                Err(CompilationError::OverloadedFunctionAsVariable { name })
                             }
                         }
                         _ => unreachable!(),
                     }
                 }
             },
-            Self::SpecializedIdent(name, arg_types) => match namespace.get_with_depth(*name) {
+            Self::SpecializedIdent(name, arg_types) => match namespace.get_with_depth(name) {
                 Some((XCompilationScopeItem::Overload(overloads), depth)) => {
                     let cvars = if depth != 0 && depth != namespace.height {
-                        vec![*name]
+                        vec![name]
                     } else {
                         vec![]
                     };
                     Ok(CompilationResult::new(
-                        resolve_overload(&overloads, None, arg_types, *name, namespace)?,
+                        resolve_overload(&overloads, None, &arg_types, name, namespace)?,
                         cvars,
                     ))
                 }
-                None => Err(CompilationError::FunctionNotFound { name: *name }),
+                None => Err(CompilationError::FunctionNotFound { name }),
                 Some((item, _)) => {
-                    Err(CompilationError::NonFunctionSpecialization { name: *name, item })
+                    Err(CompilationError::NonFunctionSpecialization { name, item })
                 }
             },
             Self::Lambda(args, body) => {
                 let mut subscope = XCompilationScope::from_parent_lambda(namespace);
-                for param in args {
+                for param in &args {
                     subscope.add_param(param.name, param.type_.clone())?;
                 }
                 let body_result = body.compile(&subscope)?;
@@ -456,7 +456,7 @@ impl XStaticExpr {
                     XStaticFunction::UserFunction(UfData::new(
                         XExplicitFuncSpec {
                             generic_params: None,
-                            args: args.clone(),
+                            args,
                             ret: body_type,
                         },
                         vec![],
