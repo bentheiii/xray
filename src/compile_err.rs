@@ -19,7 +19,7 @@ pub struct TracedCompilationError(
     ((usize, usize), usize),
 );
 
-#[derive(Debug, IntoStaticStr)]
+#[derive(Debug)]
 pub enum CompilationError {
     VariableTypeMismatch {
         variable_name: Identifier,
@@ -318,7 +318,7 @@ impl Resolve for CompilationError {
 }
 
 impl CompilationError {
-    pub fn trace(self, input: &Pair<Rule>) -> TracedCompilationError {
+    pub(crate) fn trace(self, input: &Pair<Rule>) -> TracedCompilationError {
         fn pos_to_coors(pos: &Position) -> ((usize, usize), usize) {
             (pos.line_col(), pos.pos())
         }
@@ -329,7 +329,7 @@ impl CompilationError {
 }
 
 impl TracedCompilationError {
-    pub fn resolve_with_input(
+    pub(crate) fn resolve_with_input(
         self,
         interner: &StringInterner,
         input: &str,

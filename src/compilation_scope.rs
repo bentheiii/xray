@@ -1055,7 +1055,7 @@ impl RootCompilationScope {
             .map(|_| ())
     }
 
-    pub fn generics_from_names<const N: usize>(
+    pub(crate) fn generics_from_names<const N: usize>(
         &mut self,
         names: [&'static str; N],
     ) -> ([Arc<XType>; N], Vec<Identifier>) {
