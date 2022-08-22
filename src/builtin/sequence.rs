@@ -80,7 +80,7 @@ impl XSequence {
         }
     }
 
-    pub fn get(
+    pub(crate) fn get(
         &self,
         idx: usize,
         ns: &XEvaluationScope,
@@ -108,7 +108,7 @@ impl XSequence {
         }
     }
 
-    pub fn slice(
+    pub(crate) fn slice(
         &self,
         start_idx: usize,
         end_idx: usize,

@@ -38,7 +38,7 @@ impl<'p> XEvaluationScope<'p> {
         }
     }
 
-    pub fn from_parent(
+    pub(crate) fn from_parent(
         parent: &'p XEvaluationScope<'p>,
         recourse: &'p XFunction,
         runtime: RTCell,
@@ -107,7 +107,7 @@ impl<'p> XEvaluationScope<'p> {
             .unwrap()
     }
 
-    pub fn add_value(&mut self, name: DefaultSymbol, value: Rc<ManagedXValue>) {
+    pub(crate) fn add_value(&mut self, name: DefaultSymbol, value: Rc<ManagedXValue>) {
         self.values.insert(name, value);
     }
 
@@ -131,7 +131,7 @@ impl<'p> XEvaluationScope<'p> {
         Ok(())
     }
 
-    pub fn lock_closure(&self, func: &Rc<XStaticFunction>) -> XFunction {
+    pub(crate) fn lock_closure(&self, func: &Rc<XStaticFunction>) -> XFunction {
         if let XStaticFunction::UserFunction(uf) = func.as_ref() {
             let closure = Rc::new(
                 uf.cvars
@@ -145,7 +145,7 @@ impl<'p> XEvaluationScope<'p> {
         }
     }
 
-    pub fn ancestor(&'p self, depth: usize) -> &'p XEvaluationScope<'p> {
+    pub(crate) fn ancestor(&'p self, depth: usize) -> &'p XEvaluationScope<'p> {
         if depth == 0 {
             self
         } else {
