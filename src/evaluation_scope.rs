@@ -100,7 +100,7 @@ impl<'p> XEvaluationScope<'p> {
         }
     }
 
-    pub fn get_ud_func(&self, key: RcHash<XStaticFunction>) -> &XFunction {
+    pub(crate) fn get_ud_func(&self, key: RcHash<XStaticFunction>) -> &XFunction {
         self.ud_functions
             .get(&key)
             .or_else(|| self.parent.map(|p| p.get_ud_func(key)))

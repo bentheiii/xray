@@ -15,7 +15,7 @@ pub enum LazyBigint {
 }
 
 impl LazyBigint {
-    pub fn true_div(self, rhs: Self) -> f64 {
+    pub(crate) fn true_div(self, rhs: Self) -> f64 {
         match (self, rhs) {
             (Self::Short(s1), Self::Short(s2)) => s1 as f64 / s2 as f64,
             (Self::Short(s), Self::Long(b)) => {
@@ -28,14 +28,14 @@ impl LazyBigint {
         }
     }
 
-    pub fn first_u64_digit(&self) -> Self {
+    pub(crate) fn first_u64_digit(&self) -> Self {
         Self::from(match self {
             Self::Short(s) => *s as u64,
             Self::Long(b) => b.iter_u64_digits().next().unwrap(),
         })
     }
 
-    pub fn bits(&self) -> u64 {
+    pub(crate) fn bits(&self) -> u64 {
         match self {
             Self::Short(_s) => 0,
             Self::Long(b) => b.bits(),

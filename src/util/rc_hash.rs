@@ -1,13 +1,7 @@
 use std::hash::{Hash, Hasher};
 use std::rc::Rc;
 
-pub struct RcHash<T>(pub Rc<T>);
-
-impl<T> RcHash<T> {
-    pub fn address(&self) -> usize {
-        Rc::as_ptr(&self.0) as usize
-    }
-}
+pub(crate) struct RcHash<T>(pub Rc<T>);
 
 impl<T> PartialEq for RcHash<T> {
     fn eq(&self, other: &Self) -> bool {

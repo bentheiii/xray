@@ -20,10 +20,10 @@ use std::sync::Arc;
 use crate::xexpr::TailedEvalResult;
 
 #[derive(Debug, Clone)]
-pub struct XMappingType;
+struct XMappingType;
 
 impl XMappingType {
-    pub fn xtype(k: Arc<XType>, v: Arc<XType>) -> Arc<XType> {
+    fn xtype(k: Arc<XType>, v: Arc<XType>) -> Arc<XType> {
         Arc::new(XType::XNative(Box::new(Self {}), vec![k, v]))
     }
 }
@@ -40,10 +40,10 @@ impl NativeType for XMappingType {
 type MappingBucket = Vec<(Rc<ManagedXValue>, Rc<ManagedXValue>)>;
 
 #[derive(Debug)]
-pub struct XMapping {
-    pub inner: HashMap<u64, MappingBucket>,
-    pub hash_func: Rc<ManagedXValue>,
-    pub eq_func: Rc<ManagedXValue>,
+struct XMapping {
+    inner: HashMap<u64, MappingBucket>,
+    hash_func: Rc<ManagedXValue>,
+    eq_func: Rc<ManagedXValue>,
 }
 
 impl XMapping {

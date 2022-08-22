@@ -12,10 +12,10 @@ use std::rc;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
-pub struct XOptionalType {}
+pub(crate) struct XOptionalType {}
 
 impl XOptionalType {
-    pub fn xtype(t: Arc<XType>) -> Arc<XType> {
+    pub(crate) fn xtype(t: Arc<XType>) -> Arc<XType> {
         Arc::new(XType::XNative(Box::new(Self {}), vec![t]))
     }
 }
@@ -30,8 +30,8 @@ impl NativeType for XOptionalType {
 }
 
 #[derive(Debug)]
-pub struct XOptional {
-    pub value: Option<Rc<ManagedXValue>>,
+pub(crate) struct XOptional {
+    pub(crate) value: Option<Rc<ManagedXValue>>,
 }
 
 impl XNativeValue for XOptional {

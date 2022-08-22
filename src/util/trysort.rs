@@ -216,7 +216,7 @@ where
 ///
 /// The invariants ensure that the total running time is *O*(*n* \* log(*n*)) worst-case.
 #[cfg(not(no_global_oom_handling))]
-pub fn try_sort<T, F, E>(v: &mut [T], mut is_less: F) -> Result<(), E>
+pub(crate) fn try_sort<T, F, E>(v: &mut [T], mut is_less: F) -> Result<(), E>
 where
     F: FnMut(&T, &T) -> Result<bool, E>,
 {

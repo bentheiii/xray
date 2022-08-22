@@ -9,7 +9,6 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
 use std::mem::size_of;
-use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -46,9 +45,9 @@ pub enum XFunction {
 }
 
 impl XFunction {
-    pub fn eval<'p>(
+    pub(crate) fn eval<'p>(
         &'p self,
-        args: &Vec<XExpr>,
+        args: &[XExpr],
         parent_scope: &XEvaluationScope<'p>,
         tail_available: bool,
         runtime: RTCell,
@@ -190,16 +189,8 @@ impl Debug for XFunction {
     }
 }
 
-impl PartialEq for XFunction {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
-}
-
-impl Eq for XFunction {}
-
 impl XValue {
-    pub fn size(&self) -> usize {
+    pub(crate) fn size(&self) -> usize {
         match self {
             Self::Int(i) => size_of::<LazyBigint>() + (i.bits() / 8_u64) as usize,
             Self::Float(_) => 64 / 8,
@@ -211,14 +202,14 @@ impl XValue {
             }
             Self::Function(XFunction::Recourse(..)) => size_of::<usize>(),
             Self::StructInstance(items) => items.len() * size_of::<usize>(),
-            Self::UnionInstance(_, item) => item.size() + size_of::<usize>(),
+            Self::UnionInstance(_, item) => item.size + size_of::<usize>(),
             Self::Native(n) => size_of::<usize>() + n.size(),
         }
     }
 }
 
 pub struct ManagedXValue {
-    pub runtime: RTCell,
+    runtime: RTCell,
     size: usize, // this will be zero if the runtime has no size limit
     pub value: XValue,
 }
@@ -236,7 +227,7 @@ impl Drop for ManagedXValue {
 }
 
 impl ManagedXValue {
-    pub fn new(value: XValue, runtime: RTCell) -> Result<Rc<Self>, String> {
+    pub(crate) fn new(value: XValue, runtime: RTCell) -> Result<Rc<Self>, String> {
         let size;
         {
             let size_limit = runtime.borrow().limits.size_limit;
@@ -258,12 +249,5 @@ impl ManagedXValue {
             size,
             value,
         }))
-    }
-}
-
-impl Deref for ManagedXValue {
-    type Target = XValue;
-    fn deref(&self) -> &XValue {
-        &self.value
     }
 }

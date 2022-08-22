@@ -140,7 +140,7 @@ macro_rules! manage_native {
     };
 }
 
-pub fn xcmp<T: PartialOrd>(rhs: T, lhs: T) -> XValue {
+pub(super) fn xcmp<T: PartialOrd>(rhs: T, lhs: T) -> XValue {
     XValue::Int(if rhs < lhs {
         LazyBigint::one().neg()
     } else if rhs > lhs {

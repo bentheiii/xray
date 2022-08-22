@@ -12,10 +12,10 @@ use std::rc;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
-pub struct XStackType {}
+pub(super) struct XStackType {}
 
 impl XStackType {
-    pub fn xtype(t: Arc<XType>) -> Arc<XType> {
+    pub(super) fn xtype(t: Arc<XType>) -> Arc<XType> {
         Arc::new(XType::XNative(Box::new(Self {}), vec![t]))
     }
 }
@@ -30,7 +30,7 @@ impl NativeType for XStackType {
 }
 
 #[derive(Debug)]
-pub struct StackNode {
+struct StackNode {
     value: Rc<ManagedXValue>,
     next: Option<Rc<StackNode>>,
 }
@@ -48,17 +48,17 @@ impl StackNode {
 }
 
 #[derive(Debug, Default)]
-pub struct XStack {
-    pub head: Option<Rc<StackNode>>,
-    pub length: usize,
+pub(super) struct XStack {
+    head: Option<Rc<StackNode>>,
+    pub(super) length: usize,
 }
 
 impl XStack {
-    pub fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self::default()
     }
 
-    pub fn push(&self, value: Rc<ManagedXValue>) -> Self {
+    pub(super) fn push(&self, value: Rc<ManagedXValue>) -> Self {
         let node = match self.head {
             None => StackNode::first(value),
             Some(ref head) => StackNode::new(value, head.clone()),
@@ -82,7 +82,7 @@ impl XStack {
         vec
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue>> + '_ {
+    pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue>> + '_ {
         let mut node = &self.head;
         from_fn(move || match &node {
             None => None,

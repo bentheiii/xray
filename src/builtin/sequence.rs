@@ -23,10 +23,10 @@ use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::XExpr;
 
 #[derive(Debug, Clone)]
-pub struct XSequenceType;
+pub(crate) struct XSequenceType;
 
 impl XSequenceType {
-    pub fn xtype(t: Arc<XType>) -> Arc<XType> {
+    pub(crate) fn xtype(t: Arc<XType>) -> Arc<XType> {
         Arc::new(XType::XNative(Box::new(Self {}), vec![t]))
     }
 }
@@ -51,7 +51,7 @@ pub enum XSequence {
 }
 
 impl XSequence {
-    pub fn array(value: Vec<Rc<ManagedXValue>>) -> Self {
+    pub(crate) fn array(value: Vec<Rc<ManagedXValue>>) -> Self {
         if value.is_empty() {
             Self::Empty
         } else {
@@ -59,7 +59,7 @@ impl XSequence {
         }
     }
 
-    pub fn len(&self) -> usize {
+    pub(super) fn len(&self) -> usize {
         match self {
             Self::Empty => 0,
             Self::Array(arr) => arr.len(),
@@ -80,7 +80,7 @@ impl XSequence {
         }
     }
 
-    pub(crate) fn get(
+    pub(super) fn get(
         &self,
         idx: usize,
         ns: &XEvaluationScope,
@@ -108,7 +108,7 @@ impl XSequence {
         }
     }
 
-    pub(crate) fn slice(
+    pub(super) fn slice(
         &self,
         start_idx: usize,
         end_idx: usize,
@@ -248,7 +248,7 @@ pub(crate) fn add_sequence_len(scope: &mut RootCompilationScope) -> Result<(), C
                 ret: X_INT.clone(),
             },
             |args, ns, _tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let (a0, ) = eval!(args, ns, rt, 0);
                 let arr = &to_native!(a0, XSequence);
                 Ok(ManagedXValue::new(XValue::Int(arr.len().into()), rt)?.into())
             },
@@ -278,12 +278,12 @@ pub(crate) fn add_sequence_add(scope: &mut RootCompilationScope) -> Result<(), C
                 ret: t_arr,
             },
             |args, ns, tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let (a0, ) = eval!(args, ns, rt, 0);
                 let seq0 = to_native!(a0, XSequence);
                 if seq0.is_empty() {
                     return args[1].eval(ns, tca, rt);
                 }
-                let (a1,) = eval!(args, ns, rt, 1);
+                let (a1, ) = eval!(args, ns, rt, 1);
                 let seq1 = to_native!(a1, XSequence);
                 if seq1.is_empty() {
                     return Ok(a0.clone().into());
@@ -625,7 +625,7 @@ pub(crate) fn add_sequence_to_stack(scope: &mut RootCompilationScope) -> Result<
                 ret: XStackType::xtype(t),
             },
             |args, ns, _tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let (a0, ) = eval!(args, ns, rt, 0);
                 let arr = to_native!(a0, XSequence);
                 let mut ret = XStack::new();
                 for x in arr.slice(0, arr.len(), ns, rt.clone())? {
@@ -704,7 +704,7 @@ pub(crate) fn add_sequence_sort(scope: &mut RootCompilationScope) -> Result<(), 
                         f.eval_values(&[w[0].clone(), w[1].clone()], ns, rt.clone())?,
                         Int
                     )
-                    .is_positive()
+                        .is_positive()
                     {
                         is_sorted = false;
                         break;
@@ -719,7 +719,7 @@ pub(crate) fn add_sequence_sort(scope: &mut RootCompilationScope) -> Result<(), 
                             f.eval_values(&[a.clone(), b.clone()], ns, rt.clone())?,
                             Int
                         )
-                        .is_negative())
+                            .is_negative())
                     })?;
                     Ok(manage_native!(XSequence::array(ret), rt))
                 }
@@ -840,13 +840,13 @@ pub(crate) fn add_sequence_range(scope: &mut RootCompilationScope) -> Result<(),
             |args, ns, _tca, rt| {
                 let (start, end, step);
                 if args.len() == 1 {
-                    let (a0,) = eval!(args, ns, rt, 0);
+                    let (a0, ) = eval!(args, ns, rt, 0);
                     end = to_primitive!(a0, Int).to_i64().ok_or("end out of bounds")?;
                     start = 0i64;
                     step = 1i64;
                 } else {
                     let (a0, a1) = eval!(args, ns, rt, 0, 1);
-                    let (a2,) = meval!(args, ns, rt, 2);
+                    let (a2, ) = meval!(args, ns, rt, 2);
                     start = to_primitive!(a0, Int)
                         .to_i64()
                         .ok_or("start out of bounds")?;
