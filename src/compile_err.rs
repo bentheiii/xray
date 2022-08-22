@@ -1,6 +1,7 @@
 use crate::compilation_scope::XCompilationScopeItem;
 use crate::parser::Rule;
 use crate::xexpr::XExpr;
+use crate::xtype::CompoundKind;
 use crate::Identifier;
 use crate::{XCompoundSpec, XType};
 use itertools::Itertools;
@@ -10,7 +11,6 @@ use std::fmt::{Debug, Display, Formatter};
 use std::sync::Arc;
 use string_interner::StringInterner;
 use strum::IntoStaticStr;
-use crate::xtype::CompoundKind;
 
 #[derive(Debug)]
 pub struct TracedCompilationError(
@@ -168,14 +168,14 @@ impl Resolve for XCompoundSpec {
 }
 
 impl Resolve for XCompilationScopeItem {
-    type  Output = ResolvedCompilationScopeItem;
+    type Output = ResolvedCompilationScopeItem;
 
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
         match self {
             Self::Value(t) => ResolvedCompilationScopeItem::Value(t.resolve(interner)),
             Self::NativeType(..) => ResolvedCompilationScopeItem::NativeType,
             Self::Compound(k, ..) => ResolvedCompilationScopeItem::Compound(*k),
-            Self::Overload(overloads) => ResolvedCompilationScopeItem::Overloads(overloads.len())
+            Self::Overload(overloads) => ResolvedCompilationScopeItem::Overloads(overloads.len()),
         }
     }
 }
@@ -351,21 +351,21 @@ impl Display for ResolvedType {
     }
 }
 
-pub enum ResolvedCompilationScopeItem{
+pub enum ResolvedCompilationScopeItem {
     Value(ResolvedType),
     NativeType,
     Compound(CompoundKind),
     Overloads(usize),
 }
 
-impl Display for ResolvedCompilationScopeItem{
+impl Display for ResolvedCompilationScopeItem {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Value(t) => write!(f, "variable of type {t}"),
             Self::NativeType => write!(f, "native type"),
             Self::Compound(k) => write!(f, "{k}"),
             Self::Overloads(1) => write!(f, "function"),
-            Self::Overloads(len) => write!(f, "{len} overloaded functions")
+            Self::Overloads(len) => write!(f, "{len} overloaded functions"),
         }
     }
 }

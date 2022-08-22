@@ -7,7 +7,9 @@ use std::ops::Neg;
 #[macro_export]
 macro_rules! add_binop {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
-        pub(crate) fn $fn_name(scope: &mut RootCompilationScope) -> Result<(), $crate::CompilationError> {
+        pub(crate) fn $fn_name(
+            scope: &mut RootCompilationScope,
+        ) -> Result<(), $crate::CompilationError> {
             scope.add_func(
                 stringify!($name),
                 XStaticFunction::from_native(
@@ -41,7 +43,9 @@ macro_rules! add_binop {
 #[macro_export]
 macro_rules! add_ufunc_ref {
     ($fn_name:ident, $name:ident, $operand_type: ident, $return_type:ident, $func:expr) => {
-        pub(crate) fn $fn_name(scope: &mut RootCompilationScope) -> Result<(), $crate::CompilationError> {
+        pub(crate) fn $fn_name(
+            scope: &mut RootCompilationScope,
+        ) -> Result<(), $crate::CompilationError> {
             scope.add_func(
                 stringify!($name),
                 XStaticFunction::from_native(

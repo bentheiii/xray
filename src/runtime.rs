@@ -19,7 +19,7 @@ impl RuntimeLimits {
 
 pub struct Runtime {
     pub(crate) limits: RuntimeLimits,
-    pub(crate)  size: usize, // this will be zero if the runtime has no size limit
+    pub(crate) size: usize, // this will be zero if the runtime has no size limit
 }
 
 pub type RTCell = Rc<RefCell<Runtime>>;

@@ -123,7 +123,9 @@ pub(crate) fn add_optional_map(scope: &mut RootCompilationScope) -> Result<(), C
     )
 }
 
-pub(crate) fn add_optional_map_or(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_optional_map_or(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "map_or",
@@ -165,7 +167,9 @@ pub(crate) fn add_optional_map_or(scope: &mut RootCompilationScope) -> Result<()
     )
 }
 
-pub(crate) fn add_optional_or_unwrap(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_optional_or_unwrap(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let opt_t = XOptionalType::xtype(t.clone());
     scope.add_func(
@@ -261,7 +265,9 @@ pub(crate) fn add_optional_and(scope: &mut RootCompilationScope) -> Result<(), C
     )
 }
 
-pub(crate) fn add_optional_has_value(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_optional_has_value(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let opt_t = XOptionalType::xtype(t);
     scope.add_func(

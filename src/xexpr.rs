@@ -137,7 +137,11 @@ pub(crate) fn resolve_overload<'p>(
 }
 
 impl XStaticExpr {
-    pub(crate) fn new_call(name: &'static str, args: Vec<Self>, interner: &mut StringInterner) -> Self {
+    pub(crate) fn new_call(
+        name: &'static str,
+        args: Vec<Self>,
+        interner: &mut StringInterner,
+    ) -> Self {
         Self::Call(
             Box::new(Self::Ident(interner.get_or_intern_static(name))),
             args,
@@ -153,7 +157,7 @@ impl XStaticExpr {
         namespace: &'p XCompilationScope<'p>,
     ) -> Result<CompilationResult, CompilationError> {
         fn compile_many<'p>(
-            exprs: impl IntoIterator<Item=XStaticExpr>,
+            exprs: impl IntoIterator<Item = XStaticExpr>,
             namespace: &'p XCompilationScope<'p>,
         ) -> Result<(Vec<XExpr>, Vec<DefaultSymbol>), CompilationError> {
             let mut ret = vec![];
@@ -415,9 +419,7 @@ impl XStaticExpr {
                                         }
                                     }
                                     XFunctionFactory::Dynamic(_) => {
-                                        Err(CompilationError::DynamicFunctionAsVariable {
-                                            name,
-                                        })
+                                        Err(CompilationError::DynamicFunctionAsVariable { name })
                                     }
                                 }
                             } else {
@@ -441,9 +443,7 @@ impl XStaticExpr {
                     ))
                 }
                 None => Err(CompilationError::FunctionNotFound { name }),
-                Some((item, _)) => {
-                    Err(CompilationError::NonFunctionSpecialization { name, item })
-                }
+                Some((item, _)) => Err(CompilationError::NonFunctionSpecialization { name, item }),
             },
             Self::Lambda(args, body) => {
                 let mut subscope = XCompilationScope::from_parent_lambda(namespace);

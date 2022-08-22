@@ -248,7 +248,7 @@ pub(crate) fn add_sequence_len(scope: &mut RootCompilationScope) -> Result<(), C
                 ret: X_INT.clone(),
             },
             |args, ns, _tca, rt| {
-                let (a0, ) = eval!(args, ns, rt, 0);
+                let (a0,) = eval!(args, ns, rt, 0);
                 let arr = &to_native!(a0, XSequence);
                 Ok(ManagedXValue::new(XValue::Int(arr.len().into()), rt)?.into())
             },
@@ -278,12 +278,12 @@ pub(crate) fn add_sequence_add(scope: &mut RootCompilationScope) -> Result<(), C
                 ret: t_arr,
             },
             |args, ns, tca, rt| {
-                let (a0, ) = eval!(args, ns, rt, 0);
+                let (a0,) = eval!(args, ns, rt, 0);
                 let seq0 = to_native!(a0, XSequence);
                 if seq0.is_empty() {
                     return args[1].eval(ns, tca, rt);
                 }
-                let (a1, ) = eval!(args, ns, rt, 1);
+                let (a1,) = eval!(args, ns, rt, 1);
                 let seq1 = to_native!(a1, XSequence);
                 if seq1.is_empty() {
                     return Ok(a0.clone().into());
@@ -296,7 +296,9 @@ pub(crate) fn add_sequence_add(scope: &mut RootCompilationScope) -> Result<(), C
     )
 }
 
-pub(crate) fn add_sequence_add_stack(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_sequence_add_stack(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
     let t_stack = XStackType::xtype(t);
@@ -336,7 +338,9 @@ pub(crate) fn add_sequence_add_stack(scope: &mut RootCompilationScope) -> Result
     )
 }
 
-pub(crate) fn add_sequence_addrev_stack(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_sequence_addrev_stack(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
     let t_stack = XStackType::xtype(t);
@@ -442,7 +446,9 @@ pub(crate) fn add_sequence_rpush(scope: &mut RootCompilationScope) -> Result<(),
     )
 }
 
-pub(crate) fn add_sequence_insert(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_sequence_insert(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
@@ -610,7 +616,9 @@ pub(crate) fn add_sequence_swap(scope: &mut RootCompilationScope) -> Result<(), 
     )
 }
 
-pub(crate) fn add_sequence_to_stack(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_sequence_to_stack(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
     scope.add_func(
@@ -625,7 +633,7 @@ pub(crate) fn add_sequence_to_stack(scope: &mut RootCompilationScope) -> Result<
                 ret: XStackType::xtype(t),
             },
             |args, ns, _tca, rt| {
-                let (a0, ) = eval!(args, ns, rt, 0);
+                let (a0,) = eval!(args, ns, rt, 0);
                 let arr = to_native!(a0, XSequence);
                 let mut ret = XStack::new();
                 for x in arr.slice(0, arr.len(), ns, rt.clone())? {
@@ -704,7 +712,7 @@ pub(crate) fn add_sequence_sort(scope: &mut RootCompilationScope) -> Result<(), 
                         f.eval_values(&[w[0].clone(), w[1].clone()], ns, rt.clone())?,
                         Int
                     )
-                        .is_positive()
+                    .is_positive()
                     {
                         is_sorted = false;
                         break;
@@ -719,7 +727,7 @@ pub(crate) fn add_sequence_sort(scope: &mut RootCompilationScope) -> Result<(), 
                             f.eval_values(&[a.clone(), b.clone()], ns, rt.clone())?,
                             Int
                         )
-                            .is_negative())
+                        .is_negative())
                     })?;
                     Ok(manage_native!(XSequence::array(ret), rt))
                 }
@@ -728,7 +736,9 @@ pub(crate) fn add_sequence_sort(scope: &mut RootCompilationScope) -> Result<(), 
     )
 }
 
-pub(crate) fn add_sequence_reduce3(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_sequence_reduce3(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([t, s], params) = scope.generics_from_names(["T", "S"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
@@ -771,7 +781,9 @@ pub(crate) fn add_sequence_reduce3(scope: &mut RootCompilationScope) -> Result<(
     )
 }
 
-pub(crate) fn add_sequence_reduce2(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_sequence_reduce2(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
@@ -840,13 +852,13 @@ pub(crate) fn add_sequence_range(scope: &mut RootCompilationScope) -> Result<(),
             |args, ns, _tca, rt| {
                 let (start, end, step);
                 if args.len() == 1 {
-                    let (a0, ) = eval!(args, ns, rt, 0);
+                    let (a0,) = eval!(args, ns, rt, 0);
                     end = to_primitive!(a0, Int).to_i64().ok_or("end out of bounds")?;
                     start = 0i64;
                     step = 1i64;
                 } else {
                     let (a0, a1) = eval!(args, ns, rt, 0, 1);
-                    let (a2, ) = meval!(args, ns, rt, 2);
+                    let (a2,) = meval!(args, ns, rt, 2);
                     start = to_primitive!(a0, Int)
                         .to_i64()
                         .ok_or("start out of bounds")?;
@@ -869,7 +881,9 @@ pub(crate) fn add_sequence_range(scope: &mut RootCompilationScope) -> Result<(),
     )
 }
 
-pub(crate) fn add_sequence_filter(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_sequence_filter(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
@@ -979,7 +993,9 @@ pub(crate) fn add_sequence_nth(scope: &mut RootCompilationScope) -> Result<(), C
     )
 }
 
-pub(crate) fn add_sequence_take_while(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_sequence_take_while(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
@@ -1026,7 +1042,9 @@ pub(crate) fn add_sequence_take_while(scope: &mut RootCompilationScope) -> Resul
     )
 }
 
-pub(crate) fn add_sequence_skip_until(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_sequence_skip_until(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 

@@ -116,7 +116,10 @@ impl<'p> XCompilationScope<'p> {
         self.get_with_depth(name).map(|i| i.0)
     }
 
-    pub(crate) fn get_with_depth(&self, name: DefaultSymbol) -> Option<(XCompilationScopeItem, usize)> {
+    pub(crate) fn get_with_depth(
+        &self,
+        name: DefaultSymbol,
+    ) -> Option<(XCompilationScopeItem, usize)> {
         fn helper(
             scope: &XCompilationScope<'_>,
             name: DefaultSymbol,
@@ -1090,7 +1093,7 @@ impl RootCompilationScope {
         t.to_string_with_interner(&self.interner)
     }
 
-    pub fn get(&self, name: &str)->Option<XCompilationScopeItem>{
+    pub fn get(&self, name: &str) -> Option<XCompilationScopeItem> {
         self.interner.get(name).and_then(|i| self.scope.get(i))
     }
 }

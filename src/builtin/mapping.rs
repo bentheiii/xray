@@ -309,7 +309,9 @@ pub(crate) fn add_mapping_len(scope: &mut RootCompilationScope) -> Result<(), Co
     )
 }
 
-pub(crate) fn add_mapping_entries(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_entries(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -345,7 +347,9 @@ pub(crate) fn add_mapping_entries(scope: &mut RootCompilationScope) -> Result<()
     )
 }
 
-pub(crate) fn add_mapping_contains(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_contains(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 
@@ -467,7 +471,9 @@ pub(crate) fn add_mapping_pop(scope: &mut RootCompilationScope) -> Result<(), Co
     )
 }
 
-pub(crate) fn add_mapping_discard(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_discard(
+    scope: &mut RootCompilationScope,
+) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 
