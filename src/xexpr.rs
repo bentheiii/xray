@@ -35,9 +35,9 @@ pub(crate) enum XStaticExpr {
     Lambda(Vec<XExplicitArgSpec>, Box<XStaticExpr>),
 }
 
-pub struct CompilationResult {
-    pub expr: XExpr,
-    pub closure_vars: Vec<DefaultSymbol>,
+pub(crate) struct CompilationResult {
+    pub(crate) expr: XExpr,
+    pub(crate) closure_vars: Vec<DefaultSymbol>,
 }
 
 impl From<XExpr> for CompilationResult {
@@ -50,7 +50,7 @@ impl From<XExpr> for CompilationResult {
 }
 
 impl CompilationResult {
-    pub fn new(expr: XExpr, closure_vars: Vec<DefaultSymbol>) -> Self {
+    fn new(expr: XExpr, closure_vars: Vec<DefaultSymbol>) -> Self {
         Self { expr, closure_vars }
     }
     fn join(results: Vec<Self>) -> (Vec<XExpr>, Vec<DefaultSymbol>) {
@@ -70,8 +70,8 @@ impl CompilationResult {
     }
 }
 
-pub fn resolve_overload<'p>(
-    overloads: Vec<Rc<XFunctionFactory>>,
+pub(crate) fn resolve_overload<'p>(
+    overloads: &[Rc<XFunctionFactory>],
     args: Option<&[XExpr]>,
     arg_types: &[Arc<XType>],
     name: DefaultSymbol,
@@ -137,18 +137,18 @@ pub fn resolve_overload<'p>(
 }
 
 impl XStaticExpr {
-    pub fn new_call(name: &'static str, args: Vec<Self>, interner: &mut StringInterner) -> Self {
+    pub(crate) fn new_call(name: &'static str, args: Vec<Self>, interner: &mut StringInterner) -> Self {
         Self::Call(
             Box::new(Self::Ident(interner.get_or_intern_static(name))),
             args,
         )
     }
 
-    pub fn new_call_sym(name: Identifier, args: Vec<Self>) -> Self {
+    pub(crate) fn new_call_sym(name: Identifier, args: Vec<Self>) -> Self {
         Self::Call(Box::new(Self::Ident(name)), args)
     }
 
-    pub fn compile<'p>(
+    pub(crate) fn compile<'p>(
         &self,
         namespace: &'p XCompilationScope<'p>,
     ) -> Result<CompilationResult, CompilationError> {
@@ -188,6 +188,7 @@ impl XStaticExpr {
                                     if compiled_args.len() != 1 {
                                         return Err(CompilationError::VariantConstructorOneArg);
                                     }
+                                    let compiled_arg = compiled_args.into_iter().next().unwrap();
                                     let com_type = Arc::new(XType::Compound(
                                         CompoundKind::Union,
                                         spec.clone(),
@@ -197,14 +198,14 @@ impl XStaticExpr {
                                         .type_
                                         .resolve_bind(&Bind::new(), Some(&com_type));
                                     if let Some(bind) =
-                                        var_type.bind_in_assignment(&compiled_args[0].xtype()?)
+                                        var_type.bind_in_assignment(&compiled_arg.xtype()?)
                                     {
                                         return Ok(CompilationResult::new(
                                             XExpr::Variant(
                                                 spec,
                                                 bind,
                                                 index,
-                                                Box::new(compiled_args[0].clone()),
+                                                Box::new(compiled_arg),
                                             ),
                                             cvars,
                                         ));
@@ -213,7 +214,7 @@ impl XStaticExpr {
                                             union_name: spec.name,
                                             variant_name: member_name.clone(),
                                             expected_type: spec.fields[index].type_.clone(),
-                                            actual_type: compiled_args[0].xtype()?,
+                                            actual_type: compiled_arg.xtype()?,
                                         })
                                     }
                                 } else {
@@ -235,7 +236,7 @@ impl XStaticExpr {
                                 return Ok(CompilationResult::new(
                                     XExpr::Call(
                                         Box::new(resolve_overload(
-                                            overloads,
+                                            &overloads,
                                             Some(&compiled_args),
                                             &arg_types,
                                             *name,
@@ -305,7 +306,7 @@ impl XStaticExpr {
                                 Ok(CompilationResult::new(
                                     XExpr::Call(
                                         Box::new(resolve_overload(
-                                            overloads,
+                                            &overloads,
                                             Some(&compiled_args),
                                             arg_types,
                                             *name,
@@ -435,7 +436,7 @@ impl XStaticExpr {
                         vec![]
                     };
                     Ok(CompilationResult::new(
-                        resolve_overload(overloads, None, arg_types, *name, namespace)?,
+                        resolve_overload(&overloads, None, arg_types, *name, namespace)?,
                         cvars,
                     ))
                 }
@@ -472,7 +473,7 @@ impl XStaticExpr {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone)] // todo the only reason this clone exists is because the compilation scope both saves and returns the expression, can we fix that?
 pub enum XExpr {
     LiteralBool(bool),
     LiteralInt(i64),

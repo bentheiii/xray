@@ -235,8 +235,8 @@ impl<'p> XCompilationScope<'p> {
         if let Some(other) = self.get(name) {
             Err(CompilationError::NameAlreadyDefined { name, other })
         } else {
-            self.values
-                .insert(name, (Some(expr.clone()), expr.xtype()?));
+            let xtype = expr.xtype()?;
+            self.values.insert(name, (Some(expr.clone()), xtype));
             Ok(Declaration::Value(name, expr))
         }
     }
@@ -355,7 +355,7 @@ impl<'p> XCompilationScope<'p> {
             Some(XCompilationScopeItem::Overload(overloads)) => overloads,
             _ => return Err(format!("{:?} is not an overload", name)), // todo better error
         };
-        resolve_overload(overloads, None, types, name, self)
+        resolve_overload(&overloads, None, types, name, self)
             .map_err(|e| format!("overload resolution failed for {types:?} ({e:?})"))
     }
 
