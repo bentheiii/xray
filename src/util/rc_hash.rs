@@ -3,8 +3,8 @@ use std::rc::Rc;
 
 pub struct RcHash<T>(pub Rc<T>);
 
-impl<T> RcHash<T>{
-    pub fn address(&self)->usize{
+impl<T> RcHash<T> {
+    pub fn address(&self) -> usize {
         Rc::as_ptr(&self.0) as usize
     }
 }

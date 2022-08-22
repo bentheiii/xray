@@ -17,7 +17,7 @@ fn test_script(script_number: usize) {
         .unwrap();
 
     let mut eval_scope = XEvaluationScope::root();
-    for decl in decls{
+    for decl in decls {
         eval_scope.add_from(&decl, runtime.clone()).unwrap();
     }
 

@@ -2,6 +2,7 @@ use crate::runtime::RTCell;
 use crate::xexpr::XStaticFunction;
 use crate::xvalue::{ManagedXValue, XFunction};
 use std::collections::HashMap;
+use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
 use string_interner::DefaultSymbol;
 
@@ -15,6 +16,14 @@ pub struct XEvaluationScope<'p> {
     ud_functions: HashMap<RcHash<XStaticFunction>, XFunction>,
     parent: Option<&'p XEvaluationScope<'p>>,
     depth: usize,
+}
+
+pub struct MultipleUD; // for trying to access an ambiguous user-defined
+
+impl Debug for MultipleUD {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Multiple user-defined functions with the queried name")
+    }
 }
 
 impl<'p> XEvaluationScope<'p> {
@@ -51,22 +60,29 @@ impl<'p> XEvaluationScope<'p> {
     }
 
     pub fn get_value(&self, name: DefaultSymbol) -> Option<Rc<ManagedXValue>> {
-        self.values
-            .get(&name)
-            .cloned()
-            .or_else(|| self.parent.as_ref().and_then(|parent| parent.get_value(name)))
+        self.values.get(&name).cloned().or_else(|| {
+            self.parent
+                .as_ref()
+                .and_then(|parent| parent.get_value(name))
+        })
     }
 
-    pub fn get_unique_ud_func(&self, name: DefaultSymbol) -> Result<Option<&XFunction>, ()> {
+    pub fn get_unique_ud_func(
+        &self,
+        name: DefaultSymbol,
+    ) -> Result<Option<&XFunction>, MultipleUD> {
         // todo better return type
         let own = self
             .ud_static_functions
             .get(&name)
             .map(|m| {
                 if m.len() > 1 {
-                    Err(())
+                    Err(MultipleUD)
                 } else {
-                    Ok(self.ud_functions.get(&RcHash(m.iter().next().unwrap().clone())).unwrap())
+                    Ok(self
+                        .ud_functions
+                        .get(&RcHash(m.iter().next().unwrap().clone()))
+                        .unwrap())
                 }
             })
             .transpose()?;
@@ -78,15 +94,17 @@ impl<'p> XEvaluationScope<'p> {
             .flatten();
 
         if own.is_some() && parents.is_some() {
-            Err(())
+            Err(MultipleUD)
         } else {
             Ok(own.or(parents))
         }
     }
 
     pub fn get_ud_func(&self, key: RcHash<XStaticFunction>) -> &XFunction {
-        self.ud_functions.get(&key)
-            .or_else(|| self.parent.map(|p| p.get_ud_func(key))).unwrap()
+        self.ud_functions
+            .get(&key)
+            .or_else(|| self.parent.map(|p| p.get_ud_func(key)))
+            .unwrap()
     }
 
     pub fn add_value(&mut self, name: DefaultSymbol, value: Rc<ManagedXValue>) {
@@ -96,11 +114,11 @@ impl<'p> XEvaluationScope<'p> {
     pub fn add_from(&mut self, decl: &Declaration, runtime: RTCell) -> Result<(), String> {
         match decl {
             Declaration::Value(name, expr) => {
-                let value = expr.eval(self, false, runtime.clone())?.unwrap_value();
+                let value = expr.eval(self, false, runtime)?.unwrap_value();
                 self.add_value(*name, value);
             }
             Declaration::UserFunction(name, func) => {
-                let evaled = self.lock_closure(&func);
+                let evaled = self.lock_closure(func);
                 self.ud_static_functions
                     .entry(*name)
                     .or_insert_with(Vec::new)
@@ -115,13 +133,16 @@ impl<'p> XEvaluationScope<'p> {
 
     pub fn lock_closure(&self, func: &Rc<XStaticFunction>) -> XFunction {
         if let XStaticFunction::UserFunction(uf) = func.as_ref() {
-            let closure = Rc::new(uf
-                .cvars
-                .iter()
-                .map(|&name| (name, self.get_value(name).unwrap()))
-                .collect());
+            let closure = Rc::new(
+                uf.cvars
+                    .iter()
+                    .map(|&name| (name, self.get_value(name).unwrap()))
+                    .collect(),
+            );
             XFunction::UserFunction(func.clone(), closure)
-        } else { unreachable!() }
+        } else {
+            unreachable!()
+        }
     }
 
     pub fn ancestor(&'p self, depth: usize) -> &'p XEvaluationScope<'p> {

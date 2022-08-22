@@ -13,12 +13,12 @@ use crate::{
 };
 
 use crate::util::lazy_bigint::LazyBigint;
+use crate::util::rc_hash::RcHash;
 use std::collections::HashSet;
 use std::fmt::{Debug, Error, Formatter};
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
-use crate::util::rc_hash::RcHash;
 
 #[derive(Debug, Clone)]
 pub enum XStaticExpr {
@@ -104,7 +104,7 @@ pub fn resolve_overload<'p>(
             } else {
                 &mut exact_matches
             }
-                .push(item);
+            .push(item);
         }
     }
     if exact_matches.len() == 1 {
@@ -180,9 +180,9 @@ impl XStaticExpr {
                         //special case: member access can be a variant constructor
                         if let Self::Ident(name) = obj.as_ref() {
                             if let Some(XCompilationScopeItem::Compound(
-                                            CompoundKind::Union,
-                                            spec,
-                                        )) = namespace.get(*name)
+                                CompoundKind::Union,
+                                spec,
+                            )) = namespace.get(*name)
                             {
                                 return if let Some(&index) = spec.indices.get(member_name) {
                                     if compiled_args.len() != 1 {
@@ -197,7 +197,7 @@ impl XStaticExpr {
                                         .type_
                                         .resolve_bind(&Bind::new(), Some(&com_type));
                                     if let Some(bind) =
-                                    var_type.bind_in_assignment(&compiled_args[0].xtype()?)
+                                        var_type.bind_in_assignment(&compiled_args[0].xtype()?)
                                     {
                                         return Ok(CompilationResult::new(
                                             XExpr::Variant(
@@ -286,7 +286,7 @@ impl XStaticExpr {
                             .collect::<Result<Vec<_>, _>>()?;
                         let mut bind = Bind::new();
                         for (idx, (arg_type, actual_type)) in
-                        arg_types.iter().zip(actual_arg_types.iter()).enumerate()
+                            arg_types.iter().zip(actual_arg_types.iter()).enumerate()
                         {
                             bind = arg_type
                                 .bind_in_assignment(actual_type)
@@ -380,9 +380,9 @@ impl XStaticExpr {
             Self::Ident(name) => match namespace.get_with_depth(*name) {
                 None => Err(CompilationError::ValueNotFound { name: *name }),
                 Some((
-                         XCompilationScopeItem::Compound(..) | XCompilationScopeItem::NativeType(..),
-                         _,
-                     )) => Err(CompilationError::TypeAsVariable { name: *name }),
+                    XCompilationScopeItem::Compound(..) | XCompilationScopeItem::NativeType(..),
+                    _,
+                )) => Err(CompilationError::TypeAsVariable { name: *name }),
                 Some((item, depth)) => {
                     let cvars = if depth != 0 && depth != namespace.height {
                         vec![*name]
@@ -552,7 +552,7 @@ impl XStaticFunction {
     pub fn from_native(
         spec: XFuncSpec,
         native: impl Fn(&[XExpr], &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String>
-        + 'static,
+            + 'static,
     ) -> Self {
         Self::Native(spec, Rc::new(native))
     }
@@ -560,7 +560,7 @@ impl XStaticFunction {
     pub fn from_native_short_circut(
         spec: XFuncSpec,
         native: impl Fn(&[XExpr], &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String>
-        + 'static,
+            + 'static,
     ) -> Self {
         Self::ShortCircutNative(spec, Rc::new(native))
     }
@@ -837,19 +837,19 @@ impl XExpr {
                 XValue::Function(func.clone().to_function(namespace)),
                 runtime,
             )?
-                .into()),
+            .into()),
             Self::Lambda(func) => Ok(ManagedXValue::new(
                 XValue::Function(namespace.lock_closure(func)),
                 runtime,
             )?
-                .into()),
+            .into()),
             Self::Ident(name, item) => {
                 if let IdentItem::Function(func) = item.as_ref() {
                     Ok(ManagedXValue::new(
                         XValue::Function(func.clone().to_function(namespace)),
                         runtime,
                     )?
-                        .into())
+                    .into())
                 } else {
                     Ok(namespace
                         .get_value(*name)

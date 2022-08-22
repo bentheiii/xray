@@ -38,7 +38,10 @@ pub type DynBind = Rc<
 #[derive(Clone)]
 pub enum XFunction {
     Native(NativeCallable),
-    UserFunction(Rc<XStaticFunction>, Rc<HashMap<Identifier, Rc<ManagedXValue>>>),
+    UserFunction(
+        Rc<XStaticFunction>,
+        Rc<HashMap<Identifier, Rc<ManagedXValue>>>,
+    ),
     Recourse(usize),
 }
 
@@ -141,7 +144,7 @@ impl XFunction {
                         scope.add_value(name, value.clone());
                     }
 
-                    for decl in &uf.declarations{
+                    for decl in &uf.declarations {
                         scope.add_from(decl, runtime.clone())?
                     }
 

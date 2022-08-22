@@ -1,5 +1,5 @@
-extern crate pest;
 extern crate core;
+extern crate pest;
 
 use xray::compilation_scope::XCompilationScopeItem;
 use xray::compile_err::ResolvedTracedCompilationError;
@@ -20,18 +20,16 @@ fn main() {
     };
     let runtime = limits.to_runtime();
 
-    let decals = match root_scope
-        .feed_file(input, runtime.clone())
-    {
+    let decals = match root_scope.feed_file(input, runtime.clone()) {
         Ok(v) => v,
         Err(e @ ResolvedTracedCompilationError::Compilation(..)) => panic!("{}", e),
-        Err(ResolvedTracedCompilationError::Syntax(s)) => panic!("{}", s)
+        Err(ResolvedTracedCompilationError::Syntax(s)) => panic!("{}", s),
     };
     println!("compiled!");
 
     let mut eval_scope = XEvaluationScope::root();
     let z_ident = root_scope.get_identifier("z");
-    for decl in decals{
+    for decl in decals {
         eval_scope.add_from(&decl, runtime.clone()).unwrap();
     }
     println!("z={:?}", eval_scope.get_value(z_ident).unwrap().value);
