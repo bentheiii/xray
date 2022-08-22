@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct RuntimeLimits {
     pub size_limit: Option<usize>,
     pub depth_limit: Option<usize>,
@@ -9,17 +9,17 @@ pub struct RuntimeLimits {
 }
 
 impl RuntimeLimits {
-    pub fn to_runtime(&self) -> RTCell {
+    pub fn to_runtime(self) -> RTCell {
         Rc::new(RefCell::new(Runtime {
-            limits: self.clone(),
+            limits: self,
             size: 0,
         }))
     }
 }
 
 pub struct Runtime {
-    pub limits: RuntimeLimits,
-    pub size: usize, // this will be zero if the runtime has no size limit
+    pub(crate) limits: RuntimeLimits,
+    pub(crate)  size: usize, // this will be zero if the runtime has no size limit
 }
 
 pub type RTCell = Rc<RefCell<Runtime>>;

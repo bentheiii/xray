@@ -20,8 +20,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
 
-#[derive(Debug, Clone)]
-pub enum XStaticExpr {
+#[derive(Debug)]
+pub(crate) enum XStaticExpr {
     LiteralBool(bool),
     LiteralInt(i64),
     LiteralFloat(f64),
