@@ -513,7 +513,7 @@ pub struct UfData {
 }
 
 impl UfData {
-    pub fn new(
+    pub(crate) fn new(
         spec: XExplicitFuncSpec,
         declarations: Vec<Declaration>,
         output: Box<XExpr>,
@@ -536,7 +536,7 @@ impl UfData {
 }
 
 impl XStaticFunction {
-    pub fn to_function(self: &Rc<Self>, closure: &XEvaluationScope<'_>) -> XFunction {
+    pub(crate) fn to_function(self: &Rc<Self>, closure: &XEvaluationScope<'_>) -> XFunction {
         match self.as_ref() {
             Self::Native(_, native) | Self::ShortCircutNative(_, native) => {
                 XFunction::Native(native.clone())
@@ -549,7 +549,7 @@ impl XStaticFunction {
         }
     }
 
-    pub fn from_native(
+    pub(crate) fn from_native(
         spec: XFuncSpec,
         native: impl Fn(&[XExpr], &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String>
             + 'static,
@@ -557,7 +557,7 @@ impl XStaticFunction {
         Self::Native(spec, Rc::new(native))
     }
 
-    pub fn from_native_short_circut(
+    pub(crate) fn from_native_short_circut(
         spec: XFuncSpec,
         native: impl Fn(&[XExpr], &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String>
             + 'static,
@@ -565,7 +565,7 @@ impl XStaticFunction {
         Self::ShortCircutNative(spec, Rc::new(native))
     }
 
-    pub fn short_circuit_overloads(&self) -> bool {
+    fn short_circuit_overloads(&self) -> bool {
         matches!(self, Self::ShortCircutNative(..))
     }
 }
@@ -597,14 +597,14 @@ impl PartialEq for XStaticFunction {
 
 impl Eq for XStaticFunction {}
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct XExplicitFuncSpec {
     pub generic_params: Option<Vec<DefaultSymbol>>,
     pub args: Vec<XExplicitArgSpec>,
     pub ret: Arc<XType>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct XExplicitArgSpec {
     pub name: DefaultSymbol,
     pub type_: Arc<XType>,
