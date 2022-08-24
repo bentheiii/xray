@@ -8,6 +8,7 @@ use crate::{
     eval, manage_native, to_native, to_primitive, CompilationError, RTCell, RootCompilationScope,
     XCallableSpec, XEvaluationScope, XStaticFunction, XType,
 };
+use derivative::Derivative;
 use num_traits::ToPrimitive;
 use rc::Rc;
 use std::collections::hash_map::Entry;
@@ -18,7 +19,6 @@ use std::iter::once;
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
-use derivative::Derivative;
 
 use crate::xexpr::TailedEvalResult;
 
@@ -43,7 +43,7 @@ impl NativeType for XMappingType {
 type MappingBucket<W> = Vec<(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>)>;
 
 #[derive(Derivative)]
-#[derivative(Debug(bound=""))]
+#[derivative(Debug(bound = ""))]
 struct XMapping<W: Write + 'static> {
     inner: HashMap<u64, MappingBucket<W>>,
     hash_func: Rc<ManagedXValue<W>>,
@@ -121,12 +121,16 @@ impl<W: Write + 'static> XNativeValue for XMapping<W> {
     }
 }
 
-pub(crate) fn add_mapping_type<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_mapping_type<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([k, v], _) = scope.generics_from_names(["K", "V"]);
     scope.add_native_type("Mapping", XMappingType::xtype(k, v))
 }
 
-pub(crate) fn add_mapping_new<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_mapping_new<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([k], params) = scope.generics_from_names(["K"]);
 
     scope.add_func(
@@ -163,7 +167,9 @@ pub(crate) fn add_mapping_new<W: Write + 'static>(scope: &mut RootCompilationSco
     )
 }
 
-pub(crate) fn add_mapping_set<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_mapping_set<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -197,7 +203,9 @@ pub(crate) fn add_mapping_set<W: Write + 'static>(scope: &mut RootCompilationSco
     )
 }
 
-pub(crate) fn add_mapping_update<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_mapping_update<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -233,7 +241,9 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(scope: &mut RootCompilation
     )
 }
 
-pub(crate) fn add_mapping_lookup<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_mapping_lookup<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -288,7 +298,9 @@ pub(crate) fn add_mapping_lookup<W: Write + 'static>(scope: &mut RootCompilation
     )
 }
 
-pub(crate) fn add_mapping_get<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_mapping_get<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -338,7 +350,9 @@ pub(crate) fn add_mapping_get<W: Write + 'static>(scope: &mut RootCompilationSco
     )
 }
 
-pub(crate) fn add_mapping_len<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_mapping_len<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k, v);
 
@@ -452,7 +466,9 @@ pub(crate) fn add_mapping_contains<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_mapping_pop<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_mapping_pop<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 

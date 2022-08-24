@@ -8,11 +8,13 @@ use crate::{
 };
 use num_traits::{One, Zero};
 use rc::Rc;
-use std::fmt::Debug;
+
 use std::io::Write;
 use std::rc;
 
-pub(crate) fn add_bool_type<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_bool_type<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     scope.add_native_type("bool", X_BOOL.clone())
 }
 
@@ -38,7 +40,9 @@ add_ufunc!(add_bool_not, not, X_BOOL, Bool, X_BOOL, |a: &bool| {
     Ok(XValue::Bool(!a))
 });
 
-pub(crate) fn add_and<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_and<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "and",
         XStaticFunction::from_native(
@@ -67,7 +71,9 @@ pub(crate) fn add_and<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -
     )
 }
 
-pub(crate) fn add_or<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_or<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "or",
         XStaticFunction::from_native(
@@ -96,7 +102,9 @@ pub(crate) fn add_or<W: Write + 'static>(scope: &mut RootCompilationScope<W>) ->
     )
 }
 
-pub(crate) fn add_bool_then<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_bool_then<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
     scope.add_func(

@@ -21,7 +21,6 @@ fn main() {
 
     let mut root_scope = std_compilation_scope(runtime);
 
-
     match root_scope.feed_file(input) {
         Ok(v) => v,
         Err(e @ ResolvedTracedCompilationError::Compilation(..)) => panic!("{}", e),

@@ -9,11 +9,13 @@ use crate::{
 use crate::util::lazy_bigint::LazyBigint;
 use num_traits::{FromPrimitive, Zero};
 use rc::Rc;
-use std::fmt::Debug;
+
 use std::io::Write;
 use std::rc;
 
-pub(crate) fn add_float_type<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_float_type<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     scope.add_native_type("float", X_FLOAT.clone())
 }
 
@@ -68,9 +70,7 @@ add_ufunc!(
     X_FLOAT,
     Float,
     X_STRING,
-    |a: &f64| {
-        Ok(XValue::String(a.to_string(),))
-    }
+    |a: &f64| { Ok(XValue::String(a.to_string(),)) }
 );
 
 add_binop!(add_float_cmp, cmp, X_FLOAT, Float, X_INT, |a, b| Ok(xcmp(

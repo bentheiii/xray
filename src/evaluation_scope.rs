@@ -111,11 +111,14 @@ impl<'p, W: Write + 'static> XEvaluationScope<'p, W> {
         self.values.insert(name, value);
     }
 
-    pub(crate) fn add_from_declaration(&mut self, decl: &Declaration<W>, runtime: RTCell<W>) -> Result<(), String> {
+    pub(crate) fn add_from_declaration(
+        &mut self,
+        decl: &Declaration<W>,
+        runtime: RTCell<W>,
+    ) -> Result<(), String> {
         match decl {
             Declaration::Value(name, expr, ..) => {
-                let value = expr.eval(self, false, runtime)
-                    .map(|v| v.unwrap_value());
+                let value = expr.eval(self, false, runtime).map(|v| v.unwrap_value());
                 self.add_value(*name, value);
             }
             Declaration::Function(name, func) => {
@@ -160,9 +163,7 @@ pub struct RootEvaluationScope<'c, W: Write + 'static> {
 }
 
 impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
-    pub fn from_compilation_scope(
-        comp_scope: &'c RootCompilationScope<W>,
-    ) -> Result<Self, String> {
+    pub fn from_compilation_scope(comp_scope: &'c RootCompilationScope<W>) -> Result<Self, String> {
         let mut ret = Self {
             scope: XEvaluationScope::root(),
             compilation_scope: comp_scope,
@@ -179,7 +180,10 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
             .and_then(|id| self.scope.get_value(id))
     }
 
-    pub fn get_user_defined_function(&self, name: &str) -> Result<Option<&XFunction<W>>, MultipleUD> {
+    pub fn get_user_defined_function(
+        &self,
+        name: &str,
+    ) -> Result<Option<&XFunction<W>>, MultipleUD> {
         self.compilation_scope
             .get_identifer(name)
             .and_then(|id| self.scope.get_unique_ud_func(id).transpose())
@@ -187,7 +191,8 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
     }
 
     pub fn declare(&mut self, decl: &Declaration<W>) -> Result<(), String> {
-        self.scope.add_from_declaration(decl, self.compilation_scope.runtime.clone())
+        self.scope
+            .add_from_declaration(decl, self.compilation_scope.runtime.clone())
     }
 
     pub fn eval(

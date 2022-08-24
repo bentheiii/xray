@@ -5,6 +5,7 @@ use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
 use crate::{Identifier, XCompilationScope, XType};
 
 use crate::util::lazy_bigint::LazyBigint;
+use derivative::Derivative;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
@@ -12,10 +13,9 @@ use std::io::Write;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
-use derivative::Derivative;
 
 #[derive(Derivative)]
-#[derivative(Debug(bound=""))]
+#[derivative(Debug(bound = ""))]
 pub enum XValue<W: Write + 'static> {
     Int(LazyBigint),
     Float(f64),
@@ -27,8 +27,14 @@ pub enum XValue<W: Write + 'static> {
     Native(Box<dyn XNativeValue>),
 }
 
-pub type NativeCallable<W> =
-    Rc<dyn Fn(&[XExpr<W>], &XEvaluationScope<'_, W>, bool, RTCell<W>) -> Result<TailedEvalResult<W>, String>>;
+pub type NativeCallable<W> = Rc<
+    dyn Fn(
+        &[XExpr<W>],
+        &XEvaluationScope<'_, W>,
+        bool,
+        RTCell<W>,
+    ) -> Result<TailedEvalResult<W>, String>,
+>;
 pub type DynBind<W> = Rc<
     dyn Fn(
         Option<&[XExpr<W>]>,
@@ -38,7 +44,7 @@ pub type DynBind<W> = Rc<
 >; // todo make this a compilation error?
 
 #[derive(Derivative)]
-#[derivative(Clone(bound=""))]
+#[derivative(Clone(bound = ""))]
 pub enum XFunction<W: Write + 'static> {
     Native(NativeCallable<W>),
     UserFunction(

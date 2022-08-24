@@ -4,18 +4,18 @@ use crate::xexpr::XExpr;
 use crate::xtype::CompoundKind;
 use crate::Identifier;
 use crate::{XCompoundSpec, XType};
+use derivative::Derivative;
 use itertools::Itertools;
 use pest::iterators::Pair;
 use pest::Position;
-use std::fmt::{Debug, Display, Formatter};
+use std::fmt::{Display, Formatter};
 use std::io::Write;
 use std::sync::Arc;
 use string_interner::StringInterner;
 use strum::IntoStaticStr;
-use derivative::Derivative;
 
 #[derive(Derivative)]
-#[derivative(Debug(bound=""))]
+#[derivative(Debug(bound = ""))]
 pub struct TracedCompilationError<W: Write + 'static>(
     CompilationError<W>,
     ((usize, usize), usize),
@@ -23,7 +23,7 @@ pub struct TracedCompilationError<W: Write + 'static>(
 );
 
 #[derive(Derivative)]
-#[derivative(Debug(bound=""))]
+#[derivative(Debug(bound = ""))]
 pub enum CompilationError<W: Write + 'static> {
     VariableTypeMismatch {
         variable_name: Identifier,
@@ -205,7 +205,7 @@ impl<T: Resolve + Clone> Resolve for Vec<T> {
     }
 }
 
-impl<W: Write + 'static> Resolve for Vec<XExpr<W>>{
+impl<W: Write + 'static> Resolve for Vec<XExpr<W>> {
     type Output = Self;
     fn resolve(&self, _interner: &StringInterner) -> Self::Output {
         self.clone()
@@ -222,7 +222,6 @@ macro_rules! trivial_resolve {
         }
     };
 }
-
 
 trivial_resolve!(String);
 trivial_resolve!(bool);

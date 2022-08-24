@@ -24,8 +24,6 @@ extern crate pest;
 pub extern crate pest_derive;
 extern crate core;
 
-use std::fmt::Debug;
-use std::io::Write;
 use crate::builtin::bool::*;
 use crate::builtin::floats::*;
 use crate::builtin::generic::*;
@@ -39,6 +37,8 @@ use crate::builtin::unknown::add_unknown_eq;
 use crate::compilation_scope::{Declaration, RootCompilationScope, XCompilationScope};
 use crate::compile_err::{CompilationError, TracedCompilationError};
 use crate::parser::XRayParser;
+
+use std::io::Write;
 
 use crate::runtime::RTCell;
 

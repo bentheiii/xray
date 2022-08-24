@@ -6,12 +6,14 @@ use crate::{
     RootCompilationScope, XCompilationScope, XStaticFunction, XType,
 };
 use rc::Rc;
-use std::fmt::Debug;
+
 use std::io::Write;
 use std::rc;
 use std::sync::Arc;
 
-pub(crate) fn add_if<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_if<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if",
@@ -55,7 +57,9 @@ add_ufunc!(
     |a: &String| Err(a.clone())
 );
 
-pub(crate) fn add_cast<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_cast<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "cast",
@@ -73,7 +77,9 @@ pub(crate) fn add_cast<W: Write + 'static>(scope: &mut RootCompilationScope<W>) 
     )
 }
 
-pub(crate) fn add_debug<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_debug<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "debug",
@@ -104,7 +110,9 @@ pub(crate) fn add_debug<W: Write + 'static>(scope: &mut RootCompilationScope<W>)
     )
 }
 
-pub(crate) fn add_is_error<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_is_error<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "is_error",
@@ -125,7 +133,9 @@ pub(crate) fn add_is_error<W: Write + 'static>(scope: &mut RootCompilationScope<
     )
 }
 
-pub(crate) fn add_if_error<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_if_error<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if_error",
@@ -152,10 +162,16 @@ pub(crate) fn add_if_error<W: Write + 'static>(scope: &mut RootCompilationScope<
     )
 }
 
-pub(crate) fn add_ne<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_ne<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let eq_symbol = scope.identifier("eq");
 
-    fn static_from_eq<W: Write + 'static>(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr<W>) -> Rc<XStaticFunction<W>> {
+    fn static_from_eq<W: Write + 'static>(
+        t0: Arc<XType>,
+        t1: Arc<XType>,
+        eq_expr: XExpr<W>,
+    ) -> Rc<XStaticFunction<W>> {
         Rc::new(XStaticFunction::from_native(
             XFuncSpec {
                 generic_params: None,
@@ -203,10 +219,15 @@ pub(crate) fn add_ne<W: Write + 'static>(scope: &mut RootCompilationScope<W>) ->
     })
 }
 
-pub(crate) fn add_display<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_display<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let to_str_symbol = scope.identifier("to_str");
 
-    fn static_from_to_str<W: Write + 'static>(t: Arc<XType>, to_str_expr: XExpr<W>) -> Rc<XStaticFunction<W>> {
+    fn static_from_to_str<W: Write + 'static>(
+        t: Arc<XType>,
+        to_str_expr: XExpr<W>,
+    ) -> Rc<XStaticFunction<W>> {
         Rc::new(XStaticFunction::from_native(
             XFuncSpec {
                 generic_params: None,
@@ -242,14 +263,14 @@ pub(crate) fn add_display<W: Write + 'static>(scope: &mut RootCompilationScope<W
         scope: &XCompilationScope<W>,
         to_str_symbol: Identifier,
     ) -> Result<Rc<XStaticFunction<W>>, String> {
-        if types.len() < 1 || types.len() > 2  {
+        if !(1usize..=2).contains(&types.len()) {
             return Err(format!("Expected 1 or 2 type, got {}", types.len()));
         }
         let t0 = types[0].clone();
-        if let Some(t1) = types.get(1){
-            if let XType::String = t1.as_ref(){}
-            else {
-                return Err(format!("argument 2 must be a string, got {:?}", t1))
+        if let Some(t1) = types.get(1) {
+            if let XType::String = t1.as_ref() {
+            } else {
+                return Err(format!("argument 2 must be a string, got {:?}", t1));
             }
         }
 

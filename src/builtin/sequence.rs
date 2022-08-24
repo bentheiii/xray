@@ -10,6 +10,7 @@ use crate::{
     RootCompilationScope, XCallableSpec, XCompilationScope, XEvaluationScope, XStaticFunction,
     XType,
 };
+use derivative::Derivative;
 use num_traits::{One, Signed, ToPrimitive, Zero};
 use rc::Rc;
 use std::borrow::Cow;
@@ -19,7 +20,6 @@ use std::mem::size_of;
 use std::ops::Neg;
 use std::rc;
 use std::sync::Arc;
-use derivative::Derivative;
 
 use crate::util::lazy_bigint::LazyBigint;
 
@@ -44,7 +44,7 @@ impl NativeType for XSequenceType {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug(bound=""))]
+#[derivative(Debug(bound = ""))]
 pub enum XSequence<W: Write + 'static> {
     Empty,
     Array(Vec<Rc<ManagedXValue<W>>>),
@@ -201,12 +201,16 @@ fn value_to_idx<W: Write + 'static>(arr: &XSequence<W>, i: &LazyBigint) -> Resul
     Ok(idx)
 }
 
-pub(crate) fn add_sequence_type<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_type<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Sequence", XSequenceType::xtype(t))
 }
 
-pub(crate) fn add_sequence_get<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_get<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
     scope.add_func(
@@ -237,7 +241,9 @@ pub(crate) fn add_sequence_get<W: Write + 'static>(scope: &mut RootCompilationSc
     )
 }
 
-pub(crate) fn add_sequence_len<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_len<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
     scope.add_func(
@@ -260,7 +266,9 @@ pub(crate) fn add_sequence_len<W: Write + 'static>(scope: &mut RootCompilationSc
     )
 }
 
-pub(crate) fn add_sequence_add<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_add<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
 
@@ -386,7 +394,9 @@ pub(crate) fn add_sequence_addrev_stack<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_sequence_push<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_push<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
@@ -418,7 +428,9 @@ pub(crate) fn add_sequence_push<W: Write + 'static>(scope: &mut RootCompilationS
     )
 }
 
-pub(crate) fn add_sequence_rpush<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_rpush<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
@@ -492,7 +504,9 @@ pub(crate) fn add_sequence_insert<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_sequence_pop<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_pop<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
 
@@ -530,7 +544,9 @@ pub(crate) fn add_sequence_pop<W: Write + 'static>(scope: &mut RootCompilationSc
     )
 }
 
-pub(crate) fn add_sequence_set<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_set<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
@@ -570,7 +586,9 @@ pub(crate) fn add_sequence_set<W: Write + 'static>(scope: &mut RootCompilationSc
     )
 }
 
-pub(crate) fn add_sequence_swap<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_swap<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
 
@@ -649,7 +667,9 @@ pub(crate) fn add_sequence_to_stack<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_sequence_map<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_map<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([input_t, output_t], params) = scope.generics_from_names(["T_IN", "T_OUT"]);
 
     scope.add_func(
@@ -680,7 +700,9 @@ pub(crate) fn add_sequence_map<W: Write + 'static>(scope: &mut RootCompilationSc
     )
 }
 
-pub(crate) fn add_sequence_sort<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_sort<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
@@ -829,7 +851,9 @@ pub(crate) fn add_sequence_reduce2<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_sequence_range<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_range<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let t_arr = XSequenceType::xtype(X_INT.clone());
 
     scope.add_func(
@@ -942,7 +966,9 @@ pub(crate) fn add_sequence_filter<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_sequence_nth<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_nth<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
 
@@ -1095,7 +1121,9 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_sequence_take<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_take<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
 
@@ -1131,7 +1159,9 @@ pub(crate) fn add_sequence_take<W: Write + 'static>(scope: &mut RootCompilationS
     )
 }
 
-pub(crate) fn add_sequence_skip<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_skip<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
 
@@ -1170,10 +1200,16 @@ pub(crate) fn add_sequence_skip<W: Write + 'static>(scope: &mut RootCompilationS
     )
 }
 
-pub(crate) fn add_sequence_eq<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_sequence_eq<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let eq_symbol = scope.identifier("eq");
 
-    fn static_from_eq<W: Write + 'static>(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr<W>) -> Rc<XStaticFunction<W>> {
+    fn static_from_eq<W: Write + 'static>(
+        t0: Arc<XType>,
+        t1: Arc<XType>,
+        eq_expr: XExpr<W>,
+    ) -> Rc<XStaticFunction<W>> {
         Rc::new(XStaticFunction::from_native(
             XFuncSpec {
                 generic_params: None,

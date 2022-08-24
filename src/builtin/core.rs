@@ -1,7 +1,7 @@
-use std::fmt::Debug;
-use std::io::Write;
 use crate::xvalue::XValue;
 use num_traits::{One, Zero};
+
+use std::io::Write;
 
 use crate::util::lazy_bigint::LazyBigint;
 use std::ops::Neg;

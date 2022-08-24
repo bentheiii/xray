@@ -5,6 +5,7 @@ use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
     eval, manage_native, to_native, CompilationError, RootCompilationScope, XStaticFunction, XType,
 };
+use derivative::Derivative;
 use rc::Rc;
 use std::fmt::Debug;
 use std::io::Write;
@@ -12,7 +13,6 @@ use std::iter::from_fn;
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
-use derivative::Derivative;
 
 #[derive(Debug, Clone)]
 pub(super) struct XStackType {}
@@ -33,7 +33,7 @@ impl NativeType for XStackType {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug(bound=""))]
+#[derivative(Debug(bound = ""))]
 struct StackNode<W: Write + 'static> {
     value: Rc<ManagedXValue<W>>,
     next: Option<Rc<StackNode<W>>>,
@@ -52,17 +52,17 @@ impl<W: Write + 'static> StackNode<W> {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug(bound=""))]
+#[derivative(Debug(bound = ""))]
 pub(super) struct XStack<W: Write + 'static> {
     head: Option<Rc<StackNode<W>>>,
     pub(super) length: usize,
 }
 
-impl<W: Write + 'static> Default for XStack<W>{
+impl<W: Write + 'static> Default for XStack<W> {
     fn default() -> Self {
-        Self{
+        Self {
             head: None,
-            length: 0
+            length: 0,
         }
     }
 }
@@ -129,12 +129,16 @@ impl<W: Write + 'static> XNativeValue for XStack<W> {
     }
 }
 
-pub(crate) fn add_stack_type<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_stack_type<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Stack", XStackType::xtype(t))
 }
 
-pub(crate) fn add_stack_new<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_stack_new<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "stack",
         XStaticFunction::from_native(
@@ -148,7 +152,9 @@ pub(crate) fn add_stack_new<W: Write + 'static>(scope: &mut RootCompilationScope
     )
 }
 
-pub(crate) fn add_stack_push<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_stack_push<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -178,7 +184,9 @@ pub(crate) fn add_stack_push<W: Write + 'static>(scope: &mut RootCompilationScop
     )
 }
 
-pub(crate) fn add_stack_to_array<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_stack_to_array<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -228,7 +236,9 @@ pub(crate) fn add_stack_to_array_reversed<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_stack_len<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_stack_len<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t);
 
@@ -252,7 +262,9 @@ pub(crate) fn add_stack_len<W: Write + 'static>(scope: &mut RootCompilationScope
     )
 }
 
-pub(crate) fn add_stack_head<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_stack_head<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -279,7 +291,9 @@ pub(crate) fn add_stack_head<W: Write + 'static>(scope: &mut RootCompilationScop
     )
 }
 
-pub(crate) fn add_stack_tail<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_stack_tail<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t);
 
