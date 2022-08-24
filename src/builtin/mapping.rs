@@ -229,12 +229,12 @@ pub(crate) fn add_mapping_update(scope: &mut RootCompilationScope) -> Result<(),
     )
 }
 
-pub(crate) fn add_mapping_get(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_lookup(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
     scope.add_func(
-        "get",
+        "lookup",
         XStaticFunction::from_native(
             XFuncSpec {
                 generic_params: Some(params),
@@ -277,6 +277,56 @@ pub(crate) fn add_mapping_get(scope: &mut RootCompilationScope) -> Result<(), Co
                             }
                         }
                         Ok(manage_native!(XOptional { value: None }, rt))
+                    }
+                }
+            },
+        ),
+    )
+}
+
+pub(crate) fn add_mapping_get(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
+    let mp = XMappingType::xtype(k.clone(), v.clone());
+
+    scope.add_func(
+        "get",
+        XStaticFunction::from_native(
+            XFuncSpec {
+                generic_params: Some(params),
+                params: vec![
+                    XFuncParamSpec {
+                        type_: mp,
+                        required: true,
+                    },
+                    XFuncParamSpec {
+                        type_: k,
+                        required: true,
+                    },
+                ],
+                ret: v,
+            },
+            |args, ns, _tca, rt| {
+                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let mapping = to_native!(a0, XMapping);
+                let hash_func = to_primitive!(mapping.hash_func, Function);
+                let hash_key =
+                    to_primitive!(hash_func.eval_values(&[a1.clone()], ns, rt.clone())?, Int)
+                        .to_u64()
+                        .ok_or("hash is out of bounds")?;
+                let spot = mapping.inner.get(&hash_key);
+                match spot {
+                    None => Err("key not found".to_string()),
+                    Some(candidates) => {
+                        let eq_func = to_primitive!(mapping.eq_func, Function);
+                        for (k, v) in candidates.iter() {
+                            if *to_primitive!(
+                                eq_func.eval_values(&[a1.clone(), k.clone()], ns, rt.clone())?,
+                                Bool
+                            ) {
+                                return Ok(v.clone().into());
+                            }
+                        }
+                        Err("key not found".to_string())
                     }
                 }
             },

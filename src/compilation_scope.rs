@@ -873,6 +873,10 @@ impl<'p> XCompilationScope<'p> {
                             )?;
                             ret = XStaticExpr::Call(Box::new(ret), args);
                         }
+                        Rule::index => {
+                            let idx = self.to_expr(accessor.into_inner().next().unwrap(), interner, runtime.clone())?;
+                            ret = XStaticExpr::new_call("get", vec![ret, idx], interner)
+                        }
                         _ => {
                             unreachable!()
                         }

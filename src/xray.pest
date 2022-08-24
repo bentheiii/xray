@@ -17,6 +17,7 @@ expression2 = {
     method
     | call
     | member
+    | index
  }
   method = {"." ~ CNAME ~ call_args}
      call_args = {
@@ -24,6 +25,7 @@ expression2 = {
      }
   member = {"::" ~ CNAME}
   call = {call_args}
+  index = {"[" ~ expression ~ "]"}
 expression3 = _{
     STRING
     | bool

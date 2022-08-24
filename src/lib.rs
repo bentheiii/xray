@@ -177,6 +177,7 @@ pub fn std_compilation_scope(runtime: RTCell) -> RootCompilationScope {
     add_mapping_contains(&mut ret).unwrap();
     add_mapping_pop(&mut ret).unwrap();
     add_mapping_discard(&mut ret).unwrap();
+    add_mapping_lookup(&mut ret).unwrap();
 
     ret
 }
