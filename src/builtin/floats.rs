@@ -1,5 +1,5 @@
 use crate::builtin::core::xcmp;
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT};
+use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
     add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError,
@@ -7,7 +7,7 @@ use crate::{
 };
 
 use crate::util::lazy_bigint::LazyBigint;
-use num_traits::{FromPrimitive, ToPrimitive, Zero};
+use num_traits::{FromPrimitive, Zero};
 use rc::Rc;
 use std::rc;
 
@@ -56,19 +56,18 @@ add_ufunc!(add_float_ceil, ceil, X_FLOAT, Float, X_INT, |a: &f64| Ok(
 add_ufunc!(add_float_trunc, trunc, X_FLOAT, Float, X_INT, |a: &f64| Ok(
     XValue::Int(LazyBigint::from_f64(a.trunc()).unwrap())
 ));
+add_ufunc!(add_float_neg, neg, X_FLOAT, Float, X_FLOAT, |a: &f64| Ok(
+    XValue::Float(-a)
+));
 
 add_ufunc!(
     add_float_to_str,
     to_str,
     X_FLOAT,
     Float,
-    X_FLOAT,
+    X_STRING,
     |a: &f64| {
-        Ok(XValue::String(
-            a.to_f64()
-                .ok_or("rational cannot be converted to float")?
-                .to_string(),
-        ))
+        Ok(XValue::String(a.to_string(),))
     }
 );
 

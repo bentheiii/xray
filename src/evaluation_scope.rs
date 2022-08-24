@@ -9,8 +9,10 @@ use crate::compilation_scope::Declaration;
 use crate::util::rc_hash::RcHash;
 use crate::{let_match, Identifier, RootCompilationScope};
 
+pub type EvaluatedVariable = Result<Rc<ManagedXValue>, String>;
+
 pub struct XEvaluationScope<'p> {
-    pub values: HashMap<Identifier, Rc<ManagedXValue>>,
+    pub values: HashMap<Identifier, EvaluatedVariable>,
     pub recourse: Option<&'p XFunction>,
     ud_static_functions: HashMap<Identifier, Vec<Rc<XStaticFunction>>>,
     ud_functions: HashMap<RcHash<XStaticFunction>, XFunction>,
@@ -59,7 +61,7 @@ impl<'p> XEvaluationScope<'p> {
         })
     }
 
-    pub(crate) fn get_value(&self, name: Identifier) -> Option<Rc<ManagedXValue>> {
+    pub(crate) fn get_value(&self, name: Identifier) -> Option<EvaluatedVariable> {
         self.values.get(&name).cloned().or_else(|| {
             self.parent
                 .as_ref()
@@ -104,14 +106,15 @@ impl<'p> XEvaluationScope<'p> {
             .unwrap()
     }
 
-    pub(crate) fn add_value(&mut self, name: Identifier, value: Rc<ManagedXValue>) {
+    pub(crate) fn add_value(&mut self, name: Identifier, value: EvaluatedVariable) {
         self.values.insert(name, value);
     }
 
-    pub(crate) fn add_from(&mut self, decl: &Declaration, runtime: RTCell) -> Result<(), String> {
+    pub(crate) fn add_from_declaration(&mut self, decl: &Declaration, runtime: RTCell) -> Result<(), String> {
         match decl {
             Declaration::Value(name, expr, ..) => {
-                let value = expr.eval(self, false, runtime)?.unwrap_value();
+                let value = expr.eval(self, false, runtime)
+                    .map(|v| v.unwrap_value());
                 self.add_value(*name, value);
             }
             Declaration::Function(name, func) => {
@@ -169,7 +172,7 @@ impl<'c> RootEvaluationScope<'c> {
         Ok(ret)
     }
 
-    pub fn get_value(&mut self, name: &str) -> Option<Rc<ManagedXValue>> {
+    pub fn get_value(&mut self, name: &str) -> Option<EvaluatedVariable> {
         self.compilation_scope
             .get_identifer(name)
             .and_then(|id| self.scope.get_value(id))
@@ -183,7 +186,7 @@ impl<'c> RootEvaluationScope<'c> {
     }
 
     pub fn declare(&mut self, decl: &Declaration) -> Result<(), String> {
-        self.scope.add_from(decl, self.compilation_scope.runtime.clone())
+        self.scope.add_from_declaration(decl, self.compilation_scope.runtime.clone())
     }
 
     pub fn eval(

@@ -1,4 +1,4 @@
-use crate::evaluation_scope::XEvaluationScope;
+use crate::evaluation_scope::{EvaluatedVariable, XEvaluationScope};
 use crate::native_types::XNativeValue;
 use crate::runtime::RTCell;
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
@@ -39,7 +39,7 @@ pub enum XFunction {
     Native(NativeCallable),
     UserFunction(
         Rc<XStaticFunction>,
-        Rc<HashMap<Identifier, Rc<ManagedXValue>>>,
+        Rc<HashMap<Identifier, EvaluatedVariable>>,
     ),
     Recourse(usize),
 }
@@ -129,7 +129,7 @@ impl XFunction {
                     )?;
                     // explicit params
                     for (&name, arg) in uf.param_names.iter().zip(args.iter()) {
-                        scope.add_value(name, arg.clone());
+                        scope.add_value(name, Ok(arg.clone()));
                     }
                     //default params
                     // we only want the defaults that haven't been specified
@@ -140,11 +140,11 @@ impl XFunction {
                         .zip(uf.param_names.iter().skip(args.len()).rev())
                         .rev()
                     {
-                        scope.add_value(name, value.clone());
+                        scope.add_value(name, Ok(value.clone()));
                     }
 
                     for decl in &uf.declarations {
-                        scope.add_from(decl, runtime.clone())?
+                        scope.add_from_declaration(decl, runtime.clone())?
                     }
 
                     match uf.output.eval(&scope, true, runtime.clone())? {

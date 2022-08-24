@@ -334,7 +334,7 @@ impl<'p> XCompilationScope<'p> {
             |p| p.to_eval_scope(runtime.clone()),
         )?;
         for decl in &self.declarations {
-            ret.add_from(decl, runtime.clone()).unwrap_or(
+            ret.add_from_declaration(decl, runtime.clone()).unwrap_or(
                 ()
                 // we actually allow errors to happen here, since some expressions might depend
                 // on params or other unknown values

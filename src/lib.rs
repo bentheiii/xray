@@ -91,6 +91,7 @@ pub fn std_compilation_scope(runtime: RTCell) -> RootCompilationScope {
     add_float_floor(&mut ret).unwrap();
     add_float_to_str(&mut ret).unwrap();
     add_float_eq(&mut ret).unwrap();
+    add_float_neg(&mut ret).unwrap();
 
     add_str_type(&mut ret).unwrap();
     add_str_eq(&mut ret).unwrap();

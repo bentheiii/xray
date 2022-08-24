@@ -852,12 +852,14 @@ impl XExpr {
                     )?
                     .into())
                 } else {
-                    Ok(namespace
+                    namespace
                         .get_value(*name)
                         .ok_or_else(|| {
                             format!("Undefined identifier during evaluation: {:?}", name)
                         })?
-                        .into())
+                        .map(
+                            |v| v.into()
+                        )
                 }
             }
             Self::Dummy(val) => Ok(val.clone().into()),
