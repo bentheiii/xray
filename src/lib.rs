@@ -24,6 +24,8 @@ extern crate pest;
 pub extern crate pest_derive;
 extern crate core;
 
+use std::fmt::Debug;
+use std::io::Write;
 use crate::builtin::bool::*;
 use crate::builtin::floats::*;
 use crate::builtin::generic::*;
@@ -52,7 +54,7 @@ use crate::xtype::{
 
 pub type Identifier = DefaultSymbol;
 
-pub fn std_compilation_scope(runtime: RTCell) -> RootCompilationScope {
+pub fn std_compilation_scope<W: Write + Debug + 'static>(runtime: RTCell<W>) -> RootCompilationScope<W> {
     let mut ret = RootCompilationScope::new(runtime);
 
     add_int_type(&mut ret).unwrap();

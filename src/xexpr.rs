@@ -16,32 +16,34 @@ use crate::util::lazy_bigint::LazyBigint;
 use crate::util::rc_hash::RcHash;
 use std::collections::HashSet;
 use std::fmt::{Debug, Error, Formatter};
+use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
+use derivative::Derivative;
 
 #[derive(Debug)]
-pub(crate) enum XStaticExpr {
+pub(crate) enum XStaticExpr<W: Write + Debug + 'static> {
     LiteralBool(bool),
     LiteralInt(i64),
     LiteralFloat(f64),
     LiteralString(String),
-    Array(Vec<XStaticExpr>),
-    Tuple(Vec<XStaticExpr>),
-    Call(Box<XStaticExpr>, Vec<XStaticExpr>),
-    Member(Box<XStaticExpr>, String),
+    Array(Vec<XStaticExpr<W>>),
+    Tuple(Vec<XStaticExpr<W>>),
+    Call(Box<XStaticExpr<W>>, Vec<XStaticExpr<W>>),
+    Member(Box<XStaticExpr<W>>, String),
     Ident(DefaultSymbol),
     SpecializedIdent(DefaultSymbol, Vec<Arc<XType>>),
-    Lambda(Vec<XExplicitArgSpec>, Box<XStaticExpr>),
+    Lambda(Vec<XExplicitArgSpec<W>>, Box<XStaticExpr<W>>),
 }
 
-pub(crate) struct CompilationResult {
-    pub(crate) expr: XExpr,
+pub(crate) struct CompilationResult<W: Write + Debug + 'static> {
+    pub(crate) expr: XExpr<W>,
     pub(crate) closure_vars: Vec<DefaultSymbol>,
 }
 
-impl From<XExpr> for CompilationResult {
-    fn from(expr: XExpr) -> Self {
+impl<W: Write + Debug + 'static> From<XExpr<W>> for CompilationResult<W> {
+    fn from(expr: XExpr<W>) -> Self {
         Self {
             expr,
             closure_vars: vec![],
@@ -49,11 +51,11 @@ impl From<XExpr> for CompilationResult {
     }
 }
 
-impl CompilationResult {
-    fn new(expr: XExpr, closure_vars: Vec<DefaultSymbol>) -> Self {
+impl<W: Write + Debug + 'static> CompilationResult<W> {
+    fn new(expr: XExpr<W>, closure_vars: Vec<DefaultSymbol>) -> Self {
         Self { expr, closure_vars }
     }
-    fn join(results: impl IntoIterator<Item = Self>) -> (Vec<XExpr>, Vec<DefaultSymbol>) {
+    fn join(results: impl IntoIterator<Item = Self>) -> (Vec<XExpr<W>>, Vec<DefaultSymbol>) {
         let mut exprs = vec![];
         let mut closure_vars = vec![];
         for result in results {
@@ -63,20 +65,20 @@ impl CompilationResult {
         (exprs, closure_vars)
     }
     fn from_multi(
-        other: (Vec<XExpr>, Vec<DefaultSymbol>),
-        f: impl FnOnce(Vec<XExpr>) -> XExpr,
+        other: (Vec<XExpr<W>>, Vec<DefaultSymbol>),
+        f: impl FnOnce(Vec<XExpr<W>>) -> XExpr<W>,
     ) -> Self {
         Self::new(f(other.0), other.1)
     }
 }
 
-pub(crate) fn resolve_overload<'p>(
-    overloads: &[XFunctionFactory],
-    args: Option<&[XExpr]>,
+pub(crate) fn resolve_overload<'p, W: Write + Debug + 'static>(
+    overloads: &[XFunctionFactory<W>],
+    args: Option<&[XExpr<W>]>,
     arg_types: &[Arc<XType>],
     name: DefaultSymbol,
-    namespace: &'p XCompilationScope<'p>,
-) -> Result<XExpr, CompilationError> {
+    namespace: &'p XCompilationScope<'p, W>,
+) -> Result<XExpr<W>, CompilationError<W>> {
     let mut exact_matches = vec![];
     let mut generic_matches = vec![];
     let mut dynamic_failures = vec![];
@@ -136,7 +138,7 @@ pub(crate) fn resolve_overload<'p>(
     })
 }
 
-impl XStaticExpr {
+impl<W: Write + Debug + 'static> XStaticExpr<W> {
     pub(crate) fn new_call(
         name: &'static str,
         args: Vec<Self>,
@@ -154,12 +156,12 @@ impl XStaticExpr {
 
     pub(crate) fn compile<'p>(
         self,
-        namespace: &'p XCompilationScope<'p>,
-    ) -> Result<CompilationResult, CompilationError> {
-        fn compile_many<'p>(
-            exprs: impl IntoIterator<Item = XStaticExpr>,
-            namespace: &'p XCompilationScope<'p>,
-        ) -> Result<(Vec<XExpr>, Vec<DefaultSymbol>), CompilationError> {
+        namespace: &'p XCompilationScope<'p, W>,
+    ) -> Result<CompilationResult<W>, CompilationError<W>> {
+        fn compile_many<'p, W: Write + Debug + 'static>(
+            exprs: impl IntoIterator<Item = XStaticExpr<W>>,
+            namespace: &'p XCompilationScope<'p, W>,
+        ) -> Result<(Vec<XExpr<W>>, Vec<DefaultSymbol>), CompilationError<W>> {
             let mut ret = vec![];
             for item in exprs {
                 let item = item.compile(namespace)?;
@@ -474,50 +476,51 @@ impl XStaticExpr {
     }
 }
 
-#[derive(Debug, Clone)] // todo the only reason this clone exists is because the compilation scope both saves and returns the expression, can we fix that?
-pub enum XExpr {
+#[derive(Derivative)]
+#[derivative(Clone(bound=""), Debug(bound=""))]
+pub enum XExpr<W: Write + Debug + 'static> {
     LiteralBool(bool),
     LiteralInt(i64),
     LiteralFloat(f64),
     LiteralString(String),
-    Array(Vec<XExpr>),
-    Tuple(Vec<XExpr>),
-    Call(Box<XExpr>, Vec<XExpr>),
-    Construct(Arc<XCompoundSpec>, Bind, Vec<XExpr>),
-    Variant(Arc<XCompoundSpec>, Bind, usize, Box<XExpr>),
-    Member(Box<XExpr>, usize),
-    KnownOverload(Rc<XStaticFunction>, Bind),
-    Ident(DefaultSymbol, Box<IdentItem>),
-    Lambda(Rc<XStaticFunction>),
+    Array(Vec<XExpr<W>>),
+    Tuple(Vec<XExpr<W>>),
+    Call(Box<XExpr<W>>, Vec<XExpr<W>>),
+    Construct(Arc<XCompoundSpec>, Bind, Vec<XExpr<W>>),
+    Variant(Arc<XCompoundSpec>, Bind, usize, Box<XExpr<W>>),
+    Member(Box<XExpr<W>>, usize),
+    KnownOverload(Rc<XStaticFunction<W>>, Bind),
+    Ident(DefaultSymbol, Box<IdentItem<W>>),
+    Lambda(Rc<XStaticFunction<W>>),
     // this dummy exists for calling native functions with arguments that were already
     // evaluated
-    Dummy(Rc<ManagedXValue>),
+    Dummy(Rc<ManagedXValue<W>>),
 }
 
-pub enum XStaticFunction {
+pub enum XStaticFunction<W: Write + Debug + 'static> {
     // identical to a native, with the exception that will short-circut overload resolution
-    ShortCircutNative(XFuncSpec, NativeCallable),
-    Native(XFuncSpec, NativeCallable),
-    UserFunction(UfData),
+    ShortCircutNative(XFuncSpec, NativeCallable<W>),
+    Native(XFuncSpec, NativeCallable<W>),
+    UserFunction(UfData<W>),
     Recourse(Rc<XFuncSpec>, usize),
 }
 
 #[derive(Debug)] // todo better debug
-pub struct UfData {
-    pub spec: XExplicitFuncSpec,
-    pub output: Box<XExpr>,
+pub struct UfData<W: Write + Debug + 'static> {
+    pub spec: XExplicitFuncSpec<W>,
+    pub output: Box<XExpr<W>>,
     pub cvars: HashSet<DefaultSymbol>,
 
     pub param_names: Vec<DefaultSymbol>,
-    pub defaults: Vec<Rc<ManagedXValue>>,
-    pub declarations: Vec<Declaration>,
+    pub defaults: Vec<Rc<ManagedXValue<W>>>,
+    pub declarations: Vec<Declaration<W>>,
 }
 
-impl UfData {
+impl<W: Write + Debug + 'static> UfData<W> {
     pub(crate) fn new(
-        spec: XExplicitFuncSpec,
-        declarations: Vec<Declaration>,
-        output: Box<XExpr>,
+        spec: XExplicitFuncSpec<W>,
+        declarations: Vec<Declaration<W>>,
+        output: Box<XExpr<W>>,
         cvars: HashSet<DefaultSymbol>,
     ) -> Self {
         Self {
@@ -536,8 +539,8 @@ impl UfData {
     }
 }
 
-impl XStaticFunction {
-    pub(crate) fn to_function(self: &Rc<Self>, closure: &XEvaluationScope<'_>) -> XFunction {
+impl<W: Write + Debug + 'static> XStaticFunction<W> {
+    pub(crate) fn to_function(self: &Rc<Self>, closure: &XEvaluationScope<'_, W>) -> XFunction<W> {
         match self.as_ref() {
             Self::Native(_, native) | Self::ShortCircutNative(_, native) => {
                 XFunction::Native(native.clone())
@@ -552,7 +555,7 @@ impl XStaticFunction {
 
     pub(crate) fn from_native(
         spec: XFuncSpec,
-        native: impl Fn(&[XExpr], &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String>
+        native: impl Fn(&[XExpr<W>], &XEvaluationScope<'_, W>, bool, RTCell<W>) -> Result<TailedEvalResult<W>, String>
             + 'static,
     ) -> Self {
         Self::Native(spec, Rc::new(native))
@@ -560,7 +563,7 @@ impl XStaticFunction {
 
     pub(crate) fn from_native_short_circut(
         spec: XFuncSpec,
-        native: impl Fn(&[XExpr], &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String>
+        native: impl Fn(&[XExpr<W>], &XEvaluationScope<'_, W>, bool, RTCell<W>) -> Result<TailedEvalResult<W>, String>
             + 'static,
     ) -> Self {
         Self::ShortCircutNative(spec, Rc::new(native))
@@ -571,7 +574,7 @@ impl XStaticFunction {
     }
 }
 
-impl Debug for XStaticFunction {
+impl<W: Write + Debug + 'static> Debug for XStaticFunction<W> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             Self::Native(spec, _) => {
@@ -590,29 +593,29 @@ impl Debug for XStaticFunction {
     }
 }
 
-impl PartialEq for XStaticFunction {
+impl<W: Write + Debug + 'static> PartialEq for XStaticFunction<W> {
     fn eq(&self, _: &Self) -> bool {
         false
     }
 }
 
-impl Eq for XStaticFunction {}
+impl<W: Write + Debug + 'static> Eq for XStaticFunction<W> {}
 
 #[derive(Debug)]
-pub struct XExplicitFuncSpec {
+pub struct XExplicitFuncSpec<W: Write + Debug + 'static> {
     pub generic_params: Option<Vec<DefaultSymbol>>,
-    pub args: Vec<XExplicitArgSpec>,
+    pub args: Vec<XExplicitArgSpec<W>>,
     pub ret: Arc<XType>,
 }
 
 #[derive(Debug)]
-pub struct XExplicitArgSpec {
+pub struct XExplicitArgSpec<W: Write + Debug + 'static> {
     pub(crate) name: DefaultSymbol,
     pub(crate) type_: Arc<XType>,
-    pub(crate) default: Option<Rc<ManagedXValue>>,
+    pub(crate) default: Option<Rc<ManagedXValue<W>>>,
 }
 
-impl XExplicitFuncSpec {
+impl<W: Write + Debug + 'static> XExplicitFuncSpec<W> {
     pub(crate) fn to_spec(&self) -> XFuncSpec {
         XFuncSpec {
             generic_params: self.generic_params.clone(),
@@ -629,7 +632,7 @@ impl XExplicitFuncSpec {
     }
 }
 
-impl XStaticFunction {
+impl<W: Write + Debug + 'static> XStaticFunction<W> {
     fn bind(&self, args: &[Arc<XType>]) -> Option<Bind> {
         match self {
             Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => spec.bind(args),
@@ -662,20 +665,21 @@ impl XStaticFunction {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum IdentItem {
+#[derive(Derivative)]
+#[derivative(Clone(bound=""), Debug(bound=""))]
+pub enum IdentItem<W: Write + Debug + 'static> {
     Value(Arc<XType>),
-    Function(Rc<XStaticFunction>),
+    Function(Rc<XStaticFunction<W>>),
 }
 
 #[derive(Debug)]
-pub enum TailedEvalResult {
-    Value(Rc<ManagedXValue>),
-    TailCall(Vec<Rc<ManagedXValue>>),
+pub enum TailedEvalResult<W: Write + Debug + 'static> {
+    Value(Rc<ManagedXValue<W>>),
+    TailCall(Vec<Rc<ManagedXValue<W>>>),
 }
 
-impl TailedEvalResult {
-    pub(crate) fn unwrap_value(self) -> Rc<ManagedXValue> {
+impl<W: Write + Debug + 'static> TailedEvalResult<W> {
+    pub(crate) fn unwrap_value(self) -> Rc<ManagedXValue<W>> {
         match self {
             Self::Value(v) => v,
             Self::TailCall(_) => {
@@ -685,14 +689,14 @@ impl TailedEvalResult {
     }
 }
 
-impl From<Rc<ManagedXValue>> for TailedEvalResult {
-    fn from(v: Rc<ManagedXValue>) -> Self {
+impl<W: Write + Debug + 'static> From<Rc<ManagedXValue<W>>> for TailedEvalResult<W> {
+    fn from(v: Rc<ManagedXValue<W>>) -> Self {
         Self::Value(v)
     }
 }
 
-impl XExpr {
-    pub(crate) fn xtype(&self) -> Result<Arc<XType>, CompilationError> {
+impl<W: Write + Debug + 'static> XExpr<W> {
+    pub(crate) fn xtype(&self) -> Result<Arc<XType>, CompilationError<W>> {
         match self {
             Self::LiteralBool(_) => Ok(X_BOOL.clone()),
             Self::LiteralInt(_) => Ok(X_INT.clone()),
@@ -764,10 +768,10 @@ impl XExpr {
 
     pub(crate) fn eval<'p>(
         &self,
-        namespace: &XEvaluationScope<'p>,
+        namespace: &XEvaluationScope<'p, W>,
         tail_available: bool,
-        runtime: RTCell,
-    ) -> Result<TailedEvalResult, String> {
+        runtime: RTCell<W>,
+    ) -> Result<TailedEvalResult<W>, String> {
         match &self {
             Self::LiteralBool(b) => Ok(ManagedXValue::new(XValue::Bool(*b), runtime)?.into()),
             Self::LiteralInt(i) => {
@@ -825,7 +829,7 @@ impl XExpr {
                             runtime
                         )
                     } else {
-                        manage_native!(XOptional { value: None }, runtime)
+                        manage_native!(XOptional::<W> { value: None }, runtime)
                     }),
                     _ => Err(format!("Expected struct, got {:?}", obj)),
                 }

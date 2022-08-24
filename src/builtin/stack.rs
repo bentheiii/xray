@@ -6,6 +6,8 @@ use crate::{
     eval, manage_native, to_native, CompilationError, RootCompilationScope, XStaticFunction, XType,
 };
 use rc::Rc;
+use std::fmt::Debug;
+use std::io::Write;
 use std::iter::from_fn;
 use std::mem::size_of;
 use std::rc;
@@ -30,16 +32,16 @@ impl NativeType for XStackType {
 }
 
 #[derive(Debug)]
-struct StackNode {
-    value: Rc<ManagedXValue>,
-    next: Option<Rc<StackNode>>,
+struct StackNode<W: Write + Debug + 'static> {
+    value: Rc<ManagedXValue<W>>,
+    next: Option<Rc<StackNode<W>>>,
 }
 
-impl StackNode {
-    fn first(value: Rc<ManagedXValue>) -> Rc<Self> {
+impl<W: Write + Debug + 'static> StackNode<W> {
+    fn first(value: Rc<ManagedXValue<W>>) -> Rc<Self> {
         Rc::new(Self { value, next: None })
     }
-    fn new(value: Rc<ManagedXValue>, next: Rc<Self>) -> Rc<Self> {
+    fn new(value: Rc<ManagedXValue<W>>, next: Rc<Self>) -> Rc<Self> {
         Rc::new(Self {
             value,
             next: Some(next),
@@ -47,18 +49,27 @@ impl StackNode {
     }
 }
 
-#[derive(Debug, Default)]
-pub(super) struct XStack {
-    head: Option<Rc<StackNode>>,
+#[derive(Debug)]
+pub(super) struct XStack<W: Write + Debug + 'static> {
+    head: Option<Rc<StackNode<W>>>,
     pub(super) length: usize,
 }
 
-impl XStack {
+impl<W: Write + Debug + 'static> Default for XStack<W>{
+    fn default() -> Self {
+        Self{
+            head: None,
+            length: 0
+        }
+    }
+}
+
+impl<W: Write + Debug + 'static> XStack<W> {
     pub(super) fn new() -> Self {
         Self::default()
     }
 
-    pub(super) fn push(&self, value: Rc<ManagedXValue>) -> Self {
+    pub(super) fn push(&self, value: Rc<ManagedXValue<W>>) -> Self {
         let node = match self.head {
             None => StackNode::first(value),
             Some(ref head) => StackNode::new(value, head.clone()),
@@ -69,7 +80,7 @@ impl XStack {
         }
     }
 
-    fn to_vec<const REV: bool>(&self) -> Vec<Rc<ManagedXValue>> {
+    fn to_vec<const REV: bool>(&self) -> Vec<Rc<ManagedXValue<W>>> {
         let mut vec = Vec::with_capacity(self.length);
         let mut node = &self.head;
         while let Some(ref n) = node {
@@ -82,7 +93,7 @@ impl XStack {
         vec
     }
 
-    pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue>> + '_ {
+    pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue<W>>> + '_ {
         let mut node = &self.head;
         from_fn(move || match &node {
             None => None,
@@ -95,7 +106,7 @@ impl XStack {
     }
 }
 
-impl XNativeValue for XStack {
+impl<W: Write + Debug + 'static> XNativeValue for XStack<W> {
     fn size(&self) -> usize {
         let mut managed_count = 0;
         let mut node = &self.head;
@@ -115,12 +126,12 @@ impl XNativeValue for XStack {
     }
 }
 
-pub(crate) fn add_stack_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_type<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Stack", XStackType::xtype(t))
 }
 
-pub(crate) fn add_stack_new(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_new<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "stack",
         XStaticFunction::from_native(
@@ -129,12 +140,12 @@ pub(crate) fn add_stack_new(scope: &mut RootCompilationScope) -> Result<(), Comp
                 params: vec![],
                 ret: XStackType::xtype(X_UNKNOWN.clone()),
             },
-            |_args, _ns, _tca, rt| Ok(manage_native!(XStack::new(), rt)),
+            |_args, _ns, _tca, rt| Ok(manage_native!(XStack::<W>::new(), rt)),
         ),
     )
 }
 
-pub(crate) fn add_stack_push(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_push<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -157,14 +168,14 @@ pub(crate) fn add_stack_push(scope: &mut RootCompilationScope) -> Result<(), Com
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
-                let stk0 = to_native!(a0, XStack);
+                let stk0 = to_native!(a0, XStack<W>);
                 Ok(manage_native!(stk0.push(a1), rt))
             },
         ),
     )
 }
 
-pub(crate) fn add_stack_to_array(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_to_array<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -181,16 +192,16 @@ pub(crate) fn add_stack_to_array(scope: &mut RootCompilationScope) -> Result<(),
             },
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
-                let stk0 = to_native!(a0, XStack);
+                let stk0 = to_native!(a0, XStack<W>);
                 Ok(manage_native!(XSequence::array(stk0.to_vec::<false>()), rt))
             },
         ),
     )
 }
 
-pub(crate) fn add_stack_to_array_reversed(
-    scope: &mut RootCompilationScope,
-) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_to_array_reversed<W: Write + Debug + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -207,14 +218,14 @@ pub(crate) fn add_stack_to_array_reversed(
             },
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
-                let stk0 = to_native!(a0, XStack);
+                let stk0 = to_native!(a0, XStack<W>);
                 Ok(manage_native!(XSequence::array(stk0.to_vec::<true>()), rt))
             },
         ),
     )
 }
 
-pub(crate) fn add_stack_len(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_len<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t);
 
@@ -231,14 +242,14 @@ pub(crate) fn add_stack_len(scope: &mut RootCompilationScope) -> Result<(), Comp
             },
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
-                let stk0 = to_native!(a0, XStack);
+                let stk0 = to_native!(a0, XStack<W>);
                 Ok(ManagedXValue::new(XValue::Int(stk0.length.into()), rt)?.into())
             },
         ),
     )
 }
 
-pub(crate) fn add_stack_head(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_head<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
 
@@ -255,7 +266,7 @@ pub(crate) fn add_stack_head(scope: &mut RootCompilationScope) -> Result<(), Com
             },
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
-                let stk0 = to_native!(a0, XStack);
+                let stk0 = to_native!(a0, XStack<W>);
                 match &stk0.head {
                     Some(v) => Ok(v.value.clone().into()),
                     None => Err("stack is empty".to_string()),
@@ -265,7 +276,7 @@ pub(crate) fn add_stack_head(scope: &mut RootCompilationScope) -> Result<(), Com
     )
 }
 
-pub(crate) fn add_stack_tail(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_stack_tail<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t);
 
@@ -282,7 +293,7 @@ pub(crate) fn add_stack_tail(scope: &mut RootCompilationScope) -> Result<(), Com
             },
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
-                let stk0 = to_native!(a0, XStack);
+                let stk0 = to_native!(a0, XStack<W>);
                 match &stk0.head {
                     Some(v) => Ok(manage_native!(
                         XStack {

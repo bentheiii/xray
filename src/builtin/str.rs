@@ -9,10 +9,12 @@ use crate::{
 use crate::util::lazy_bigint::LazyBigint;
 use rc::Rc;
 use std::collections::hash_map::DefaultHasher;
+use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
+use std::io::Write;
 use std::rc;
 
-pub(crate) fn add_str_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_str_type<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     scope.add_native_type("str", X_STRING.clone())
 }
 

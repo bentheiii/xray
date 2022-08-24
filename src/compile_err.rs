@@ -8,19 +8,20 @@ use itertools::Itertools;
 use pest::iterators::Pair;
 use pest::Position;
 use std::fmt::{Debug, Display, Formatter};
+use std::io::Write;
 use std::sync::Arc;
 use string_interner::StringInterner;
 use strum::IntoStaticStr;
 
 #[derive(Debug)]
-pub struct TracedCompilationError(
-    CompilationError,
+pub struct TracedCompilationError<W: Write + Debug + 'static>(
+    CompilationError<W>,
     ((usize, usize), usize),
     ((usize, usize), usize),
 );
 
 #[derive(Debug)]
-pub enum CompilationError {
+pub enum CompilationError<W: Write + Debug + 'static> {
     VariableTypeMismatch {
         variable_name: Identifier,
         expected_type: Arc<XType>,
@@ -51,17 +52,17 @@ pub enum CompilationError {
     },
     ValueIsNotType {
         name: Identifier,
-        item: XCompilationScopeItem,
+        item: XCompilationScopeItem<W>,
     },
     PairNotType,
     NameAlreadyDefined {
         name: Identifier,
-        other: XCompilationScopeItem,
+        other: XCompilationScopeItem<W>,
     },
     AmbiguousOverload {
         name: Identifier,
         is_generic: bool,
-        items: Vec<XExpr>,
+        items: Vec<XExpr<W>>,
         param_types: Vec<Arc<XType>>,
     },
     NoOverload {
@@ -88,7 +89,7 @@ pub enum CompilationError {
     },
     NonFunctionSpecialization {
         name: Identifier,
-        item: XCompilationScopeItem,
+        item: XCompilationScopeItem<W>,
     },
     SpecializedFunctionTypeMismatch {
         name: Identifier,
@@ -167,7 +168,7 @@ impl Resolve for XCompoundSpec {
     }
 }
 
-impl Resolve for XCompilationScopeItem {
+impl<W: Write + Debug + 'static> Resolve for XCompilationScopeItem<W> {
     type Output = ResolvedCompilationScopeItem;
 
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
@@ -201,6 +202,13 @@ impl<T: Resolve + Clone> Resolve for Vec<T> {
     }
 }
 
+impl<W: Write + Debug + 'static> Resolve for Vec<XExpr<W>>{
+    type Output = Self;
+    fn resolve(&self, _interner: &StringInterner) -> Self::Output {
+        self.clone()
+    }
+}
+
 macro_rules! trivial_resolve {
     ($type_: ty) => {
         impl Resolve for $type_ {
@@ -212,10 +220,10 @@ macro_rules! trivial_resolve {
     };
 }
 
+
 trivial_resolve!(String);
 trivial_resolve!(bool);
 trivial_resolve!(usize);
-trivial_resolve!(Vec<XExpr>);
 
 macro_rules! resolve_variants {
     ($self: ident, $interner: expr, $($variant:ident {$($part:ident),*  $(,)?}),+ $(,)?) => {{
@@ -227,8 +235,8 @@ macro_rules! resolve_variants {
     }}
 }
 
-impl Resolve for CompilationError {
-    type Output = ResolvedCompilationError;
+impl<W: Write + Debug + 'static> Resolve for CompilationError<W> {
+    type Output = ResolvedCompilationError<W>;
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
         resolve_variants!(
             self,
@@ -317,8 +325,8 @@ impl Resolve for CompilationError {
     }
 }
 
-impl CompilationError {
-    pub(crate) fn trace(self, input: &Pair<Rule>) -> TracedCompilationError {
+impl<W: Write + Debug + 'static> CompilationError<W> {
+    pub(crate) fn trace(self, input: &Pair<Rule>) -> TracedCompilationError<W> {
         fn pos_to_coors(pos: &Position) -> ((usize, usize), usize) {
             (pos.line_col(), pos.pos())
         }
@@ -328,12 +336,12 @@ impl CompilationError {
     }
 }
 
-impl TracedCompilationError {
+impl<W: Write + Debug + 'static> TracedCompilationError<W> {
     pub(crate) fn resolve_with_input(
         self,
         interner: &StringInterner,
         input: &str,
-    ) -> ResolvedTracedCompilationError {
+    ) -> ResolvedTracedCompilationError<W> {
         let Self(err, ((start_line, _), start_pos), (_, end_pos)) = self;
         ResolvedTracedCompilationError::Compilation(
             err.resolve(interner),
@@ -371,7 +379,7 @@ impl Display for ResolvedCompilationScopeItem {
 }
 
 #[derive(IntoStaticStr)]
-pub enum ResolvedCompilationError {
+pub enum ResolvedCompilationError<W: Write + Debug + 'static> {
     VariableTypeMismatch {
         variable_name: String,
         expected_type: ResolvedType,
@@ -412,7 +420,7 @@ pub enum ResolvedCompilationError {
     AmbiguousOverload {
         name: String,
         is_generic: bool,
-        items: Vec<XExpr>,
+        items: Vec<XExpr<W>>,
         param_types: Vec<ResolvedType>,
     },
     NoOverload {
@@ -492,7 +500,7 @@ pub enum ResolvedCompilationError {
     },
 }
 
-impl Display for ResolvedCompilationError {
+impl<W: Write + Debug + 'static> Display for ResolvedCompilationError<W> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::VariableTypeMismatch {
@@ -721,12 +729,12 @@ impl Display for ResolvedCompilationError {
     }
 }
 
-pub enum ResolvedTracedCompilationError {
+pub enum ResolvedTracedCompilationError<W: Write + Debug + 'static> {
     Syntax(pest::error::Error<Rule>),
-    Compilation(ResolvedCompilationError, usize, String),
+    Compilation(ResolvedCompilationError<W>, usize, String),
 }
 
-impl Display for ResolvedTracedCompilationError {
+impl<W: Write + Debug + 'static> Display for ResolvedTracedCompilationError<W> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Syntax(e) => Display::fmt(e, f),
@@ -736,7 +744,7 @@ impl Display for ResolvedTracedCompilationError {
                 r,
                 start_line,
                 errant_area,
-                <&ResolvedCompilationError as Into<&'static str>>::into(r)
+                <&ResolvedCompilationError<W> as Into<&'static str>>::into(r)
             ),
         }
     }

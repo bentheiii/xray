@@ -1,6 +1,7 @@
 extern crate core;
 extern crate pest;
 
+use std::io::stdout;
 use xray::compilation_scope::XCompilationScopeItem;
 use xray::compile_err::ResolvedTracedCompilationError;
 use xray::evaluation_scope::RootEvaluationScope;
@@ -16,7 +17,7 @@ fn main() {
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()
     };
-    let runtime = limits.to_runtime();
+    let runtime = limits.to_runtime(stdout());
 
     let mut root_scope = std_compilation_scope(runtime);
 

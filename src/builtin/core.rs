@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+use std::io::Write;
 use crate::xvalue::XValue;
 use num_traits::{One, Zero};
 
@@ -7,9 +9,9 @@ use std::ops::Neg;
 #[macro_export]
 macro_rules! add_binop {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
-        pub(crate) fn $fn_name(
-            scope: &mut RootCompilationScope,
-        ) -> Result<(), $crate::CompilationError> {
+        pub(crate) fn $fn_name<W: Write + Debug + 'static>(
+            scope: &mut RootCompilationScope<W>,
+        ) -> Result<(), $crate::CompilationError<W>> {
             scope.add_func(
                 stringify!($name),
                 XStaticFunction::from_native(
@@ -43,9 +45,9 @@ macro_rules! add_binop {
 #[macro_export]
 macro_rules! add_ufunc_ref {
     ($fn_name:ident, $name:ident, $operand_type: ident, $return_type:ident, $func:expr) => {
-        pub(crate) fn $fn_name(
-            scope: &mut RootCompilationScope,
-        ) -> Result<(), $crate::CompilationError> {
+        pub(crate) fn $fn_name<W: Write + Debug + 'static>(
+            scope: &mut RootCompilationScope<W>,
+        ) -> Result<(), $crate::CompilationError<W>> {
             scope.add_func(
                 stringify!($name),
                 XStaticFunction::from_native(
@@ -75,7 +77,7 @@ macro_rules! add_ufunc {
             $name,
             $operand_type,
             $return_type,
-            |a: Rc<ManagedXValue>, rt: $crate::runtime::RTCell| {
+            |a: Rc<ManagedXValue<W>>, rt: $crate::runtime::RTCell<W>| {
                 let result: Result<_, String> = $func(to_primitive!(a, $operand_variant));
                 Ok(ManagedXValue::new(result?, rt.clone())?.into())
             }
@@ -144,7 +146,7 @@ macro_rules! manage_native {
     };
 }
 
-pub(super) fn xcmp<T: PartialOrd>(rhs: T, lhs: T) -> XValue {
+pub(super) fn xcmp<W: Write + Debug + 'static, T: PartialOrd>(rhs: T, lhs: T) -> XValue<W> {
     XValue::Int(if rhs < lhs {
         LazyBigint::one().neg()
     } else if rhs > lhs {

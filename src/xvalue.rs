@@ -8,50 +8,53 @@ use crate::util::lazy_bigint::LazyBigint;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt::{Debug, Error, Formatter};
+use std::io::Write;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
+use derivative::Derivative;
 
 #[derive(Debug)]
-pub enum XValue {
+pub enum XValue<W: Write + Debug + 'static> {
     Int(LazyBigint),
     Float(f64),
     String(String),
     Bool(bool),
-    Function(XFunction),
-    StructInstance(Vec<Rc<ManagedXValue>>),
-    UnionInstance(usize, Rc<ManagedXValue>),
+    Function(XFunction<W>),
+    StructInstance(Vec<Rc<ManagedXValue<W>>>),
+    UnionInstance(usize, Rc<ManagedXValue<W>>),
     Native(Box<dyn XNativeValue>),
 }
 
-pub type NativeCallable =
-    Rc<dyn Fn(&[XExpr], &XEvaluationScope<'_>, bool, RTCell) -> Result<TailedEvalResult, String>>;
-pub type DynBind = Rc<
+pub type NativeCallable<W> =
+    Rc<dyn Fn(&[XExpr<W>], &XEvaluationScope<'_, W>, bool, RTCell<W>) -> Result<TailedEvalResult<W>, String>>;
+pub type DynBind<W> = Rc<
     dyn Fn(
-        Option<&[XExpr]>,
+        Option<&[XExpr<W>]>,
         &[Arc<XType>],
-        &XCompilationScope<'_>,
-    ) -> Result<Rc<XStaticFunction>, String>,
+        &XCompilationScope<'_, W>,
+    ) -> Result<Rc<XStaticFunction<W>>, String>,
 >; // todo make this a compilation error?
 
-#[derive(Clone)]
-pub enum XFunction {
-    Native(NativeCallable),
+#[derive(Derivative)]
+#[derivative(Clone(bound=""))]
+pub enum XFunction<W: Write + Debug + 'static> {
+    Native(NativeCallable<W>),
     UserFunction(
-        Rc<XStaticFunction>,
-        Rc<HashMap<Identifier, EvaluatedVariable>>,
+        Rc<XStaticFunction<W>>,
+        Rc<HashMap<Identifier, EvaluatedVariable<W>>>,
     ),
     Recourse(usize),
 }
 
-impl XFunction {
+impl<W: Write + Debug + 'static> XFunction<W> {
     pub(crate) fn eval<'p>(
         &'p self,
-        args: &[XExpr],
-        parent_scope: &XEvaluationScope<'p>,
+        args: &[XExpr<W>],
+        parent_scope: &XEvaluationScope<'p, W>,
         tail_available: bool,
-        runtime: RTCell,
-    ) -> Result<TailedEvalResult, String> {
+        runtime: RTCell<W>,
+    ) -> Result<TailedEvalResult<W>, String> {
         match self {
             Self::Native(native) => native(args, parent_scope, tail_available, runtime),
             Self::UserFunction(..) => {
@@ -88,10 +91,10 @@ impl XFunction {
 
     pub(crate) fn eval_values<'p>(
         &'p self,
-        args: &[Rc<ManagedXValue>],
-        parent_scope: &XEvaluationScope<'p>,
-        runtime: RTCell,
-    ) -> Result<Rc<ManagedXValue>, String> {
+        args: &[Rc<ManagedXValue<W>>],
+        parent_scope: &XEvaluationScope<'p, W>,
+        runtime: RTCell<W>,
+    ) -> Result<Rc<ManagedXValue<W>>, String> {
         match self {
             Self::Native(native) => {
                 // we need to wrap all the values with dummy expressions, so that native functions can handle them
@@ -173,7 +176,7 @@ impl XFunction {
     }
 }
 
-impl Debug for XFunction {
+impl<W: Write + Debug + 'static> Debug for XFunction<W> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             Self::Native(_) => {
@@ -189,7 +192,7 @@ impl Debug for XFunction {
     }
 }
 
-impl XValue {
+impl<W: Write + Debug + 'static> XValue<W> {
     pub(crate) fn size(&self) -> usize {
         match self {
             Self::Int(i) => size_of::<LazyBigint>() + (i.bits() / 8_u64) as usize,
@@ -208,26 +211,26 @@ impl XValue {
     }
 }
 
-pub struct ManagedXValue {
-    runtime: RTCell,
+pub struct ManagedXValue<W: Write + Debug + 'static> {
+    runtime: RTCell<W>,
     size: usize, // this will be zero if the runtime has no size limit
-    pub value: XValue,
+    pub value: XValue<W>,
 }
 
-impl Debug for ManagedXValue {
+impl<W: Write + Debug + 'static> Debug for ManagedXValue<W> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "ManagedXValue({:?})", self.value)
     }
 }
 
-impl Drop for ManagedXValue {
+impl<W: Write + Debug + 'static> Drop for ManagedXValue<W> {
     fn drop(&mut self) {
         self.runtime.borrow_mut().size -= self.size;
     }
 }
 
-impl ManagedXValue {
-    pub(crate) fn new(value: XValue, runtime: RTCell) -> Result<Rc<Self>, String> {
+impl<W: Write + Debug + 'static> ManagedXValue<W> {
+    pub(crate) fn new(value: XValue<W>, runtime: RTCell<W>) -> Result<Rc<Self>, String> {
         let size;
         {
             let size_limit = runtime.borrow().limits.size_limit;

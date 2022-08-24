@@ -10,13 +10,15 @@ use crate::{
 use num_traits::{Inv, Pow, Signed, ToPrimitive, Zero};
 
 use rc::Rc;
+use std::fmt::Debug;
+use std::io::Write;
 use std::ops::Neg;
 use std::rc;
 
 use crate::compilation_scope::RootCompilationScope;
 use crate::util::lazy_bigint::LazyBigint;
 
-pub(crate) fn add_int_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_int_type<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     scope.add_native_type("int", X_INT.clone())
 }
 
@@ -118,7 +120,7 @@ add_ufunc!(
     |a: &LazyBigint| Ok(XValue::String(a.to_string()))
 );
 
-pub(crate) fn add_int_digits(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_int_digits<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "digits",
         XStaticFunction::from_native(
@@ -161,7 +163,7 @@ pub(crate) fn add_int_digits(scope: &mut RootCompilationScope) -> Result<(), Com
     )
 }
 
-pub(crate) fn add_int_hash(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_int_hash<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "hash",
         XStaticFunction::from_native(

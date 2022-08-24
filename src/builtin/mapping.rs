@@ -12,6 +12,8 @@ use num_traits::ToPrimitive;
 use rc::Rc;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
+use std::fmt::Debug;
+use std::io::Write;
 use std::iter::once;
 use std::mem::size_of;
 use std::rc;
@@ -37,20 +39,20 @@ impl NativeType for XMappingType {
     }
 }
 
-type MappingBucket = Vec<(Rc<ManagedXValue>, Rc<ManagedXValue>)>;
+type MappingBucket<W> = Vec<(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>)>;
 
 #[derive(Debug)]
-struct XMapping {
-    inner: HashMap<u64, MappingBucket>,
-    hash_func: Rc<ManagedXValue>,
-    eq_func: Rc<ManagedXValue>,
+struct XMapping<W: Write + Debug + 'static> {
+    inner: HashMap<u64, MappingBucket<W>>,
+    hash_func: Rc<ManagedXValue<W>>,
+    eq_func: Rc<ManagedXValue<W>>,
 }
 
-impl XMapping {
+impl<W: Write + Debug> XMapping<W> {
     fn new(
-        hash_func: Rc<ManagedXValue>,
-        eq_func: Rc<ManagedXValue>,
-        dict: HashMap<u64, MappingBucket>,
+        hash_func: Rc<ManagedXValue<W>>,
+        eq_func: Rc<ManagedXValue<W>>,
+        dict: HashMap<u64, MappingBucket<W>>,
     ) -> Self {
         Self {
             inner: dict,
@@ -61,10 +63,10 @@ impl XMapping {
 
     fn with_update(
         &self,
-        items: impl Iterator<Item = (Rc<ManagedXValue>, Rc<ManagedXValue>)>,
-        ns: &XEvaluationScope,
-        rt: RTCell,
-    ) -> Result<TailedEvalResult, String> {
+        items: impl Iterator<Item = (Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>)>,
+        ns: &XEvaluationScope<W>,
+        rt: RTCell<W>,
+    ) -> Result<TailedEvalResult<W>, String> {
         let hash_func = to_primitive!(self.hash_func, Function);
         let mut eq_func = None;
         let mut new_dict = self.inner.clone();
@@ -111,18 +113,18 @@ impl XMapping {
     }
 }
 
-impl XNativeValue for XMapping {
+impl<W: Write + Debug + 'static> XNativeValue for XMapping<W> {
     fn size(&self) -> usize {
         (self.inner.len() * 2 + 2) * size_of::<usize>()
     }
 }
 
-pub(crate) fn add_mapping_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_type<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([k, v], _) = scope.generics_from_names(["K", "V"]);
     scope.add_native_type("Mapping", XMappingType::xtype(k, v))
 }
 
-pub(crate) fn add_mapping_new(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_new<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([k], params) = scope.generics_from_names(["K"]);
 
     scope.add_func(
@@ -159,7 +161,7 @@ pub(crate) fn add_mapping_new(scope: &mut RootCompilationScope) -> Result<(), Co
     )
 }
 
-pub(crate) fn add_mapping_set(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_set<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -186,14 +188,14 @@ pub(crate) fn add_mapping_set(scope: &mut RootCompilationScope) -> Result<(), Co
             },
             |args, ns, _tca, rt| {
                 let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
-                let mapping = to_native!(a0, XMapping);
+                let mapping = to_native!(a0, XMapping<W>);
                 mapping.with_update(once((a1, a2)), ns, rt)
             },
         ),
     )
 }
 
-pub(crate) fn add_mapping_update(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_update<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -216,8 +218,8 @@ pub(crate) fn add_mapping_update(scope: &mut RootCompilationScope) -> Result<(),
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
-                let mapping = to_native!(a0, XMapping);
-                let seq = to_native!(a1, XSequence);
+                let mapping = to_native!(a0, XMapping<W>);
+                let seq = to_native!(a1, XSequence<W>);
                 let arr = seq.slice(0, seq.len(), ns, rt.clone())?;
                 let items = arr.iter().map(|t| {
                     let tup = to_primitive!(t, StructInstance);
@@ -229,7 +231,7 @@ pub(crate) fn add_mapping_update(scope: &mut RootCompilationScope) -> Result<(),
     )
 }
 
-pub(crate) fn add_mapping_lookup(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_lookup<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -252,7 +254,7 @@ pub(crate) fn add_mapping_lookup(scope: &mut RootCompilationScope) -> Result<(),
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
-                let mapping = to_native!(a0, XMapping);
+                let mapping = to_native!(a0, XMapping<W>);
                 let hash_func = to_primitive!(mapping.hash_func, Function);
                 let hash_key =
                     to_primitive!(hash_func.eval_values(&[a1.clone()], ns, rt.clone())?, Int)
@@ -260,7 +262,7 @@ pub(crate) fn add_mapping_lookup(scope: &mut RootCompilationScope) -> Result<(),
                         .ok_or("hash is out of bounds")?;
                 let spot = mapping.inner.get(&hash_key);
                 match spot {
-                    None => Ok(manage_native!(XOptional { value: None }, rt)),
+                    None => Ok(manage_native!(XOptional::<W> { value: None }, rt)),
                     Some(candidates) => {
                         let eq_func = to_primitive!(mapping.eq_func, Function);
                         for (k, v) in candidates.iter() {
@@ -276,7 +278,7 @@ pub(crate) fn add_mapping_lookup(scope: &mut RootCompilationScope) -> Result<(),
                                 ));
                             }
                         }
-                        Ok(manage_native!(XOptional { value: None }, rt))
+                        Ok(manage_native!(XOptional::<W> { value: None }, rt))
                     }
                 }
             },
@@ -284,7 +286,7 @@ pub(crate) fn add_mapping_lookup(scope: &mut RootCompilationScope) -> Result<(),
     )
 }
 
-pub(crate) fn add_mapping_get(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_get<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -307,7 +309,7 @@ pub(crate) fn add_mapping_get(scope: &mut RootCompilationScope) -> Result<(), Co
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
-                let mapping = to_native!(a0, XMapping);
+                let mapping = to_native!(a0, XMapping<W>);
                 let hash_func = to_primitive!(mapping.hash_func, Function);
                 let hash_key =
                     to_primitive!(hash_func.eval_values(&[a1.clone()], ns, rt.clone())?, Int)
@@ -334,7 +336,7 @@ pub(crate) fn add_mapping_get(scope: &mut RootCompilationScope) -> Result<(), Co
     )
 }
 
-pub(crate) fn add_mapping_len(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_len<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k, v);
 
@@ -351,7 +353,7 @@ pub(crate) fn add_mapping_len(scope: &mut RootCompilationScope) -> Result<(), Co
             },
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
-                let mapping = to_native!(a0, XMapping);
+                let mapping = to_native!(a0, XMapping<W>);
                 let len: usize = mapping.inner.values().map(|v| v.len()).sum();
                 Ok(ManagedXValue::new(XValue::Int(len.into()), rt)?.into())
             },
@@ -359,9 +361,9 @@ pub(crate) fn add_mapping_len(scope: &mut RootCompilationScope) -> Result<(), Co
     )
 }
 
-pub(crate) fn add_mapping_entries(
-    scope: &mut RootCompilationScope,
-) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_entries<W: Write + Debug + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -378,7 +380,7 @@ pub(crate) fn add_mapping_entries(
             },
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
-                let mapping = to_native!(a0, XMapping);
+                let mapping = to_native!(a0, XMapping<W>);
                 let entries = mapping
                     .inner
                     .values()
@@ -397,9 +399,9 @@ pub(crate) fn add_mapping_entries(
     )
 }
 
-pub(crate) fn add_mapping_contains(
-    scope: &mut RootCompilationScope,
-) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_contains<W: Write + Debug + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 
@@ -422,7 +424,7 @@ pub(crate) fn add_mapping_contains(
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
-                let mapping = to_native!(a0, XMapping);
+                let mapping = to_native!(a0, XMapping<W>);
                 let hash_func = to_primitive!(mapping.hash_func, Function);
                 let hash_key =
                     to_primitive!(hash_func.eval_values(&[a1.clone()], ns, rt.clone())?, Int)
@@ -448,7 +450,7 @@ pub(crate) fn add_mapping_contains(
     )
 }
 
-pub(crate) fn add_mapping_pop(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_pop<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 
@@ -471,7 +473,7 @@ pub(crate) fn add_mapping_pop(scope: &mut RootCompilationScope) -> Result<(), Co
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
-                let mapping = to_native!(a0, XMapping);
+                let mapping = to_native!(a0, XMapping<W>);
                 let hash_func = to_primitive!(mapping.hash_func, Function);
                 let hash_key =
                     to_primitive!(hash_func.eval_values(&[a1.clone()], ns, rt.clone())?, Int)
@@ -521,9 +523,9 @@ pub(crate) fn add_mapping_pop(scope: &mut RootCompilationScope) -> Result<(), Co
     )
 }
 
-pub(crate) fn add_mapping_discard(
-    scope: &mut RootCompilationScope,
-) -> Result<(), CompilationError> {
+pub(crate) fn add_mapping_discard<W: Write + Debug + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 
@@ -546,7 +548,7 @@ pub(crate) fn add_mapping_discard(
             },
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
-                let mapping = to_native!(a0, XMapping);
+                let mapping = to_native!(a0, XMapping<W>);
                 let hash_func = to_primitive!(mapping.hash_func, Function);
                 let hash_key =
                     to_primitive!(hash_func.eval_values(&[a1.clone()], ns, rt.clone())?, Int)

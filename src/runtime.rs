@@ -1,4 +1,6 @@
 use std::cell::RefCell;
+use std::fmt::Debug;
+use std::io::Write;
 use std::rc::Rc;
 
 #[derive(Debug, Default)]
@@ -9,17 +11,19 @@ pub struct RuntimeLimits {
 }
 
 impl RuntimeLimits {
-    pub fn to_runtime(self) -> RTCell {
+    pub fn to_runtime<W: Write + Debug + 'static>(self, output: W) -> RTCell<W> {
         Rc::new(RefCell::new(Runtime {
             limits: self,
             size: 0,
+            stdout: output
         }))
     }
 }
 
-pub struct Runtime {
+pub struct Runtime<W: Write + Debug + 'static> {
     pub(crate) limits: RuntimeLimits,
     pub(crate) size: usize, // this will be zero if the runtime has no size limit
+    pub(crate) stdout: W
 }
 
-pub type RTCell = Rc<RefCell<Runtime>>;
+pub type RTCell<W> = Rc<RefCell<Runtime<W>>>;

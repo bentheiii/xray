@@ -1,6 +1,6 @@
 use crate::builtin::core::xcmp;
 use crate::builtin::optional::{XOptional, XOptionalType};
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_STRING};
+use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
     add_binop, add_ufunc, add_ufunc_ref, eval, manage_native, to_primitive, CompilationError,
@@ -8,9 +8,11 @@ use crate::{
 };
 use num_traits::{One, Zero};
 use rc::Rc;
+use std::fmt::Debug;
+use std::io::Write;
 use std::rc;
 
-pub(crate) fn add_bool_type(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_bool_type<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     scope.add_native_type("bool", X_BOOL.clone())
 }
 
@@ -23,7 +25,7 @@ add_ufunc_ref!(
     assert,
     X_BOOL,
     X_BOOL,
-    |a: Rc<ManagedXValue>, _rt| {
+    |a: Rc<ManagedXValue<W>>, _rt| {
         if let XValue::Bool(true) = a.value {
             Ok(a.into())
         } else {
@@ -36,7 +38,7 @@ add_ufunc!(add_bool_not, not, X_BOOL, Bool, X_BOOL, |a: &bool| {
     Ok(XValue::Bool(!a))
 });
 
-pub(crate) fn add_and(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_and<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "and",
         XStaticFunction::from_native(
@@ -65,7 +67,7 @@ pub(crate) fn add_and(scope: &mut RootCompilationScope) -> Result<(), Compilatio
     )
 }
 
-pub(crate) fn add_or(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_or<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "or",
         XStaticFunction::from_native(
@@ -94,7 +96,7 @@ pub(crate) fn add_or(scope: &mut RootCompilationScope) -> Result<(), Compilation
     )
 }
 
-pub(crate) fn add_bool_then(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
+pub(crate) fn add_bool_then<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
     scope.add_func(
