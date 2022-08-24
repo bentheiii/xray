@@ -6,5 +6,5 @@ fn collatz_step(n: int)->int{
 }
 
 fn main() -> bool{
-    assert((5).collatz_step() == 16)
+    assert(5.collatz_step() == 16)
 }

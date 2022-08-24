@@ -110,7 +110,7 @@ complete_type = {
 CNAME = @{("_" | ASCII_ALPHA) ~ ("_" | ASCII_ALPHANUMERIC)*}
 
 NUMBER_ANY = @{num | hexnum | binnum}
-num = { int ~ ("." ~ num_digit*)? ~ (^"e" ~ int)? }
+num = { int ~ ("." ~ num_digit+)? ~ (^"e" ~ int)? }
  int = { num_digit+ }
  num_digit = {ASCII_DIGIT|"_"}
 hexnum = { "0x" ~ hex_digit+ }
