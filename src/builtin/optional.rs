@@ -12,6 +12,7 @@ use std::fmt::Debug;
 use std::io::Write;
 use std::rc;
 use std::sync::Arc;
+use derivative::Derivative;
 
 #[derive(Debug, Clone)]
 pub(crate) struct XOptionalType {}
@@ -31,23 +32,24 @@ impl NativeType for XOptionalType {
     }
 }
 
-#[derive(Debug)]
-pub(crate) struct XOptional<W: Write + Debug + 'static> {
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
+pub(crate) struct XOptional<W: Write + 'static> {
     pub(crate) value: Option<Rc<ManagedXValue<W>>>,
 }
 
-impl<W: Write + Debug + 'static> XNativeValue for XOptional<W> {
+impl<W: Write + 'static> XNativeValue for XOptional<W> {
     fn size(&self) -> usize {
         1
     }
 }
 
-pub(crate) fn add_optional_type<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_optional_type<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Optional", XOptionalType::xtype(t))
 }
 
-pub(crate) fn add_optional_null<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_optional_null<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "null",
         XStaticFunction::from_native(
@@ -61,7 +63,7 @@ pub(crate) fn add_optional_null<W: Write + Debug + 'static>(scope: &mut RootComp
     )
 }
 
-pub(crate) fn add_optional_some<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_optional_some<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "some",
@@ -82,7 +84,7 @@ pub(crate) fn add_optional_some<W: Write + Debug + 'static>(scope: &mut RootComp
     )
 }
 
-pub(crate) fn add_optional_map<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_optional_map<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t_in, t_out], params) = scope.generics_from_names(["T_IN", "T_OUT"]);
     scope.add_func(
         "map",
@@ -125,7 +127,7 @@ pub(crate) fn add_optional_map<W: Write + Debug + 'static>(scope: &mut RootCompi
     )
 }
 
-pub(crate) fn add_optional_map_or<W: Write + Debug + 'static>(
+pub(crate) fn add_optional_map_or<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -169,7 +171,7 @@ pub(crate) fn add_optional_map_or<W: Write + Debug + 'static>(
     )
 }
 
-pub(crate) fn add_optional_or_unwrap<W: Write + Debug + 'static>(
+pub(crate) fn add_optional_or_unwrap<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -203,7 +205,7 @@ pub(crate) fn add_optional_or_unwrap<W: Write + Debug + 'static>(
     )
 }
 
-pub(crate) fn add_optional_or<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_optional_or<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let opt_t = XOptionalType::xtype(t);
     scope.add_func(
@@ -235,7 +237,7 @@ pub(crate) fn add_optional_or<W: Write + Debug + 'static>(scope: &mut RootCompil
     )
 }
 
-pub(crate) fn add_optional_and<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_optional_and<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let opt_t = XOptionalType::xtype(t);
     scope.add_func(
@@ -267,7 +269,7 @@ pub(crate) fn add_optional_and<W: Write + Debug + 'static>(scope: &mut RootCompi
     )
 }
 
-pub(crate) fn add_optional_has_value<W: Write + Debug + 'static>(
+pub(crate) fn add_optional_has_value<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -292,7 +294,7 @@ pub(crate) fn add_optional_has_value<W: Write + Debug + 'static>(
     )
 }
 
-pub(crate) fn add_optional_value<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_optional_value<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let opt_t = XOptionalType::xtype(t.clone());
     scope.add_func(
@@ -315,10 +317,10 @@ pub(crate) fn add_optional_value<W: Write + Debug + 'static>(scope: &mut RootCom
     )
 }
 
-pub(crate) fn add_optional_eq<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_optional_eq<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let eq_symbol = scope.identifier("eq");
 
-    fn static_from_eq<W: Write + Debug + 'static>(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr<W>) -> Rc<XStaticFunction<W>> {
+    fn static_from_eq<W: Write + 'static>(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr<W>) -> Rc<XStaticFunction<W>> {
         Rc::new(XStaticFunction::from_native(
             XFuncSpec {
                 generic_params: None,
@@ -355,7 +357,7 @@ pub(crate) fn add_optional_eq<W: Write + Debug + 'static>(scope: &mut RootCompil
         ))
     }
 
-    fn from_types<W: Write + Debug + 'static>(
+    fn from_types<W: Write + 'static>(
         types: &[Arc<XType>],
         scope: &XCompilationScope<W>,
         eq_symbol: Identifier,

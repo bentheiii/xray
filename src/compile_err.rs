@@ -12,16 +12,19 @@ use std::io::Write;
 use std::sync::Arc;
 use string_interner::StringInterner;
 use strum::IntoStaticStr;
+use derivative::Derivative;
 
-#[derive(Debug)]
-pub struct TracedCompilationError<W: Write + Debug + 'static>(
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
+pub struct TracedCompilationError<W: Write + 'static>(
     CompilationError<W>,
     ((usize, usize), usize),
     ((usize, usize), usize),
 );
 
-#[derive(Debug)]
-pub enum CompilationError<W: Write + Debug + 'static> {
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
+pub enum CompilationError<W: Write + 'static> {
     VariableTypeMismatch {
         variable_name: Identifier,
         expected_type: Arc<XType>,
@@ -168,7 +171,7 @@ impl Resolve for XCompoundSpec {
     }
 }
 
-impl<W: Write + Debug + 'static> Resolve for XCompilationScopeItem<W> {
+impl<W: Write + 'static> Resolve for XCompilationScopeItem<W> {
     type Output = ResolvedCompilationScopeItem;
 
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
@@ -202,7 +205,7 @@ impl<T: Resolve + Clone> Resolve for Vec<T> {
     }
 }
 
-impl<W: Write + Debug + 'static> Resolve for Vec<XExpr<W>>{
+impl<W: Write + 'static> Resolve for Vec<XExpr<W>>{
     type Output = Self;
     fn resolve(&self, _interner: &StringInterner) -> Self::Output {
         self.clone()
@@ -235,7 +238,7 @@ macro_rules! resolve_variants {
     }}
 }
 
-impl<W: Write + Debug + 'static> Resolve for CompilationError<W> {
+impl<W: Write + 'static> Resolve for CompilationError<W> {
     type Output = ResolvedCompilationError<W>;
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
         resolve_variants!(
@@ -325,7 +328,7 @@ impl<W: Write + Debug + 'static> Resolve for CompilationError<W> {
     }
 }
 
-impl<W: Write + Debug + 'static> CompilationError<W> {
+impl<W: Write + 'static> CompilationError<W> {
     pub(crate) fn trace(self, input: &Pair<Rule>) -> TracedCompilationError<W> {
         fn pos_to_coors(pos: &Position) -> ((usize, usize), usize) {
             (pos.line_col(), pos.pos())
@@ -336,7 +339,7 @@ impl<W: Write + Debug + 'static> CompilationError<W> {
     }
 }
 
-impl<W: Write + Debug + 'static> TracedCompilationError<W> {
+impl<W: Write + 'static> TracedCompilationError<W> {
     pub(crate) fn resolve_with_input(
         self,
         interner: &StringInterner,
@@ -379,7 +382,7 @@ impl Display for ResolvedCompilationScopeItem {
 }
 
 #[derive(IntoStaticStr)]
-pub enum ResolvedCompilationError<W: Write + Debug + 'static> {
+pub enum ResolvedCompilationError<W: Write + 'static> {
     VariableTypeMismatch {
         variable_name: String,
         expected_type: ResolvedType,
@@ -500,7 +503,7 @@ pub enum ResolvedCompilationError<W: Write + Debug + 'static> {
     },
 }
 
-impl<W: Write + Debug + 'static> Display for ResolvedCompilationError<W> {
+impl<W: Write + 'static> Display for ResolvedCompilationError<W> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::VariableTypeMismatch {
@@ -729,12 +732,12 @@ impl<W: Write + Debug + 'static> Display for ResolvedCompilationError<W> {
     }
 }
 
-pub enum ResolvedTracedCompilationError<W: Write + Debug + 'static> {
+pub enum ResolvedTracedCompilationError<W: Write + 'static> {
     Syntax(pest::error::Error<Rule>),
     Compilation(ResolvedCompilationError<W>, usize, String),
 }
 
-impl<W: Write + Debug + 'static> Display for ResolvedTracedCompilationError<W> {
+impl<W: Write + 'static> Display for ResolvedTracedCompilationError<W> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Syntax(e) => Display::fmt(e, f),

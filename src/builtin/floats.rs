@@ -13,7 +13,7 @@ use std::fmt::Debug;
 use std::io::Write;
 use std::rc;
 
-pub(crate) fn add_float_type<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_float_type<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     scope.add_native_type("float", X_FLOAT.clone())
 }
 

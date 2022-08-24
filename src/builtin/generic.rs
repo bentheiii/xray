@@ -11,7 +11,7 @@ use std::io::Write;
 use std::rc;
 use std::sync::Arc;
 
-pub(crate) fn add_if<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_if<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if",
@@ -55,7 +55,7 @@ add_ufunc!(
     |a: &String| Err(a.clone())
 );
 
-pub(crate) fn add_cast<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_cast<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "cast",
@@ -73,7 +73,7 @@ pub(crate) fn add_cast<W: Write + Debug + 'static>(scope: &mut RootCompilationSc
     )
 }
 
-pub(crate) fn add_debug<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_debug<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "debug",
@@ -104,7 +104,7 @@ pub(crate) fn add_debug<W: Write + Debug + 'static>(scope: &mut RootCompilationS
     )
 }
 
-pub(crate) fn add_is_error<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_is_error<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "is_error",
@@ -125,7 +125,7 @@ pub(crate) fn add_is_error<W: Write + Debug + 'static>(scope: &mut RootCompilati
     )
 }
 
-pub(crate) fn add_if_error<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_if_error<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if_error",
@@ -152,10 +152,10 @@ pub(crate) fn add_if_error<W: Write + Debug + 'static>(scope: &mut RootCompilati
     )
 }
 
-pub(crate) fn add_ne<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_ne<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let eq_symbol = scope.identifier("eq");
 
-    fn static_from_eq<W: Write + Debug + 'static>(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr<W>) -> Rc<XStaticFunction<W>> {
+    fn static_from_eq<W: Write + 'static>(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr<W>) -> Rc<XStaticFunction<W>> {
         Rc::new(XStaticFunction::from_native(
             XFuncSpec {
                 generic_params: None,
@@ -182,7 +182,7 @@ pub(crate) fn add_ne<W: Write + Debug + 'static>(scope: &mut RootCompilationScop
         ))
     }
 
-    fn from_types<W: Write + Debug + 'static>(
+    fn from_types<W: Write + 'static>(
         types: &[Arc<XType>],
         scope: &XCompilationScope<W>,
         eq_symbol: Identifier,
@@ -203,10 +203,10 @@ pub(crate) fn add_ne<W: Write + Debug + 'static>(scope: &mut RootCompilationScop
     })
 }
 
-pub(crate) fn add_display<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_display<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     let to_str_symbol = scope.identifier("to_str");
 
-    fn static_from_to_str<W: Write + Debug + 'static>(t: Arc<XType>, to_str_expr: XExpr<W>) -> Rc<XStaticFunction<W>> {
+    fn static_from_to_str<W: Write + 'static>(t: Arc<XType>, to_str_expr: XExpr<W>) -> Rc<XStaticFunction<W>> {
         Rc::new(XStaticFunction::from_native(
             XFuncSpec {
                 generic_params: None,
@@ -237,7 +237,7 @@ pub(crate) fn add_display<W: Write + Debug + 'static>(scope: &mut RootCompilatio
         ))
     }
 
-    fn from_types<W: Write + Debug + 'static>(
+    fn from_types<W: Write + 'static>(
         types: &[Arc<XType>],
         scope: &XCompilationScope<W>,
         to_str_symbol: Identifier,

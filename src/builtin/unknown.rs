@@ -4,7 +4,7 @@ use crate::xtype::{X_BOOL, X_UNKNOWN};
 use crate::{CompilationError, RootCompilationScope, XFuncParamSpec, XFuncSpec, XStaticFunction};
 use std::rc::Rc;
 
-pub(crate) fn add_unknown_eq<W: Write + Debug + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
+pub(crate) fn add_unknown_eq<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError<W>> {
     scope.add_dyn_func("eq", move |_params, types, _ns| {
         if types.len() != 2 {
             return Err(format!("Expected 2 types, got {}", types.len()));

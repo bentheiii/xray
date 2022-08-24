@@ -9,7 +9,7 @@ use std::ops::Neg;
 #[macro_export]
 macro_rules! add_binop {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
-        pub(crate) fn $fn_name<W: Write + Debug + 'static>(
+        pub(crate) fn $fn_name<W: Write + 'static>(
             scope: &mut RootCompilationScope<W>,
         ) -> Result<(), $crate::CompilationError<W>> {
             scope.add_func(
@@ -45,7 +45,7 @@ macro_rules! add_binop {
 #[macro_export]
 macro_rules! add_ufunc_ref {
     ($fn_name:ident, $name:ident, $operand_type: ident, $return_type:ident, $func:expr) => {
-        pub(crate) fn $fn_name<W: Write + Debug + 'static>(
+        pub(crate) fn $fn_name<W: Write + 'static>(
             scope: &mut RootCompilationScope<W>,
         ) -> Result<(), $crate::CompilationError<W>> {
             scope.add_func(
@@ -146,7 +146,7 @@ macro_rules! manage_native {
     };
 }
 
-pub(super) fn xcmp<W: Write + Debug + 'static, T: PartialOrd>(rhs: T, lhs: T) -> XValue<W> {
+pub(super) fn xcmp<W: Write + 'static, T: PartialOrd>(rhs: T, lhs: T) -> XValue<W> {
     XValue::Int(if rhs < lhs {
         LazyBigint::one().neg()
     } else if rhs > lhs {

@@ -553,7 +553,7 @@ lazy_static! {
     pub static ref X_UNKNOWN: Arc<XType> = Arc::new(XType::XUnknown);
 }
 
-pub(crate) fn common_type<W: Write + Debug + 'static, T: Iterator<Item = Result<Arc<XType>, CompilationError<W>>>>(
+pub(crate) fn common_type<W: Write + 'static, T: Iterator<Item = Result<Arc<XType>, CompilationError<W>>>>(
     mut values: T,
 ) -> Result<Arc<XType>, CompilationError<W>> {
     let mut ret = match values.next() {

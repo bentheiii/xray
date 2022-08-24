@@ -11,7 +11,7 @@ pub struct RuntimeLimits {
 }
 
 impl RuntimeLimits {
-    pub fn to_runtime<W: Write + Debug + 'static>(self, output: W) -> RTCell<W> {
+    pub fn to_runtime<W: Write + 'static>(self, output: W) -> RTCell<W> {
         Rc::new(RefCell::new(Runtime {
             limits: self,
             size: 0,
@@ -20,7 +20,7 @@ impl RuntimeLimits {
     }
 }
 
-pub struct Runtime<W: Write + Debug + 'static> {
+pub struct Runtime<W: Write + 'static> {
     pub(crate) limits: RuntimeLimits,
     pub(crate) size: usize, // this will be zero if the runtime has no size limit
     pub(crate) stdout: W

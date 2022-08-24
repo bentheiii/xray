@@ -12,7 +12,7 @@ use crate::{let_match, Identifier, RootCompilationScope};
 
 pub type EvaluatedVariable<W> = Result<Rc<ManagedXValue<W>>, String>;
 
-pub struct XEvaluationScope<'p, W: Write + Debug + 'static> {
+pub struct XEvaluationScope<'p, W: Write + 'static> {
     pub values: HashMap<Identifier, EvaluatedVariable<W>>,
     pub recourse: Option<&'p XFunction<W>>,
     ud_static_functions: HashMap<Identifier, Vec<Rc<XStaticFunction<W>>>>,
@@ -29,7 +29,7 @@ impl Debug for MultipleUD {
     }
 }
 
-impl<'p, W: Write + Debug + 'static> XEvaluationScope<'p, W> {
+impl<'p, W: Write + 'static> XEvaluationScope<'p, W> {
     pub(crate) fn root() -> Self {
         XEvaluationScope {
             values: HashMap::new(),
@@ -154,12 +154,12 @@ impl<'p, W: Write + Debug + 'static> XEvaluationScope<'p, W> {
     }
 }
 
-pub struct RootEvaluationScope<'c, W: Write + Debug + 'static> {
+pub struct RootEvaluationScope<'c, W: Write + 'static> {
     scope: XEvaluationScope<'static, W>,
     compilation_scope: &'c RootCompilationScope<W>,
 }
 
-impl<'c, W: Write + Debug + 'static> RootEvaluationScope<'c, W> {
+impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
     pub fn from_compilation_scope(
         comp_scope: &'c RootCompilationScope<W>,
     ) -> Result<Self, String> {

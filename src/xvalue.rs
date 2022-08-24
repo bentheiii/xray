@@ -14,8 +14,9 @@ use std::rc::Rc;
 use std::sync::Arc;
 use derivative::Derivative;
 
-#[derive(Debug)]
-pub enum XValue<W: Write + Debug + 'static> {
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
+pub enum XValue<W: Write + 'static> {
     Int(LazyBigint),
     Float(f64),
     String(String),
@@ -38,7 +39,7 @@ pub type DynBind<W> = Rc<
 
 #[derive(Derivative)]
 #[derivative(Clone(bound=""))]
-pub enum XFunction<W: Write + Debug + 'static> {
+pub enum XFunction<W: Write + 'static> {
     Native(NativeCallable<W>),
     UserFunction(
         Rc<XStaticFunction<W>>,
@@ -47,7 +48,7 @@ pub enum XFunction<W: Write + Debug + 'static> {
     Recourse(usize),
 }
 
-impl<W: Write + Debug + 'static> XFunction<W> {
+impl<W: Write + 'static> XFunction<W> {
     pub(crate) fn eval<'p>(
         &'p self,
         args: &[XExpr<W>],
@@ -176,7 +177,7 @@ impl<W: Write + Debug + 'static> XFunction<W> {
     }
 }
 
-impl<W: Write + Debug + 'static> Debug for XFunction<W> {
+impl<W: Write + 'static> Debug for XFunction<W> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             Self::Native(_) => {
@@ -192,7 +193,7 @@ impl<W: Write + Debug + 'static> Debug for XFunction<W> {
     }
 }
 
-impl<W: Write + Debug + 'static> XValue<W> {
+impl<W: Write + 'static> XValue<W> {
     pub(crate) fn size(&self) -> usize {
         match self {
             Self::Int(i) => size_of::<LazyBigint>() + (i.bits() / 8_u64) as usize,
@@ -211,25 +212,25 @@ impl<W: Write + Debug + 'static> XValue<W> {
     }
 }
 
-pub struct ManagedXValue<W: Write + Debug + 'static> {
+pub struct ManagedXValue<W: Write + 'static> {
     runtime: RTCell<W>,
     size: usize, // this will be zero if the runtime has no size limit
     pub value: XValue<W>,
 }
 
-impl<W: Write + Debug + 'static> Debug for ManagedXValue<W> {
+impl<W: Write + 'static> Debug for ManagedXValue<W> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "ManagedXValue({:?})", self.value)
     }
 }
 
-impl<W: Write + Debug + 'static> Drop for ManagedXValue<W> {
+impl<W: Write + 'static> Drop for ManagedXValue<W> {
     fn drop(&mut self) {
         self.runtime.borrow_mut().size -= self.size;
     }
 }
 
-impl<W: Write + Debug + 'static> ManagedXValue<W> {
+impl<W: Write + 'static> ManagedXValue<W> {
     pub(crate) fn new(value: XValue<W>, runtime: RTCell<W>) -> Result<Rc<Self>, String> {
         let size;
         {

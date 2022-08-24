@@ -40,12 +40,12 @@ enum CompilationScopeType {
     Declared(usize),
 }
 
-enum CompilationScopeFunction<W: Write + Debug + 'static> {
+enum CompilationScopeFunction<W: Write + 'static> {
     Factory(XFunctionFactory<W>),
     Declared(usize),
 }
 
-pub struct XCompilationScope<'p, W: Write + Debug + 'static> {
+pub struct XCompilationScope<'p, W: Write + 'static> {
     values: HashMap<Identifier, CompilationScopeValue>,
     types: HashMap<Identifier, CompilationScopeType>,
     functions: HashMap<Identifier, Vec<CompilationScopeFunction<W>>>,
@@ -59,14 +59,14 @@ pub struct XCompilationScope<'p, W: Write + Debug + 'static> {
 }
 
 #[derive(Derivative)]
-#[derivative(Debug)]
-pub enum XFunctionFactory<W: Write + Debug + 'static> {
+#[derivative(Debug(bound=""))]
+pub enum XFunctionFactory<W: Write + 'static> {
     Static(Rc<XStaticFunction<W>>),
     // todo is this ever constructed?
     Dynamic(#[derivative(Debug = "ignore")] DynBind<W>),
 }
 
-impl<W: Write + Debug + 'static> Clone for XFunctionFactory<W>{
+impl<W: Write + 'static> Clone for XFunctionFactory<W>{
     fn clone(&self) -> Self {
         match self {
             Self::Static(rc) => Self::Static(rc.clone()),
@@ -75,15 +75,16 @@ impl<W: Write + Debug + 'static> Clone for XFunctionFactory<W>{
     }
 }
 
-#[derive(Debug)]
-pub enum XCompilationScopeItem<W: Write + Debug + 'static> {
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
+pub enum XCompilationScopeItem<W: Write + 'static> {
     Value(Arc<XType>),
     NativeType(Arc<XType>),
     Compound(CompoundKind, Arc<XCompoundSpec>),
     Overload(Vec<XFunctionFactory<W>>),
 }
 
-impl<'p, W: Write + Debug + 'static> XCompilationScope<'p, W> {
+impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
     fn root() -> Self {
         XCompilationScope {
             values: HashMap::new(),
@@ -149,7 +150,7 @@ impl<'p, W: Write + Debug + 'static> XCompilationScope<'p, W> {
         &self,
         name: Identifier,
     ) -> Option<(XCompilationScopeItem<W>, usize)> {
-        fn helper<W: Write + Debug + 'static>(
+        fn helper<W: Write + 'static>(
             scope: &XCompilationScope<W>,
             name: Identifier,
             depth: usize,
@@ -1012,20 +1013,21 @@ lazy_static! {
     };
 }
 
-#[derive(Debug)]
-pub enum Declaration<W: Write + Debug + 'static> {
+#[derive(Derivative)]
+#[derivative(Debug(bound=""))]
+pub enum Declaration<W: Write + 'static> {
     Value(Identifier, XExpr<W>, Arc<XType>),
     Compound(Identifier, CompoundKind, Arc<XCompoundSpec>),
     Function(Identifier, Rc<XStaticFunction<W>>),
 }
 
-pub struct RootCompilationScope<W: Write + Debug + 'static> {
+pub struct RootCompilationScope<W: Write + 'static> {
     pub(crate) scope: XCompilationScope<'static, W>,
     interner: StringInterner,
     pub(crate) runtime: RTCell<W>,
 }
 
-impl<W: Write + Debug + 'static> RootCompilationScope<W> {
+impl<W: Write + 'static> RootCompilationScope<W> {
     pub fn new(runtime: RTCell<W>) -> Self {
         Self {
             scope: XCompilationScope::root(),
