@@ -53,7 +53,7 @@ impl CompilationResult {
     fn new(expr: XExpr, closure_vars: Vec<DefaultSymbol>) -> Self {
         Self { expr, closure_vars }
     }
-    fn join(results: Vec<Self>) -> (Vec<XExpr>, Vec<DefaultSymbol>) {
+    fn join(results: impl IntoIterator<Item=Self>) -> (Vec<XExpr>, Vec<DefaultSymbol>) {
         let mut exprs = vec![];
         let mut closure_vars = vec![];
         for result in results {
@@ -71,7 +71,7 @@ impl CompilationResult {
 }
 
 pub(crate) fn resolve_overload<'p>(
-    overloads: &[Rc<XFunctionFactory>],
+    overloads: &[XFunctionFactory],
     args: Option<&[XExpr]>,
     arg_types: &[Arc<XType>],
     name: DefaultSymbol,
@@ -83,7 +83,7 @@ pub(crate) fn resolve_overload<'p>(
     let is_unknown = arg_types.iter().any(|t| t.is_unknown());
     // if the bindings are unknown, then we prefer generic solutions over exact solutions
     for overload in overloads {
-        let overload = match overload.as_ref() {
+        let overload = match overload {
             XFunctionFactory::Static(overload) => overload.clone(),
             XFunctionFactory::Dynamic(dyn_func) => match dyn_func(args, arg_types, namespace) {
                 Ok(overload) => overload,
@@ -400,9 +400,9 @@ impl XStaticExpr {
                             cvars,
                         )),
                         XCompilationScopeItem::Overload(overloads) => {
-                            if overloads.len() == 1 {
+                            if overloads.len() == 1 { // todo fix this if (turn into pattern)
                                 let overload = &overloads[0];
-                                match overload.as_ref() {
+                                match overload {
                                     XFunctionFactory::Static(overload) => {
                                         if overload.is_generic() {
                                             Err(CompilationError::GenericFunctionAsVariable {

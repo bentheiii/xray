@@ -11,15 +11,12 @@ fn test_script(script_number: usize) {
     let input = fs::read_to_string(&file_path).expect(&file_path);
     let limits = RuntimeLimits::default();
     let runtime = limits.to_runtime();
-    let decls = comp_scope
+    comp_scope
         .feed_file(&input, runtime.clone())
         .map_err(|e| format!("{}", e))
         .unwrap();
 
-    let mut eval_scope = RootEvaluationScope::from_compilation_scope(&comp_scope);
-    for decl in decls {
-        eval_scope.add_from(&decl, runtime.clone()).unwrap();
-    }
+    let eval_scope = RootEvaluationScope::from_compilation_scope(&comp_scope, runtime.clone()).unwrap();
 
     let main_fn = eval_scope
         .get_user_defined_function("main")

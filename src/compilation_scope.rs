@@ -3,11 +3,8 @@ use crate::runtime::RTCell;
 use crate::xexpr::{resolve_overload, XExpr, XStaticFunction};
 use crate::xtype::{CompoundKind, XCompoundSpec, XFuncSpec, XType};
 use crate::xvalue::DynBind;
-use crate::{
-    Bind, CompilationError, CompilationResult, Identifier, TracedCompilationError, UfData,
-    XCallableSpec, XCompoundFieldSpec, XEvaluationScope, XExplicitArgSpec, XExplicitFuncSpec,
-    XRayParser, XStaticExpr,
-};
+use crate::{Bind, CompilationError, CompilationResult, Identifier, let_match, TracedCompilationError, UfData, XCallableSpec, XCompoundFieldSpec, XEvaluationScope, XExplicitArgSpec, XExplicitFuncSpec, XRayParser, XStaticExpr};
+
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
@@ -17,7 +14,7 @@ use std::iter::FromIterator;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::Arc;
-use string_interner::{DefaultSymbol, StringInterner};
+use string_interner::{StringInterner};
 
 use crate::compile_err::ResolvedTracedCompilationError;
 use crate::pest::Parser;
@@ -25,24 +22,31 @@ use derivative::Derivative;
 use pest::iterators::Pair;
 use pest::prec_climber::Assoc::{Left, Right};
 use pest::prec_climber::{Operator, PrecClimber};
+use crate::util::ipush::IPush;
+
+enum CompilationScopeValue { Parameter(Arc<XType>), Declared(usize) }
+
+enum CompilationScopeType { Native(Arc<XType>), Declared(usize) }
+
+enum CompilationScopeFunction { Factory(XFunctionFactory), Declared(usize) }
 
 pub struct XCompilationScope<'p> {
-    values: HashMap<Identifier, (Option<XExpr>, Arc<XType>)>,
-    types: HashMap<Identifier, Arc<XType>>,
-    structs: HashMap<Identifier, Arc<XCompoundSpec>>,
-    unions: HashMap<Identifier, Arc<XCompoundSpec>>,
-    functions: HashMap<Identifier, Vec<Rc<XFunctionFactory>>>,
+    values: HashMap<Identifier, CompilationScopeValue>,
+    types: HashMap<Identifier, CompilationScopeType>,
+    functions: HashMap<Identifier, Vec<CompilationScopeFunction>>,
     recourse: Option<(Identifier, Rc<XFuncSpec>)>,
     closure_variables: HashSet<Identifier>,
     parent: Option<&'p XCompilationScope<'p>>,
 
+    pub(crate) declarations: IPush<Declaration>,
+
     pub(crate) height: usize,
 }
 
-#[derive(Derivative)]
+#[derive(Derivative, Clone)]
 #[derivative(Debug)]
 pub enum XFunctionFactory {
-    Static(Rc<XStaticFunction>),
+    Static(Rc<XStaticFunction>),  // todo is this ever constructed?
     Dynamic(#[derivative(Debug = "ignore")] DynBind),
 }
 
@@ -51,7 +55,7 @@ pub enum XCompilationScopeItem {
     Value(Arc<XType>),
     NativeType(Arc<XType>),
     Compound(CompoundKind, Arc<XCompoundSpec>),
-    Overload(Vec<Rc<XFunctionFactory>>),
+    Overload(Vec<XFunctionFactory>),
 }
 
 impl<'p> XCompilationScope<'p> {
@@ -59,49 +63,40 @@ impl<'p> XCompilationScope<'p> {
         XCompilationScope {
             values: HashMap::new(),
             types: HashMap::new(),
-            structs: HashMap::new(),
             functions: HashMap::new(),
-            unions: HashMap::new(),
             parent: None,
             recourse: None,
             closure_variables: HashSet::new(),
+            declarations: IPush::new(),
             height: 0,
         }
     }
 
     fn from_parent(
         parent: &'p XCompilationScope<'p>,
-        recourse_name: DefaultSymbol,
+        recourse_name: Identifier,
         recourse_spec: XFuncSpec,
     ) -> Self {
         XCompilationScope {
-            values: HashMap::new(),
-            types: HashMap::new(),
-            structs: HashMap::new(),
-            functions: HashMap::new(),
-            unions: HashMap::new(),
             parent: Some(parent),
             recourse: Some((recourse_name, Rc::new(recourse_spec))),
-            closure_variables: HashSet::new(),
             height: parent.height + 1,
+
+            ..Self::root()
         }
     }
 
     pub(crate) fn from_parent_lambda(parent: &'p XCompilationScope<'p>) -> Self {
         XCompilationScope {
-            values: HashMap::new(),
-            types: HashMap::new(),
-            structs: HashMap::new(),
-            functions: HashMap::new(),
-            unions: HashMap::new(),
             parent: Some(parent),
             recourse: None,
-            closure_variables: HashSet::new(),
             height: parent.height + 1,
+
+            ..Self::root()
         }
     }
 
-    fn ancestors(&self) -> impl Iterator<Item = &XCompilationScope<'p>> {
+    fn ancestors(&self) -> impl Iterator<Item=&XCompilationScope<'p>> {
         let mut scope = self;
         from_fn(move || {
             if let Some(parent) = scope.parent {
@@ -112,28 +107,38 @@ impl<'p> XCompilationScope<'p> {
         })
     }
 
-    pub(crate) fn get(&self, name: DefaultSymbol) -> Option<XCompilationScopeItem> {
+    pub(crate) fn get(&self, name: Identifier) -> Option<XCompilationScopeItem> {
         self.get_with_depth(name).map(|i| i.0)
+    }
+
+    fn get_function_factory(&self, comp_scope_func: &CompilationScopeFunction) -> XFunctionFactory {
+        match comp_scope_func {
+            CompilationScopeFunction::Declared(idx) => XFunctionFactory::Static(
+                let_match!(&self.declarations[*idx]; Declaration::Function(_, sf) => sf.clone())
+            ),
+            CompilationScopeFunction::Factory(fact) => fact.clone(),
+        }
     }
 
     pub(crate) fn get_with_depth(
         &self,
-        name: DefaultSymbol,
+        name: Identifier,
     ) -> Option<(XCompilationScopeItem, usize)> {
         fn helper(
             scope: &XCompilationScope<'_>,
-            name: DefaultSymbol,
+            name: Identifier,
             depth: usize,
         ) -> Option<(XCompilationScopeItem, usize)> {
             let mut overloads = scope
                 .functions
                 .get(&name)
-                .map_or_else(std::vec::Vec::new, |x| x.clone());
+                .map_or_else(Vec::new, |x| x.iter().map(|i| scope.get_function_factory(i)).collect());
             match &scope.recourse {
                 Some((rec_name, spec)) if rec_name == &name => {
-                    overloads.push(Rc::new(XFunctionFactory::Static(Rc::new(
+                    // todo just put this in declarations?
+                    overloads.push(XFunctionFactory::Static(Rc::new(
                         XStaticFunction::Recourse(spec.clone(), 0),
-                    ))));
+                    )));
                 }
                 _ => (),
             }
@@ -141,40 +146,34 @@ impl<'p> XCompilationScope<'p> {
                 for (depth, ancestor) in scope.ancestors().enumerate() {
                     if let Some(ancestor_overloads) = ancestor.functions.get(&name) {
                         let ancestor_overloads = ancestor_overloads.iter().map(|x| {
-                            if let XFunctionFactory::Static(stat) = x.as_ref() {
+                            let mut func = ancestor.get_function_factory(x);
+                            if let XFunctionFactory::Static(stat) = &func {
                                 if let XStaticFunction::Recourse(spec, ..) = stat.as_ref() {
-                                    Rc::new(XFunctionFactory::Static(Rc::new(
+                                    func = XFunctionFactory::Static(Rc::new(
                                         XStaticFunction::Recourse(spec.clone(), depth),
-                                    )))
-                                } else {
-                                    x.clone()
+                                    ));
                                 }
-                            } else {
-                                x.clone()
                             }
+                            func
                         });
                         overloads.extend(ancestor_overloads);
                     }
                 }
                 return Some((XCompilationScopeItem::Overload(overloads), depth));
             }
-            if let Some((_, value)) = scope.values.get(&name) {
-                return Some((XCompilationScopeItem::Value(value.clone()), depth));
+            if let Some(value) = scope.values.get(&name) {
+                let ty = match value {
+                    CompilationScopeValue::Declared(idx) => let_match!(&scope.declarations[*idx]; Declaration::Value(.., ty) => ty),
+                    CompilationScopeValue::Parameter(ty) => ty
+                };
+                return Some((XCompilationScopeItem::Value(ty.clone()), depth));
             }
-            if let Some(struct_spec) = scope.structs.get(&name) {
-                return Some((
-                    XCompilationScopeItem::Compound(CompoundKind::Struct, struct_spec.clone()),
-                    depth,
-                ));
-            }
-            if let Some(struct_spec) = scope.unions.get(&name) {
-                return Some((
-                    XCompilationScopeItem::Compound(CompoundKind::Union, struct_spec.clone()),
-                    depth,
-                ));
-            }
-            if let Some(type_spec) = scope.types.get(&name) {
-                return Some((XCompilationScopeItem::NativeType(type_spec.clone()), depth));
+            if let Some(type_) = scope.types.get(&name) {
+                let item = match type_ {
+                    CompilationScopeType::Declared(idx) => let_match!(&scope.declarations[*idx]; Declaration::Compound(_, kind, spec) => XCompilationScopeItem::Compound(*kind, spec.clone())),
+                    CompilationScopeType::Native(ty) => XCompilationScopeItem::NativeType(ty.clone())
+                };
+                return Some((item, depth));
             }
             scope
                 .parent
@@ -188,16 +187,16 @@ impl<'p> XCompilationScope<'p> {
                                     overloads
                                         .iter()
                                         .map(|x| {
-                                            if let XFunctionFactory::Static(stat) = x.as_ref() {
+                                            if let XFunctionFactory::Static(stat) = x {
                                                 if let XStaticFunction::Recourse(spec, ..) =
-                                                    stat.as_ref()
+                                                stat.as_ref()
                                                 {
-                                                    Rc::new(XFunctionFactory::Static(Rc::new(
+                                                    XFunctionFactory::Static(Rc::new(
                                                         XStaticFunction::Recourse(
                                                             spec.clone(),
                                                             depth,
                                                         ),
-                                                    )))
+                                                    ))
                                                 } else {
                                                     x.clone()
                                                 }
@@ -219,132 +218,109 @@ impl<'p> XCompilationScope<'p> {
 
     pub(crate) fn add_param(
         &mut self,
-        name: DefaultSymbol,
+        name: Identifier,
         type_: Arc<XType>,
     ) -> Result<(), CompilationError> {
         if let Some(other) = self.get(name) {
             Err(CompilationError::NameAlreadyDefined { name, other })
         } else {
-            self.values.insert(name, (None, type_));
+            self.values.insert(name, CompilationScopeValue::Parameter(type_.clone()));
             Ok(())
         }
     }
 
     fn add_var(
         &mut self,
-        name: DefaultSymbol,
+        name: Identifier,
         expr: XExpr,
-    ) -> Result<Declaration, CompilationError> {
+    ) -> Result<(), CompilationError> {
         if let Some(other) = self.get(name) {
             Err(CompilationError::NameAlreadyDefined { name, other })
         } else {
             let xtype = expr.xtype()?;
-            self.values.insert(name, (Some(expr.clone()), xtype));
-            Ok(Declaration::Value(name, expr))
+            self.values.insert(name, CompilationScopeValue::Declared(
+                self.declarations.ipush(Declaration::Value(name, expr, xtype))
+            ));
+            Ok(())
         }
     }
 
     fn add_func(
         &mut self,
-        name: DefaultSymbol,
+        name: Identifier,
         func: XStaticFunction,
-    ) -> Result<Declaration, CompilationError> {
+    ) -> Result<(), CompilationError> {
         // todo ensure no shadowing
         let item = Rc::new(func);
         self.functions
             .entry(name)
-            .or_insert_with(std::vec::Vec::new)
-            .push(Rc::new(XFunctionFactory::Static(item.clone())));
-        Ok(Declaration::UserFunction(name, item))
+            .or_insert_with(Vec::new)
+            .push(CompilationScopeFunction::Declared(
+                self.declarations.ipush(Declaration::Function(name, item))
+            ));
+        Ok(())
     }
 
     fn add_dyn_func(
         &mut self,
-        name: DefaultSymbol,
+        name: Identifier,
         func: impl Fn(
-                Option<&[XExpr]>,
-                &[Arc<XType>],
-                &XCompilationScope<'_>,
-            ) -> Result<Rc<XStaticFunction>, String>
-            + 'static,
+            Option<&[XExpr]>,
+            &[Arc<XType>],
+            &XCompilationScope<'_>,
+        ) -> Result<Rc<XStaticFunction>, String>
+        + 'static,
     ) -> Result<(), CompilationError> {
         // todo ensure no shadowing?
         self.functions
             .entry(name)
-            .or_insert_with(std::vec::Vec::new)
-            .push(Rc::new(XFunctionFactory::Dynamic(Rc::new(func))));
+            .or_insert_with(Vec::new)
+            .push(
+                CompilationScopeFunction::Factory(XFunctionFactory::Dynamic(Rc::new(func)))
+            );
         Ok(())
     }
 
     fn add_compound(
         &mut self,
-        name: DefaultSymbol,
+        name: Identifier,
         kind: CompoundKind,
-        spec: XCompoundSpec,
-    ) -> Result<Declaration, CompilationError> {
-        if kind == CompoundKind::Struct {
-            self.add_struct(name, spec)
-        } else {
-            self.add_union(name, spec)
-        }
-    }
-
-    fn add_struct(
-        &mut self,
-        name: DefaultSymbol,
         struct_spec: XCompoundSpec,
-    ) -> Result<Declaration, CompilationError> {
+    ) -> Result<(), CompilationError> {
         // todo ensure no shadowing
-        self.structs.insert(name, Arc::new(struct_spec.clone()));
-        Ok(Declaration::Struct(struct_spec))
-    }
-
-    fn add_union(
-        &mut self,
-        name: DefaultSymbol,
-        union_spec: XCompoundSpec,
-    ) -> Result<Declaration, CompilationError> {
-        // todo ensure no shadowing
-        self.unions.insert(name, Arc::new(union_spec.clone()));
-        Ok(Declaration::Union(union_spec))
+        self.types.insert(name, CompilationScopeType::Declared(
+            self.declarations.ipush(Declaration::Compound(name, kind, Arc::new(struct_spec)))
+        ));
+        Ok(())
     }
 
     fn add_native_type(
         &mut self,
-        name: DefaultSymbol,
+        name: Identifier,
         type_: Arc<XType>,
     ) -> Result<(), CompilationError> {
         if let Some(other) = self.get(name) {
             Err(CompilationError::NameAlreadyDefined { name, other })
         } else {
-            self.types.insert(name, type_);
+            self.types.insert(name, CompilationScopeType::Native(type_));
             Ok(())
         }
     }
 
     fn to_eval_scope(&self, runtime: RTCell) -> Result<XEvaluationScope, CompilationError> {
-        let mut ret = XEvaluationScope::root();
-        let mut current_scope = Some(self);
-        while let Some(s) = current_scope {
-            for (name, (expr, _)) in &s.values {
-                match expr {
-                    None => {}
-                    Some(expr) => {
-                        let evaluated = expr.eval(&ret, false, runtime.clone());
-                        let value = match evaluated {
-                            Ok(value) => value.unwrap_value(),
-                            Err(_) => {
-                                // we actually allow this error to happen, since some expressions might depend on params or other unknown values
-                                // todo find some way to report this
-                                // todo catch limit errors
-                                continue;
-                            }
-                        };
-                        ret.add_value(*name, value);
-                    }
+        let mut ret = self.parent.map_or_else(
+            || Ok(XEvaluationScope::root()),
+            |p| p.to_eval_scope(runtime.clone())
+        )?;
+        for decl in &self.declarations {
+            ret.add_from(decl, runtime.clone()).unwrap_or_else(
+                |_e| {
+                    // we actually allow errors to happen here, since some expressions might depend
+                    // on params or other unknown values
+                    // todo find some way to report this
+                    // todo catch limit errors
                 }
-            }
-            current_scope = s.parent;
+            );
         }
         Ok(ret)
     }
@@ -419,19 +395,18 @@ impl<'p> XCompilationScope<'p> {
         parent_gen_param_names: &HashSet<String>,
         interner: &mut StringInterner,
         runtime: RTCell,
-    ) -> Result<Vec<Declaration>, TracedCompilationError> {
+    ) -> Result<(), TracedCompilationError> {
         match input.as_rule() {
             Rule::header | Rule::top_level_execution | Rule::execution | Rule::declaration => {
-                let mut declarations = Vec::new();
                 for inner in input.into_inner() {
-                    declarations.extend(self.feed(
+                    self.feed(
                         inner,
                         parent_gen_param_names,
                         interner,
                         runtime.clone(),
-                    )?);
+                    )?;
                 }
-                Ok(declarations)
+                Ok(())
             }
             Rule::value => {
                 let mut inners = input.clone().into_inner();
@@ -458,13 +433,13 @@ impl<'p> XCompilationScope<'p> {
                             expected_type: complete_type,
                             actual_type: comp_xtype,
                         }
-                        .trace(&input));
+                            .trace(&input));
                     }
                 }
                 self.closure_variables.extend(cvars);
-                Ok(vec![self
-                    .add_var(interner.get_or_intern(var_name), compiled)
-                    .map_err(|e| e.trace(&input))?])
+                self.add_var(interner.get_or_intern(var_name), compiled)
+                    .map_err(|e| e.trace(&input))?;
+                Ok(())
             }
             Rule::function => {
                 let mut inners = input.clone().into_inner();
@@ -504,7 +479,7 @@ impl<'p> XCompilationScope<'p> {
                         function_name: Some(fn_symbol),
                         param_name: out_of_order_param.name,
                     }
-                    .trace(&input));
+                        .trace(&input));
                 }
                 let rtype = self.get_complete_type(
                     inners.next().unwrap(),
@@ -525,7 +500,7 @@ impl<'p> XCompilationScope<'p> {
                         .map_err(|e| e.trace(&input))?; // todo improve trace?
                 }
                 let mut body_iter = body.clone().into_inner();
-                let declarations = subscope.feed(
+                subscope.feed(
                     body_iter.next().unwrap(),
                     &gen_param_names,
                     interner,
@@ -543,7 +518,7 @@ impl<'p> XCompilationScope<'p> {
                         expected_type: spec.ret,
                         actual_type: out_type,
                     }
-                    .trace(&input));
+                        .trace(&input));
                 }
                 let cvars = subscope
                     .closure_variables
@@ -551,11 +526,10 @@ impl<'p> XCompilationScope<'p> {
                     .chain(compiled_output.closure_vars.iter())
                     .cloned()
                     .collect::<HashSet<_>>();
-                let func =
-                    XStaticFunction::UserFunction(UfData::new(spec, declarations, output, cvars));
-                Ok(vec![self
-                    .add_func(fn_symbol, func)
-                    .map_err(|e| e.trace(&input))?])
+                let func = XStaticFunction::UserFunction(UfData::new(spec, subscope.declarations.into(), output, cvars));
+                self.add_func(fn_symbol, func)
+                    .map_err(|e| e.trace(&input))?;
+                Ok(())
             }
             Rule::compound_def => {
                 let mut inners = input.clone().into_inner();
@@ -596,14 +570,15 @@ impl<'p> XCompilationScope<'p> {
                     .collect::<Result<Vec<_>, _>>()?;
                 let symbol = interner.get_or_intern(var_name);
                 let spec = XCompoundSpec::new(symbol, gen_param_symbols, params);
-                Ok(vec![self
+                self
                     .add_compound(spec.name, compound_kind, spec)
-                    .map_err(|e| e.trace(&input))?])
+                    .map_err(|e| e.trace(&input))?;
+                Ok(())
             }
-            Rule::EOI => Ok(Vec::new()),
+            Rule::EOI => Ok(()),
             _ => {
                 println!("{:?}", input);
-                Ok(vec![])
+                Ok(())
             }
         }
     }
@@ -703,7 +678,7 @@ impl<'p> XCompilationScope<'p> {
                             return Err(CompilationError::TypeNotFound {
                                 name: name.to_string(),
                             }
-                            .trace(&input));
+                                .trace(&input));
                         }
                         match t.unwrap() {
                             XCompilationScopeItem::NativeType(t) => {
@@ -714,7 +689,7 @@ impl<'p> XCompilationScope<'p> {
                                             expected_count: t.generic_names().len(),
                                             actual_count: gen_params.len(),
                                         }
-                                        .trace(&input));
+                                            .trace(&input));
                                     }
                                     Ok(Arc::new(XType::XNative(t.clone(), gen_params)))
                                 } else {
@@ -728,7 +703,7 @@ impl<'p> XCompilationScope<'p> {
                                         expected_count: t.generic_names.len(),
                                         actual_count: gen_params.len(),
                                     }
-                                    .trace(&input));
+                                        .trace(&input));
                                 }
                                 let bind = Bind::from_iter(
                                     t.generic_names.iter().cloned().zip(gen_params.into_iter()),
@@ -739,7 +714,7 @@ impl<'p> XCompilationScope<'p> {
                                 name: symbol,
                                 item: other,
                             }
-                            .trace(&input)),
+                                .trace(&input)),
                         }
                     }
                 }
@@ -968,7 +943,7 @@ impl<'p> XCompilationScope<'p> {
                         function_name: None,
                         param_name: out_of_order_param.name,
                     }
-                    .trace(&input));
+                        .trace(&input));
                 }
                 let body = iter.next().unwrap();
                 let ret = self.to_expr(body.clone(), interner, runtime)?;
@@ -1005,14 +980,13 @@ lazy_static! {
 
 #[derive(Debug)]
 pub enum Declaration {
-    Value(DefaultSymbol, XExpr),
-    Struct(XCompoundSpec),
-    Union(XCompoundSpec),
-    UserFunction(DefaultSymbol, Rc<XStaticFunction>),
+    Value(Identifier, XExpr, Arc<XType>),
+    Compound(Identifier, CompoundKind, Arc<XCompoundSpec>),
+    Function(Identifier, Rc<XStaticFunction>),
 }
 
 pub struct RootCompilationScope {
-    scope: XCompilationScope<'static>,
+    pub(crate) scope: XCompilationScope<'static>,
     interner: StringInterner,
 }
 
@@ -1047,11 +1021,11 @@ impl RootCompilationScope {
         &mut self,
         name: &'static str,
         func: impl Fn(
-                Option<&[XExpr]>,
-                &[Arc<XType>],
-                &XCompilationScope<'_>,
-            ) -> Result<Rc<XStaticFunction>, String>
-            + 'static,
+            Option<&[XExpr]>,
+            &[Arc<XType>],
+            &XCompilationScope<'_>,
+        ) -> Result<Rc<XStaticFunction>, String>
+        + 'static,
     ) -> Result<(), CompilationError> {
         self.scope
             .add_dyn_func(self.interner.get_or_intern_static(name), func)
@@ -1084,7 +1058,7 @@ impl RootCompilationScope {
         &mut self,
         input: &str,
         runtime: RTCell,
-    ) -> Result<Vec<Declaration>, ResolvedTracedCompilationError> {
+    ) -> Result<(), ResolvedTracedCompilationError> {
         let body = XRayParser::parse(Rule::header, input)
             .map(|mut p| p.next().unwrap())
             .map_err(ResolvedTracedCompilationError::Syntax)?;
@@ -1093,7 +1067,7 @@ impl RootCompilationScope {
             .map_err(|e| e.resolve_with_input(&self.interner, input))
     }
 
-    pub fn describe_type(&self, t: impl Deref<Target = XType>) -> String {
+    pub fn describe_type(&self, t: impl Deref<Target=XType>) -> String {
         t.to_string_with_interner(&self.interner)
     }
 

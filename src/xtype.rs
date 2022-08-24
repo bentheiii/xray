@@ -115,7 +115,7 @@ impl XCompoundSpec {
         }
     }
 
-    pub(crate) fn bind(&self, args: &Vec<Arc<XType>>) -> Option<Bind> {
+    pub(crate) fn bind(&self, args: &[Arc<XType>]) -> Option<Bind> {
         if args.len() != self.fields.len() {
             return None;
         }

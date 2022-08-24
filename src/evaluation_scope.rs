@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use crate::compilation_scope::Declaration;
 use crate::util::rc_hash::RcHash;
-use crate::{Identifier, RootCompilationScope};
+use crate::{Identifier, let_match, RootCompilationScope};
 
 pub struct XEvaluationScope<'p> {
     pub values: HashMap<Identifier, Rc<ManagedXValue>>,
@@ -110,18 +110,20 @@ impl<'p> XEvaluationScope<'p> {
 
     pub(crate) fn add_from(&mut self, decl: &Declaration, runtime: RTCell) -> Result<(), String> {
         match decl {
-            Declaration::Value(name, expr) => {
+            Declaration::Value(name, expr, ..) => {
                 let value = expr.eval(self, false, runtime)?.unwrap_value();
                 self.add_value(*name, value);
             }
-            Declaration::UserFunction(name, func) => {
-                let evaled = self.lock_closure(func);
-                self.ud_static_functions
-                    .entry(*name)
-                    .or_insert_with(Vec::new)
-                    .push(func.clone());
-                let key = RcHash(func.clone());
-                self.ud_functions.insert(key, evaled);
+            Declaration::Function(name, func) => {
+                if let XStaticFunction::UserFunction(..) = func.as_ref() {
+                    let evaled = self.lock_closure(func);
+                    self.ud_static_functions
+                        .entry(*name)
+                        .or_insert_with(Vec::new)
+                        .push(func.clone());
+                    let key = RcHash(func.clone());
+                    self.ud_functions.insert(key, evaled);
+                }
             }
             _ => {}
         }
@@ -129,17 +131,14 @@ impl<'p> XEvaluationScope<'p> {
     }
 
     pub(crate) fn lock_closure(&self, func: &Rc<XStaticFunction>) -> XFunction {
-        if let XStaticFunction::UserFunction(uf) = func.as_ref() {
-            let closure = Rc::new(
-                uf.cvars
-                    .iter()
-                    .map(|&name| (name, self.get_value(name).unwrap()))
-                    .collect(),
-            );
-            XFunction::UserFunction(func.clone(), closure)
-        } else {
-            unreachable!()
-        }
+        let uf = let_match!(func.as_ref(); XStaticFunction::UserFunction(uf) => uf);
+        let closure = Rc::new(
+            uf.cvars
+                .iter()
+                .map(|&name| (name, self.get_value(name).unwrap()))
+                .collect(),
+        );
+        XFunction::UserFunction(func.clone(), closure)
     }
 
     pub(crate) fn ancestor(&'p self, depth: usize) -> &'p XEvaluationScope<'p> {
@@ -157,11 +156,15 @@ pub struct RootEvaluationScope<'c> {
 }
 
 impl<'c> RootEvaluationScope<'c> {
-    pub fn from_compilation_scope(comp_scope: &'c RootCompilationScope) -> Self {
-        Self {
+    pub fn from_compilation_scope(comp_scope: &'c RootCompilationScope, runtime: RTCell) -> Result<Self, String> {
+        let mut ret = Self {
             scope: XEvaluationScope::root(),
             compilation_scope: comp_scope,
+        };
+        for decl in &comp_scope.scope.declarations{
+            ret.declare(decl, runtime.clone())?
         }
+        Ok(ret)
     }
 
     pub fn get_value(&mut self, name: &str) -> Option<Rc<ManagedXValue>> {
@@ -177,7 +180,7 @@ impl<'c> RootEvaluationScope<'c> {
             .transpose()
     }
 
-    pub fn add_from(&mut self, decl: &Declaration, runtime: RTCell) -> Result<(), String> {
+    pub fn declare(&mut self, decl: &Declaration, runtime: RTCell) -> Result<(), String> {
         self.scope.add_from(decl, runtime)
     }
 
