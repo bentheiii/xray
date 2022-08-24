@@ -158,14 +158,13 @@ pub struct RootEvaluationScope<'c> {
 impl<'c> RootEvaluationScope<'c> {
     pub fn from_compilation_scope(
         comp_scope: &'c RootCompilationScope,
-        runtime: RTCell,
     ) -> Result<Self, String> {
         let mut ret = Self {
             scope: XEvaluationScope::root(),
             compilation_scope: comp_scope,
         };
         for decl in &comp_scope.scope.declarations {
-            ret.declare(decl, runtime.clone())?
+            ret.declare(decl)?
         }
         Ok(ret)
     }
@@ -183,16 +182,15 @@ impl<'c> RootEvaluationScope<'c> {
             .transpose()
     }
 
-    pub fn declare(&mut self, decl: &Declaration, runtime: RTCell) -> Result<(), String> {
-        self.scope.add_from(decl, runtime)
+    pub fn declare(&mut self, decl: &Declaration) -> Result<(), String> {
+        self.scope.add_from(decl, self.compilation_scope.runtime.clone())
     }
 
     pub fn eval(
         &self,
         func: &XFunction,
         args: &[Rc<ManagedXValue>],
-        runtime: RTCell,
     ) -> Result<Rc<ManagedXValue>, String> {
-        func.eval_values(args, &self.scope, runtime)
+        func.eval_values(args, &self.scope, self.compilation_scope.runtime.clone())
     }
 }

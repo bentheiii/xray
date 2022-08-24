@@ -1007,13 +1007,15 @@ pub enum Declaration {
 pub struct RootCompilationScope {
     pub(crate) scope: XCompilationScope<'static>,
     interner: StringInterner,
+    pub(crate) runtime: RTCell,
 }
 
 impl RootCompilationScope {
-    pub fn new() -> Self {
+    pub fn new(runtime: RTCell) -> Self {
         Self {
             scope: XCompilationScope::root(),
             interner: StringInterner::default(),
+            runtime,
         }
     }
 
@@ -1076,13 +1078,12 @@ impl RootCompilationScope {
     pub fn feed_file(
         &mut self,
         input: &str,
-        runtime: RTCell,
     ) -> Result<(), ResolvedTracedCompilationError> {
         let body = XRayParser::parse(Rule::header, input)
             .map(|mut p| p.next().unwrap())
             .map_err(ResolvedTracedCompilationError::Syntax)?;
         self.scope
-            .feed(body, &HashSet::new(), &mut self.interner, runtime)
+            .feed(body, &HashSet::new(), &mut self.interner, self.runtime.clone())
             .map_err(|e| e.resolve_with_input(&self.interner, input))
     }
 
@@ -1092,11 +1093,5 @@ impl RootCompilationScope {
 
     pub fn get(&self, name: &str) -> Option<XCompilationScopeItem> {
         self.interner.get(name).and_then(|i| self.scope.get(i))
-    }
-}
-
-impl Default for RootCompilationScope {
-    fn default() -> Self {
-        Self::new()
     }
 }

@@ -6,26 +6,24 @@ use xray::std_compilation_scope;
 use xray::xvalue::XValue;
 
 fn test_script(script_number: usize) {
-    let mut comp_scope = std_compilation_scope();
-    let file_path = format!("test_scripts/{:0>3}.xr", script_number);
-    let input = fs::read_to_string(&file_path).expect(&file_path);
     let limits = RuntimeLimits::default();
     let runtime = limits.to_runtime();
-    comp_scope
-        .feed_file(&input, runtime.clone())
+    let mut comp_scope = std_compilation_scope(runtime);
+    let file_path = format!("test_scripts/{:0>3}.xr", script_number);
+    let input = fs::read_to_string(&file_path).expect(&file_path);
+    comp_scope.feed_file(&input)
         .map_err(|e| format!("{}", e))
         .unwrap();
 
-    let eval_scope =
-        RootEvaluationScope::from_compilation_scope(&comp_scope, runtime.clone()).unwrap();
+    let eval_scope = RootEvaluationScope::from_compilation_scope(&comp_scope)
+        .unwrap();
 
     let main_fn = eval_scope
         .get_user_defined_function("main")
         .expect(r#"function "main" found more than once"#)
         .expect(r#"function "main" not found"#);
-    let main_output = &eval_scope.eval(main_fn, &[], runtime).unwrap().value;
-    if let XValue::Bool(true) = main_output {
-    } else {
+    let main_output = &eval_scope.eval(main_fn, &[]).unwrap().value;
+    if let XValue::Bool(true) = main_output {} else {
         panic!("main outputted {:?}, expected true", main_output)
     }
 }

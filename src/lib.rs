@@ -52,8 +52,8 @@ use crate::xtype::{
 
 pub type Identifier = DefaultSymbol;
 
-pub fn std_compilation_scope() -> RootCompilationScope {
-    let mut ret = RootCompilationScope::new();
+pub fn std_compilation_scope(runtime: RTCell) -> RootCompilationScope {
+    let mut ret = RootCompilationScope::new(runtime);
 
     add_int_type(&mut ret).unwrap();
     add_int_add(&mut ret).unwrap();
