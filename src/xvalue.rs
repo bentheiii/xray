@@ -86,7 +86,7 @@ impl XFunction {
         }
     }
 
-    pub fn eval_values<'p>(
+    pub(crate) fn eval_values<'p>(
         &'p self,
         args: &[Rc<ManagedXValue>],
         parent_scope: &XEvaluationScope<'p>,

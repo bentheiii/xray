@@ -1,6 +1,6 @@
 use std::fs;
 
-use xray::evaluation_scope::XEvaluationScope;
+use xray::evaluation_scope::RootEvaluationScope;
 use xray::runtime::RuntimeLimits;
 use xray::std_compilation_scope;
 use xray::xvalue::XValue;
@@ -16,19 +16,16 @@ fn test_script(script_number: usize) {
         .map_err(|e| format!("{}", e))
         .unwrap();
 
-    let mut eval_scope = XEvaluationScope::root();
+    let mut eval_scope = RootEvaluationScope::from_compilation_scope(&comp_scope);
     for decl in decls {
         eval_scope.add_from(&decl, runtime.clone()).unwrap();
     }
 
     let main_fn = eval_scope
-        .get_unique_ud_func(comp_scope.get_identifier("main"))
+        .get_user_defined_function("main")
         .expect(r#"function "main" found more than once"#)
         .expect(r#"function "main" not found"#);
-    let main_output = &main_fn
-        .eval_values(&[], &eval_scope, runtime)
-        .unwrap()
-        .value;
+    let main_output = &eval_scope.eval(main_fn, &[], runtime).unwrap().value;
     if let XValue::Bool(true) = main_output {
     } else {
         panic!("main outputted {:?}, expected true", main_output)

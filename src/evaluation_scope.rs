@@ -4,15 +4,15 @@ use crate::xvalue::{ManagedXValue, XFunction};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::rc::Rc;
-use string_interner::DefaultSymbol;
 
 use crate::compilation_scope::Declaration;
 use crate::util::rc_hash::RcHash;
+use crate::{Identifier, RootCompilationScope};
 
 pub struct XEvaluationScope<'p> {
-    pub values: HashMap<DefaultSymbol, Rc<ManagedXValue>>,
+    pub values: HashMap<Identifier, Rc<ManagedXValue>>,
     pub recourse: Option<&'p XFunction>,
-    ud_static_functions: HashMap<DefaultSymbol, Vec<Rc<XStaticFunction>>>,
+    ud_static_functions: HashMap<Identifier, Vec<Rc<XStaticFunction>>>,
     ud_functions: HashMap<RcHash<XStaticFunction>, XFunction>,
     parent: Option<&'p XEvaluationScope<'p>>,
     depth: usize,
@@ -27,7 +27,7 @@ impl Debug for MultipleUD {
 }
 
 impl<'p> XEvaluationScope<'p> {
-    pub fn root() -> Self {
+    pub(crate) fn root() -> Self {
         XEvaluationScope {
             values: HashMap::new(),
             recourse: None,
@@ -59,7 +59,7 @@ impl<'p> XEvaluationScope<'p> {
         })
     }
 
-    pub fn get_value(&self, name: DefaultSymbol) -> Option<Rc<ManagedXValue>> {
+    pub(crate) fn get_value(&self, name: Identifier) -> Option<Rc<ManagedXValue>> {
         self.values.get(&name).cloned().or_else(|| {
             self.parent
                 .as_ref()
@@ -67,10 +67,7 @@ impl<'p> XEvaluationScope<'p> {
         })
     }
 
-    pub fn get_unique_ud_func(
-        &self,
-        name: DefaultSymbol,
-    ) -> Result<Option<&XFunction>, MultipleUD> {
+    fn get_unique_ud_func(&self, name: Identifier) -> Result<Option<&XFunction>, MultipleUD> {
         // todo better return type
         let own = self
             .ud_static_functions
@@ -107,11 +104,11 @@ impl<'p> XEvaluationScope<'p> {
             .unwrap()
     }
 
-    pub(crate) fn add_value(&mut self, name: DefaultSymbol, value: Rc<ManagedXValue>) {
+    pub(crate) fn add_value(&mut self, name: Identifier, value: Rc<ManagedXValue>) {
         self.values.insert(name, value);
     }
 
-    pub fn add_from(&mut self, decl: &Declaration, runtime: RTCell) -> Result<(), String> {
+    pub(crate) fn add_from(&mut self, decl: &Declaration, runtime: RTCell) -> Result<(), String> {
         match decl {
             Declaration::Value(name, expr) => {
                 let value = expr.eval(self, false, runtime)?.unwrap_value();
@@ -151,5 +148,45 @@ impl<'p> XEvaluationScope<'p> {
         } else {
             self.parent.unwrap().ancestor(depth - 1)
         }
+    }
+}
+
+pub struct RootEvaluationScope<'c> {
+    scope: XEvaluationScope<'static>,
+    compilation_scope: &'c RootCompilationScope,
+}
+
+impl<'c> RootEvaluationScope<'c> {
+    pub fn from_compilation_scope(comp_scope: &'c RootCompilationScope) -> Self {
+        Self {
+            scope: XEvaluationScope::root(),
+            compilation_scope: comp_scope,
+        }
+    }
+
+    pub fn get_value(&mut self, name: &str) -> Option<Rc<ManagedXValue>> {
+        self.compilation_scope
+            .get_identifer(name)
+            .and_then(|id| self.scope.get_value(id))
+    }
+
+    pub fn get_user_defined_function(&self, name: &str) -> Result<Option<&XFunction>, MultipleUD> {
+        self.compilation_scope
+            .get_identifer(name)
+            .and_then(|id| self.scope.get_unique_ud_func(id).transpose())
+            .transpose()
+    }
+
+    pub fn add_from(&mut self, decl: &Declaration, runtime: RTCell) -> Result<(), String> {
+        self.scope.add_from(decl, runtime)
+    }
+
+    pub fn eval(
+        &self,
+        func: &XFunction,
+        args: &[Rc<ManagedXValue>],
+        runtime: RTCell,
+    ) -> Result<Rc<ManagedXValue>, String> {
+        func.eval_values(args, &self.scope, runtime)
     }
 }

@@ -1167,7 +1167,7 @@ pub(crate) fn add_sequence_skip(scope: &mut RootCompilationScope) -> Result<(), 
 }
 
 pub(crate) fn add_sequence_eq(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
-    let eq_symbol = scope.get_identifier("eq");
+    let eq_symbol = scope.identifier("eq");
 
     fn static_from_eq(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr) -> Rc<XStaticFunction> {
         Rc::new(XStaticFunction::from_native(

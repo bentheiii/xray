@@ -3,7 +3,7 @@ extern crate pest;
 
 use xray::compilation_scope::XCompilationScopeItem;
 use xray::compile_err::ResolvedTracedCompilationError;
-use xray::evaluation_scope::XEvaluationScope;
+use xray::evaluation_scope::RootEvaluationScope;
 
 use xray::runtime::RuntimeLimits;
 use xray::std_compilation_scope;
@@ -27,12 +27,11 @@ fn main() {
     };
     println!("compiled!");
 
-    let mut eval_scope = XEvaluationScope::root();
-    let z_ident = root_scope.get_identifier("z");
+    let mut eval_scope = RootEvaluationScope::from_compilation_scope(&root_scope);
     for decl in decals {
         eval_scope.add_from(&decl, runtime.clone()).unwrap();
     }
-    println!("z={:?}", eval_scope.get_value(z_ident).unwrap().value);
+    println!("z={:?}", eval_scope.get_value("z").unwrap().value);
     let z_static = root_scope.get("z").unwrap();
     if let XCompilationScopeItem::Value(t) = z_static {
         println!("z: {:?}", root_scope.describe_type(t));

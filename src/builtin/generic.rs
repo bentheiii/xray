@@ -150,7 +150,7 @@ pub(crate) fn add_if_error(scope: &mut RootCompilationScope) -> Result<(), Compi
 }
 
 pub(crate) fn add_ne(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
-    let eq_symbol = scope.get_identifier("eq");
+    let eq_symbol = scope.identifier("eq");
 
     fn static_from_eq(t0: Arc<XType>, t1: Arc<XType>, eq_expr: XExpr) -> Rc<XStaticFunction> {
         Rc::new(XStaticFunction::from_native(

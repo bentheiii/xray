@@ -1072,8 +1072,12 @@ impl RootCompilationScope {
         (v0.try_into().unwrap(), v1)
     }
 
-    pub fn get_identifier(&mut self, name: &'static str) -> Identifier {
+    pub fn identifier(&mut self, name: &'static str) -> Identifier {
         self.interner.get_or_intern_static(name)
+    }
+
+    pub fn get_identifer(&self, name: &str) -> Option<Identifier> {
+        self.interner.get(name)
     }
 
     pub fn feed_file(
