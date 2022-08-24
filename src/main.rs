@@ -11,7 +11,7 @@ use xray::std_compilation_scope;
 fn main() {
     let input = r###"
     let x = error("hi");
-    let z = if_error(if(true, 1/0, 2/0), 1.0);
+    let z = if_error(if(true, 1/0, 2/0), 1.0).display("!!! a: ");
     "###;
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()

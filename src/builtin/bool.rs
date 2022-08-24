@@ -18,18 +18,6 @@ add_binop!(add_bool_eq, eq, X_BOOL, Bool, X_BOOL, |a, b| Ok(
     XValue::Bool(a == b)
 ));
 
-add_ufunc!(
-    add_bool_display,
-    display,
-    X_BOOL,
-    Bool,
-    X_STRING,
-    |a: &bool| {
-        println!("{}", a);
-        Ok(XValue::String(a.to_string()))
-    }
-);
-
 add_ufunc_ref!(
     add_assert,
     assert,

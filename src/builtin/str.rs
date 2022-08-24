@@ -27,21 +27,6 @@ add_binop!(add_str_add, add, X_STRING, String, X_STRING, |a, b| {
     Ok(XValue::String(ret))
 });
 
-add_ufunc_ref!(
-    add_str_display,
-    display,
-    X_STRING,
-    X_STRING,
-    |a: Rc<ManagedXValue>, _rt| {
-        if let XValue::String(s) = &a.value {
-            println!("{}", s);
-            Ok(a.into())
-        } else {
-            unreachable!();
-        }
-    }
-);
-
 add_ufunc!(add_str_hash, hash, X_STRING, String, X_INT, |a: &String| {
     Ok(XValue::Int({
         let mut s = DefaultHasher::new();

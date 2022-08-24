@@ -118,18 +118,6 @@ add_ufunc!(
     |a: &LazyBigint| Ok(XValue::String(a.to_string()))
 );
 
-add_ufunc!(
-    add_int_display,
-    display,
-    X_INT,
-    Int,
-    X_STRING,
-    |a: &LazyBigint| {
-        println!("{}", a);
-        Ok(XValue::String(a.to_string()))
-    }
-);
-
 pub(crate) fn add_int_digits(scope: &mut RootCompilationScope) -> Result<(), CompilationError> {
     scope.add_func(
         "digits",

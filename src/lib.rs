@@ -75,7 +75,6 @@ pub fn std_compilation_scope(runtime: RTCell) -> RootCompilationScope {
     add_int_pow(&mut ret).unwrap();
     add_int_ne(&mut ret).unwrap();
     add_int_pow(&mut ret).unwrap();
-    add_int_display(&mut ret).unwrap();
     add_int_hash(&mut ret).unwrap();
     add_int_cmp(&mut ret).unwrap();
 
@@ -96,7 +95,6 @@ pub fn std_compilation_scope(runtime: RTCell) -> RootCompilationScope {
     add_str_type(&mut ret).unwrap();
     add_str_eq(&mut ret).unwrap();
     add_str_add(&mut ret).unwrap();
-    add_str_display(&mut ret).unwrap();
     add_str_hash(&mut ret).unwrap();
     add_str_cmp(&mut ret).unwrap();
 
@@ -106,7 +104,6 @@ pub fn std_compilation_scope(runtime: RTCell) -> RootCompilationScope {
     add_bool_not(&mut ret).unwrap();
     add_bool_then(&mut ret).unwrap();
     add_bool_eq(&mut ret).unwrap();
-    add_bool_display(&mut ret).unwrap();
     add_bool_hash(&mut ret).unwrap();
     add_bool_cmp(&mut ret).unwrap();
 
@@ -118,6 +115,7 @@ pub fn std_compilation_scope(runtime: RTCell) -> RootCompilationScope {
     add_ne(&mut ret).unwrap();
     add_is_error(&mut ret).unwrap();
     add_if_error(&mut ret).unwrap();
+    add_display(&mut ret).unwrap();
 
     add_unknown_eq(&mut ret).unwrap();
 
