@@ -16,7 +16,8 @@ fn test_script(script_number: usize) {
         .map_err(|e| format!("{}", e))
         .unwrap();
 
-    let eval_scope = RootEvaluationScope::from_compilation_scope(&comp_scope, runtime.clone()).unwrap();
+    let eval_scope =
+        RootEvaluationScope::from_compilation_scope(&comp_scope, runtime.clone()).unwrap();
 
     let main_fn = eval_scope
         .get_user_defined_function("main")

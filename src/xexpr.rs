@@ -53,7 +53,7 @@ impl CompilationResult {
     fn new(expr: XExpr, closure_vars: Vec<DefaultSymbol>) -> Self {
         Self { expr, closure_vars }
     }
-    fn join(results: impl IntoIterator<Item=Self>) -> (Vec<XExpr>, Vec<DefaultSymbol>) {
+    fn join(results: impl IntoIterator<Item = Self>) -> (Vec<XExpr>, Vec<DefaultSymbol>) {
         let mut exprs = vec![];
         let mut closure_vars = vec![];
         for result in results {
@@ -400,7 +400,8 @@ impl XStaticExpr {
                             cvars,
                         )),
                         XCompilationScopeItem::Overload(overloads) => {
-                            if overloads.len() == 1 { // todo fix this if (turn into pattern)
+                            if overloads.len() == 1 {
+                                // todo fix this if (turn into pattern)
                                 let overload = &overloads[0];
                                 match overload {
                                     XFunctionFactory::Static(overload) => {

@@ -7,7 +7,7 @@ use std::rc::Rc;
 
 use crate::compilation_scope::Declaration;
 use crate::util::rc_hash::RcHash;
-use crate::{Identifier, let_match, RootCompilationScope};
+use crate::{let_match, Identifier, RootCompilationScope};
 
 pub struct XEvaluationScope<'p> {
     pub values: HashMap<Identifier, Rc<ManagedXValue>>,
@@ -156,12 +156,15 @@ pub struct RootEvaluationScope<'c> {
 }
 
 impl<'c> RootEvaluationScope<'c> {
-    pub fn from_compilation_scope(comp_scope: &'c RootCompilationScope, runtime: RTCell) -> Result<Self, String> {
+    pub fn from_compilation_scope(
+        comp_scope: &'c RootCompilationScope,
+        runtime: RTCell,
+    ) -> Result<Self, String> {
         let mut ret = Self {
             scope: XEvaluationScope::root(),
             compilation_scope: comp_scope,
         };
-        for decl in &comp_scope.scope.declarations{
+        for decl in &comp_scope.scope.declarations {
             ret.declare(decl, runtime.clone())?
         }
         Ok(ret)
