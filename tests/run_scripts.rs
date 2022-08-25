@@ -1,17 +1,11 @@
+mod script_conf;
+
 use glob::glob;
 use itertools::Itertools;
 use std::fs;
-use xray::compile_err::ResolvedTracedCompilationError;
-
-use xray::evaluation_scope::RootEvaluationScope;
-use xray::runtime::RuntimeLimits;
-use xray::std_compilation_scope;
-use xray::xvalue::XValue;
+use crate::script_conf::ScriptConfig;
 
 fn test_script(script_number: usize) {
-    let limits = RuntimeLimits::default();
-    let runtime = limits.to_runtime();
-    let mut comp_scope = std_compilation_scope(runtime);
     let file_pattern = format!("test_scripts/{:0>3}_*.xr", script_number);
     let file_path = glob(&file_pattern)
         .unwrap()
@@ -26,23 +20,15 @@ fn test_script(script_number: usize) {
         .unwrap();
     let input = fs::read_to_string(&file_path).expect(file_path.to_str().unwrap());
 
-    match comp_scope.feed_file(&input) {
-        Ok(v) => v,
-        Err(e @ ResolvedTracedCompilationError::Compilation(..)) => panic!("{}", e),
-        Err(ResolvedTracedCompilationError::Syntax(s)) => panic!("{}", s),
+    let config: ScriptConfig = match fs::read_to_string(&format!("test_scripts/{:0>3}.toml", script_number)){
+        Ok(content) => toml::from_str(&content).unwrap(),
+        Err(e) => match e.kind() {
+            std::io::ErrorKind::NotFound => Default::default(),
+            _ => panic!("{:?}", e)
+        }
     };
 
-    let eval_scope = RootEvaluationScope::from_compilation_scope(&comp_scope).unwrap();
-
-    let main_fn = eval_scope
-        .get_user_defined_function("main")
-        .expect(r#"function "main" found more than once"#)
-        .expect(r#"function "main" not found"#);
-    let main_output = &eval_scope.eval(main_fn, &[]).unwrap().value;
-    if let XValue::Bool(true) = main_output {
-    } else {
-        panic!("main outputted {:?}, expected true", main_output)
-    }
+    config.run(&input);
 }
 
 #[test]
@@ -344,4 +330,9 @@ fn test_script_059() {
 #[test]
 fn test_script_060() {
     test_script(60);
+}
+
+#[test]
+fn test_script_061() {
+    test_script(61);
 }

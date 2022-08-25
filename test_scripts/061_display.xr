@@ -1,0 +1,8 @@
+fn main()->bool{
+    let a = 12;
+    let b = 1.0;
+    let c = "hi there";
+    assert((a + 1).display("A ") == 13)
+    && assert((b * 2.0).display("B ") == 2.0)
+    && assert(c.display() == 'hi there')
+}

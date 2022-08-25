@@ -1033,7 +1033,7 @@ pub enum Declaration<W: Write + 'static> {
 pub struct RootCompilationScope<W: Write + 'static> {
     pub(crate) scope: XCompilationScope<'static, W>,
     interner: StringInterner,
-    pub(crate) runtime: RTCell<W>,
+    pub runtime: RTCell<W>,
 }
 
 impl<W: Write + 'static> RootCompilationScope<W> {

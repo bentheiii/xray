@@ -1,0 +1,5 @@
+expected_stdout="""
+A 13
+B 2.0
+hi there
+"""

@@ -99,6 +99,7 @@ pub fn std_compilation_scope<W: Write + 'static>(runtime: RTCell<W>) -> RootComp
     add_str_add(&mut ret).unwrap();
     add_str_hash(&mut ret).unwrap();
     add_str_cmp(&mut ret).unwrap();
+    add_str_to_str(&mut ret).unwrap();
 
     add_bool_type(&mut ret).unwrap();
     add_and(&mut ret).unwrap();

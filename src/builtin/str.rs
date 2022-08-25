@@ -40,6 +40,27 @@ add_ufunc!(add_str_hash, hash, X_STRING, String, X_INT, |a: &String| {
     }))
 });
 
+pub(crate) fn add_str_to_str<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "to_str",
+        XStaticFunction::from_native(
+            XFuncSpec {
+                generic_params: None,
+                params: vec![XFuncParamSpec {
+                    type_: X_STRING.clone(),
+                    required: true,
+                }],
+                ret: X_STRING.clone(),
+            },
+            |args, ns, tca, rt| {
+                args[0].eval(ns, tca, rt)
+            },
+        ),
+    )
+}
+
 add_binop!(add_str_cmp, cmp, X_STRING, String, X_INT, |a, b| Ok(xcmp(
     a, b
 )));
