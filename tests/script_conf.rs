@@ -1,6 +1,6 @@
-use std::io::stdout;
-use either::{Either};
+use either::Either;
 use serde::Deserialize;
+use std::io::stdout;
 use xray::compile_err::ResolvedTracedCompilationError;
 use xray::evaluation_scope::RootEvaluationScope;
 use xray::runtime::RuntimeLimits;
@@ -37,14 +37,19 @@ impl ScriptConfig {
             .expect(r#"function "main" found more than once"#)
             .expect(r#"function "main" not found"#);
         let main_output = &eval_scope.eval(main_fn, &[]).unwrap().value;
-        if let XValue::Bool(true) = main_output {} else {
+        if !matches!(main_output, XValue::Bool(true)) {
             panic!("main outputted {:?}, expected true", main_output)
         }
 
-        if let Some(expected_output) = &self.expected_stdout{
-            let actual_stdout = comp_scope.runtime.borrow().stdout.as_ref().unwrap_left().clone();
+        if let Some(expected_output) = &self.expected_stdout {
+            let actual_stdout = comp_scope
+                .runtime
+                .borrow()
+                .stdout
+                .as_ref()
+                .unwrap_left()
+                .clone();
             assert_eq!(expected_output, &String::from_utf8(actual_stdout).unwrap())
         }
     }
 }
-

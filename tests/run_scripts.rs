@@ -1,9 +1,9 @@
 mod script_conf;
 
+use crate::script_conf::ScriptConfig;
 use glob::glob;
 use itertools::Itertools;
 use std::fs;
-use crate::script_conf::ScriptConfig;
 
 fn test_script(script_number: usize) {
     let file_pattern = format!("test_scripts/{:0>3}_*.xr", script_number);
@@ -20,13 +20,14 @@ fn test_script(script_number: usize) {
         .unwrap();
     let input = fs::read_to_string(&file_path).expect(file_path.to_str().unwrap());
 
-    let config: ScriptConfig = match fs::read_to_string(&format!("test_scripts/{:0>3}.toml", script_number)){
-        Ok(content) => toml::from_str(&content).unwrap(),
-        Err(e) => match e.kind() {
-            std::io::ErrorKind::NotFound => Default::default(),
-            _ => panic!("{:?}", e)
-        }
-    };
+    let config: ScriptConfig =
+        match fs::read_to_string(&format!("test_scripts/{:0>3}.toml", script_number)) {
+            Ok(content) => toml::from_str(&content).unwrap(),
+            Err(e) => match e.kind() {
+                std::io::ErrorKind::NotFound => Default::default(),
+                _ => panic!("{:?}", e),
+            },
+        };
 
     config.run(&input);
 }

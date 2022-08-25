@@ -54,9 +54,7 @@ pub(crate) fn add_str_to_str<W: Write + 'static>(
                 }],
                 ret: X_STRING.clone(),
             },
-            |args, ns, tca, rt| {
-                args[0].eval(ns, tca, rt)
-            },
+            |args, ns, tca, rt| args[0].eval(ns, tca, rt),
         ),
     )
 }
