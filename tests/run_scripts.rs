@@ -1,9 +1,67 @@
-mod script_conf;
+mod utils;
 
-use crate::script_conf::ScriptConfig;
 use glob::glob;
 use itertools::Itertools;
 use std::fs;
+
+use either::Either;
+use serde::Deserialize;
+use xray::compile_err::ResolvedTracedCompilationError;
+use xray::evaluation_scope::RootEvaluationScope;
+use xray::runtime::RuntimeLimits;
+use xray::std_compilation_scope;
+use xray::xvalue::XValue;
+use crate::utils::capture_writer::CaptureWriter;
+use crate::utils::memory_writer::MemoryWriter;
+
+#[derive(Deserialize, Default)]
+pub struct ScriptConfig {
+    #[serde(default)]
+    expected_stdout: Option<String>,
+}
+
+impl ScriptConfig {
+    pub fn run(&self, input: &str) {
+        let limits = RuntimeLimits::default();
+        let output = if self.expected_stdout.is_some() {
+            Either::Left(MemoryWriter::new(CaptureWriter))
+        } else {
+            Either::Right(CaptureWriter)
+        };
+        let runtime = limits.to_runtime(output);
+        let mut comp_scope = std_compilation_scope(runtime);
+
+        match comp_scope.feed_file(&input) {
+            Ok(v) => v,
+            Err(e @ ResolvedTracedCompilationError::Compilation(..)) => panic!("{}", e),
+            Err(ResolvedTracedCompilationError::Syntax(s)) => panic!("{}", s),
+        };
+
+        let eval_scope = RootEvaluationScope::from_compilation_scope(&comp_scope).unwrap();
+
+        let main_fn = eval_scope
+            .get_user_defined_function("main")
+            .expect(r#"function "main" found more than once"#)
+            .expect(r#"function "main" not found"#);
+        let main_output = &eval_scope.eval(main_fn, &[]).unwrap().value;
+        if !matches!(main_output, XValue::Bool(true)) {
+            panic!("main outputted {:?}, expected true", main_output)
+        }
+
+        if let Some(expected_output) = &self.expected_stdout {
+            let actual_stdout = comp_scope
+                .runtime
+                .borrow()
+                .stdout
+                .as_ref()
+                .unwrap_left()
+                .memory
+                .clone();
+            assert_eq!(expected_output, &String::from_utf8(actual_stdout).unwrap())
+        }
+    }
+}
+
 
 fn test_script(script_number: usize) {
     let file_pattern = format!("test_scripts/{:0>3}_*.xr", script_number);
@@ -336,4 +394,14 @@ fn test_script_060() {
 #[test]
 fn test_script_061() {
     test_script(61);
+}
+
+#[test]
+fn test_script_062() {
+    test_script(62);
+}
+
+#[test]
+fn test_script_063() {
+    test_script(63);
 }

@@ -1,0 +1,4 @@
+fn main()->bool{
+    assert((true).display("boo") == true)
+    && assert((false).display("boo") == false)
+}

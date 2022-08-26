@@ -1,0 +1,4 @@
+expected_stdout="""
+bootrue
+boofalse
+"""

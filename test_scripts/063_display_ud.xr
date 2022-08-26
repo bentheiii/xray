@@ -1,0 +1,11 @@
+struct Vector(x: float, y: float)
+
+fn to_str(self: Vector)->str{
+    let norm = (self::x*self::x + self::y*self::y).sqrt();
+    norm.to_str() + "*(" + (self::x/norm).to_str() + ", " + (self::y/norm).to_str() + ")"
+}
+
+fn main()->bool{
+    let v = Vector(3.0,4.0);
+    assert(v.display().to_str() == "5.0*(0.6, 0.8)")
+}

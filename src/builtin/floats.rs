@@ -63,6 +63,9 @@ add_ufunc!(add_float_trunc, trunc, X_FLOAT, Float, X_INT, |a: &f64| Ok(
 add_ufunc!(add_float_neg, neg, X_FLOAT, Float, X_FLOAT, |a: &f64| Ok(
     XValue::Float(-a)
 ));
+add_ufunc!(add_float_sqrt, sqrt, X_FLOAT, Float, X_FLOAT, |a: &f64| Ok(
+    XValue::Float(a.sqrt())
+));
 
 add_ufunc!(
     add_float_to_str,

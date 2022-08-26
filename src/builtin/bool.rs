@@ -1,6 +1,6 @@
 use crate::builtin::core::xcmp;
 use crate::builtin::optional::{XOptional, XOptionalType};
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT};
+use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
     add_binop, add_ufunc, add_ufunc_ref, eval, manage_native, to_primitive, CompilationError,
@@ -146,6 +146,11 @@ add_ufunc!(add_bool_hash, hash, X_BOOL, Bool, X_INT, |a: &bool| {
     Ok(XValue::Int(if *a { One::one() } else { Zero::zero() }))
 });
 
+add_ufunc!(add_bool_to_str, to_str, X_BOOL, Bool, X_STRING, |a: &bool| {
+    Ok(XValue::String(if *a { "true" } else { "false" }.to_string()))
+});
+
 add_binop!(add_bool_cmp, cmp, X_BOOL, Bool, X_INT, |a, b| Ok(xcmp(
     a, b
 )));
+
