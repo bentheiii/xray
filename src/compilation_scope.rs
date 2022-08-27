@@ -122,7 +122,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
         }
     }
 
-    fn ancestors(&self) -> impl Iterator<Item=&XCompilationScope<'p, W>> {
+    fn ancestors(&self) -> impl Iterator<Item = &XCompilationScope<'p, W>> {
         let mut scope = self;
         from_fn(move || {
             if let Some(parent) = scope.parent {
@@ -223,7 +223,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                                         .map(|x| {
                                             if let XFunctionFactory::Static(stat) = x {
                                                 if let XStaticFunction::Recourse(spec, ..) =
-                                                stat.as_ref()
+                                                    stat.as_ref()
                                                 {
                                                     XFunctionFactory::Static(Rc::new(
                                                         XStaticFunction::Recourse(
@@ -299,12 +299,12 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
         &mut self,
         name: Identifier,
         func: impl Fn(
-            Option<&[XExpr<W>]>,
-            Option<&[Arc<XType>]>,
-            &XCompilationScope<'_, W>,
-            Option<&[Arc<XType>]>,
-        ) -> Result<Rc<XStaticFunction<W>>, String>
-        + 'static,
+                Option<&[XExpr<W>]>,
+                Option<&[Arc<XType>]>,
+                &XCompilationScope<'_, W>,
+                Option<&[Arc<XType>]>,
+            ) -> Result<Rc<XStaticFunction<W>>, String>
+            + 'static,
     ) -> Result<(), CompilationError<W>> {
         // todo ensure no shadowing?
         self.functions.entry(name).or_insert_with(Vec::new).push(
@@ -355,9 +355,9 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
         for decl in &self.declarations {
             ret.add_from_declaration(decl, runtime.clone()).unwrap_or(
                 (), // we actually allow errors to happen here, since some expressions might depend
-                // on params or other unknown values
-                // todo find some way to report this
-                // todo catch limit errors
+                    // on params or other unknown values
+                    // todo find some way to report this
+                    // todo catch limit errors
             );
         }
         Ok(ret)
@@ -466,7 +466,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                             expected_type: complete_type,
                             actual_type: comp_xtype,
                         }
-                            .trace(&input));
+                        .trace(&input));
                     }
                 }
                 self.closure_variables.extend(cvars);
@@ -512,7 +512,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                         function_name: Some(fn_symbol),
                         param_name: out_of_order_param.name,
                     }
-                        .trace(&input));
+                    .trace(&input));
                 }
                 let rtype = self.get_complete_type(
                     inners.next().unwrap(),
@@ -551,7 +551,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                         expected_type: spec.ret,
                         actual_type: out_type,
                     }
-                        .trace(&input));
+                    .trace(&input));
                 }
                 let cvars = subscope
                     .closure_variables
@@ -715,7 +715,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                             return Err(CompilationError::TypeNotFound {
                                 name: name.to_string(),
                             }
-                                .trace(&input));
+                            .trace(&input));
                         }
                         match t.unwrap() {
                             XCompilationScopeItem::NativeType(t) => {
@@ -726,7 +726,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                                             expected_count: t.generic_names().len(),
                                             actual_count: gen_params.len(),
                                         }
-                                            .trace(&input));
+                                        .trace(&input));
                                     }
                                     Ok(Arc::new(XType::XNative(t.clone(), gen_params)))
                                 } else {
@@ -740,7 +740,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                                         expected_count: t.generic_names.len(),
                                         actual_count: gen_params.len(),
                                     }
-                                        .trace(&input));
+                                    .trace(&input));
                                 }
                                 let bind = Bind::from_iter(
                                     t.generic_names.iter().cloned().zip(gen_params.into_iter()),
@@ -751,7 +751,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                                 name: symbol,
                                 item: other,
                             }
-                                .trace(&input)),
+                            .trace(&input)),
                         }
                     }
                 }
@@ -1001,7 +1001,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                         function_name: None,
                         param_name: out_of_order_param.name,
                     }
-                        .trace(&input));
+                    .trace(&input));
                 }
                 let body = iter.next().unwrap();
                 let ret = self.to_expr(body.clone(), interner, runtime)?;
@@ -1082,12 +1082,12 @@ impl<W: Write + 'static> RootCompilationScope<W> {
         &mut self,
         name: &'static str,
         func: impl Fn(
-            Option<&[XExpr<W>]>,
-            Option<&[Arc<XType>]>,
-            &XCompilationScope<'_, W>,
-            Option<&[Arc<XType>]>,
-        ) -> Result<Rc<XStaticFunction<W>>, String>
-        + 'static,
+                Option<&[XExpr<W>]>,
+                Option<&[Arc<XType>]>,
+                &XCompilationScope<'_, W>,
+                Option<&[Arc<XType>]>,
+            ) -> Result<Rc<XStaticFunction<W>>, String>
+            + 'static,
     ) -> Result<(), CompilationError<W>> {
         self.scope
             .add_dyn_func(self.interner.get_or_intern_static(name), func)
@@ -1130,7 +1130,7 @@ impl<W: Write + 'static> RootCompilationScope<W> {
             .map_err(|e| e.resolve_with_input(&self.interner, input))
     }
 
-    pub fn describe_type(&self, t: impl Deref<Target=XType>) -> String {
+    pub fn describe_type(&self, t: impl Deref<Target = XType>) -> String {
         t.to_string_with_interner(&self.interner)
     }
 

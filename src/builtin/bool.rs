@@ -9,9 +9,9 @@ use crate::{
 use num_traits::{One, Zero};
 use rc::Rc;
 
+use crate::xexpr::XExpr;
 use std::io::Write;
 use std::rc;
-use crate::xexpr::XExpr;
 
 pub(crate) fn add_bool_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -37,11 +37,14 @@ pub(crate) fn add_bool_assert<W: Write + 'static>(
                 } else {
                     // we fetch the original expression to maybe make the error message better
                     let msg = match &args[0] {
-                        XExpr::Call(_func, inner_args)=>{
-                            let inner_arg_values = inner_args.iter().map(|e| Ok(e.eval(&ns, false, rt.clone())?.unwrap_value())).collect::<Result<Vec<_>, String>>()?;
+                        XExpr::Call(_func, inner_args) => {
+                            let inner_arg_values = inner_args
+                                .iter()
+                                .map(|e| Ok(e.eval(ns, false, rt.clone())?.unwrap_value()))
+                                .collect::<Result<Vec<_>, String>>()?;
                             format!("function call with arguments: {inner_arg_values:?} is untrue")
                         }
-                        _ => "assertion is untrue".to_string()
+                        _ => "assertion is untrue".to_string(),
                     };
                     Err(msg)
                 }

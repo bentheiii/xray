@@ -33,7 +33,11 @@ pub(crate) enum XStaticExpr<W: Write + 'static> {
     Call(Box<XStaticExpr<W>>, Vec<XStaticExpr<W>>),
     Member(Box<XStaticExpr<W>>, String),
     Ident(DefaultSymbol),
-    SpecializedIdent(DefaultSymbol, Option<Vec<Arc<XType>>>, Option<Vec<Arc<XType>>>),
+    SpecializedIdent(
+        DefaultSymbol,
+        Option<Vec<Arc<XType>>>,
+        Option<Vec<Arc<XType>>>,
+    ),
     Lambda(Vec<XExplicitArgSpec<W>>, Box<XStaticExpr<W>>),
 }
 
@@ -55,7 +59,7 @@ impl<W: Write + 'static> CompilationResult<W> {
     fn new(expr: XExpr<W>, closure_vars: Vec<DefaultSymbol>) -> Self {
         Self { expr, closure_vars }
     }
-    fn join(results: impl IntoIterator<Item=Self>) -> JoinedCompilationResult<W> {
+    fn join(results: impl IntoIterator<Item = Self>) -> JoinedCompilationResult<W> {
         let mut exprs = vec![];
         let mut closure_vars = vec![];
         for result in results {
@@ -90,20 +94,24 @@ pub(crate) fn resolve_overload<'p, W: Write + 'static>(
     for overload in overloads {
         let (overload, is_generic) = match overload {
             XFunctionFactory::Static(overload) => {
-                if dynamic_bind_types.is_some() { continue; }
-                (overload.clone(), overload.is_generic())
-            }
-            XFunctionFactory::Dynamic(dyn_func) => match dyn_func(args, arg_types, namespace, dynamic_bind_types) {
-                Ok(overload) => (overload, true),
-                Err(err) => {
-                    dynamic_failures.push(err);
+                if dynamic_bind_types.is_some() {
                     continue;
                 }
-            },
+                (overload.clone(), overload.is_generic())
+            }
+            XFunctionFactory::Dynamic(dyn_func) => {
+                match dyn_func(args, arg_types, namespace, dynamic_bind_types) {
+                    Ok(overload) => (overload, true),
+                    Err(err) => {
+                        dynamic_failures.push(err);
+                        continue;
+                    }
+                }
+            }
         };
         let b = arg_types.map_or_else(
             || Some(Default::default()),
-                |arg_types| overload.bind(arg_types)
+            |arg_types| overload.bind(arg_types),
         );
         if let Some(bind) = b {
             let item = XExpr::KnownOverload(overload.clone(), bind);
@@ -115,7 +123,7 @@ pub(crate) fn resolve_overload<'p, W: Write + 'static>(
             } else {
                 &mut exact_matches
             }
-                .push(item);
+            .push(item);
         }
     }
     if exact_matches.len() == 1 {
@@ -170,7 +178,7 @@ impl<W: Write + 'static> XStaticExpr<W> {
         namespace: &'p XCompilationScope<'p, W>,
     ) -> Result<CompilationResult<W>, CompilationError<W>> {
         fn compile_many<'p, W: Write + 'static>(
-            exprs: impl IntoIterator<Item=XStaticExpr<W>>,
+            exprs: impl IntoIterator<Item = XStaticExpr<W>>,
             namespace: &'p XCompilationScope<'p, W>,
         ) -> Result<JoinedCompilationResult<W>, CompilationError<W>> {
             let mut ret = vec![];
@@ -197,9 +205,9 @@ impl<W: Write + 'static> XStaticExpr<W> {
                         //special case: member access can be a variant constructor
                         if let Self::Ident(name) = obj.as_ref() {
                             if let Some(XCompilationScopeItem::Compound(
-                                            CompoundKind::Union,
-                                            spec,
-                                        )) = namespace.get(*name)
+                                CompoundKind::Union,
+                                spec,
+                            )) = namespace.get(*name)
                             {
                                 return if let Some(&index) = spec.indices.get(member_name) {
                                     if compiled_args.len() != 1 {
@@ -215,7 +223,7 @@ impl<W: Write + 'static> XStaticExpr<W> {
                                         .type_
                                         .resolve_bind(&Bind::new(), Some(&com_type));
                                     if let Some(bind) =
-                                    var_type.bind_in_assignment(&compiled_arg.xtype()?)
+                                        var_type.bind_in_assignment(&compiled_arg.xtype()?)
                                     {
                                         return Ok(CompilationResult::new(
                                             XExpr::Variant(
@@ -306,7 +314,7 @@ impl<W: Write + 'static> XStaticExpr<W> {
                         let mut bind = Bind::new();
                         if let Some(arg_types) = arg_types {
                             for (idx, (arg_type, actual_type)) in
-                            arg_types.iter().zip(actual_arg_types.iter()).enumerate()
+                                arg_types.iter().zip(actual_arg_types.iter()).enumerate()
                             {
                                 bind = arg_type
                                     .bind_in_assignment(actual_type)
@@ -402,9 +410,9 @@ impl<W: Write + 'static> XStaticExpr<W> {
             Self::Ident(name) => match namespace.get_with_depth(name) {
                 None => Err(CompilationError::ValueNotFound { name }),
                 Some((
-                         XCompilationScopeItem::Compound(..) | XCompilationScopeItem::NativeType(..),
-                         _,
-                     )) => Err(CompilationError::TypeAsVariable { name }),
+                    XCompilationScopeItem::Compound(..) | XCompilationScopeItem::NativeType(..),
+                    _,
+                )) => Err(CompilationError::TypeAsVariable { name }),
                 Some((item, depth)) => {
                     let cvars = if depth != 0 && depth != namespace.height {
                         vec![name]
@@ -448,7 +456,9 @@ impl<W: Write + 'static> XStaticExpr<W> {
                     }
                 }
             },
-            Self::SpecializedIdent(name, arg_types, bind_types) => match namespace.get_with_depth(name) {
+            Self::SpecializedIdent(name, arg_types, bind_types) => match namespace
+                .get_with_depth(name)
+            {
                 Some((XCompilationScopeItem::Overload(overloads), depth)) => {
                     let cvars = if depth != 0 && depth != namespace.height {
                         vec![name]
@@ -456,7 +466,14 @@ impl<W: Write + 'static> XStaticExpr<W> {
                         vec![]
                     };
                     Ok(CompilationResult::new(
-                        resolve_overload(&overloads, None, arg_types.as_ref().map(|v| &v[..]), bind_types.as_ref().map(|v| &v[..]), name, namespace)?,
+                        resolve_overload(
+                            &overloads,
+                            None,
+                            arg_types.as_ref().map(|v| &v[..]),
+                            bind_types.as_ref().map(|v| &v[..]),
+                            name,
+                            namespace,
+                        )?,
                         cvars,
                     ))
                 }
@@ -572,12 +589,12 @@ impl<W: Write + 'static> XStaticFunction<W> {
     pub(crate) fn from_native(
         spec: XFuncSpec,
         native: impl Fn(
-            &[XExpr<W>],
-            &XEvaluationScope<'_, W>,
-            bool,
-            RTCell<W>,
-        ) -> Result<TailedEvalResult<W>, String>
-        + 'static,
+                &[XExpr<W>],
+                &XEvaluationScope<'_, W>,
+                bool,
+                RTCell<W>,
+            ) -> Result<TailedEvalResult<W>, String>
+            + 'static,
     ) -> Self {
         Self::Native(spec, Rc::new(native))
     }
@@ -585,12 +602,12 @@ impl<W: Write + 'static> XStaticFunction<W> {
     pub(crate) fn from_native_short_circut(
         spec: XFuncSpec,
         native: impl Fn(
-            &[XExpr<W>],
-            &XEvaluationScope<'_, W>,
-            bool,
-            RTCell<W>,
-        ) -> Result<TailedEvalResult<W>, String>
-        + 'static,
+                &[XExpr<W>],
+                &XEvaluationScope<'_, W>,
+                bool,
+                RTCell<W>,
+            ) -> Result<TailedEvalResult<W>, String>
+            + 'static,
     ) -> Self {
         Self::ShortCircutNative(spec, Rc::new(native))
     }
@@ -870,19 +887,19 @@ impl<W: Write + 'static> XExpr<W> {
                 XValue::Function(func.clone().to_function(namespace)),
                 runtime,
             )?
-                .into()),
+            .into()),
             Self::Lambda(func) => Ok(ManagedXValue::new(
                 XValue::Function(namespace.lock_closure(func)),
                 runtime,
             )?
-                .into()),
+            .into()),
             Self::Ident(name, item) => {
                 if let IdentItem::Function(func) = item.as_ref() {
                     Ok(ManagedXValue::new(
                         XValue::Function(func.clone().to_function(namespace)),
                         runtime,
                     )?
-                        .into())
+                    .into())
                 } else {
                     namespace
                         .get_value(*name)

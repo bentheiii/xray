@@ -258,8 +258,8 @@ pub(crate) fn add_optional_eq<W: Write + 'static>(
     let eq_symbol = scope.identifier("eq");
 
     scope.add_dyn_func("eq", move |_params, types, ns, bind| {
-        if bind.is_some(){
-            return Err("this dyn func has no bind".to_string())
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
         }
 
         let (a0, a1) = unpack_types!(types, 0, 1);
