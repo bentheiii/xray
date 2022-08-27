@@ -151,14 +151,15 @@ macro_rules! unpack_types {
     ($types: expr, $($required: literal),* $(| $($optional: literal),*)?) => {{
         const __MIN_SIZE: usize = $crate::count!($($required),*);
         const __MAX_SIZE: usize = __MIN_SIZE + $crate::count!($($($optional),*)?);
+        let __types = $types.ok_or_else(|| "this binding requires specialization".to_string())?;
         (
             $(
-                $types.get($required).ok_or_else(|| {
+                __types.get($required).ok_or_else(|| {
                     let expected = if (__MIN_SIZE == __MAX_SIZE) {format!("{}", __MIN_SIZE)} else {format!("between {} and {}", __MIN_SIZE, __MAX_SIZE)};
                     format!("expected {} arguments, got {}", expected, $required)
                 })?
             ),*
-            $(,$($types.get($optional)),*)?
+            $(,$(__types.get($optional)),*)?
         )
     }};
 }

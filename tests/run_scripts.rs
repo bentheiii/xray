@@ -454,3 +454,8 @@ fn test_script_072() {
 fn test_script_073() {
     test_script(73);
 }
+
+#[test]
+fn test_script_074() {
+    test_script(74);
+}

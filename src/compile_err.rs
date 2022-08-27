@@ -66,11 +66,11 @@ pub enum CompilationError<W: Write + 'static> {
         name: Identifier,
         is_generic: bool,
         items: Vec<XExpr<W>>,
-        param_types: Vec<Arc<XType>>,
+        param_types: Option<Vec<Arc<XType>>>,
     },
     NoOverload {
         name: Identifier,
-        param_types: Vec<Arc<XType>>,
+        param_types: Option<Vec<Arc<XType>>>,
         dynamic_failures: Vec<String>, // todo change to real errors
     },
     VariantConstructorOneArg,
@@ -423,11 +423,11 @@ pub enum ResolvedCompilationError<W: Write + 'static> {
         name: String,
         is_generic: bool,
         items: Vec<XExpr<W>>,
-        param_types: Vec<ResolvedType>,
+        param_types: Option<Vec<ResolvedType>>,
     },
     NoOverload {
         name: String,
-        param_types: Vec<ResolvedType>,
+        param_types: Option<Vec<ResolvedType>>,
         dynamic_failures: Vec<String>, // todo change to real errors
     },
     VariantConstructorOneArg,
@@ -582,10 +582,13 @@ impl<W: Write + 'static> Display for ResolvedCompilationError<W> {
             } => {
                 write!(
                     f,
-                    "Overload{} for {} is ambiguous for param types {}: {:?}",
+                    "Overload{} for {} is ambiguous{}: {:?}",
                     if *is_generic { " (generic)" } else { "" },
                     name,
-                    param_types.iter().format(","),
+                    param_types.as_ref().map_or_else(
+                        || "".to_string(),
+                        |types| format!(" for param types {}", types.iter().format(","))
+                    ),
                     items
                 )
             }
@@ -596,9 +599,12 @@ impl<W: Write + 'static> Display for ResolvedCompilationError<W> {
             } => {
                 write!(
                     f,
-                    "No overload for {} found for param types [{}]{}",
+                    "No overload for {} found{}: {}",
                     name,
-                    param_types.iter().join(", "),
+                    param_types.as_ref().map_or_else(
+                        || "".to_string(),
+                        |types| format!(" for param types {}", types.iter().format(","))
+                    ),
                     if dynamic_failures.is_empty() {
                         "".to_string()
                     } else {

@@ -7,7 +7,11 @@ use std::rc::Rc;
 pub(crate) fn add_unknown_eq<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError<W>> {
-    scope.add_dyn_func("eq", move |_params, types, _ns| {
+    scope.add_dyn_func("eq", move |_params, types, _ns, bind| {
+        if bind.is_some(){
+            return Err("this dyn func has no bind".to_string())
+        }
+
         let (a0, a1) = unpack_types!(types, 0, 1);
         if a0 != &X_UNKNOWN.clone() {
             return Err(format!("expected exactly unknown, got {a0:?}"));

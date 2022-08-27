@@ -38,8 +38,9 @@ pub type NativeCallable<W> = Rc<
 pub type DynBind<W> = Rc<
     dyn Fn(
         Option<&[XExpr<W>]>,
-        &[Arc<XType>],
+        Option<&[Arc<XType>]>,
         &XCompilationScope<'_, W>,
+        Option<&[Arc<XType>]>,
     ) -> Result<Rc<XStaticFunction<W>>, String>,
 >; // todo make this a compilation error?
 

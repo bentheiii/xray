@@ -4,10 +4,7 @@ use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::XType::XCallable;
-use crate::{
-    eval, manage_native, to_native, to_primitive, CompilationError, RTCell, RootCompilationScope,
-    XCallableSpec, XEvaluationScope, XStaticFunction, XType,
-};
+use crate::{eval, manage_native, to_native, to_primitive, CompilationError, RTCell, RootCompilationScope, XCallableSpec, XEvaluationScope, XStaticFunction, XType, unpack_types};
 use derivative::Derivative;
 use num_traits::ToPrimitive;
 use rc::Rc;
@@ -19,6 +16,7 @@ use std::iter::once;
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
+use crate::builtin::core::get_func;
 
 use crate::xexpr::TailedEvalResult;
 
@@ -510,4 +508,33 @@ pub(crate) fn add_mapping_discard<W: Write + 'static>(
             },
         ),
     )
+}
+
+pub(crate) fn add_mapping_new_dyn<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    let eq_symbol = scope.identifier("eq");
+    let hash_symbol =  scope.identifier("hash");
+
+    scope.add_dyn_func("mapping", move |_params, _types, ns, bind| {
+        let a0 = unpack_types!(bind, 0);
+
+        let inner_eq = get_func(ns, eq_symbol, &[a0.clone(), a0.clone()], &X_BOOL)?;
+        let inner_hash = get_func(ns, hash_symbol, &[a0.clone()], &X_INT)?;
+
+        Ok(Rc::new(XStaticFunction::from_native(
+            XFuncSpec::new(
+                &[],
+                XMappingType::xtype(a0.clone(), X_UNKNOWN.clone()),
+            ),
+            move |_args, ns, _tca, rt| {
+                let inner_equal_value = inner_eq.eval(ns, false, rt.clone())?.unwrap_value();
+                let inner_hash_value = inner_hash.eval(ns, false, rt.clone())?.unwrap_value();
+                Ok(manage_native!(
+                    XMapping::new(inner_hash_value, inner_equal_value, Default::default()),
+                    rt
+                ))
+            },
+        )))
+    })
 }

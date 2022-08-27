@@ -183,6 +183,7 @@ pub fn std_compilation_scope<W: Write + 'static>(runtime: RTCell<W>) -> RootComp
     add_mapping_pop(&mut ret).unwrap();
     add_mapping_discard(&mut ret).unwrap();
     add_mapping_lookup(&mut ret).unwrap();
+    add_mapping_new_dyn(&mut ret).unwrap();
 
     ret
 }

@@ -34,7 +34,8 @@ expression3 = _{
     | "(" ~ expression ~ ")"
     | lambda_func
     | tuple
-    | specialized_cname
+    | turbofish_cname
+    | dyn_bind_cname
     | CNAME
 }
  container = { "[" ~ container_elements? ~ ","? ~ "]" }
@@ -43,7 +44,8 @@ expression3 = _{
    "(" ~ container_elements? ~ ","? ~ ")"
  }
  bool = @{"true"|"false"}
- specialized_cname = {CNAME ~ "::<" ~ complete_type ~ (","~complete_type)* ~ ">"}
+ turbofish_cname = {CNAME ~ "::<" ~ complete_type ~ (","~complete_type)* ~ ">"}
+ dyn_bind_cname = {CNAME ~ "<" ~ complete_type ~ (","~complete_type)* ~ ">"}
  lambda_func = { "(" ~ function_parameters_opt ~ ")" ~ "->" ~ "{" ~ expression ~ "}" }
 
 UNARY_OP = _{UNARY_PLUS | UNARY_MINUS | UNARY_NOT}

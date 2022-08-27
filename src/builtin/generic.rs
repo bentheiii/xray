@@ -107,7 +107,10 @@ pub(crate) fn add_ne<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     let eq_symbol = scope.identifier("eq");
 
-    scope.add_dyn_func("ne", move |_params, types, ns| {
+    scope.add_dyn_func("ne", move |_params, types, ns, bind| {
+        if bind.is_some(){
+            return Err("this dyn func has no bind".to_string())
+        }
         let (t0, t1) = unpack_types!(types, 0, 1);
 
         let eq_expr = get_func(ns, eq_symbol, &[t0.clone(), t1.clone()], &X_BOOL)?;
@@ -129,7 +132,11 @@ pub(crate) fn add_display<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     let to_str_symbol = scope.identifier("to_str");
 
-    scope.add_dyn_func("display", move |_params, types, ns| {
+    scope.add_dyn_func("display", move |_params, types, ns, bind| {
+        if bind.is_some(){
+            return Err("this dyn func has no bind".to_string())
+        }
+
         let (t, t1) = unpack_types!(types, 0 | 1);
         if let Some(t1) = t1 {
             if let XType::String = t1.as_ref() {
@@ -161,7 +168,10 @@ pub(crate) fn add_cmp_lt<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     let cmp_symbol = scope.identifier("cmp");
 
-    scope.add_dyn_func("lt", move |_params, types, ns| {
+    scope.add_dyn_func("lt", move |_params, types, ns, bind| {
+        if bind.is_some(){
+            return Err("this dyn func has no bind".to_string())
+        }
         let (t0, t1) = unpack_types!(types, 0, 1);
 
         let inner_func = get_func(ns, cmp_symbol, &[t0.clone(), t1.clone()], &X_INT)?;
@@ -185,7 +195,11 @@ pub(crate) fn add_cmp_gt<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     let cmp_symbol = scope.identifier("cmp");
 
-    scope.add_dyn_func("gt", move |_params, types, ns| {
+    scope.add_dyn_func("gt", move |_params, types, ns, bind| {
+        if bind.is_some(){
+            return Err("this dyn func has no bind".to_string())
+        }
+
         let (t0, t1) = unpack_types!(types, 0, 1);
 
         let inner_func = get_func(ns, cmp_symbol, &[t0.clone(), t1.clone()], &X_INT)?;
@@ -209,7 +223,10 @@ pub(crate) fn add_cmp_ge<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     let cmp_symbol = scope.identifier("cmp");
 
-    scope.add_dyn_func("ge", move |_params, types, ns| {
+    scope.add_dyn_func("ge", move |_params, types, ns, bind| {
+        if bind.is_some(){
+            return Err("this dyn func has no bind".to_string())
+        }
         let (t0, t1) = unpack_types!(types, 0, 1);
 
         let inner_func = get_func(ns, cmp_symbol, &[t0.clone(), t1.clone()], &X_INT)?;
@@ -233,7 +250,11 @@ pub(crate) fn add_cmp_le<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     let cmp_symbol = scope.identifier("cmp");
 
-    scope.add_dyn_func("le", move |_params, types, ns| {
+    scope.add_dyn_func("le", move |_params, types, ns, bind| {
+        if bind.is_some(){
+            return Err("this dyn func has no bind".to_string())
+        }
+
         let (t0, t1) = unpack_types!(types, 0, 1);
 
         let inner_func = get_func(ns, cmp_symbol, &[t0.clone(), t1.clone()], &X_INT)?;
