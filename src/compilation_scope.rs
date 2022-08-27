@@ -1,5 +1,4 @@
 use crate::parser::Rule;
-use crate::runtime::RTCell;
 use crate::xexpr::{resolve_overload, XExpr, XStaticFunction};
 use crate::xtype::{CompoundKind, XCompoundSpec, XFuncSpec, XType};
 use crate::xvalue::DynBind;
@@ -1005,15 +1004,13 @@ pub enum Declaration<W: Write + 'static> {
 pub struct RootCompilationScope<W: Write + 'static> {
     pub(crate) scope: XCompilationScope<'static, W>,
     interner: StringInterner,
-    pub runtime: RTCell<W>,
 }
 
 impl<W: Write + 'static> RootCompilationScope<W> {
-    pub fn new(runtime: RTCell<W>) -> Self {
+    pub fn new() -> Self {
         Self {
             scope: XCompilationScope::root(),
             interner: StringInterner::default(),
-            runtime,
         }
     }
 

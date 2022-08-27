@@ -28,8 +28,7 @@ impl ScriptConfig {
         } else {
             Either::Right(CaptureWriter)
         };
-        let runtime = limits.to_runtime(output);
-        let mut comp_scope = std_compilation_scope(runtime);
+        let mut comp_scope = std_compilation_scope();
 
         match comp_scope.feed_file(&input) {
             Ok(v) => v,
@@ -37,7 +36,8 @@ impl ScriptConfig {
             Err(ResolvedTracedCompilationError::Syntax(s)) => panic!("{}", s),
         };
 
-        let eval_scope = RootEvaluationScope::from_compilation_scope(&comp_scope).unwrap();
+        let runtime = limits.to_runtime(output);
+        let eval_scope = RootEvaluationScope::from_compilation_scope(&comp_scope, runtime.clone()).unwrap();
 
         let main_fn = eval_scope
             .get_user_defined_function("main")
@@ -49,8 +49,7 @@ impl ScriptConfig {
         }
 
         if let Some(expected_output) = &self.expected_stdout {
-            let actual_stdout = comp_scope
-                .runtime
+            let actual_stdout = runtime
                 .borrow()
                 .stdout
                 .as_ref()

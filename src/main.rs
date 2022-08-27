@@ -19,7 +19,7 @@ fn main() {
     };
     let runtime = limits.to_runtime(stdout());
 
-    let mut root_scope = std_compilation_scope(runtime);
+    let mut root_scope = std_compilation_scope();
 
     match root_scope.feed_file(input) {
         Ok(v) => v,
@@ -28,7 +28,7 @@ fn main() {
     };
     println!("compiled!");
 
-    let mut eval_scope = RootEvaluationScope::from_compilation_scope(&root_scope).unwrap();
+    let mut eval_scope = RootEvaluationScope::from_compilation_scope(&root_scope, runtime).unwrap();
     println!("z={:?}", eval_scope.get_value("z").unwrap().unwrap().value);
     let z_static = root_scope.get("z").unwrap();
     if let XCompilationScopeItem::Value(t) = z_static {

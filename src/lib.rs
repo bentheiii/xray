@@ -52,8 +52,8 @@ use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFunc
 
 pub type Identifier = DefaultSymbol;
 
-pub fn std_compilation_scope<W: Write + 'static>(runtime: RTCell<W>) -> RootCompilationScope<W> {
-    let mut ret = RootCompilationScope::new(runtime);
+pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
+    let mut ret = RootCompilationScope::new();
 
     add_int_type(&mut ret).unwrap();
     add_int_add(&mut ret).unwrap();
