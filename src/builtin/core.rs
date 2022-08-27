@@ -159,7 +159,7 @@ macro_rules! unpack_types {
                     format!("expected {} arguments, got {}", expected, $required)
                 })?
             ),*
-            $(,$(__types.get($optional)),*)?
+            $(,$(__types.get($optional)),*)?,
         )
     }};
 }

@@ -517,7 +517,7 @@ pub(crate) fn add_mapping_new_dyn<W: Write + 'static>(
     let hash_symbol =  scope.identifier("hash");
 
     scope.add_dyn_func("mapping", move |_params, _types, ns, bind| {
-        let a0 = unpack_types!(bind, 0);
+        let (a0,) = unpack_types!(bind, 0);
 
         let inner_eq = get_func(ns, eq_symbol, &[a0.clone(), a0.clone()], &X_BOOL)?;
         let inner_hash = get_func(ns, hash_symbol, &[a0.clone()], &X_INT)?;

@@ -150,6 +150,7 @@ pub fn std_compilation_scope<W: Write + 'static>(runtime: RTCell<W>) -> RootComp
     add_sequence_insert(&mut ret).unwrap();
     add_sequence_set(&mut ret).unwrap();
     add_sequence_swap(&mut ret).unwrap();
+    add_sequence_dyn_sort(&mut ret).unwrap();
 
     add_stack_type(&mut ret).unwrap();
     add_stack_new(&mut ret).unwrap();
