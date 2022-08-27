@@ -1,0 +1,10 @@
+fn foo(x: int)->int{
+    // get the square root of the first square higher than X
+    struct Moo(k: int, v: int)
+
+    range(x).map((i: int) -> {Moo(i, i*i)}).nth(1, (t: Moo) -> {t::v >= x}).value()::k
+}
+
+fn main()->bool{
+    assert(foo(19) == 5)
+}

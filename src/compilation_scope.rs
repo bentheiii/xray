@@ -34,6 +34,7 @@ enum CompilationScopeValue {
     Declared(usize),
 }
 
+#[derive(Debug)]
 enum CompilationScopeType {
     Native(Arc<XType>),
     Declared(usize),
@@ -493,7 +494,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                 }
                 let mut body_iter = body.clone().into_inner();
                 subscope.feed(body_iter.next().unwrap(), &gen_param_names, interner)?;
-                let compiled_output = self
+                let compiled_output = subscope
                     .to_expr(body_iter.next().unwrap(), interner)?
                     .compile(&subscope)
                     .map_err(|e| e.trace(&input))?;
