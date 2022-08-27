@@ -151,7 +151,12 @@ impl<W: Write + 'static> XFunction<W> {
                         .zip(uf.param_names.iter().skip(args.len()).rev())
                         .rev()
                     {
-                        scope.add_value(name, Ok(default_expr.eval(&scope, false, runtime.clone())?.unwrap_value()));
+                        scope.add_value(
+                            name,
+                            Ok(default_expr
+                                .eval(&scope, false, runtime.clone())?
+                                .unwrap_value()),
+                        );
                     }
 
                     for decl in &uf.declarations {

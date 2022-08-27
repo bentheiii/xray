@@ -15,12 +15,12 @@ use crate::{
 use crate::util::lazy_bigint::LazyBigint;
 use crate::util::rc_hash::RcHash;
 use derivative::Derivative;
+use itertools::Itertools;
 use std::collections::HashSet;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
-use itertools::Itertools;
 use string_interner::{DefaultSymbol, StringInterner};
 
 #[derive(Debug)]
@@ -34,11 +34,7 @@ pub(crate) enum XStaticExpr {
     Call(Box<XStaticExpr>, Vec<XStaticExpr>),
     Member(Box<XStaticExpr>, String),
     Ident(Identifier),
-    SpecializedIdent(
-        Identifier,
-        Option<Vec<Arc<XType>>>,
-        Option<Vec<Arc<XType>>>,
-    ),
+    SpecializedIdent(Identifier, Option<Vec<Arc<XType>>>, Option<Vec<Arc<XType>>>),
     Lambda(Vec<XExplicitStaticArgSpec>, Box<XStaticExpr>),
 }
 
@@ -483,7 +479,12 @@ impl XStaticExpr {
             },
             Self::Lambda(args, body) => {
                 let mut subscope = XCompilationScope::from_parent_lambda(namespace);
-                let (args, args_cvars): (Vec<_>, Vec<_>) = args.into_iter().map(|a| a.compile(&subscope)).collect::<Result<Vec<_>, _>>()?.into_iter().unzip();
+                let (args, args_cvars): (Vec<_>, Vec<_>) = args
+                    .into_iter()
+                    .map(|a| a.compile(&subscope))
+                    .collect::<Result<Vec<_>, _>>()?
+                    .into_iter()
+                    .unzip();
                 for param in &args {
                     subscope.add_param(param.name, param.type_.clone())?;
                 }
@@ -498,7 +499,12 @@ impl XStaticExpr {
                         },
                         vec![],
                         Box::new(body_result.expr),
-                        body_result.closure_vars.iter().cloned().chain(args_cvars.into_iter().flatten().unique()).collect(),
+                        body_result
+                            .closure_vars
+                            .iter()
+                            .cloned()
+                            .chain(args_cvars.into_iter().flatten().unique())
+                            .collect(),
                     )),
                 ))));
             }
@@ -678,28 +684,48 @@ impl XExplicitStaticFuncSpec {
         }
     }
 
-    pub(crate) fn compile<W: Write + 'static>(self, namespace: &XCompilationScope<W>)->Result<(XExplicitFuncSpec<W>, Vec<Identifier>),CompilationError<W>>{
-        let (args, cvars): (Vec<_>, Vec<_>) = self.args.into_iter().map(|a| a.compile(namespace)).collect::<Result<Vec<_>, _>>()?.into_iter().unzip();
-        Ok((XExplicitFuncSpec{
-            generic_params: self.generic_params.clone(),
-            ret: self.ret.clone(),
-            args
-        }, cvars.into_iter().flatten().unique().collect()))
-
+    pub(crate) fn compile<W: Write + 'static>(
+        self,
+        namespace: &XCompilationScope<W>,
+    ) -> Result<(XExplicitFuncSpec<W>, Vec<Identifier>), CompilationError<W>> {
+        let (args, cvars): (Vec<_>, Vec<_>) = self
+            .args
+            .into_iter()
+            .map(|a| a.compile(namespace))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter()
+            .unzip();
+        Ok((
+            XExplicitFuncSpec {
+                generic_params: self.generic_params.clone(),
+                ret: self.ret,
+                args,
+            },
+            cvars.into_iter().flatten().unique().collect(),
+        ))
     }
 }
 
-impl XExplicitStaticArgSpec{
-    pub(crate) fn compile<W: Write + 'static>(self, namespace: &XCompilationScope<W>)->Result<(XExplicitArgSpec<W>, Vec<Identifier>),CompilationError<W>>{
+impl XExplicitStaticArgSpec {
+    pub(crate) fn compile<W: Write + 'static>(
+        self,
+        namespace: &XCompilationScope<W>,
+    ) -> Result<(XExplicitArgSpec<W>, Vec<Identifier>), CompilationError<W>> {
         let (def_expr, cvars) = match self.default {
-            Some(def) => {let res = def.compile(namespace)?; (Some(res.expr), res.closure_vars)}
-            None => (None, vec![])
+            Some(def) => {
+                let res = def.compile(namespace)?;
+                (Some(res.expr), res.closure_vars)
+            }
+            None => (None, vec![]),
         };
-        Ok((XExplicitArgSpec{
-            name: self.name,
-            type_: self.type_.clone(),
-            default: def_expr
-        }, cvars))
+        Ok((
+            XExplicitArgSpec {
+                name: self.name,
+                type_: self.type_.clone(),
+                default: def_expr,
+            },
+            cvars,
+        ))
     }
 }
 
@@ -719,7 +745,7 @@ pub struct XExplicitArgSpec<W: Write + 'static> {
     pub(crate) default: Option<XExpr<W>>,
 }
 
-impl<W: Write + 'static> XExplicitFuncSpec<W>{
+impl<W: Write + 'static> XExplicitFuncSpec<W> {
     pub(crate) fn to_spec(&self) -> XFuncSpec {
         XFuncSpec {
             generic_params: self.generic_params.clone(),

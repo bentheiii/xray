@@ -160,15 +160,18 @@ impl<'p, W: Write + 'static> XEvaluationScope<'p, W> {
 pub struct RootEvaluationScope<'c, W: Write + 'static> {
     scope: XEvaluationScope<'static, W>,
     compilation_scope: &'c RootCompilationScope<W>,
-    runtime: RTCell<W>
+    runtime: RTCell<W>,
 }
 
 impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
-    pub fn from_compilation_scope(comp_scope: &'c RootCompilationScope<W>, runtime: RTCell<W>) -> Result<Self, String> {
+    pub fn from_compilation_scope(
+        comp_scope: &'c RootCompilationScope<W>,
+        runtime: RTCell<W>,
+    ) -> Result<Self, String> {
         let mut ret = Self {
             scope: XEvaluationScope::root(),
             compilation_scope: comp_scope,
-            runtime
+            runtime,
         };
         for decl in &comp_scope.scope.declarations {
             ret.declare(decl)?
@@ -193,8 +196,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
     }
 
     pub fn declare(&mut self, decl: &Declaration<W>) -> Result<(), String> {
-        self.scope
-            .add_from_declaration(decl, self.runtime.clone())
+        self.scope.add_from_declaration(decl, self.runtime.clone())
     }
 
     pub fn eval(

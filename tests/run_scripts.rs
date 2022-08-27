@@ -37,7 +37,8 @@ impl ScriptConfig {
         };
 
         let runtime = limits.to_runtime(output);
-        let eval_scope = RootEvaluationScope::from_compilation_scope(&comp_scope, runtime.clone()).unwrap();
+        let eval_scope =
+            RootEvaluationScope::from_compilation_scope(&comp_scope, runtime.clone()).unwrap();
 
         let main_fn = eval_scope
             .get_user_defined_function("main")
