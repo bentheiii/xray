@@ -4,7 +4,7 @@ use num_traits::{FromPrimitive, Inv, Num, One, Pow, Signed, ToPrimitive, Zero};
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Display, Formatter};
-use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Rem, Sub};
+use std::ops::{Add, BitAnd, BitOr, Div, Mul, Neg, Rem, Sub};
 
 type SmallInt = isize;
 
@@ -217,20 +217,6 @@ impl BitOr for LazyBigint {
                 Self::from(b | BigInt::from(s))
             }
             (Self::Long(b0), Self::Long(b1)) => Self::from(b0 | b1),
-        }
-    }
-}
-
-impl BitXor for LazyBigint {
-    type Output = Self;
-
-    fn bitxor(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Self::Short(s1), Self::Short(s2)) => Self::Short(s1 ^ s2),
-            (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => {
-                Self::from(b ^ BigInt::from(s))
-            }
-            (Self::Long(b0), Self::Long(b1)) => Self::from(b0 ^ b1),
         }
     }
 }

@@ -1,0 +1,10 @@
+fn main()->bool{
+    assert(6**3 == 6*6*6)
+    && assert(10**2 == 100)
+    && assert(-10 ** 2 == 100)
+    && assert(-6**3 == -(6*6*6))
+    && assert(10**0 == 1)
+    && assert(0**1 == 0)
+    && assert(is_error(0**0))
+    && assert(is_error(0**-10))
+}

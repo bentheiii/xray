@@ -7,7 +7,7 @@ use crate::{
     CompilationError, XStaticFunction,
 };
 
-use num_traits::{Inv, Pow, Signed, ToPrimitive, Zero};
+use num_traits::{Pow, Signed, ToPrimitive, Zero};
 
 use rc::Rc;
 
@@ -54,11 +54,6 @@ add_int_binop!(
     bit_and,
     |a: &LazyBigint, b: &LazyBigint| Ok(XValue::Int(a.clone() & b.clone()))
 );
-add_int_binop!(
-    add_int_bit_xor,
-    bit_xor,
-    |a: &LazyBigint, b: &LazyBigint| Ok(XValue::Int(a.clone() ^ b.clone()))
-);
 add_binop!(
     add_int_div,
     div,
@@ -78,16 +73,13 @@ add_binop!(
     pow,
     X_INT,
     Int,
-    X_FLOAT,
-    |a: &LazyBigint, b: &LazyBigint| if !b.is_positive() && a.is_zero() {
-        Err(String::from("cannot raise zero to a non-positive power"))
-    } else if b.is_negative() {
-        Ok(XValue::Float(a.clone().pow(b.clone().neg()).inv()))
+    X_INT,
+    |a: &LazyBigint, b: &LazyBigint| if b.is_negative() {
+        Err(String::from("cannot raise integer to a negative power"))
+    } else if b.is_zero() && a.is_zero() {
+        Err(String::from("cannot raise zero to a zero power"))
     } else {
-        a.clone().pow(b.clone()).to_f64().map_or_else(
-            || Err("number is too large".to_string()),
-            |f| Ok(XValue::Float(f)),
-        )
+        Ok(XValue::Int(a.clone().pow(b.clone())))
     }
 );
 add_binop!(add_int_lt, lt, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(

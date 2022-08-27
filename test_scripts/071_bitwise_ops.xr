@@ -1,0 +1,8 @@
+fn main()->bool{
+    assert(6 | 4 == 6)
+    && assert(6 | 5 == 7)
+    && assert(0 | 8 == 8)
+
+    && assert(6 & 5 == 4)
+    && assert(6 & 1 == 0)
+}

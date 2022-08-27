@@ -70,11 +70,9 @@ pub fn std_compilation_scope<W: Write + 'static>(runtime: RTCell<W>) -> RootComp
     add_int_to_str(&mut ret).unwrap();
     add_int_digits(&mut ret).unwrap();
     add_int_bit_or(&mut ret).unwrap();
-    add_int_bit_xor(&mut ret).unwrap();
     add_int_bit_and(&mut ret).unwrap();
     add_int_pow(&mut ret).unwrap();
     add_int_ne(&mut ret).unwrap();
-    add_int_pow(&mut ret).unwrap();
     add_int_hash(&mut ret).unwrap();
     add_int_cmp(&mut ret).unwrap();
 
