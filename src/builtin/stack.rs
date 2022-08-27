@@ -1,6 +1,6 @@
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::native_types::{NativeType, XNativeValue};
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_INT, X_UNKNOWN};
+use crate::xtype::{XFuncSpec, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
     eval, manage_native, to_native, CompilationError, RootCompilationScope, XStaticFunction, XType,
@@ -142,11 +142,7 @@ pub(crate) fn add_stack_new<W: Write + 'static>(
     scope.add_func(
         "stack",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: None,
-                params: vec![],
-                ret: XStackType::xtype(X_UNKNOWN.clone()),
-            },
+            XFuncSpec::new(&[], XStackType::xtype(X_UNKNOWN.clone())),
             |_args, _ns, _tca, rt| Ok(manage_native!(XStack::<W>::new(), rt)),
         ),
     )
@@ -161,20 +157,7 @@ pub(crate) fn add_stack_push<W: Write + 'static>(
     scope.add_func(
         "push",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_stk.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: t,
-                        required: true,
-                    },
-                ],
-                ret: t_stk,
-            },
+            XFuncSpec::new(&[&t_stk, &t], t_stk.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let stk0 = to_native!(a0, XStack<W>);
@@ -193,14 +176,7 @@ pub(crate) fn add_stack_to_array<W: Write + 'static>(
     scope.add_func(
         "to_array",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![XFuncParamSpec {
-                    type_: t_stk,
-                    required: true,
-                }],
-                ret: XSequenceType::xtype(t),
-            },
+            XFuncSpec::new(&[&t_stk], XSequenceType::xtype(t)).generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let stk0 = to_native!(a0, XStack<W>);
@@ -219,14 +195,7 @@ pub(crate) fn add_stack_to_array_reversed<W: Write + 'static>(
     scope.add_func(
         "to_array_reversed",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![XFuncParamSpec {
-                    type_: t_stk,
-                    required: true,
-                }],
-                ret: XSequenceType::xtype(t),
-            },
+            XFuncSpec::new(&[&t_stk], XSequenceType::xtype(t)).generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let stk0 = to_native!(a0, XStack<W>);
@@ -245,14 +214,7 @@ pub(crate) fn add_stack_len<W: Write + 'static>(
     scope.add_func(
         "len",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![XFuncParamSpec {
-                    type_: t_stk,
-                    required: true,
-                }],
-                ret: X_INT.clone(),
-            },
+            XFuncSpec::new(&[&t_stk], X_INT.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let stk0 = to_native!(a0, XStack<W>);
@@ -271,14 +233,7 @@ pub(crate) fn add_stack_head<W: Write + 'static>(
     scope.add_func(
         "head",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![XFuncParamSpec {
-                    type_: t_stk,
-                    required: true,
-                }],
-                ret: t,
-            },
+            XFuncSpec::new(&[&t_stk], t).generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let stk0 = to_native!(a0, XStack<W>);
@@ -300,14 +255,7 @@ pub(crate) fn add_stack_tail<W: Write + 'static>(
     scope.add_func(
         "tail",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![XFuncParamSpec {
-                    type_: t_stk.clone(),
-                    required: true,
-                }],
-                ret: t_stk,
-            },
+            XFuncSpec::new(&[&t_stk], t_stk.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let stk0 = to_native!(a0, XStack<W>);

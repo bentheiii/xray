@@ -155,11 +155,49 @@ pub struct XCallableSpec {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct XFuncSpec {
     pub generic_params: Option<Vec<DefaultSymbol>>,
-    pub params: Vec<XFuncParamSpec>,
+    pub(crate) params: Vec<XFuncParamSpec>,
     pub ret: Arc<XType>,
 }
 
 impl XFuncSpec {
+    pub(crate) fn new(required: &[&Arc<XType>], ret: Arc<XType>) -> Self {
+        Self {
+            generic_params: None,
+            params: required
+                .iter()
+                .map(|t| XFuncParamSpec::required((*t).clone()))
+                .collect(),
+            ret,
+        }
+    }
+
+    pub(crate) fn new_with_optional(
+        required: &[&Arc<XType>],
+        optional: &[&Arc<XType>],
+        ret: Arc<XType>,
+    ) -> Self {
+        Self {
+            generic_params: None,
+            params: required
+                .iter()
+                .map(|t| XFuncParamSpec::required((*t).clone()))
+                .chain(
+                    optional
+                        .iter()
+                        .map(|t| XFuncParamSpec::optional((*t).clone())),
+                )
+                .collect(),
+            ret,
+        }
+    }
+
+    pub(crate) fn generic(self, gen_params: Vec<Identifier>) -> Self {
+        Self {
+            generic_params: Some(gen_params),
+            ..self
+        }
+    }
+
     fn arg_len_range(&self) -> (usize, usize) {
         let max = self.params.len();
         let min = self.params.iter().take_while(|a| a.required).count();
@@ -199,9 +237,25 @@ impl XFuncSpec {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct XFuncParamSpec {
+pub(crate) struct XFuncParamSpec {
     pub(crate) type_: Arc<XType>,
     pub(crate) required: bool,
+}
+
+impl XFuncParamSpec {
+    fn required(t: Arc<XType>) -> Self {
+        Self {
+            type_: t,
+            required: true,
+        }
+    }
+
+    fn optional(t: Arc<XType>) -> Self {
+        Self {
+            type_: t,
+            required: false,
+        }
+    }
 }
 
 impl XType {

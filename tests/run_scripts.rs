@@ -4,6 +4,8 @@ use glob::glob;
 use itertools::Itertools;
 use std::fs;
 
+use crate::utils::capture_writer::CaptureWriter;
+use crate::utils::memory_writer::MemoryWriter;
 use either::Either;
 use serde::Deserialize;
 use xray::compile_err::ResolvedTracedCompilationError;
@@ -11,8 +13,6 @@ use xray::evaluation_scope::RootEvaluationScope;
 use xray::runtime::RuntimeLimits;
 use xray::std_compilation_scope;
 use xray::xvalue::XValue;
-use crate::utils::capture_writer::CaptureWriter;
-use crate::utils::memory_writer::MemoryWriter;
 
 #[derive(Deserialize, Default)]
 pub struct ScriptConfig {
@@ -61,7 +61,6 @@ impl ScriptConfig {
         }
     }
 }
-
 
 fn test_script(script_number: usize) {
     let file_pattern = format!("test_scripts/{:0>3}_*.xr", script_number);
@@ -404,4 +403,14 @@ fn test_script_062() {
 #[test]
 fn test_script_063() {
     test_script(63);
+}
+
+#[test]
+fn test_script_064() {
+    test_script(64);
+}
+
+#[test]
+fn test_script_065() {
+    test_script(65);
 }

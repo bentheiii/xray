@@ -5,9 +5,12 @@ use std::str::from_utf8;
 #[derive(Debug)]
 pub struct CaptureWriter;
 
-impl Write for CaptureWriter{
+impl Write for CaptureWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        print!("{}", from_utf8(buf).map_err(|e| Error::new(ErrorKind::Other, e))?);
+        print!(
+            "{}",
+            from_utf8(buf).map_err(|e| Error::new(ErrorKind::Other, e))?
+        );
         Ok(buf.len())
     }
 

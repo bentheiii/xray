@@ -48,9 +48,7 @@ use crate::evaluation_scope::XEvaluationScope;
 use crate::xexpr::{
     CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction,
 };
-use crate::xtype::{
-    Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncParamSpec, XFuncSpec, XType,
-};
+use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType};
 
 pub type Identifier = DefaultSymbol;
 
@@ -121,6 +119,10 @@ pub fn std_compilation_scope<W: Write + 'static>(runtime: RTCell<W>) -> RootComp
     add_is_error(&mut ret).unwrap();
     add_if_error(&mut ret).unwrap();
     add_display(&mut ret).unwrap();
+    add_cmp_lt(&mut ret).unwrap();
+    add_cmp_gt(&mut ret).unwrap();
+    add_cmp_le(&mut ret).unwrap();
+    add_cmp_ge(&mut ret).unwrap();
 
     add_unknown_eq(&mut ret).unwrap();
 

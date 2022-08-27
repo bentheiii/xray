@@ -1,10 +1,14 @@
-use crate::xvalue::XValue;
+use crate::xvalue::{ManagedXValue, XValue};
 use num_traits::{One, Zero};
 
 use std::io::Write;
 
 use crate::util::lazy_bigint::LazyBigint;
+use crate::xexpr::XExpr;
+use crate::{Identifier, RTCell, XCompilationScope, XEvaluationScope, XType};
 use std::ops::Neg;
+use std::rc::Rc;
+use std::sync::Arc;
 
 #[macro_export]
 macro_rules! add_binop {
@@ -15,20 +19,7 @@ macro_rules! add_binop {
             scope.add_func(
                 stringify!($name),
                 XStaticFunction::from_native(
-                    XFuncSpec {
-                        generic_params: None,
-                        params: vec![
-                            XFuncParamSpec {
-                                type_: $operand_type.clone(),
-                                required: true,
-                            },
-                            XFuncParamSpec {
-                                type_: $operand_type.clone(),
-                                required: true,
-                            },
-                        ],
-                        ret: $return_type.clone(),
-                    },
+                    XFuncSpec::new(&[&$operand_type, &$operand_type], $return_type.clone()),
                     |args, ns, _tca, rt| {
                         let (a0, a1) = eval!(args, ns, rt, 0, 1);
                         let v0 = to_primitive!(a0, $operand_variant);
@@ -51,14 +42,7 @@ macro_rules! add_ufunc_ref {
             scope.add_func(
                 stringify!($name),
                 XStaticFunction::from_native(
-                    XFuncSpec {
-                        generic_params: None,
-                        params: vec![XFuncParamSpec {
-                            type_: $operand_type.clone(),
-                            required: true,
-                        }],
-                        ret: $return_type.clone(),
-                    },
+                    XFuncSpec::new(&[&$operand_type], $return_type.clone()),
                     |args, ns, _tca, rt| {
                         let (a0,) = eval!(args, ns, rt, 0);
                         $func(a0, rt)
@@ -154,4 +138,70 @@ pub(super) fn xcmp<W: Write + 'static, T: PartialOrd>(rhs: T, lhs: T) -> XValue<
     } else {
         LazyBigint::zero()
     })
+}
+
+#[macro_export]
+macro_rules! count {
+    () => (0usize);
+    ( $x:tt $($xs:tt)* ) => (1usize + $crate::count!($($xs)*));
+}
+
+#[macro_export]
+macro_rules! unpack_types {
+    ($types: expr, $($required: literal),* $(| $($optional: literal),*)?) => {{
+        const __MIN_SIZE: usize = $crate::count!($($required),*);
+        const __MAX_SIZE: usize = __MIN_SIZE + $crate::count!($($($optional),*)?);
+        (
+            $(
+                $types.get($required).ok_or_else(|| {
+                    let expected = if (__MIN_SIZE == __MAX_SIZE) {format!("{}", __MIN_SIZE)} else {format!("between {} and {}", __MIN_SIZE, __MAX_SIZE)};
+                    format!("expected {} arguments, got {}", expected, $required)
+                })?
+            ),*
+            $(,$($types.get($optional)),*)?
+        )
+    }};
+}
+
+#[macro_export]
+macro_rules! unpack_native {
+    ($t: expr, $name: literal, $($bind_idx: literal),*) => {{
+        match $t.as_ref(){
+            XType::XNative(nt0, bind) if nt0.name() == $name => (
+                $(
+                bind[$bind_idx].clone()
+                ),*,
+            ),
+            _ => return Err(format!("Expected {} type, got {:?}", $name, $t))
+        }
+    }};
+}
+
+pub(super) fn get_func<W: Write + 'static>(
+    scope: &XCompilationScope<W>,
+    symbol: Identifier,
+    arguments: &[Arc<XType>],
+    expected_return_type: &Arc<XType>,
+) -> Result<XExpr<W>, String> {
+    let ret = scope.resolve_overload(symbol, arguments)?;
+    let ret_xtype = ret.xtype().unwrap();
+    let func_spec = if let XType::XFunc(spec) = ret_xtype.as_ref() {
+        spec
+    } else {
+        return Err(format!("expected {symbol:?} function, got {ret_xtype:?}"));
+    };
+    if &func_spec.ret != expected_return_type {
+        return Err(format!("expected {symbol:?}::<{arguments:?}> to return {expected_return_type:?}, got {:?} instead", func_spec.ret));
+    }
+    Ok(ret)
+}
+
+pub(super) fn eval_resolved_func<W: Write + 'static>(
+    expr: &XExpr<W>,
+    ns: &XEvaluationScope<W>,
+    rt: RTCell<W>,
+    args: &[Rc<ManagedXValue<W>>],
+) -> Result<Rc<ManagedXValue<W>>, String> {
+    let managed_func = expr.eval(ns, false, rt.clone())?.unwrap_value();
+    to_primitive!(managed_func, Function).eval_values(args, ns, rt)
 }

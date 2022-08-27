@@ -1,7 +1,7 @@
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::native_types::{NativeType, XNativeValue};
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
+use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::XType::XCallable;
 use crate::{
@@ -136,26 +136,20 @@ pub(crate) fn add_mapping_new<W: Write + 'static>(
     scope.add_func(
         "mapping",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![k.clone()],
-                            return_type: X_INT.clone(),
-                        })),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![k.clone(), k.clone()],
-                            return_type: X_BOOL.clone(),
-                        })),
-                        required: true,
-                    },
+            XFuncSpec::new(
+                &[
+                    &Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![k.clone()],
+                        return_type: X_INT.clone(),
+                    })),
+                    &Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![k.clone(), k.clone()],
+                        return_type: X_BOOL.clone(),
+                    })),
                 ],
-                ret: XMappingType::xtype(k, X_UNKNOWN.clone()),
-            },
+                XMappingType::xtype(k, X_UNKNOWN.clone()),
+            )
+            .generic(params),
             |args, ns, _tca, rt| {
                 let (hash_func, eq_func) = eval!(args, ns, rt, 0, 1);
                 Ok(manage_native!(
@@ -176,24 +170,7 @@ pub(crate) fn add_mapping_set<W: Write + 'static>(
     scope.add_func(
         "set",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: mp.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: k,
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: v,
-                        required: true,
-                    },
-                ],
-                ret: mp,
-            },
+            XFuncSpec::new(&[&mp, &k, &v], mp.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
                 let mapping = to_native!(a0, XMapping<W>);
@@ -212,20 +189,14 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(
     scope.add_func(
         "update",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: mp.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: XSequenceType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
-                        required: true,
-                    },
+            XFuncSpec::new(
+                &[
+                    &mp,
+                    &XSequenceType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
                 ],
-                ret: mp,
-            },
+                mp.clone(),
+            )
+            .generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let mapping = to_native!(a0, XMapping<W>);
@@ -250,20 +221,7 @@ pub(crate) fn add_mapping_lookup<W: Write + 'static>(
     scope.add_func(
         "lookup",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: mp,
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: k,
-                        required: true,
-                    },
-                ],
-                ret: XOptionalType::xtype(v),
-            },
+            XFuncSpec::new(&[&mp, &k], XOptionalType::xtype(v)).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let mapping = to_native!(a0, XMapping<W>);
@@ -307,20 +265,7 @@ pub(crate) fn add_mapping_get<W: Write + 'static>(
     scope.add_func(
         "get",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: mp,
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: k,
-                        required: true,
-                    },
-                ],
-                ret: v,
-            },
+            XFuncSpec::new(&[&mp, &k], v).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let mapping = to_native!(a0, XMapping<W>);
@@ -359,14 +304,7 @@ pub(crate) fn add_mapping_len<W: Write + 'static>(
     scope.add_func(
         "len",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![XFuncParamSpec {
-                    type_: mp,
-                    required: true,
-                }],
-                ret: X_INT.clone(),
-            },
+            XFuncSpec::new(&[&mp], X_INT.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let mapping = to_native!(a0, XMapping<W>);
@@ -386,14 +324,11 @@ pub(crate) fn add_mapping_entries<W: Write + 'static>(
     scope.add_func(
         "entries",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![XFuncParamSpec {
-                    type_: mp,
-                    required: true,
-                }],
-                ret: XSequenceType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
-            },
+            XFuncSpec::new(
+                &[&mp],
+                XSequenceType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
+            )
+            .generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let mapping = to_native!(a0, XMapping<W>);
@@ -424,20 +359,7 @@ pub(crate) fn add_mapping_contains<W: Write + 'static>(
     scope.add_func(
         "contains",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: mp,
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: k,
-                        required: true,
-                    },
-                ],
-                ret: X_BOOL.clone(),
-            },
+            XFuncSpec::new(&[&mp, &k], X_BOOL.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let mapping = to_native!(a0, XMapping<W>);
@@ -475,20 +397,7 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
     scope.add_func(
         "pop",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: mp.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: k,
-                        required: true,
-                    },
-                ],
-                ret: mp,
-            },
+            XFuncSpec::new(&[&mp, &k], mp.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let mapping = to_native!(a0, XMapping<W>);
@@ -550,20 +459,7 @@ pub(crate) fn add_mapping_discard<W: Write + 'static>(
     scope.add_func(
         "discard",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: mp.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: k,
-                        required: true,
-                    },
-                ],
-                ret: mp,
-            },
+            XFuncSpec::new(&[&mp, &k], mp.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let mapping = to_native!(a0, XMapping<W>);

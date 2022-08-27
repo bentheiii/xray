@@ -1,0 +1,6 @@
+fn main()->bool{
+    assert(false < true)
+    && assert(true >= false)
+    && assert(false <= false)
+    && assert(true > false)
+}

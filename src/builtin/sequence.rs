@@ -1,14 +1,15 @@
+use crate::builtin::core::get_func;
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::stack::{XStack, XStackType};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::util::trysort::try_sort;
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT};
+use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::XType::XCallable;
 use crate::{
-    eval, manage_native, meval, to_native, to_primitive, CompilationError, Identifier, RTCell,
-    RootCompilationScope, XCallableSpec, XCompilationScope, XEvaluationScope, XStaticFunction,
-    XType,
+    eval, manage_native, meval, to_native, to_primitive, unpack_native, unpack_types,
+    CompilationError, RTCell, RootCompilationScope, XCallableSpec, XEvaluationScope,
+    XStaticFunction, XType,
 };
 use derivative::Derivative;
 use num_traits::{One, Signed, ToPrimitive, Zero};
@@ -22,8 +23,6 @@ use std::rc;
 use std::sync::Arc;
 
 use crate::util::lazy_bigint::LazyBigint;
-
-use crate::xexpr::XExpr;
 
 #[derive(Debug, Clone)]
 pub(crate) struct XSequenceType;
@@ -187,6 +186,7 @@ impl<W: Write + 'static> XNativeValue for XSequence<W> {
 }
 
 fn value_to_idx<W: Write + 'static>(arr: &XSequence<W>, i: &LazyBigint) -> Result<usize, String> {
+    // todo whi is this not a method?
     let mut i = Cow::Borrowed(i);
     if i.is_negative() {
         i = Cow::Owned(i.into_owned() + LazyBigint::from(arr.len()));
@@ -216,20 +216,7 @@ pub(crate) fn add_sequence_get<W: Write + 'static>(
     scope.add_func(
         "get",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: XSequenceType::xtype(t.clone()),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: X_INT.clone(),
-                        required: true,
-                    },
-                ],
-                ret: t,
-            },
+            XFuncSpec::new(&[&XSequenceType::xtype(t.clone()), &X_INT], t).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let arr = &to_native!(a0, XSequence<W>);
@@ -249,14 +236,7 @@ pub(crate) fn add_sequence_len<W: Write + 'static>(
     scope.add_func(
         "len",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![XFuncParamSpec {
-                    type_: XSequenceType::xtype(t),
-                    required: true,
-                }],
-                ret: X_INT.clone(),
-            },
+            XFuncSpec::new(&[&XSequenceType::xtype(t)], X_INT.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let arr = &to_native!(a0, XSequence<W>);
@@ -275,20 +255,7 @@ pub(crate) fn add_sequence_add<W: Write + 'static>(
     scope.add_func(
         "add",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                ],
-                ret: t_arr,
-            },
+            XFuncSpec::new(&[&t_arr, &t_arr], t_arr.clone()).generic(params),
             |args, ns, tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let seq0 = to_native!(a0, XSequence<W>);
@@ -318,20 +285,7 @@ pub(crate) fn add_sequence_add_stack<W: Write + 'static>(
     scope.add_func(
         "add",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: t_stack,
-                        required: true,
-                    },
-                ],
-                ret: t_arr,
-            },
+            XFuncSpec::new(&[&t_arr, &t_stack], t_arr.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq0 = to_native!(a0, XSequence<W>);
@@ -360,20 +314,7 @@ pub(crate) fn add_sequence_addrev_stack<W: Write + 'static>(
     scope.add_func(
         "add_rev",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: t_stack,
-                        required: true,
-                    },
-                ],
-                ret: t_arr,
-            },
+            XFuncSpec::new(&[&t_arr, &t_stack], t_arr.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq0 = to_native!(a0, XSequence<W>);
@@ -403,20 +344,7 @@ pub(crate) fn add_sequence_push<W: Write + 'static>(
     scope.add_func(
         "push",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: t,
-                        required: true,
-                    },
-                ],
-                ret: t_arr,
-            },
+            XFuncSpec::new(&[&t_arr, &t], t_arr.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq0 = to_native!(a0, XSequence<W>);
@@ -437,20 +365,7 @@ pub(crate) fn add_sequence_rpush<W: Write + 'static>(
     scope.add_func(
         "rpush",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: t,
-                        required: true,
-                    },
-                ],
-                ret: t_arr,
-            },
+            XFuncSpec::new(&[&t_arr, &t], t_arr.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq0 = to_native!(a0, XSequence<W>);
@@ -471,24 +386,7 @@ pub(crate) fn add_sequence_insert<W: Write + 'static>(
     scope.add_func(
         "insert",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: X_INT.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: t,
-                        required: true,
-                    },
-                ],
-                ret: t_arr,
-            },
+            XFuncSpec::new(&[&t_arr, &X_INT, &t], t_arr.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
                 let seq = to_native!(a0, XSequence<W>);
@@ -513,20 +411,7 @@ pub(crate) fn add_sequence_pop<W: Write + 'static>(
     scope.add_func(
         "pop",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: X_INT.clone(),
-                        required: true,
-                    },
-                ],
-                ret: t_arr,
-            },
+            XFuncSpec::new(&[&t_arr, &X_INT], t_arr.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq = to_native!(a0, XSequence<W>);
@@ -553,24 +438,7 @@ pub(crate) fn add_sequence_set<W: Write + 'static>(
     scope.add_func(
         "set",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: X_INT.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: t,
-                        required: true,
-                    },
-                ],
-                ret: t_arr,
-            },
+            XFuncSpec::new(&[&t_arr, &X_INT, &t], t_arr.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
                 let seq = to_native!(a0, XSequence<W>);
@@ -595,24 +463,7 @@ pub(crate) fn add_sequence_swap<W: Write + 'static>(
     scope.add_func(
         "swap",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: X_INT.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: X_INT.clone(),
-                        required: true,
-                    },
-                ],
-                ret: t_arr,
-            },
+            XFuncSpec::new(&[&t_arr, &X_INT, &X_INT], t_arr.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
                 let seq = to_native!(a0, XSequence<W>);
@@ -646,14 +497,8 @@ pub(crate) fn add_sequence_to_stack<W: Write + 'static>(
     scope.add_func(
         "to_stack",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![XFuncParamSpec {
-                    type_: XSequenceType::xtype(t.clone()),
-                    required: true,
-                }],
-                ret: XStackType::xtype(t),
-            },
+            XFuncSpec::new(&[&XSequenceType::xtype(t.clone())], XStackType::xtype(t))
+                .generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let arr = to_native!(a0, XSequence<W>);
@@ -675,23 +520,17 @@ pub(crate) fn add_sequence_map<W: Write + 'static>(
     scope.add_func(
         "map",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: XSequenceType::xtype(input_t.clone()),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![input_t],
-                            return_type: output_t.clone(),
-                        })),
-                        required: true,
-                    },
+            XFuncSpec::new(
+                &[
+                    &XSequenceType::xtype(input_t.clone()),
+                    &Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![input_t],
+                        return_type: output_t.clone(),
+                    })),
                 ],
-                ret: XSequenceType::xtype(output_t),
-            },
+                XSequenceType::xtype(output_t),
+            )
+            .generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 Ok(manage_native!(XSequence::Map(a0, a1), rt))
@@ -709,23 +548,17 @@ pub(crate) fn add_sequence_sort<W: Write + 'static>(
     scope.add_func(
         "sort",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![t.clone(), t],
-                            return_type: X_INT.clone(),
-                        })),
-                        required: true,
-                    },
+            XFuncSpec::new(
+                &[
+                    &t_arr,
+                    &Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t.clone(), t],
+                        return_type: X_INT.clone(),
+                    })),
                 ],
-                ret: t_arr,
-            },
+                t_arr.clone(),
+            )
+            .generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq = to_native!(a0, XSequence<W>);
@@ -771,27 +604,18 @@ pub(crate) fn add_sequence_reduce3<W: Write + 'static>(
     scope.add_func(
         "reduce",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr,
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: s.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![s.clone(), t],
-                            return_type: s.clone(),
-                        })),
-                        required: true,
-                    },
+            XFuncSpec::new(
+                &[
+                    &t_arr,
+                    &s,
+                    &Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![s.clone(), t],
+                        return_type: s.clone(),
+                    })),
                 ],
-                ret: s,
-            },
+                s.clone(),
+            )
+            .generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
                 let seq = to_native!(a0, XSequence<W>);
@@ -816,23 +640,17 @@ pub(crate) fn add_sequence_reduce2<W: Write + 'static>(
     scope.add_func(
         "reduce",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr,
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![t.clone(), t.clone()],
-                            return_type: t.clone(),
-                        })),
-                        required: true,
-                    },
+            XFuncSpec::new(
+                &[
+                    &t_arr,
+                    &Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t.clone(), t.clone()],
+                        return_type: t.clone(),
+                    })),
                 ],
-                ret: t,
-            },
+                t,
+            )
+            .generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq = to_native!(a0, XSequence<W>);
@@ -859,24 +677,7 @@ pub(crate) fn add_sequence_range<W: Write + 'static>(
     scope.add_func(
         "range",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: None,
-                params: vec![
-                    XFuncParamSpec {
-                        type_: X_INT.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: X_INT.clone(),
-                        required: false,
-                    },
-                    XFuncParamSpec {
-                        type_: X_INT.clone(),
-                        required: false,
-                    },
-                ],
-                ret: t_arr,
-            },
+            XFuncSpec::new_with_optional(&[&X_INT], &[&X_INT, &X_INT], t_arr),
             |args, ns, _tca, rt| {
                 let (start, end, step);
                 if args.len() == 1 {
@@ -918,23 +719,17 @@ pub(crate) fn add_sequence_filter<W: Write + 'static>(
     scope.add_func(
         "filter",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![t],
-                            return_type: X_BOOL.clone(),
-                        })),
-                        required: true,
-                    },
+            XFuncSpec::new(
+                &[
+                    &t_arr,
+                    &Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t],
+                        return_type: X_BOOL.clone(),
+                    })),
                 ],
-                ret: t_arr,
-            },
+                t_arr.clone(),
+            )
+            .generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq = to_native!(a0, XSequence<W>);
@@ -975,27 +770,18 @@ pub(crate) fn add_sequence_nth<W: Write + 'static>(
     scope.add_func(
         "nth",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr,
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: X_INT.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![t.clone()],
-                            return_type: X_BOOL.clone(),
-                        })),
-                        required: true,
-                    },
+            XFuncSpec::new(
+                &[
+                    &t_arr,
+                    &X_INT,
+                    &Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t.clone()],
+                        return_type: X_BOOL.clone(),
+                    })),
                 ],
-                ret: XOptionalType::xtype(t),
-            },
+                XOptionalType::xtype(t),
+            )
+            .generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
                 let seq = to_native!(a0, XSequence<W>);
@@ -1032,23 +818,17 @@ pub(crate) fn add_sequence_take_while<W: Write + 'static>(
     scope.add_func(
         "take_while",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![t],
-                            return_type: X_BOOL.clone(),
-                        })),
-                        required: true,
-                    },
+            XFuncSpec::new(
+                &[
+                    &t_arr,
+                    &Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t],
+                        return_type: X_BOOL.clone(),
+                    })),
                 ],
-                ret: t_arr,
-            },
+                t_arr.clone(),
+            )
+            .generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq = to_native!(a0, XSequence<W>);
@@ -1081,23 +861,17 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
     scope.add_func(
         "skip_until",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![t],
-                            return_type: X_BOOL.clone(),
-                        })),
-                        required: true,
-                    },
+            XFuncSpec::new(
+                &[
+                    &t_arr,
+                    &Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t],
+                        return_type: X_BOOL.clone(),
+                    })),
                 ],
-                ret: t_arr,
-            },
+                t_arr.clone(),
+            )
+            .generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq = to_native!(a0, XSequence<W>);
@@ -1130,20 +904,7 @@ pub(crate) fn add_sequence_take<W: Write + 'static>(
     scope.add_func(
         "take",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: X_INT.clone(),
-                        required: true,
-                    },
-                ],
-                ret: t_arr,
-            },
+            XFuncSpec::new(&[&t_arr, &X_INT], t_arr.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq = to_native!(a0, XSequence<W>);
@@ -1168,20 +929,7 @@ pub(crate) fn add_sequence_skip<W: Write + 'static>(
     scope.add_func(
         "skip",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: t_arr.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: X_INT.clone(),
-                        required: true,
-                    },
-                ],
-                ret: t_arr,
-            },
+            XFuncSpec::new(&[&t_arr, &X_INT], t_arr.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq = to_native!(a0, XSequence<W>);
@@ -1205,26 +953,18 @@ pub(crate) fn add_sequence_eq<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     let eq_symbol = scope.identifier("eq");
 
-    fn static_from_eq<W: Write + 'static>(
-        t0: Arc<XType>,
-        t1: Arc<XType>,
-        eq_expr: XExpr<W>,
-    ) -> Rc<XStaticFunction<W>> {
-        Rc::new(XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: None,
-                params: vec![
-                    XFuncParamSpec {
-                        type_: XSequenceType::xtype(t0),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: XSequenceType::xtype(t1),
-                        required: true,
-                    },
-                ],
-                ret: X_BOOL.clone(),
-            },
+    scope.add_dyn_func("eq", move |_params, types, ns| {
+        let (a0, a1) = unpack_types!(types, 0, 1);
+        let (t0,) = unpack_native!(a0, "Sequence", 0);
+        let (t1,) = unpack_native!(a1, "Sequence", 0);
+
+        let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t1.clone()], &X_BOOL)?; // todo ensure that the function returns a bool
+
+        Ok(Rc::new(XStaticFunction::from_native(
+            XFuncSpec::new(
+                &[&XSequenceType::xtype(t0), &XSequenceType::xtype(t1)],
+                X_BOOL.clone(),
+            ),
             move |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq0 = to_native!(a0, XSequence<W>);
@@ -1235,8 +975,9 @@ pub(crate) fn add_sequence_eq<W: Write + 'static>(
                 let arr0 = seq0.slice(0, seq0.len(), ns, rt.clone())?;
                 let arr1 = seq1.slice(0, seq1.len(), ns, rt.clone())?;
                 let mut ret = true;
-                let inner_equal_value = eq_expr.eval(ns, false, rt.clone())?.unwrap_value();
+                let inner_equal_value = inner_eq.eval(ns, false, rt.clone())?.unwrap_value();
                 let inner_eq_func = to_primitive!(inner_equal_value, Function);
+
                 for (x, y) in arr0.into_iter().zip(arr1.into_iter()) {
                     let eq = inner_eq_func.eval_values(&[x, y], ns, rt.clone())?;
                     let is_eq = to_primitive!(eq, Bool);
@@ -1247,34 +988,6 @@ pub(crate) fn add_sequence_eq<W: Write + 'static>(
                 }
                 Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
             },
-        ))
-    }
-
-    fn from_types<W: Write + 'static>(
-        types: &[Arc<XType>],
-        scope: &XCompilationScope<W>,
-        eq_symbol: Identifier,
-    ) -> Result<Rc<XStaticFunction<W>>, String> {
-        if types.len() != 2 {
-            return Err(format!("Expected 2 types, got {}", types.len()));
-        }
-        let a0 = types[0].clone();
-        let t0 = match &a0.as_ref() {
-            XType::XNative(nt0, bind) if nt0.name() == "Sequence" => bind[0].clone(),
-            _ => return Err(format!("Expected sequence type, got {:?}", a0)), // todo improve
-        };
-        let a1 = types[1].clone();
-        let t1 = match &a1.as_ref() {
-            XType::XNative(nt1, bind) if nt1.name() == "Sequence" => bind[0].clone(),
-            _ => return Err(format!("Expected sequence type, got {:?}", a1)), // todo improve
-        };
-
-        let inner_eq = scope.resolve_overload(eq_symbol, &[t0.clone(), t1.clone()])?; // todo ensure that the function returns a bool
-
-        Ok(static_from_eq(t0, t1, inner_eq))
-    }
-
-    scope.add_dyn_func("eq", move |_params, types, ns| {
-        from_types(types, ns, eq_symbol)
+        )))
     })
 }

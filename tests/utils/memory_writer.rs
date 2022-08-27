@@ -1,11 +1,11 @@
 use std::io::Write;
 
-pub struct MemoryWriter<W>{
+pub struct MemoryWriter<W> {
     pub memory: Vec<u8>,
-    inner: W
+    inner: W,
 }
 
-impl<W: Write> Write for MemoryWriter<W>{
+impl<W: Write> Write for MemoryWriter<W> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         self.memory.write(buf)?;
         self.inner.write(buf)
@@ -17,13 +17,11 @@ impl<W: Write> Write for MemoryWriter<W>{
     }
 }
 
-impl<W> MemoryWriter<W>{
-    pub fn new(inner: W)->Self{
-        Self{
+impl<W> MemoryWriter<W> {
+    pub fn new(inner: W) -> Self {
+        Self {
             memory: Vec::new(),
-            inner
+            inner,
         }
     }
 }
-
-

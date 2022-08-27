@@ -1,6 +1,6 @@
 use crate::builtin::core::xcmp;
 use crate::builtin::optional::{XOptional, XOptionalType};
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_STRING};
+use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
     add_binop, add_ufunc, add_ufunc_ref, eval, manage_native, to_primitive, CompilationError,
@@ -46,20 +46,7 @@ pub(crate) fn add_and<W: Write + 'static>(
     scope.add_func(
         "and",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: None,
-                params: vec![
-                    XFuncParamSpec {
-                        type_: X_BOOL.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: X_BOOL.clone(),
-                        required: true,
-                    },
-                ],
-                ret: X_BOOL.clone(),
-            },
+            XFuncSpec::new(&[&X_BOOL, &X_BOOL], X_BOOL.clone()),
             |args, ns, tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 if *to_primitive!(a0, Bool) {
@@ -77,20 +64,7 @@ pub(crate) fn add_or<W: Write + 'static>(
     scope.add_func(
         "or",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: None,
-                params: vec![
-                    XFuncParamSpec {
-                        type_: X_BOOL.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: X_BOOL.clone(),
-                        required: true,
-                    },
-                ],
-                ret: X_BOOL.clone(),
-            },
+            XFuncSpec::new(&[&X_BOOL, &X_BOOL], X_BOOL.clone()),
             |args, ns, tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 if !*to_primitive!(a0, Bool) {
@@ -110,20 +84,7 @@ pub(crate) fn add_bool_then<W: Write + 'static>(
     scope.add_func(
         "then",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: X_BOOL.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: t.clone(),
-                        required: true,
-                    },
-                ],
-                ret: XOptionalType::xtype(t),
-            },
+            XFuncSpec::new(&[&X_BOOL, &t], XOptionalType::xtype(t.clone())).generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 Ok(manage_native!(
@@ -146,11 +107,19 @@ add_ufunc!(add_bool_hash, hash, X_BOOL, Bool, X_INT, |a: &bool| {
     Ok(XValue::Int(if *a { One::one() } else { Zero::zero() }))
 });
 
-add_ufunc!(add_bool_to_str, to_str, X_BOOL, Bool, X_STRING, |a: &bool| {
-    Ok(XValue::String(if *a { "true" } else { "false" }.to_string()))
-});
+add_ufunc!(
+    add_bool_to_str,
+    to_str,
+    X_BOOL,
+    Bool,
+    X_STRING,
+    |a: &bool| {
+        Ok(XValue::String(
+            if *a { "true" } else { "false" }.to_string(),
+        ))
+    }
+);
 
 add_binop!(add_bool_cmp, cmp, X_BOOL, Bool, X_INT, |a, b| Ok(xcmp(
     a, b
 )));
-

@@ -1,5 +1,5 @@
 use crate::builtin::core::xcmp;
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
+use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
     add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError,

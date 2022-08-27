@@ -1,0 +1,6 @@
+fn main()->bool{
+    let m = mapping(hash::<bool>, eq::<bool, bool>).set(true, 10).set(false, -10).set(true, -11);
+
+    assert(m[true] == -11)
+    && assert(m[false] == -10)
+}

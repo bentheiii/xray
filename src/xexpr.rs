@@ -85,10 +85,10 @@ pub(crate) fn resolve_overload<'p, W: Write + 'static>(
     let is_unknown = arg_types.iter().any(|t| t.is_unknown());
     // if the bindings are unknown, then we prefer generic solutions over exact solutions
     for overload in overloads {
-        let overload = match overload {
-            XFunctionFactory::Static(overload) => overload.clone(),
+        let (overload, is_generic) = match overload {
+            XFunctionFactory::Static(overload) => (overload.clone(), overload.is_generic()),
             XFunctionFactory::Dynamic(dyn_func) => match dyn_func(args, arg_types, namespace) {
-                Ok(overload) => overload,
+                Ok(overload) => (overload, true),
                 Err(err) => {
                     dynamic_failures.push(err);
                     continue;
@@ -101,7 +101,7 @@ pub(crate) fn resolve_overload<'p, W: Write + 'static>(
             if overload.short_circuit_overloads() {
                 return Ok(item);
             }
-            if overload.is_generic() ^ is_unknown {
+            if is_generic ^ is_unknown {
                 &mut generic_matches
             } else {
                 &mut exact_matches

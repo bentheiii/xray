@@ -1,5 +1,5 @@
 use crate::builtin::core::xcmp;
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_INT, X_STRING};
+use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
     add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError,
@@ -46,14 +46,7 @@ pub(crate) fn add_str_to_str<W: Write + 'static>(
     scope.add_func(
         "to_str",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: None,
-                params: vec![XFuncParamSpec {
-                    type_: X_STRING.clone(),
-                    required: true,
-                }],
-                ret: X_STRING.clone(),
-            },
+            XFuncSpec::new(&[&X_STRING], X_STRING.clone()),
             |args, ns, tca, rt| args[0].eval(ns, tca, rt),
         ),
     )

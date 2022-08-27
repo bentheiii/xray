@@ -1,11 +1,11 @@
+use crate::builtin::core::{eval_resolved_func, get_func};
 use crate::native_types::{NativeType, XNativeValue};
-use crate::xexpr::XExpr;
-use crate::xtype::{XFuncParamSpec, XFuncSpec, X_BOOL, X_UNKNOWN};
+use crate::xtype::{XFuncSpec, X_BOOL, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::XType::XCallable;
 use crate::{
-    eval, manage_native, to_native, to_primitive, CompilationError, Identifier,
-    RootCompilationScope, XCallableSpec, XCompilationScope, XStaticFunction, XType,
+    eval, manage_native, to_native, to_primitive, unpack_native, unpack_types, CompilationError,
+    RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
 use rc::Rc;
@@ -57,11 +57,7 @@ pub(crate) fn add_optional_null<W: Write + 'static>(
     scope.add_func(
         "null",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: None,
-                params: vec![],
-                ret: XOptionalType::xtype(X_UNKNOWN.clone()),
-            },
+            XFuncSpec::new(&[], XOptionalType::xtype(X_UNKNOWN.clone())),
             |_args, _ns, _tca, rt| Ok(manage_native!(XOptional::<W> { value: None }, rt)),
         ),
     )
@@ -74,14 +70,7 @@ pub(crate) fn add_optional_some<W: Write + 'static>(
     scope.add_func(
         "some",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![XFuncParamSpec {
-                    type_: t.clone(),
-                    required: true,
-                }],
-                ret: XOptionalType::xtype(t),
-            },
+            XFuncSpec::new(&[&t], XOptionalType::xtype(t.clone())).generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 Ok(manage_native!(XOptional { value: Some(a0) }, rt))
@@ -97,23 +86,17 @@ pub(crate) fn add_optional_map<W: Write + 'static>(
     scope.add_func(
         "map",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: XOptionalType::xtype(t_in.clone()),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![t_in],
-                            return_type: t_out.clone(),
-                        })),
-                        required: true,
-                    },
+            XFuncSpec::new(
+                &[
+                    &XOptionalType::xtype(t_in.clone()),
+                    &Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t_in],
+                        return_type: t_out.clone(),
+                    })),
                 ],
-                ret: XOptionalType::xtype(t_out),
-            },
+                XOptionalType::xtype(t_out),
+            )
+            .generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let opt0 = &to_native!(a0, XOptional<W>).value;
@@ -142,27 +125,18 @@ pub(crate) fn add_optional_map_or<W: Write + 'static>(
     scope.add_func(
         "map_or",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: XOptionalType::xtype(t.clone()),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: Arc::new(XCallable(XCallableSpec {
-                            param_types: vec![t.clone()],
-                            return_type: t.clone(),
-                        })),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: t.clone(),
-                        required: true,
-                    },
+            XFuncSpec::new(
+                &[
+                    &XOptionalType::xtype(t.clone()),
+                    &Arc::new(XCallable(XCallableSpec {
+                        param_types: vec![t.clone()],
+                        return_type: t.clone(),
+                    })),
+                    &t,
                 ],
-                ret: t,
-            },
+                t.clone(),
+            )
+            .generic(params),
             |args, ns, tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let opt0 = &to_native!(a0, XOptional<W>).value;
@@ -187,20 +161,7 @@ pub(crate) fn add_optional_or_unwrap<W: Write + 'static>(
     scope.add_func(
         "or",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: opt_t,
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: t.clone(),
-                        required: true,
-                    },
-                ],
-                ret: t,
-            },
+            XFuncSpec::new(&[&opt_t, &t], t.clone()).generic(params),
             |args, ns, tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let opt0 = &to_native!(a0, XOptional<W>).value;
@@ -221,20 +182,7 @@ pub(crate) fn add_optional_or<W: Write + 'static>(
     scope.add_func(
         "or",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: opt_t.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: opt_t.clone(),
-                        required: true,
-                    },
-                ],
-                ret: opt_t,
-            },
+            XFuncSpec::new(&[&opt_t, &opt_t], opt_t.clone()).generic(params),
             |args, ns, tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let opt0 = &to_native!(a0, XOptional<W>).value;
@@ -255,20 +203,7 @@ pub(crate) fn add_optional_and<W: Write + 'static>(
     scope.add_func(
         "and",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![
-                    XFuncParamSpec {
-                        type_: opt_t.clone(),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: opt_t.clone(),
-                        required: true,
-                    },
-                ],
-                ret: opt_t,
-            },
+            XFuncSpec::new(&[&opt_t, &opt_t], opt_t.clone()).generic(params),
             |args, ns, tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let opt0 = &to_native!(a0, XOptional<W>).value;
@@ -289,14 +224,7 @@ pub(crate) fn add_optional_has_value<W: Write + 'static>(
     scope.add_func(
         "has_value",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![XFuncParamSpec {
-                    type_: opt_t,
-                    required: true,
-                }],
-                ret: X_BOOL.clone(),
-            },
+            XFuncSpec::new(&[&opt_t], X_BOOL.clone()).generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let opt0 = &to_native!(a0, XOptional<W>).value;
@@ -314,14 +242,7 @@ pub(crate) fn add_optional_value<W: Write + 'static>(
     scope.add_func(
         "value",
         XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: Some(params),
-                params: vec![XFuncParamSpec {
-                    type_: opt_t,
-                    required: true,
-                }],
-                ret: t,
-            },
+            XFuncSpec::new(&[&opt_t], t).generic(params),
             |args, ns, _tca, rt| {
                 let (a0,) = eval!(args, ns, rt, 0);
                 let opt0 = to_native!(a0, XOptional<W>).value.clone();
@@ -336,26 +257,17 @@ pub(crate) fn add_optional_eq<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     let eq_symbol = scope.identifier("eq");
 
-    fn static_from_eq<W: Write + 'static>(
-        t0: Arc<XType>,
-        t1: Arc<XType>,
-        eq_expr: XExpr<W>,
-    ) -> Rc<XStaticFunction<W>> {
-        Rc::new(XStaticFunction::from_native(
-            XFuncSpec {
-                generic_params: None,
-                params: vec![
-                    XFuncParamSpec {
-                        type_: XOptionalType::xtype(t0),
-                        required: true,
-                    },
-                    XFuncParamSpec {
-                        type_: XOptionalType::xtype(t1),
-                        required: true,
-                    },
-                ],
-                ret: X_BOOL.clone(),
-            },
+    scope.add_dyn_func("eq", move |_params, types, ns| {
+        let (a0, a1) = unpack_types!(types, 0, 1);
+        let (t0,) = unpack_native!(a0, "Optional", 0);
+        let (t1,) = unpack_native!(a1, "Optional", 0);
+        let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t1.clone()], &X_BOOL)?;
+
+        Ok(Rc::new(XStaticFunction::from_native(
+            XFuncSpec::new(
+                &[&XOptionalType::xtype(t0), &XOptionalType::xtype(t1)],
+                X_BOOL.clone(),
+            ),
             move |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let opt0 = &to_native!(a0, XOptional<W>).value;
@@ -363,9 +275,7 @@ pub(crate) fn add_optional_eq<W: Write + 'static>(
                 if opt0.is_some() && opt1.is_some() {
                     let v0 = opt0.clone().unwrap();
                     let v1 = opt1.clone().unwrap();
-                    let inner_equal_value = eq_expr.eval(ns, false, rt.clone())?.unwrap_value();
-                    let inner_eq_func = to_primitive!(inner_equal_value, Function);
-                    let eq = inner_eq_func.eval_values(&[v0, v1], ns, rt)?;
+                    let eq = eval_resolved_func(&inner_eq, ns, rt.clone(), &[v0, v1])?;
                     Ok(eq.into())
                 } else {
                     Ok(
@@ -374,34 +284,6 @@ pub(crate) fn add_optional_eq<W: Write + 'static>(
                     )
                 }
             },
-        ))
-    }
-
-    fn from_types<W: Write + 'static>(
-        types: &[Arc<XType>],
-        scope: &XCompilationScope<W>,
-        eq_symbol: Identifier,
-    ) -> Result<Rc<XStaticFunction<W>>, String> {
-        if types.len() != 2 {
-            return Err(format!("Expected 2 types, got {}", types.len()));
-        }
-        let a0 = types[0].clone();
-        let t0 = match &a0.as_ref() {
-            XType::XNative(nt0, bind) if nt0.name() == "Optional" => bind[0].clone(),
-            _ => return Err(format!("Expected optional type, got {:?}", a0)), // todo improve
-        };
-        let a1 = types[1].clone();
-        let t1 = match &a1.as_ref() {
-            XType::XNative(nt1, bind) if nt1.name() == "Optional" => bind[0].clone(),
-            _ => return Err(format!("Expected optional type, got {:?}", a1)), // todo improve
-        };
-
-        let inner_eq = scope.resolve_overload(eq_symbol, &[t0.clone(), t1.clone()])?; // todo ensure that the function returns a bool
-
-        Ok(static_from_eq(t0, t1, inner_eq))
-    }
-
-    scope.add_dyn_func("eq", move |_params, types, ns| {
-        from_types(types, ns, eq_symbol)
+        )))
     })
 }
