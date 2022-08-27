@@ -96,7 +96,9 @@ add_ufunc!(
     X_FLOAT,
     Float,
     X_STRING,
-    |a: &f64| { Ok(XValue::String(format!("{a:?}"),)) }
+    |a: &f64| {
+        Ok(XValue::String(format!("{:?}", if *a == -0.0 {0.0} else {*a})))
+    }
 );
 
 add_binop!(add_float_cmp, cmp, X_FLOAT, Float, X_INT, |a, b| Ok(xcmp(

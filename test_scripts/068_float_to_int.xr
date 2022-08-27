@@ -1,0 +1,17 @@
+fn main()->bool{
+    assert(floor(-2.5) == -3)
+    && assert(ceil(-2.5) == -2)
+    && assert(trunc(-2.5) == -2)
+    && assert(floor(-1.0) == -1)
+    && assert(ceil(-1.0) == -1)
+    && assert(trunc(-1.0) == -1)
+    && assert(floor(0.5) == 0)
+    && assert(ceil(0.5) == 1)
+    && assert(trunc(0.5) == 0)
+    && assert(floor(2.0) == 2)
+    && assert(ceil(2.0) == 2)
+    && assert(trunc(2.0) == 2)
+    && assert(floor(3.5) == 3)
+    && assert(ceil(3.5) == 4)
+    && assert(trunc(3.5) == 3)
+}

@@ -419,3 +419,23 @@ fn test_script_065() {
 fn test_script_066() {
     test_script(66);
 }
+
+#[test]
+fn test_script_067() {
+    test_script(67);
+}
+
+#[test]
+fn test_script_068() {
+    test_script(68);
+}
+
+#[test]
+fn test_script_069() {
+    test_script(69);
+}
+
+#[test]
+fn test_script_070() {
+    test_script(70);
+}

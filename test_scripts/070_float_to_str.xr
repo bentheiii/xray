@@ -1,0 +1,8 @@
+fn main()->bool{
+    assert(1.0.to_str() == "1.0")
+    && assert(to_str(-1.0) == "-1.0")
+    && assert(to_str(-0.0) == "0.0")
+    && assert(to_str(1e10) == "10000000000.0")
+    && assert(to_str(-15e-16) == "-1.5e-15")
+    && assert(to_str(1.9e20) == "1.9e20")
+}
