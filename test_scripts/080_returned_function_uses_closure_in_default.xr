@@ -1,0 +1,11 @@
+fn foo()->int{
+    let DEF = 10;
+    fn g(t: int, x: int ?= DEF)->int{
+        t + x*2
+    }
+    g
+}
+
+fn main()->bool{
+    assert(foo()(7) == 27)
+}

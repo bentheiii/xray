@@ -46,7 +46,7 @@ use string_interner::DefaultSymbol;
 
 use crate::evaluation_scope::XEvaluationScope;
 use crate::xexpr::{
-    CompilationResult, UfData, XExplicitArgSpec, XExplicitFuncSpec, XStaticExpr, XStaticFunction,
+    CompilationResult, UfData, XExplicitStaticArgSpec, XExplicitStaticFuncSpec, XStaticExpr, XStaticFunction,
 };
 use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType};
 

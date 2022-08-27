@@ -1,0 +1,4 @@
+fn main()->bool{
+    let original = ["six", "two", "one", "eight", "ten", "minus five", "thirty three", "one hundred", "one hundred and seven"];
+    assert(original.sort() == ["eight", "minus five", "one", "one hundred", "one hundred and seven", "six", "ten", "thirty three", "two"])
+}

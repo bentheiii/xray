@@ -144,14 +144,14 @@ impl<W: Write + 'static> XFunction<W> {
                     }
                     //default params
                     // we only want the defaults that haven't been specified
-                    for (value, &name) in uf
+                    for (default_expr, &name) in uf
                         .defaults
                         .iter()
                         .rev()
                         .zip(uf.param_names.iter().skip(args.len()).rev())
                         .rev()
                     {
-                        scope.add_value(name, Ok(value.clone()));
+                        scope.add_value(name, Ok(default_expr.eval(&scope, false, runtime.clone())?.unwrap_value()));
                     }
 
                     for decl in &uf.declarations {

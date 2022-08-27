@@ -20,30 +20,31 @@ use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
+use itertools::Itertools;
 use string_interner::{DefaultSymbol, StringInterner};
 
 #[derive(Debug)]
-pub(crate) enum XStaticExpr<W: Write + 'static> {
+pub(crate) enum XStaticExpr {
     LiteralBool(bool),
     LiteralInt(i64),
     LiteralFloat(f64),
     LiteralString(String),
-    Array(Vec<XStaticExpr<W>>),
-    Tuple(Vec<XStaticExpr<W>>),
-    Call(Box<XStaticExpr<W>>, Vec<XStaticExpr<W>>),
-    Member(Box<XStaticExpr<W>>, String),
-    Ident(DefaultSymbol),
+    Array(Vec<XStaticExpr>),
+    Tuple(Vec<XStaticExpr>),
+    Call(Box<XStaticExpr>, Vec<XStaticExpr>),
+    Member(Box<XStaticExpr>, String),
+    Ident(Identifier),
     SpecializedIdent(
-        DefaultSymbol,
+        Identifier,
         Option<Vec<Arc<XType>>>,
         Option<Vec<Arc<XType>>>,
     ),
-    Lambda(Vec<XExplicitArgSpec<W>>, Box<XStaticExpr<W>>),
+    Lambda(Vec<XExplicitStaticArgSpec>, Box<XStaticExpr>),
 }
 
 pub(crate) struct CompilationResult<W: Write + 'static> {
     pub(crate) expr: XExpr<W>,
-    pub(crate) closure_vars: Vec<DefaultSymbol>,
+    pub(crate) closure_vars: Vec<Identifier>,
 }
 
 impl<W: Write + 'static> From<XExpr<W>> for CompilationResult<W> {
@@ -157,7 +158,7 @@ pub(crate) fn resolve_overload<'p, W: Write + 'static>(
 
 type JoinedCompilationResult<W> = (Vec<XExpr<W>>, Vec<DefaultSymbol>);
 
-impl<W: Write + 'static> XStaticExpr<W> {
+impl XStaticExpr {
     pub(crate) fn new_call(
         name: &'static str,
         args: Vec<Self>,
@@ -173,12 +174,12 @@ impl<W: Write + 'static> XStaticExpr<W> {
         Self::Call(Box::new(Self::Ident(name)), args)
     }
 
-    pub(crate) fn compile<'p>(
+    pub(crate) fn compile<'p, W: Write + 'static>(
         self,
         namespace: &'p XCompilationScope<'p, W>,
     ) -> Result<CompilationResult<W>, CompilationError<W>> {
         fn compile_many<'p, W: Write + 'static>(
-            exprs: impl IntoIterator<Item = XStaticExpr<W>>,
+            exprs: impl IntoIterator<Item = XStaticExpr>,
             namespace: &'p XCompilationScope<'p, W>,
         ) -> Result<JoinedCompilationResult<W>, CompilationError<W>> {
             let mut ret = vec![];
@@ -482,6 +483,7 @@ impl<W: Write + 'static> XStaticExpr<W> {
             },
             Self::Lambda(args, body) => {
                 let mut subscope = XCompilationScope::from_parent_lambda(namespace);
+                let (args, args_cvars): (Vec<_>, Vec<_>) = args.into_iter().map(|a| a.compile(&subscope)).collect::<Result<Vec<_>, _>>()?.into_iter().unzip();
                 for param in &args {
                     subscope.add_param(param.name, param.type_.clone())?;
                 }
@@ -496,7 +498,7 @@ impl<W: Write + 'static> XStaticExpr<W> {
                         },
                         vec![],
                         Box::new(body_result.expr),
-                        body_result.closure_vars.iter().cloned().collect(),
+                        body_result.closure_vars.iter().cloned().chain(args_cvars.into_iter().flatten().unique()).collect(),
                     )),
                 ))));
             }
@@ -545,7 +547,7 @@ pub struct UfData<W: Write + 'static> {
     pub cvars: HashSet<DefaultSymbol>,
 
     pub param_names: Vec<DefaultSymbol>,
-    pub defaults: Vec<Rc<ManagedXValue<W>>>,
+    pub defaults: Vec<XExpr<W>>,
     pub declarations: Vec<Declaration<W>>,
 }
 
@@ -646,6 +648,63 @@ impl<W: Write + 'static> Eq for XStaticFunction<W> {}
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
+pub struct XExplicitStaticFuncSpec {
+    pub generic_params: Option<Vec<DefaultSymbol>>,
+    pub args: Vec<XExplicitStaticArgSpec>,
+    pub ret: Arc<XType>,
+}
+
+#[derive(Derivative)]
+#[derivative(Debug(bound = ""))]
+pub struct XExplicitStaticArgSpec {
+    pub(crate) name: DefaultSymbol,
+    pub(crate) type_: Arc<XType>,
+    pub(crate) default: Option<XStaticExpr>,
+}
+
+impl XExplicitStaticFuncSpec {
+    pub(crate) fn to_spec(&self) -> XFuncSpec {
+        XFuncSpec {
+            generic_params: self.generic_params.clone(),
+            params: self
+                .args
+                .iter()
+                .map(|x| XFuncParamSpec {
+                    type_: x.type_.clone(),
+                    required: x.default.is_none(),
+                })
+                .collect(),
+            ret: self.ret.clone(),
+        }
+    }
+
+    pub(crate) fn compile<W: Write + 'static>(self, namespace: &XCompilationScope<W>)->Result<(XExplicitFuncSpec<W>, Vec<Identifier>),CompilationError<W>>{
+        let (args, cvars): (Vec<_>, Vec<_>) = self.args.into_iter().map(|a| a.compile(namespace)).collect::<Result<Vec<_>, _>>()?.into_iter().unzip();
+        Ok((XExplicitFuncSpec{
+            generic_params: self.generic_params.clone(),
+            ret: self.ret.clone(),
+            args
+        }, cvars.into_iter().flatten().unique().collect()))
+
+    }
+}
+
+impl XExplicitStaticArgSpec{
+    pub(crate) fn compile<W: Write + 'static>(self, namespace: &XCompilationScope<W>)->Result<(XExplicitArgSpec<W>, Vec<Identifier>),CompilationError<W>>{
+        let (def_expr, cvars) = match self.default {
+            Some(def) => {let res = def.compile(namespace)?; (Some(res.expr), res.closure_vars)}
+            None => (None, vec![])
+        };
+        Ok((XExplicitArgSpec{
+            name: self.name,
+            type_: self.type_.clone(),
+            default: def_expr
+        }, cvars))
+    }
+}
+
+#[derive(Derivative)]
+#[derivative(Debug(bound = ""))]
 pub struct XExplicitFuncSpec<W: Write + 'static> {
     pub generic_params: Option<Vec<DefaultSymbol>>,
     pub args: Vec<XExplicitArgSpec<W>>,
@@ -657,10 +716,10 @@ pub struct XExplicitFuncSpec<W: Write + 'static> {
 pub struct XExplicitArgSpec<W: Write + 'static> {
     pub(crate) name: DefaultSymbol,
     pub(crate) type_: Arc<XType>,
-    pub(crate) default: Option<Rc<ManagedXValue<W>>>,
+    pub(crate) default: Option<XExpr<W>>,
 }
 
-impl<W: Write + 'static> XExplicitFuncSpec<W> {
+impl<W: Write + 'static> XExplicitFuncSpec<W>{
     pub(crate) fn to_spec(&self) -> XFuncSpec {
         XFuncSpec {
             generic_params: self.generic_params.clone(),

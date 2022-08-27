@@ -1,0 +1,13 @@
+fn foo()->int{
+    fn bar (x: int)->int{
+        x * x + 1
+    }
+    fn g(t: int, x: int ?= bar(7))->int{
+        t + x*2
+    }
+    g(g(1), g(6, 2))
+}
+
+fn main()->bool{
+    assert(foo() == 121)
+}
