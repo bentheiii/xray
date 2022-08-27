@@ -113,7 +113,7 @@ pub(crate) fn add_ne<W: Write + 'static>(
         let eq_expr = get_func(ns, eq_symbol, &[t0.clone(), t1.clone()], &X_BOOL)?;
 
         Ok(Rc::new(XStaticFunction::from_native(
-            XFuncSpec::new(&[&t0, &t1], X_BOOL.clone()),
+            XFuncSpec::new(&[t0, t1], X_BOOL.clone()),
             move |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let eq = eval_resolved_func(&eq_expr, ns, rt.clone(), &[a0, a1])?;

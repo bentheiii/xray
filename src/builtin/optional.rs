@@ -275,7 +275,7 @@ pub(crate) fn add_optional_eq<W: Write + 'static>(
                 if opt0.is_some() && opt1.is_some() {
                     let v0 = opt0.clone().unwrap();
                     let v1 = opt1.clone().unwrap();
-                    let eq = eval_resolved_func(&inner_eq, ns, rt.clone(), &[v0, v1])?;
+                    let eq = eval_resolved_func(&inner_eq, ns, rt, &[v0, v1])?;
                     Ok(eq.into())
                 } else {
                     Ok(
