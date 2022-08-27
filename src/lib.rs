@@ -92,6 +92,7 @@ pub fn std_compilation_scope<W: Write + 'static>(runtime: RTCell<W>) -> RootComp
     add_float_eq(&mut ret).unwrap();
     add_float_neg(&mut ret).unwrap();
     add_float_sqrt(&mut ret).unwrap();
+    add_float_is_close(&mut ret).unwrap();
 
     add_str_type(&mut ret).unwrap();
     add_str_eq(&mut ret).unwrap();
@@ -101,8 +102,8 @@ pub fn std_compilation_scope<W: Write + 'static>(runtime: RTCell<W>) -> RootComp
     add_str_to_str(&mut ret).unwrap();
 
     add_bool_type(&mut ret).unwrap();
-    add_and(&mut ret).unwrap();
-    add_or(&mut ret).unwrap();
+    add_bool_and(&mut ret).unwrap();
+    add_bool_or(&mut ret).unwrap();
     add_bool_not(&mut ret).unwrap();
     add_bool_then(&mut ret).unwrap();
     add_bool_eq(&mut ret).unwrap();
@@ -111,7 +112,7 @@ pub fn std_compilation_scope<W: Write + 'static>(runtime: RTCell<W>) -> RootComp
     add_bool_to_str(&mut ret).unwrap();
 
     add_if(&mut ret).unwrap();
-    add_assert(&mut ret).unwrap();
+    add_bool_assert(&mut ret).unwrap();
     add_error(&mut ret).unwrap();
     add_cast(&mut ret).unwrap();
     add_debug(&mut ret).unwrap();

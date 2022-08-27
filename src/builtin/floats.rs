@@ -1,14 +1,12 @@
 use crate::builtin::core::xcmp;
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError,
-    RootCompilationScope, XStaticFunction,
-};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError, RootCompilationScope, XStaticFunction, meval};
 
 use crate::util::lazy_bigint::LazyBigint;
 use num_traits::{FromPrimitive, Zero};
 use rc::Rc;
+use std::cmp::{max_by};
 
 use std::io::Write;
 use std::rc;
@@ -32,7 +30,7 @@ add_float_binop!(add_float_mod, mod, |a: &f64, b: &f64| {
     if b.is_zero() {
         Err("modulo by zero".to_string())
     } else {
-        Ok(XValue::Float(a % b))
+        Ok(XValue::Float(((a % b) + b) % b))
     }
 });
 add_float_binop!(add_float_div, div, |a: &f64, b: &f64| {
@@ -50,6 +48,31 @@ add_binop!(
     X_BOOL,
     |a: &f64, b: &f64| { Ok(XValue::Bool(a == b)) }
 );
+pub(crate) fn add_float_is_close<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "is_close",
+        XStaticFunction::from_native(
+            XFuncSpec::new_with_optional(&[&X_FLOAT, &X_FLOAT], &[&X_FLOAT, &X_FLOAT], X_BOOL.clone()),
+            |args, ns, _tca, rt| {
+                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let (a2, a3) = meval!(args, ns, rt, 2, 3);
+                let rel_tol = a2.map_or(1e-9, |a2| *to_primitive!(a2, Float));
+                let abs_tol = a3.map_or(1e-9, |a2| *to_primitive!(a2, Float));
+                let f0 = to_primitive!(a0, Float);
+                let f1 = to_primitive!(a1, Float);
+                let tol = max_by(
+                    rel_tol * max_by(f0.abs(), f1.abs(), |a,b| a.partial_cmp(b).unwrap()),
+                    abs_tol,
+                    |a,b| a.partial_cmp(b).unwrap()
+                );
+                let ret = (f1 - f0).abs() <= tol;
+                return Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
+            },
+        ),
+    )
+}
 
 add_ufunc!(add_float_floor, floor, X_FLOAT, Float, X_INT, |a: &f64| Ok(
     XValue::Int(LazyBigint::from_f64(a.floor()).unwrap())

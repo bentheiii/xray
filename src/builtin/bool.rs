@@ -11,6 +11,7 @@ use rc::Rc;
 
 use std::io::Write;
 use std::rc;
+use crate::xexpr::XExpr;
 
 pub(crate) fn add_bool_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -22,25 +23,38 @@ add_binop!(add_bool_eq, eq, X_BOOL, Bool, X_BOOL, |a, b| Ok(
     XValue::Bool(a == b)
 ));
 
-add_ufunc_ref!(
-    add_assert,
-    assert,
-    X_BOOL,
-    X_BOOL,
-    |a: Rc<ManagedXValue<W>>, _rt| {
-        if let XValue::Bool(true) = a.value {
-            Ok(a.into())
-        } else {
-            Err("assertion is untrue".to_string())
-        }
-    }
-);
+pub(crate) fn add_bool_assert<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "assert",
+        XStaticFunction::from_native(
+            XFuncSpec::new(&[&X_BOOL], X_BOOL.clone()),
+            |args, ns, _tca, rt| {
+                let (a0,) = eval!(args, ns, rt, 0);
+                if let XValue::Bool(true) = a0.value {
+                    Ok(a0.into())
+                } else {
+                    // we fetch the original expression to maybe make the error message better
+                    let msg = match &args[0] {
+                        XExpr::Call(_func, inner_args)=>{
+                            let inner_arg_values = inner_args.iter().map(|e| Ok(e.eval(&ns, false, rt.clone())?.unwrap_value())).collect::<Result<Vec<_>, String>>()?;
+                            format!("function call with arguments: {inner_arg_values:?} is untrue")
+                        }
+                        _ => "assertion is untrue".to_string()
+                    };
+                    Err(msg)
+                }
+            },
+        ),
+    )
+}
 
 add_ufunc!(add_bool_not, not, X_BOOL, Bool, X_BOOL, |a: &bool| {
     Ok(XValue::Bool(!a))
 });
 
-pub(crate) fn add_and<W: Write + 'static>(
+pub(crate) fn add_bool_and<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError<W>> {
     scope.add_func(
@@ -58,7 +72,7 @@ pub(crate) fn add_and<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_or<W: Write + 'static>(
+pub(crate) fn add_bool_or<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError<W>> {
     scope.add_func(
