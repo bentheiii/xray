@@ -1,4 +1,4 @@
-fn foo()->int{
+fn foo()->(int)->(int){
     let DEF = 10;
     fn g(t: int, x: int ?= DEF)->int{
         t + x*2
