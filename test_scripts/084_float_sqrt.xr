@@ -1,0 +1,5 @@
+fn main()->bool{
+    assert(100.0.sqrt() == 10.0)
+    && assert(is_close(10.0.sqrt(), 3.1622776601))
+    && assert(is_error((-1.0).sqrt()))
+}

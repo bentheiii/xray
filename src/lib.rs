@@ -92,6 +92,7 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_float_neg(&mut ret).unwrap();
     add_float_sqrt(&mut ret).unwrap();
     add_float_is_close(&mut ret).unwrap();
+    add_float_pow(&mut ret).unwrap();
 
     add_str_type(&mut ret).unwrap();
     add_str_eq(&mut ret).unwrap();

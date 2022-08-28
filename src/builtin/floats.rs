@@ -43,6 +43,13 @@ add_float_binop!(add_float_div, div, |a: &f64, b: &f64| {
         Ok(XValue::Float(a / b))
     }
 });
+add_float_binop!(add_float_pow, pow, |a: &f64, b: &f64| {
+    if (*a <= 0.0 && *b <= 0.0) || (*a < 0.0 && *b < 1.0) {
+        Err("undefined exponential".to_string())
+    } else {
+        Ok(XValue::Float(a.powf(*b)))
+    }
+});
 add_binop!(
     add_float_eq,
     eq,
@@ -93,9 +100,13 @@ add_ufunc!(add_float_trunc, trunc, X_FLOAT, Float, X_INT, |a: &f64| Ok(
 add_ufunc!(add_float_neg, neg, X_FLOAT, Float, X_FLOAT, |a: &f64| Ok(
     XValue::Float(-a)
 ));
-add_ufunc!(add_float_sqrt, sqrt, X_FLOAT, Float, X_FLOAT, |a: &f64| Ok(
-    XValue::Float(a.sqrt())
-));
+add_ufunc!(add_float_sqrt, sqrt, X_FLOAT, Float, X_FLOAT, |a: &f64|
+    if *a < 0.0 {
+        Err("undefined exponential".to_string())
+    } else {
+        Ok(XValue::Float(a.sqrt()))
+    }
+);
 
 add_ufunc!(
     add_float_to_str,

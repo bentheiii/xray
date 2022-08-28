@@ -499,3 +499,12 @@ fn test_script_081() {
 fn test_script_082() {
     test_script(82);
 }
+
+#[test]
+fn test_script_083() {
+    test_script(83);
+}
+#[test]
+fn test_script_084() {
+    test_script(84);
+}
