@@ -49,7 +49,6 @@ pub struct XCompilationScope<'p, W: Write + 'static> {
     values: HashMap<Identifier, CompilationScopeValue>,
     types: HashMap<Identifier, CompilationScopeType>,
     functions: HashMap<Identifier, Vec<CompilationScopeFunction<W>>>,
-    recourse: Option<(Identifier, Rc<XFuncSpec>)>,
     closure_variables: HashSet<Identifier>,
     parent: Option<&'p XCompilationScope<'p, W>>,
 
@@ -91,7 +90,6 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
             types: HashMap::new(),
             functions: HashMap::new(),
             parent: None,
-            recourse: None,
             closure_variables: HashSet::new(),
             declarations: IPush::new(),
             height: 0,
@@ -103,19 +101,19 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
         recourse_name: Identifier,
         recourse_spec: XFuncSpec,
     ) -> Self {
-        XCompilationScope {
+        let mut ret = XCompilationScope {
             parent: Some(parent),
-            recourse: Some((recourse_name, Rc::new(recourse_spec))),
             height: parent.height + 1,
 
             ..Self::root()
-        }
+        };
+        ret.add_func(recourse_name, XStaticFunction::Recourse(Rc::new(recourse_spec), 0)).unwrap();
+        ret
     }
 
     pub(crate) fn from_parent_lambda(parent: &'p XCompilationScope<'p, W>) -> Self {
         XCompilationScope {
             parent: Some(parent),
-            recourse: None,
             height: parent.height + 1,
 
             ..Self::root()
@@ -161,15 +159,6 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
             let mut overloads = scope.functions.get(&name).map_or_else(Vec::new, |x| {
                 x.iter().map(|i| scope.get_function_factory(i)).collect()
             });
-            match &scope.recourse {
-                Some((rec_name, spec)) if rec_name == &name => {
-                    // todo just put this in declarations?
-                    overloads.push(XFunctionFactory::Static(Rc::new(
-                        XStaticFunction::Recourse(spec.clone(), 0),
-                    )));
-                }
-                _ => (),
-            }
             if !overloads.is_empty() {
                 for (depth, ancestor) in scope.ancestors().enumerate() {
                     if let Some(ancestor_overloads) = ancestor.functions.get(&name) {
