@@ -1067,7 +1067,7 @@ impl<W: Write + 'static> RootCompilationScope<W> {
     }
 }
 
-impl<W: Write + 'static> Default for RootCompilationScope<W>{
+impl<W: Write + 'static> Default for RootCompilationScope<W> {
     fn default() -> Self {
         Self::new()
     }

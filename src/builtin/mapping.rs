@@ -202,7 +202,7 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let mapping = to_native!(a0, XMapping<W>);
                 let seq = to_native!(a1, XSequence<W>);
-                let arr = seq.slice(0, seq.len(), ns, rt.clone()).collect::<Result<Vec<_>, _>>()?;
+                let arr = seq.slice(ns, rt.clone()).collect::<Result<Vec<_>, _>>()?;
                 let items = arr.iter().map(|t| {
                     let tup = to_primitive!(t, StructInstance);
                     (tup[0].clone(), tup[1].clone())
