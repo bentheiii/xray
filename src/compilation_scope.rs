@@ -856,7 +856,20 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                 if to_parse.contains('_') {
                     to_parse = Cow::Owned(to_parse.replace('_', ""));
                 }
-                if let Ok(whole) = to_parse.parse::<i64>() {
+                if let Some(whole) = to_parse
+                    .parse::<i64>()
+                    .ok()
+                    .or_else(|| {
+                        to_parse
+                            .strip_prefix("0x")
+                            .and_then(|s| i64::from_str_radix(s, 16).ok())
+                    })
+                    .or_else(|| {
+                        to_parse
+                            .strip_prefix("0b")
+                            .and_then(|s| i64::from_str_radix(s, 2).ok())
+                    })
+                {
                     return Ok(XStaticExpr::LiteralInt(whole));
                 }
                 if let Ok(float) = to_parse.parse::<f64>() {

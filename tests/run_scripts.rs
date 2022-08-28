@@ -494,3 +494,8 @@ fn test_script_080() {
 fn test_script_081() {
     test_script(81);
 }
+
+#[test]
+fn test_script_082() {
+    test_script(82);
+}
