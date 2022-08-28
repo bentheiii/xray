@@ -19,7 +19,9 @@ use std::fmt::Debug;
 use std::io::Write;
 use std::mem::size_of;
 use std::{rc};
+use std::ops::Neg;
 use std::sync::Arc;
+use either::Either;
 
 use crate::util::lazy_bigint::LazyBigint;
 use crate::util::try_extend::try_extend;
@@ -117,7 +119,7 @@ impl<W: Write + 'static> XSequence<W> {
         end_idx: usize,
         ns: &'a XEvaluationScope<W>,
         rt: RTCell<W>,
-    ) -> impl Iterator<Item=Result<Rc<ManagedXValue<W>>, String>> + 'a {
+    ) -> impl DoubleEndedIterator<Item=Result<Rc<ManagedXValue<W>>, String>> + 'a {
         (start_idx..end_idx).map(move |idx| self.get(idx, ns, rt.clone()))
     }
 
@@ -696,15 +698,15 @@ pub(crate) fn add_sequence_filter<W: Write + 'static>(
                 let f = to_primitive!(a1, Function);
                 // first we check if the seq already fully_matches
                 let mut first_drop_idx = None; // if this is not none, it is the first index we need to drop
-                let items = seq.slice(0, seq.len(), ns, rt.clone());
+                let mut items = seq.slice(0, seq.len(), ns, rt.clone());
                 let mut ret = Vec::new();
-                for (i, item) in items.enumerate() {
+                for (i, item) in items.by_ref().enumerate() {
                     let item = item?;
-                    ret.push(item.clone());
-                    if !*to_primitive!(f.eval_values(&[item], ns, rt.clone())?, Bool) {
+                    if !*to_primitive!(f.eval_values(&[item.clone()], ns, rt.clone())?, Bool) {
                         first_drop_idx = Some(i);
                         break;
                     }
+                    ret.push(item);
                 }
                 if first_drop_idx.is_some() {
                     for item in items {
@@ -747,11 +749,15 @@ pub(crate) fn add_sequence_nth<W: Write + 'static>(
             |args, ns, _tca, rt| {
                 let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
                 let seq = to_native!(a0, XSequence<W>);
-                let arr = seq.slice(0, seq.len(), ns, rt.clone());
+                let original_arr = seq.slice(0, seq.len(), ns, rt.clone());
                 let mut matches_left = to_primitive!(a1, Int).clone();
                 if matches_left.is_zero() {
                     return Err("match_count must be non-zero".to_string());
                 }
+                let arr = if matches_left.is_negative() {
+                    matches_left = matches_left.neg();
+                    Either::Left(original_arr.rev())
+                } else { Either::Right(original_arr) };
                 let f = to_primitive!(a2, Function);
                 for item in arr {
                     let item = item?;
@@ -800,14 +806,13 @@ pub(crate) fn add_sequence_take_while<W: Write + 'static>(
                     if !*to_primitive!(f.eval_values(&[item.clone()], ns, rt.clone())?, Bool) {
                         end_idx = i;
                         break;
-                    } else {
-                        ret.push(item);
                     }
+                    ret.push(item);
                 }
                 if end_idx == seq.len() {
                     Ok(a0.clone().into())
                 } else {
-                    Ok(manage_native!(XSequence::array(arr), rt))
+                    Ok(manage_native!(XSequence::array(ret), rt))
                 }
             },
         ),
@@ -837,11 +842,11 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
             |args, ns, _tca, rt| {
                 let (a0, a1) = eval!(args, ns, rt, 0, 1);
                 let seq = to_native!(a0, XSequence<W>);
-                let arr = seq.slice(0, seq.len(), ns, rt.clone());
+                let mut arr = seq.slice(0, seq.len(), ns, rt.clone());
                 let f = to_primitive!(a1, Function);
                 let mut start_idx = seq.len();
                 let mut ret = vec![];
-                for (i, item) in arr.enumerate() {
+                for (i, item) in arr.by_ref().enumerate() {
                     let item = item?;
                     if *to_primitive!(f.eval_values(&[item.clone()], ns, rt.clone())?, Bool) {
                         start_idx = i;
