@@ -77,6 +77,7 @@ impl<W: Write + 'static> XFunction<W> {
                     .map(|r| r.into())
             }
             Self::Recourse(depth) => {
+                println!("!!! TC.0 {} {}", tail_available, depth);
                 if tail_available && *depth == 0 {
                     let arguments = args
                         .iter()
@@ -166,6 +167,7 @@ impl<W: Write + 'static> XFunction<W> {
                     match uf.output.eval(&scope, true, runtime.clone())? {
                         TailedEvalResult::Value(value) => return Ok(value),
                         TailedEvalResult::TailCall(new_args) => {
+                            println!("!!! TC");
                             args = Cow::Owned(new_args);
                             recursion_depth += 1;
                             if let Some(recursion_limit) = runtime.borrow().limits.recursion_limit {

@@ -74,13 +74,18 @@ impl<W: Write + 'static> Clone for XFunctionFactory<W> {
     }
 }
 
+#[derive(Derivative, Clone)]
+#[derivative(Debug(bound = ""))]
+// todo check pub
+pub struct OverloadWithHeight<W: Write + 'static>(pub usize, pub XFunctionFactory<W>);
+
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub enum XCompilationScopeItem<W: Write + 'static> {
-    Value(Arc<XType>),
+    Value(usize, Arc<XType>),
     NativeType(Arc<XType>),
     Compound(CompoundKind, Arc<XCompoundSpec>),
-    Overload(Vec<XFunctionFactory<W>>),
+    Overload(Vec<OverloadWithHeight<W>>),
 }
 
 impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
@@ -157,7 +162,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
             depth: usize,
         ) -> Option<(XCompilationScopeItem<W>, usize)> {
             let mut overloads = scope.functions.get(&name).map_or_else(Vec::new, |x| {
-                x.iter().map(|i| scope.get_function_factory(i)).collect()
+                x.iter().map(|i| OverloadWithHeight(scope.height, scope.get_function_factory(i))).collect()
             });
             if !overloads.is_empty() {
                 for (depth, ancestor) in scope.ancestors().enumerate() {
@@ -171,7 +176,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                                     ));
                                 }
                             }
-                            func
+                            OverloadWithHeight(ancestor.height, func)
                         });
                         overloads.extend(ancestor_overloads);
                     }
@@ -185,7 +190,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                     }
                     CompilationScopeValue::Parameter(ty) => ty,
                 };
-                return Some((XCompilationScopeItem::Value(ty.clone()), depth));
+                return Some((XCompilationScopeItem::Value(scope.height, ty.clone()), depth));
             }
             if let Some(type_) = scope.types.get(&name) {
                 let item = match type_ {
@@ -208,23 +213,23 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
                             XCompilationScopeItem::Overload(overloads) => {
                                 XCompilationScopeItem::Overload(
                                     overloads
-                                        .iter()
+                                        .into_iter()
                                         .map(|x| {
-                                            if let XFunctionFactory::Static(stat) = x {
+                                            if let XFunctionFactory::Static(stat) = &x.1 {
                                                 if let XStaticFunction::Recourse(spec, ..) =
                                                     stat.as_ref()
                                                 {
-                                                    XFunctionFactory::Static(Rc::new(
+                                                    OverloadWithHeight(x.0.clone(), XFunctionFactory::Static(Rc::new(
                                                         XStaticFunction::Recourse(
                                                             spec.clone(),
                                                             depth,
                                                         ),
-                                                    ))
+                                                    )))
                                                 } else {
-                                                    x.clone()
+                                                    x
                                                 }
                                             } else {
-                                                x.clone()
+                                                x
                                             }
                                         })
                                         .collect(),
@@ -342,7 +347,7 @@ impl<'p, W: Write + 'static> XCompilationScope<'p, W> {
             Some(XCompilationScopeItem::Overload(overloads)) => overloads,
             _ => return Err(format!("{:?} is not an overload", name)), // todo better error
         };
-        resolve_overload(&overloads, None, Some(types), None, name, self)
+        resolve_overload(overloads.iter().map(|o| &o.1), None, Some(types), None, name, self)
             .map_err(|e| format!("overload resolution failed for {types:?} ({e:?})"))
     }
 

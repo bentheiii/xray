@@ -176,7 +176,7 @@ impl<W: Write + 'static> Resolve for XCompilationScopeItem<W> {
 
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
         match self {
-            Self::Value(t) => ResolvedCompilationScopeItem::Value(t.resolve(interner)),
+            Self::Value(_, t) => ResolvedCompilationScopeItem::Value(t.resolve(interner)),
             Self::NativeType(..) => ResolvedCompilationScopeItem::NativeType,
             Self::Compound(k, ..) => ResolvedCompilationScopeItem::Compound(*k),
             Self::Overload(overloads) => ResolvedCompilationScopeItem::Overloads(overloads.len()),

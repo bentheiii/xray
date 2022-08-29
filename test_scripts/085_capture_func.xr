@@ -1,0 +1,14 @@
+fn outer(x:int)->(int)->(float){
+    fn f(y: int)->float{
+        x/y
+    }
+    fn g(i: int)->float{
+        f(i) + f(i+1)
+    }
+    g
+}
+
+fn main()->bool{
+    let func = outer(3);
+    assert(func(4) == 3.0)
+}

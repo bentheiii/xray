@@ -73,8 +73,8 @@ impl<W: Write + 'static> CompilationResult<W> {
     }
 }
 
-pub(crate) fn resolve_overload<'p, W: Write + 'static>(
-    overloads: &[XFunctionFactory<W>],
+pub(crate) fn resolve_overload<'p, 'a, W: Write + 'static>(
+    overloads: impl IntoIterator<Item = &'a XFunctionFactory<W>>,
     args: Option<&[XExpr<W>]>,
     // promise, at least arg_types is Some, or dynamic_bind_types is Some
     arg_types: Option<&[Arc<XType>]>,
@@ -255,10 +255,11 @@ impl XStaticExpr {
                                     .iter()
                                     .map(|x| x.xtype())
                                     .collect::<Result<Vec<_>, _>>()?;
+
                                 return Ok(CompilationResult::new(
                                     XExpr::Call(
                                         Box::new(resolve_overload(
-                                            &overloads,
+                                            overloads.iter().map(|o| &o.1),
                                             Some(&compiled_args),
                                             Some(&arg_types),
                                             None,
@@ -331,7 +332,7 @@ impl XStaticExpr {
                                 Ok(CompilationResult::new(
                                     XExpr::Call(
                                         Box::new(resolve_overload(
-                                            &overloads,
+                                            overloads.iter().map(|o| &o.1),
                                             Some(&compiled_args),
                                             arg_types.as_ref().map(|v| &v[..]),
                                             dyn_bind_types.as_ref().map(|v| &v[..]),
@@ -411,20 +412,21 @@ impl XStaticExpr {
                     _,
                 )) => Err(CompilationError::TypeAsVariable { name }),
                 Some((item, depth)) => {
-                    let cvars = if depth != 0 && depth != namespace.height {
-                        vec![name]
-                    } else {
-                        vec![]
-                    };
                     match &item {
-                        XCompilationScopeItem::Value(t) => Ok(CompilationResult::new(
+                        XCompilationScopeItem::Value(height, t) => {
+                            let cvars = if *height > 0 && *height < namespace.height{
+                                vec![name]
+                            } else {
+                                vec![]
+                            };
+                            Ok(CompilationResult::new(
                             XExpr::Ident(name, Box::new(IdentItem::Value(t.clone()))),
                             cvars,
-                        )),
+                        ))},
                         XCompilationScopeItem::Overload(overloads) => {
                             if overloads.len() == 1 {
                                 // todo fix this if (turn into pattern)
-                                let overload = &overloads[0];
+                                let overload = &overloads[0].1;
                                 match overload {
                                     XFunctionFactory::Static(overload) => {
                                         if overload.is_generic() {
@@ -437,7 +439,7 @@ impl XStaticExpr {
                                                     name,
                                                     Box::new(IdentItem::Function(overload.clone())),
                                                 ),
-                                                cvars,
+                                                vec![],
                                             ))
                                         }
                                     }
@@ -457,21 +459,16 @@ impl XStaticExpr {
                 .get_with_depth(name)
             {
                 Some((XCompilationScopeItem::Overload(overloads), depth)) => {
-                    let cvars = if depth != 0 && depth != namespace.height {
-                        vec![name]
-                    } else {
-                        vec![]
-                    };
                     Ok(CompilationResult::new(
                         resolve_overload(
-                            &overloads,
+                            overloads.iter().map(|o| &o.1),
                             None,
                             arg_types.as_ref().map(|v| &v[..]),
                             bind_types.as_ref().map(|v| &v[..]),
                             name,
                             namespace,
                         )?,
-                        cvars,
+                        vec![],
                     ))
                 }
                 None => Err(CompilationError::FunctionNotFound { name }),
@@ -974,7 +971,7 @@ impl<W: Write + 'static> XExpr<W> {
             )?
             .into()),
             Self::Lambda(func) => Ok(ManagedXValue::new(
-                XValue::Function(namespace.lock_closure(func)),
+                XValue::Function(namespace.lock_closure(func, runtime.clone())),
                 runtime,
             )?
             .into()),

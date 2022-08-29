@@ -1,6 +1,6 @@
 use crate::runtime::RTCell;
 use crate::xexpr::XStaticFunction;
-use crate::xvalue::{ManagedXValue, XFunction};
+use crate::xvalue::{ManagedXValue, XFunction, XValue};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 use std::io::Write;
@@ -18,7 +18,7 @@ pub struct XEvaluationScope<'p, W: Write + 'static> {
     ud_static_functions: HashMap<Identifier, Vec<Rc<XStaticFunction<W>>>>,
     ud_functions: HashMap<RcHash<XStaticFunction<W>>, XFunction<W>>,
     parent: Option<&'p XEvaluationScope<'p, W>>,
-    depth: usize,
+    pub depth: usize, // todo this shouldn't be pub
 }
 
 pub struct MultipleUD; // for trying to access an ambiguous user-defined
@@ -116,6 +116,7 @@ impl<'p, W: Write + 'static> XEvaluationScope<'p, W> {
         decl: &Declaration<W>,
         runtime: RTCell<W>,
     ) -> Result<(), String> {
+        println!("!!! A.0 {}", self.depth);
         match decl {
             Declaration::Value(name, expr, ..) => {
                 let value = expr.eval(self, false, runtime).map(|v| v.unwrap_value());
@@ -123,7 +124,7 @@ impl<'p, W: Write + 'static> XEvaluationScope<'p, W> {
             }
             Declaration::Function(name, func) => {
                 if let XStaticFunction::UserFunction(..) = func.as_ref() {
-                    let evaled = self.lock_closure(func);
+                    let evaled = self.lock_closure(func, runtime);
                     self.ud_static_functions
                         .entry(*name)
                         .or_insert_with(Vec::new)
@@ -134,15 +135,23 @@ impl<'p, W: Write + 'static> XEvaluationScope<'p, W> {
             }
             _ => {}
         }
+        println!("!!! A.1 {}", self.depth);
         Ok(())
     }
 
-    pub(crate) fn lock_closure(&self, func: &Rc<XStaticFunction<W>>) -> XFunction<W> {
+    pub(crate) fn lock_closure(&self, func: &Rc<XStaticFunction<W>>, rt: RTCell<W>) -> XFunction<W> {
         let uf = let_match!(func.as_ref(); XStaticFunction::UserFunction(uf) => uf);
         let closure = Rc::new(
             uf.cvars
                 .iter()
-                .map(|&name| (name, self.get_value(name).unwrap()))
+                .map(|&name| {
+                    (name, self.get_value(name).unwrap_or_else(
+                        || {
+                            let single_overload = self.get_unique_ud_func(name).expect("NOT YET IMPLEMENTED: cannot capture an overloaded function").unwrap().clone();
+                            Ok(ManagedXValue::new(XValue::Function(single_overload), rt.clone())?)
+                        }
+                    ))
+                })
                 .collect(),
         );
         XFunction::UserFunction(func.clone(), closure)
