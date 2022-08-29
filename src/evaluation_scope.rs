@@ -116,7 +116,6 @@ impl<'p, W: Write + 'static> XEvaluationScope<'p, W> {
         decl: &Declaration<W>,
         runtime: RTCell<W>,
     ) -> Result<(), String> {
-        println!("!!! A.0 {}", self.depth);
         match decl {
             Declaration::Value(name, expr, ..) => {
                 let value = expr.eval(self, false, runtime).map(|v| v.unwrap_value());
@@ -135,7 +134,6 @@ impl<'p, W: Write + 'static> XEvaluationScope<'p, W> {
             }
             _ => {}
         }
-        println!("!!! A.1 {}", self.depth);
         Ok(())
     }
 
