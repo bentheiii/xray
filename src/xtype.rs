@@ -219,6 +219,21 @@ impl XFuncSpec {
     pub(crate) fn rtype(&self, bind: &Bind) -> Arc<XType> {
         self.ret.clone().resolve_bind(bind, None)
     }
+    
+    pub(crate) fn xtype2(&self) -> Arc<XType> { // todo make this xtype1?
+        Arc::new(XType::XFunc(Self {
+            generic_params: self.generic_params.clone(),
+            params: self
+                .params
+                .iter()
+                .map(|p| XFuncParamSpec {
+                    type_: p.type_.clone(),
+                    required: p.required,
+                })
+                .collect(),
+            ret: self.ret.clone(),
+        }))
+    }
 
     pub(crate) fn xtype(&self, bind: &Bind) -> Arc<XType> {
         Arc::new(XType::XFunc(Self {
