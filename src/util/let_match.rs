@@ -4,7 +4,7 @@ macro_rules! let_match {
         if let $pat = $e {
             $out
         } else {
-            unreachable!()
+            panic!("value {:?} did not match pattern: {}", $e, stringify!($pat))
         }
     };
 }

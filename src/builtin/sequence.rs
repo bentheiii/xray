@@ -1,14 +1,14 @@
-use crate::builtin::core::get_func;
+use crate::builtin::core::{eval, eval_if_present, eval_result, get_func};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::stack::{XStack, XStackType};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::util::trysort::try_sort;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
-use crate::xvalue::{ManagedXValue, XFunction, XValue};
+use crate::xvalue::{ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    eval, manage_native, meval, to_native, to_primitive, unpack_native, unpack_types,
-    CompilationError, RTCell, RootCompilationScope, XCallableSpec, XEvaluationScope,
+    manage_native, meval, to_native, to_primitive, unpack_native, unpack_types,
+    CompilationError, RTCell, RootCompilationScope, XCallableSpec,
     XStaticFunction, XType,
 };
 use derivative::Derivative;
@@ -22,6 +22,8 @@ use std::mem::size_of;
 use std::ops::Neg;
 use std::rc;
 use std::sync::Arc;
+use crate::evaluation_scope::EvaluatedVariable;
+use crate::runtime_scope::RuntimeScope;
 
 use crate::util::lazy_bigint::LazyBigint;
 use crate::util::try_extend::try_extend;
@@ -48,7 +50,7 @@ impl NativeType for XSequenceType {
 #[derivative(Debug(bound = ""))]
 pub enum XSequence<W: Write + 'static> {
     Empty,
-    Array(Vec<Rc<ManagedXValue<W>>>),
+    Array(Vec<EvaluatedVariable<W>>),
     // never empty
     Range(i64, i64, i64),
     Map(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
@@ -56,7 +58,7 @@ pub enum XSequence<W: Write + 'static> {
 }
 
 impl<W: Write + 'static> XSequence<W> {
-    pub(crate) fn array(value: Vec<Rc<ManagedXValue<W>>>) -> Self {
+    pub(crate) fn array(value: Vec<EvaluatedVariable<W>>) -> Self {
         if value.is_empty() {
             Self::Empty
         } else {
@@ -88,26 +90,26 @@ impl<W: Write + 'static> XSequence<W> {
     pub(super) fn get(
         &self,
         idx: usize,
-        ns: &XEvaluationScope<W>,
+        ns: &RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> Result<Rc<ManagedXValue<W>>, String> {
+    ) -> EvaluatedVariable<W> {
         match self {
             Self::Empty => unreachable!(),
-            Self::Array(arr) => Ok(arr[idx].clone()),
+            Self::Array(arr) => arr[idx].clone(),
             Self::Range(start, _, step) => {
                 let v = LazyBigint::from(*start) + LazyBigint::from(idx) * LazyBigint::from(*step);
                 Ok(ManagedXValue::new(XValue::Int(v), rt)?)
             }
             Self::Map(seq, func) => {
-                let original = to_native!(seq, Self).get(idx, ns, rt.clone())?;
+                let original = to_native!(seq, Self).get(idx, ns, rt.clone());
                 let f = to_primitive!(func, Function);
-                f.eval_values(&[original], ns, rt)
+                ns.eval_func_with_values(f, vec![original], rt, false).map(|e| e.unwrap_value())?
             }
             Self::Zip(sequences) => {
                 let items = sequences
                     .iter()
                     .map(|seq| to_native!(seq, Self).get(idx, ns, rt.clone()))
-                    .collect::<Result<_, _>>()?;
+                    .collect::<Vec<_>>();
                 Ok(ManagedXValue::new(XValue::StructInstance(items), rt)?)
             }
         }
@@ -115,7 +117,7 @@ impl<W: Write + 'static> XSequence<W> {
 
     pub(super) fn slice<'a>(
         &'a self,
-        ns: &'a XEvaluationScope<W>,
+        ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
     ) -> impl DoubleEndedIterator<Item = Result<Rc<ManagedXValue<W>>, String>> + 'a {
         (0..self.len()).map(move |idx| self.get(idx, ns, rt.clone()))
@@ -128,15 +130,15 @@ impl<W: Write + 'static> XSequence<W> {
     fn sorted(
         &self,
         cmp_func: &XFunction<W>,
-        ns: &XEvaluationScope<W>,
+        ns: &RuntimeScope<W>,
         rt: RTCell<W>,
     ) -> Result<Option<Self>, String> {
-        let arr = self.slice(ns, rt.clone()).collect::<Result<Vec<_>, _>>()?;
+        let arr = self.slice(ns, rt.clone()).collect::<Vec<_>>();
         // first we check if the seq is already sorted
         let mut is_sorted = true;
         for w in arr.windows(2) {
             if to_primitive!(
-                cmp_func.eval_values(&[w[0].clone(), w[1].clone()], ns, rt.clone())?,
+                ns.eval_func_with_values(cmp_func, vec![w[0].clone(), w[1].clone()], rt.clone(), false)?.unwrap_value()?,
                 Int
             )
             .is_positive()
@@ -151,7 +153,7 @@ impl<W: Write + 'static> XSequence<W> {
             let mut ret = arr;
             try_sort(&mut ret, |a, b| -> Result<_, String> {
                 Ok(to_primitive!(
-                    cmp_func.eval_values(&[a.clone(), b.clone()], ns, rt.clone())?,
+                    ns.eval_func_with_values(cmp_func, vec![a.clone(), b.clone()], rt.clone(), false)?.unwrap_value()?,
                     Int
                 )
                 .is_negative())
@@ -165,7 +167,8 @@ impl<W: Write + 'static> XNativeValue for XSequence<W> {
     fn size(&self) -> usize {
         match self {
             Self::Empty => size_of::<usize>(),
-            Self::Array(arr) | Self::Zip(arr) => arr.len() * size_of::<usize>(),
+            Self::Array(arr) => arr.len() * size_of::<usize>(),
+            Self::Zip(arr) => arr.len() * size_of::<usize>(),
             Self::Range(..) => 3 * size_of::<usize>(),
             Self::Map(..) => 2 * size_of::<usize>(),
         }
@@ -199,13 +202,12 @@ pub(crate) fn add_sequence_get<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError<W>> {
     let ([t], params) = scope.generics_from_names(["T"]);
-
     scope.add_func(
         "get",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&XSequenceType::xtype(t.clone()), &X_INT], t).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 let arr = &to_native!(a0, XSequence<W>);
                 let idx = to_primitive!(a1, Int);
                 let idx = value_to_idx(arr, idx)?;
@@ -222,10 +224,10 @@ pub(crate) fn add_sequence_len<W: Write + 'static>(
 
     scope.add_func(
         "len",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&XSequenceType::xtype(t)], X_INT.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let [a0,] = eval(args, ns, &rt,[0])?;
                 let arr = &to_native!(a0, XSequence<W>);
                 Ok(ManagedXValue::new(XValue::Int(arr.len().into()), rt)?.into())
             },
@@ -241,21 +243,21 @@ pub(crate) fn add_sequence_add<W: Write + 'static>(
 
     scope.add_func(
         "add",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_arr, &t_arr], t_arr.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let [a0,] = eval(args, ns, &rt,[0])?;
                 let seq0 = to_native!(a0, XSequence<W>);
                 if seq0.is_empty() {
-                    return args[1].eval(ns, tca, rt);
+                    return ns.eval(&args[1], rt, tca);
                 }
-                let (a1,) = eval!(args, ns, rt, 1);
+                let [a1,] = eval(args, ns, &rt,[1])?;
                 let seq1 = to_native!(a1, XSequence<W>);
                 if seq1.is_empty() {
                     return Ok(a0.clone().into());
                 }
-                let mut arr = seq0.slice(ns, rt.clone()).collect::<Result<Vec<_>, _>>()?;
-                try_extend(&mut arr, seq1.slice(ns, rt.clone()))?;
+                let mut arr = seq0.slice(ns, rt.clone()).collect::<Vec<_>>();
+                arr.extend(seq1.slice(ns, rt.clone()));
                 Ok(manage_native!(XSequence::array(arr), rt))
             },
         ),
@@ -271,16 +273,16 @@ pub(crate) fn add_sequence_add_stack<W: Write + 'static>(
 
     scope.add_func(
         "add",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_arr, &t_stack], t_arr.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 let seq0 = to_native!(a0, XSequence<W>);
                 let stk1 = to_native!(a1, XStack<W>);
                 if stk1.length == 0 {
                     Ok(a0.clone().into())
                 } else {
-                    let mut arr = seq0.slice(ns, rt.clone()).collect::<Result<Vec<_>, _>>()?;
+                    let mut arr = seq0.slice(ns, rt.clone()).collect::<Vec<_>>();
                     for v in stk1.iter() {
                         arr.push(v.clone());
                     }
@@ -300,16 +302,16 @@ pub(crate) fn add_sequence_addrev_stack<W: Write + 'static>(
 
     scope.add_func(
         "add_rev",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_arr, &t_stack], t_arr.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 let seq0 = to_native!(a0, XSequence<W>);
                 let stk1 = to_native!(a1, XStack<W>);
                 if stk1.length == 0 {
                     Ok(a0.clone().into())
                 } else {
-                    let mut arr = seq0.slice(ns, rt.clone()).collect::<Result<Vec<_>, _>>()?;
+                    let mut arr = seq0.slice(ns, rt.clone()).collect::<Vec<_>>();
                     let original_len = arr.len();
                     for v in stk1.iter() {
                         arr.push(v.clone());
@@ -330,12 +332,13 @@ pub(crate) fn add_sequence_push<W: Write + 'static>(
 
     scope.add_func(
         "push",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_arr, &t], t_arr.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0,] = eval(args, ns, &rt,[0])?;
+                let [a1,] = eval_result(args, ns, &rt,[1])?;
                 let seq0 = to_native!(a0, XSequence<W>);
-                let mut arr = seq0.slice(ns, rt.clone()).collect::<Result<Vec<_>, _>>()?;
+                let mut arr = seq0.slice(ns, rt.clone()).collect::<Vec<_>>();
                 arr.push(a1);
                 Ok(manage_native!(XSequence::array(arr), rt))
             },
@@ -351,13 +354,14 @@ pub(crate) fn add_sequence_rpush<W: Write + 'static>(
 
     scope.add_func(
         "rpush",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_arr, &t], t_arr.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0,] = eval(args, ns, &rt,[0])?;
+                let [a1,] = eval_result(args, ns, &rt,[1])?;
                 let seq0 = to_native!(a0, XSequence<W>);
                 let mut arr = vec![a1];
-                try_extend(&mut arr, seq0.slice(ns, rt.clone()))?;
+                arr.extend(seq0.slice(ns, rt.clone()));
                 Ok(manage_native!(XSequence::array(arr), rt))
             },
         ),
@@ -372,17 +376,20 @@ pub(crate) fn add_sequence_insert<W: Write + 'static>(
 
     scope.add_func(
         "insert",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_arr, &X_INT, &t], t_arr.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
+                let [a0, a1, a2] = eval(args, ns, &rt,[0, 1, 2])?;
+                
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
+                let [a2,] = eval_result(args, ns, &rt,[2])?;
                 let seq = to_native!(a0, XSequence<W>);
                 let idx = to_primitive!(a1, Int);
                 let idx = value_to_idx(seq, idx)?;
-                let mut ret: Vec<Rc<_>> = vec![];
-                try_extend(&mut ret, seq.slice(ns, rt.clone()).take(idx))?;
+                let mut ret = vec![];
+                ret.extend(seq.slice(ns, rt.clone()).take(idx));
                 ret.push(a2);
-                try_extend(&mut ret, seq.slice(ns, rt.clone()).skip(idx))?;
+                ret.extend(seq.slice(ns, rt.clone()).skip(idx));
                 Ok(manage_native!(XSequence::array(ret), rt))
             },
         ),
@@ -397,19 +404,19 @@ pub(crate) fn add_sequence_pop<W: Write + 'static>(
 
     scope.add_func(
         "pop",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_arr, &X_INT], t_arr.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 let seq = to_native!(a0, XSequence<W>);
                 let idx = to_primitive!(a1, Int);
                 let idx = value_to_idx(seq, idx)?;
                 if seq.len() == 1 {
                     return Ok(manage_native!(XSequence::<W>::Empty, rt));
                 }
-                let mut ret: Vec<Rc<_>> = vec![];
-                try_extend(&mut ret, seq.slice(ns, rt.clone()).take(idx))?;
-                try_extend(&mut ret, seq.slice(ns, rt.clone()).skip(idx + 1))?;
+                let mut ret = vec![];
+                ret.extend(seq.slice(ns, rt.clone()).take(idx));
+                ret.extend(seq.slice(ns, rt.clone()).skip(idx + 1));
                 Ok(manage_native!(XSequence::array(ret), rt))
             },
         ),
@@ -424,19 +431,20 @@ pub(crate) fn add_sequence_set<W: Write + 'static>(
 
     scope.add_func(
         "set",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_arr, &X_INT, &t], t_arr.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
+                let [a0, a1,] = eval(args, ns, &rt,[0, 1])?;
+                let [a2,] = eval_result(args, ns, &rt, [2])?;
                 let seq = to_native!(a0, XSequence<W>);
                 let idx = to_primitive!(a1, Int);
                 let idx = value_to_idx(seq, idx)?;
-                let mut ret: Vec<Rc<_>> = seq
+                let mut ret: Vec<_> = seq
                     .slice(ns, rt.clone())
                     .take(idx)
-                    .collect::<Result<_, _>>()?;
+                    .collect();
                 ret.push(a2);
-                try_extend(&mut ret, seq.slice(ns, rt.clone()).skip(idx + 1))?;
+                ret.extend(seq.slice(ns, rt.clone()).skip(idx + 1));
                 Ok(manage_native!(XSequence::array(ret), rt))
             },
         ),
@@ -451,10 +459,10 @@ pub(crate) fn add_sequence_swap<W: Write + 'static>(
 
     scope.add_func(
         "swap",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_arr, &X_INT, &X_INT], t_arr.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
+                let [a0, a1, a2] = eval(args, ns, &rt,[0, 1, 2])?;
                 let seq = to_native!(a0, XSequence<W>);
                 let idx1 = to_primitive!(a1, Int);
                 let idx2 = to_primitive!(a2, Int);
@@ -469,14 +477,11 @@ pub(crate) fn add_sequence_swap<W: Write + 'static>(
                 let mut ret = seq
                     .slice(ns, rt.clone())
                     .take(idx1)
-                    .collect::<Result<Vec<_>, _>>()?;
-                ret.push(seq.get(idx2, ns, rt.clone())?);
-                try_extend(
-                    &mut ret,
-                    seq.slice(ns, rt.clone()).take(idx2).skip(idx1 + 1),
-                )?;
-                ret.push(seq.get(idx1, ns, rt.clone())?);
-                try_extend(&mut ret, seq.slice(ns, rt.clone()).skip(idx2 + 1))?;
+                    .collect::<Vec<_>>();
+                ret.push(seq.get(idx2, ns, rt.clone()));
+                ret.extend(seq.slice(ns, rt.clone()).take(idx2).skip(idx1 + 1));
+                ret.push(seq.get(idx1, ns, rt.clone()));
+                ret.extend(seq.slice(ns, rt.clone()).skip(idx2 + 1));
                 Ok(manage_native!(XSequence::array(ret), rt))
             },
         ),
@@ -490,15 +495,15 @@ pub(crate) fn add_sequence_to_stack<W: Write + 'static>(
 
     scope.add_func(
         "to_stack",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&XSequenceType::xtype(t.clone())], XStackType::xtype(t))
                 .generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let [a0,] = eval(args, ns, &rt,[0])?;
                 let arr = to_native!(a0, XSequence<W>);
                 let mut ret = XStack::new();
                 for x in arr.slice(ns, rt.clone()) {
-                    ret = ret.push(x?);
+                    ret = ret.push(x);
                 }
                 Ok(manage_native!(ret, rt))
             },
@@ -513,7 +518,6 @@ pub(crate) fn add_sequence_map<W: Write + 'static>(
 
     scope.add_func(
         "map",
-        XStaticFunction::from_native(
             XFuncSpec::new(
                 &[
                     &XSequenceType::xtype(input_t.clone()),
@@ -525,8 +529,9 @@ pub(crate) fn add_sequence_map<W: Write + 'static>(
                 XSequenceType::xtype(output_t),
             )
             .generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 Ok(manage_native!(XSequence::Map(a0, a1), rt))
             },
         ),
@@ -541,7 +546,6 @@ pub(crate) fn add_sequence_sort<W: Write + 'static>(
 
     scope.add_func(
         "sort",
-        XStaticFunction::from_native(
             XFuncSpec::new(
                 &[
                     &t_arr,
@@ -553,8 +557,9 @@ pub(crate) fn add_sequence_sort<W: Write + 'static>(
                 t_arr.clone(),
             )
             .generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 let seq = to_native!(a0, XSequence<W>);
                 let f = to_primitive!(a1, Function);
                 seq.sorted(f, ns, rt.clone())?
@@ -572,7 +577,6 @@ pub(crate) fn add_sequence_reduce3<W: Write + 'static>(
 
     scope.add_func(
         "reduce",
-        XStaticFunction::from_native(
             XFuncSpec::new(
                 &[
                     &t_arr,
@@ -585,16 +589,18 @@ pub(crate) fn add_sequence_reduce3<W: Write + 'static>(
                 s.clone(),
             )
             .generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
+                let [a0, a2] = eval(args, ns, &rt,[0, 2])?;
+                let [a1,] = eval_result(args, ns, &rt, [1])?;
                 let seq = to_native!(a0, XSequence<W>);
                 let f = to_primitive!(a2, Function);
                 let mut ret = a1;
                 let arr = seq.slice(ns, rt.clone());
                 for i in arr {
-                    ret = f.eval_values(&[ret, i?], ns, rt.clone())?;
+                    ret = ns.eval_func_with_values(f, vec![ret, i], rt.clone(), false).map(|i| i.unwrap_value())?;
                 }
-                Ok(ret.into())
+                ret.map(|i| i.into())
             },
         ),
     )
@@ -608,7 +614,6 @@ pub(crate) fn add_sequence_reduce2<W: Write + 'static>(
 
     scope.add_func(
         "reduce",
-        XStaticFunction::from_native(
             XFuncSpec::new(
                 &[
                     &t_arr,
@@ -620,19 +625,20 @@ pub(crate) fn add_sequence_reduce2<W: Write + 'static>(
                 t,
             )
             .generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 let seq = to_native!(a0, XSequence<W>);
                 if seq.is_empty() {
                     return Err("sequence is empty".to_string());
                 }
                 let f = to_primitive!(a1, Function);
-                let mut ret = seq.get(0, ns, rt.clone())?;
+                let mut ret = seq.get(0, ns, rt.clone());
                 let arr = seq.slice(ns, rt.clone()).skip(1);
                 for i in arr {
-                    ret = f.eval_values(&[ret, i?], ns, rt.clone())?;
+                    ret = ns.eval_func_with_values(f, vec![ret, i], rt.clone(), false).map(|i| i.unwrap_value())?;
                 }
-                Ok(ret.into())
+                ret.map(|i| i.into())
             },
         ),
     )
@@ -645,18 +651,18 @@ pub(crate) fn add_sequence_range<W: Write + 'static>(
 
     scope.add_func(
         "range",
-        XStaticFunction::from_native(
             XFuncSpec::new_with_optional(&[&X_INT], &[&X_INT, &X_INT], t_arr),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
                 let (start, end, step);
                 if args.len() == 1 {
-                    let (a0,) = eval!(args, ns, rt, 0);
+                    let [a0,] = eval(args, ns, &rt,[0])?;
                     end = to_primitive!(a0, Int).to_i64().ok_or("end out of bounds")?;
                     start = 0i64;
                     step = 1i64;
                 } else {
-                    let (a0, a1) = eval!(args, ns, rt, 0, 1);
-                    let (a2,) = meval!(args, ns, rt, 2);
+                    let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
+                    let [a2,] = eval_if_present(args, ns, &rt, [2])?;
                     start = to_primitive!(a0, Int)
                         .to_i64()
                         .ok_or("start out of bounds")?;
@@ -687,7 +693,6 @@ pub(crate) fn add_sequence_filter<W: Write + 'static>(
 
     scope.add_func(
         "filter",
-        XStaticFunction::from_native(
             XFuncSpec::new(
                 &[
                     &t_arr,
@@ -699,8 +704,9 @@ pub(crate) fn add_sequence_filter<W: Write + 'static>(
                 t_arr.clone(),
             )
             .generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 let seq = to_native!(a0, XSequence<W>);
                 let f = to_primitive!(a1, Function);
                 // first we check if the seq already fully_matches
@@ -708,8 +714,8 @@ pub(crate) fn add_sequence_filter<W: Write + 'static>(
                 let mut items = seq.slice(ns, rt.clone());
                 let mut ret = Vec::new();
                 for (i, item) in items.by_ref().enumerate() {
-                    let item = item?;
-                    if !*to_primitive!(f.eval_values(&[item.clone()], ns, rt.clone())?, Bool) {
+                    let res = ns.eval_func_with_values(f, vec![item.clone()], rt.clone(), false)?.unwrap_value()?;
+                    if !*to_primitive!(res, Bool) {
                         first_drop_idx = Some(i);
                         break;
                     }
@@ -717,8 +723,8 @@ pub(crate) fn add_sequence_filter<W: Write + 'static>(
                 }
                 if first_drop_idx.is_some() {
                     for item in items {
-                        let item = item?;
-                        if *to_primitive!(f.eval_values(&[item.clone()], ns, rt.clone())?, Bool) {
+                        let res = ns.eval_func_with_values(f, vec![item.clone()], rt.clone(), false)?.unwrap_value()?;
+                        if *to_primitive!(res, Bool) {
                             ret.push(item);
                         }
                     }
@@ -740,7 +746,6 @@ pub(crate) fn add_sequence_nth<W: Write + 'static>(
 
     scope.add_func(
         "nth",
-        XStaticFunction::from_native(
             XFuncSpec::new(
                 &[
                     &t_arr,
@@ -753,8 +758,9 @@ pub(crate) fn add_sequence_nth<W: Write + 'static>(
                 XOptionalType::xtype(t),
             )
             .generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1, a2) = eval!(args, ns, rt, 0, 1, 2);
+                let [a0, a1, a2] = eval(args, ns, &rt,[0, 1, 2])?;
                 let seq = to_native!(a0, XSequence<W>);
                 let original_arr = seq.slice(ns, rt.clone());
                 let mut matches_left = to_primitive!(a1, Int).clone();
@@ -769,8 +775,7 @@ pub(crate) fn add_sequence_nth<W: Write + 'static>(
                 };
                 let f = to_primitive!(a2, Function);
                 for item in arr {
-                    let item = item?;
-                    if *to_primitive!(f.eval_values(&[item.clone()], ns, rt.clone())?, Bool) {
+                    if *to_primitive!(ns.eval_func_with_values(f, vec![item.clone()], rt.clone(), false)?.unwrap_value()?, Bool) {
                         matches_left = matches_left - One::one();
                         if matches_left.is_zero() {
                             return Ok(manage_native!(XOptional { value: Some(item) }, rt));
@@ -791,7 +796,6 @@ pub(crate) fn add_sequence_take_while<W: Write + 'static>(
 
     scope.add_func(
         "take_while",
-        XStaticFunction::from_native(
             XFuncSpec::new(
                 &[
                     &t_arr,
@@ -803,16 +807,16 @@ pub(crate) fn add_sequence_take_while<W: Write + 'static>(
                 t_arr.clone(),
             )
             .generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 let seq = to_native!(a0, XSequence<W>);
                 let arr = seq.slice(ns, rt.clone());
                 let f = to_primitive!(a1, Function);
                 let mut end_idx = seq.len();
                 let mut ret = vec![];
                 for (i, item) in arr.enumerate() {
-                    let item = item?;
-                    if !*to_primitive!(f.eval_values(&[item.clone()], ns, rt.clone())?, Bool) {
+                    if !*to_primitive!( ns.eval_func_with_values(f, vec![item.clone()], rt.clone(), false)?.unwrap_value()?, Bool) {
                         end_idx = i;
                         break;
                     }
@@ -836,7 +840,6 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
 
     scope.add_func(
         "skip_until",
-        XStaticFunction::from_native(
             XFuncSpec::new(
                 &[
                     &t_arr,
@@ -848,16 +851,16 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
                 t_arr.clone(),
             )
             .generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 let seq = to_native!(a0, XSequence<W>);
                 let mut arr = seq.slice(ns, rt.clone());
                 let f = to_primitive!(a1, Function);
                 let mut start_idx = seq.len();
                 let mut ret = vec![];
                 for (i, item) in arr.by_ref().enumerate() {
-                    let item = item?;
-                    if *to_primitive!(f.eval_values(&[item.clone()], ns, rt.clone())?, Bool) {
+                    if *to_primitive!( ns.eval_func_with_values(f, vec![item.clone()], rt.clone(), false)?.unwrap_value()?, Bool) {
                         start_idx = i;
                         ret.push(item);
                         break;
@@ -866,7 +869,7 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
                 if start_idx == 0 {
                     Ok(a0.clone().into())
                 } else {
-                    try_extend(&mut ret, arr)?;
+                    ret.extend(arr);
                     Ok(manage_native!(XSequence::array(ret), rt))
                 }
             },
@@ -882,10 +885,10 @@ pub(crate) fn add_sequence_take<W: Write + 'static>(
 
     scope.add_func(
         "take",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_arr, &X_INT], t_arr.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 let seq = to_native!(a0, XSequence<W>);
                 let end_idx = to_primitive!(a1, Int);
                 if end_idx.to_usize().map_or(true, |s| s >= seq.len()) {
@@ -894,7 +897,7 @@ pub(crate) fn add_sequence_take<W: Write + 'static>(
                     let arr = seq
                         .slice(ns, rt.clone())
                         .take(end_idx.to_usize().unwrap())
-                        .collect::<Result<Vec<_>, _>>()?;
+                        .collect::<Vec<_>>();
                     Ok(manage_native!(XSequence::array(arr), rt))
                 }
             },
@@ -910,10 +913,10 @@ pub(crate) fn add_sequence_skip<W: Write + 'static>(
 
     scope.add_func(
         "skip",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_arr, &X_INT], t_arr.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 let seq = to_native!(a0, XSequence<W>);
                 let start_idx = to_primitive!(a1, Int);
                 if start_idx.is_zero() {
@@ -924,7 +927,7 @@ pub(crate) fn add_sequence_skip<W: Write + 'static>(
                     let arr = seq
                         .slice(ns, rt.clone())
                         .skip(start_idx.to_usize().unwrap())
-                        .collect::<Result<Vec<_>, _>>()?;
+                        .collect::<Vec<_>>();
                     Ok(manage_native!(XSequence::array(arr), rt))
                 }
             },
@@ -948,13 +951,13 @@ pub(crate) fn add_sequence_eq<W: Write + 'static>(
 
         let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t1.clone()], &X_BOOL)?;
 
-        Ok(Rc::new(XStaticFunction::from_native(
+        Ok(XFunctionFactoryOutput::from_native(
             XFuncSpec::new(
                 &[&XSequenceType::xtype(t0), &XSequenceType::xtype(t1)],
                 X_BOOL.clone(),
             ),
             move |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 let seq0 = to_native!(a0, XSequence<W>);
                 let seq1 = to_native!(a1, XSequence<W>);
                 if seq0.len() != seq1.len() {
@@ -963,11 +966,11 @@ pub(crate) fn add_sequence_eq<W: Write + 'static>(
                 let arr0 = seq0.slice(ns, rt.clone());
                 let arr1 = seq1.slice(ns, rt.clone());
                 let mut ret = true;
-                let inner_equal_value = inner_eq.eval(ns, false, rt.clone())?.unwrap_value();
+                let inner_equal_value = ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value()?;
                 let inner_eq_func = to_primitive!(inner_equal_value, Function);
 
                 for (x, y) in arr0.into_iter().zip(arr1.into_iter()) {
-                    let eq = inner_eq_func.eval_values(&[x?, y?], ns, rt.clone())?;
+                    let eq = ns.eval_func_with_values(inner_eq_func, vec![x, y], rt.clone(), false)?.unwrap_value()?;
                     let is_eq = to_primitive!(eq, Bool);
                     if !*is_eq {
                         ret = false;
@@ -976,7 +979,7 @@ pub(crate) fn add_sequence_eq<W: Write + 'static>(
                 }
                 Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
             },
-        )))
+        ))
     })
 }
 
@@ -995,16 +998,16 @@ pub(crate) fn add_sequence_dyn_sort<W: Write + 'static>(
 
         let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t0], &X_INT)?;
 
-        Ok(Rc::new(XStaticFunction::from_native(
+        Ok(XFunctionFactoryOutput::from_native(
             XFuncSpec::new(&[a0], a0.clone()),
             move |args, ns, _tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let [a0,] = eval(args, ns, &rt,[0])?;
                 let seq = to_native!(a0, XSequence<W>);
-                let f_evaled = inner_eq.eval(ns, false, rt.clone())?.unwrap_value();
+                let f_evaled = ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value()?;
                 let f = to_primitive!(f_evaled, Function);
                 seq.sorted(f, ns, rt.clone())?
                     .map_or_else(|| Ok(a0.clone().into()), |s| Ok(manage_native!(s, rt)))
             },
-        )))
+        ))
     })
 }

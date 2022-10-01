@@ -1,0 +1,178 @@
+use crate::parser::Rule;
+use crate::xexpr::{XExpr, XStaticFunction};
+use crate::xtype::{CompoundKind, XCompoundSpec, XFuncSpec, XType};
+use crate::xvalue::{DynBind, XFunctionFactoryOutput};
+use crate::{
+    let_match, Bind, CompilationError, CompilationResult, Identifier, TracedCompilationError,
+    XCallableSpec, XCompoundFieldSpec, XExplicitStaticArgSpec, XExplicitStaticFuncSpec,
+    XRayParser, XStaticExpr,
+};
+
+use std::borrow::Cow;
+use std::collections::{HashMap, HashSet};
+use std::convert::TryInto;
+
+use std::io::Write;
+use std::iter;
+use std::iter::from_fn;
+use std::iter::FromIterator;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::sync::Arc;
+use string_interner::StringInterner;
+
+use crate::compile_err::ResolvedTracedCompilationError;
+use crate::pest::Parser;
+use crate::util::ipush::IPush;
+use derivative::Derivative;
+use pest::iterators::Pair;
+use pest::prec_climber::Assoc::{Left, Right};
+use pest::prec_climber::{Operator, PrecClimber};
+use crate::compilation_scopes::CompilationScope;
+
+enum CompilationScopeValue {
+    Parameter(Arc<XType>),
+    Declared(usize),
+}
+
+#[derive(Debug)]
+enum CompilationScopeType {
+    Native(Arc<XType>),
+    Declared(usize),
+}
+
+enum CompilationScopeFunction<W: Write + 'static> {
+    Factory(XFunctionFactory<W>),
+    Declared(usize),
+}
+
+#[derive(Derivative)]
+#[derivative(Debug(bound = ""))]
+pub enum XFunctionFactory<W: Write + 'static> {
+    Static(Rc<XStaticFunction<W>>),
+    // todo is this ever constructed?
+    Dynamic(#[derivative(Debug = "ignore")] DynBind<W>),
+}
+
+impl<W: Write + 'static> Clone for XFunctionFactory<W> {
+    fn clone(&self) -> Self {
+        match self {
+            Self::Static(rc) => Self::Static(rc.clone()),
+            Self::Dynamic(rc) => Self::Dynamic(rc.clone()),
+        }
+    }
+}
+
+#[derive(Derivative, Clone)]
+#[derivative(Debug(bound = ""))]
+// todo check pub
+pub struct OverloadWithHeight<W: Write + 'static>(pub usize, pub XFunctionFactory<W>);
+
+#[derive(Derivative)]
+#[derivative(Debug(bound = ""))]
+pub enum XCompilationScopeItem<W: Write + 'static> {
+    Value(usize, Arc<XType>),
+    NativeType(Arc<XType>),
+    Compound(CompoundKind, Arc<XCompoundSpec>),
+    Overload(Vec<OverloadWithHeight<W>>),
+}
+
+
+
+/// these will always point to variable cells
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""), Debug(bound = ""))]
+pub enum Declaration<W: Write + 'static> {
+    Parameter { cell_idx: usize, argument_idx: usize },
+    Value { cell_idx: usize, expr: XExpr<W> },
+    Function { cell_idx: usize, func: XStaticFunction<W> },
+}
+
+pub struct RootCompilationScope<W: Write + 'static> {
+    pub(crate) scope: CompilationScope<'static, W>,
+    interner: StringInterner,
+}
+
+impl<W: Write + 'static> RootCompilationScope<W> {
+    pub fn new() -> Self {
+        Self {
+            scope: CompilationScope::root(),
+            interner: StringInterner::default(),
+        }
+    }
+
+    pub fn add_native_type(
+        &mut self,
+        name: &'static str,
+        type_: Arc<XType>,
+    ) -> Result<(), CompilationError<W>> {
+        self.scope
+            .add_native_type(self.interner.get_or_intern_static(name), type_)
+    }
+
+    pub fn add_func(
+        &mut self,
+        name: &'static str,
+        spec: XFuncSpec,
+        func: XStaticFunction<W>,
+    ) -> Result<(), CompilationError<W>> {
+        self.scope.add_static_func(self.interner.get_or_intern_static(name), spec, func)
+    }
+
+    pub fn add_dyn_func(
+        &mut self,
+        name: &'static str,
+        func: impl Fn(
+                Option<&[XExpr<W>]>,
+                Option<&[Arc<XType>]>,
+                &mut CompilationScope<'_, W>,
+                Option<&[Arc<XType>]>,
+            ) -> Result<XFunctionFactoryOutput<W>, String>
+            + 'static,
+    ) -> Result<(), CompilationError<W>> {
+        self.scope
+            .add_dynamic_func(self.interner.get_or_intern_static(name), func)
+            .map(|_| ())
+    }
+
+    pub(crate) fn generics_from_names<const N: usize>(
+        &mut self,
+        names: [&'static str; N],
+    ) -> ([Arc<XType>; N], Vec<Identifier>) {
+        let (v0, v1) = names
+            .iter()
+            .map(|name| {
+                let ident = self.interner.get_or_intern_static(name);
+                (XType::XGeneric(ident).into(), ident)
+            })
+            .unzip::<_, _, Vec<_>, Vec<_>>();
+        (v0.try_into().unwrap(), v1)
+    }
+
+    pub fn identifier(&mut self, name: &'static str) -> Identifier {
+        self.interner.get_or_intern_static(name)
+    }
+
+    pub fn get_identifer(&self, name: &str) -> Option<Identifier> {
+        self.interner.get(name)
+    }
+
+    pub fn feed_file(&mut self, input: &str) -> Result<(), ResolvedTracedCompilationError<W>> {
+        let body = XRayParser::parse(Rule::header, input)
+            .map(|mut p| p.next().unwrap())
+            .map_err(ResolvedTracedCompilationError::Syntax)?;
+        self.scope
+            .feed(body, &HashSet::new(), &mut self.interner)
+            .map_err(|e| e.resolve_with_input(&self.interner, input))
+    }
+
+    pub fn describe_type(&self, t: impl Deref<Target = XType>) -> String {
+        t.to_string_with_interner(&self.interner)
+    }
+}
+
+impl<W: Write + 'static> Default for RootCompilationScope<W> {
+    fn default() -> Self {
+        Self::new()
+    }
+}

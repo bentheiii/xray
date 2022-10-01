@@ -1,9 +1,9 @@
-use crate::builtin::core::xcmp;
+use crate::builtin::core::{xcmp, eval, eval_if_present};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, manage_native, meval, to_primitive,
+    add_binop, add_ufunc, add_ufunc_ref, manage_native, meval, to_primitive,
     CompilationError, XStaticFunction,
 };
 
@@ -15,7 +15,7 @@ use std::io::Write;
 use std::ops::Neg;
 use std::rc;
 
-use crate::compilation_scope::RootCompilationScope;
+use crate::_compilation_scope::RootCompilationScope;
 use crate::util::lazy_bigint::LazyBigint;
 
 pub(crate) fn add_int_type<W: Write + 'static>(
@@ -119,12 +119,12 @@ pub(crate) fn add_int_digits<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "digits",
+        XFuncSpec::new_with_optional(&[&X_INT], &[&X_INT], XSequenceType::xtype(X_INT.clone())),
         XStaticFunction::from_native(
-            XFuncSpec::new_with_optional(&[&X_INT], &[&X_INT], XSequenceType::xtype(X_INT.clone())),
             |args, ns, _tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let [a0, ] = eval(args, ns, &rt, [0])?;
                 let n = to_primitive!(a0, Int);
-                let (a1,) = meval!(args, ns, rt, 1);
+                let [a1, ] = eval_if_present(args, ns, &rt, [1])?;
                 let b = to_primitive!(a1, Int, LazyBigint::from(10));
                 let mut digits = Vec::new();
                 let mut n = n.clone();
@@ -137,7 +137,10 @@ pub(crate) fn add_int_digits<W: Write + 'static>(
                         digits
                             .into_iter()
                             .map(|v| ManagedXValue::new(XValue::Int(v), rt.clone()))
-                            .collect::<Result<_, _>>()?
+                            .collect::<Result<Vec<_>, _>>()?
+                            .into_iter()
+                            .map(Ok)
+                            .collect()
                     ),
                     rt
                 ))

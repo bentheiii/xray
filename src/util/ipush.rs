@@ -17,6 +17,10 @@ impl<T> IPush<T> {
         self.0.push(item);
         self.0.len() - 1
     }
+
+    pub(crate) fn iter(&self)-> impl Iterator<Item = &T>{
+        self.0.iter()
+    }
 }
 
 impl<T> From<IPush<T>> for Vec<T> {
@@ -33,6 +37,15 @@ where
 
     fn index(&self, index: I) -> &Self::Output {
         &self.0[index]
+    }
+}
+
+impl<T> IntoIterator for IPush<T> {
+    type Item = T;
+    type IntoIter = <Vec<T> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 

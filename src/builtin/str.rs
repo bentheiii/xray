@@ -1,8 +1,8 @@
-use crate::builtin::core::xcmp;
+use crate::builtin::core::{xcmp, eval};
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, to_primitive, CompilationError,
+    add_binop, add_ufunc, add_ufunc_ref, to_primitive, CompilationError,
     RootCompilationScope, XStaticFunction,
 };
 
@@ -45,9 +45,9 @@ pub(crate) fn add_str_to_str<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "to_str",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&X_STRING], X_STRING.clone()),
-            |args, ns, tca, rt| args[0].eval(ns, tca, rt),
+        XStaticFunction::from_native(
+            |args, ns, tca, rt| ns.eval(&args[0], rt, tca),
         ),
     )
 }

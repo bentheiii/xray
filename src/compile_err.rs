@@ -1,4 +1,4 @@
-use crate::compilation_scope::XCompilationScopeItem;
+use crate::_compilation_scope::XCompilationScopeItem;
 use crate::parser::Rule;
 use crate::xexpr::XExpr;
 use crate::xtype::CompoundKind;
@@ -130,6 +130,9 @@ pub enum CompilationError<W: Write + 'static> {
     OverloadedFunctionAsVariable {
         name: Identifier,
     },
+    DynamicFunctionAsVariable {
+        name: Identifier,
+    },
     IncompatibleTypes {
         type0: Arc<XType>,
         type1: Arc<XType>,
@@ -139,9 +142,6 @@ pub enum CompilationError<W: Write + 'static> {
     },
     NotACompound {
         type_: Arc<XType>,
-    },
-    DynamicFunctionAsVariable {
-        name: Identifier,
     },
 }
 

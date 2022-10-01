@@ -2,7 +2,7 @@ extern crate core;
 extern crate pest;
 
 use std::io::stdout;
-use xray::compilation_scope::XCompilationScopeItem;
+use xray::_compilation_scope::XCompilationScopeItem;
 use xray::compile_err::ResolvedTracedCompilationError;
 use xray::evaluation_scope::RootEvaluationScope;
 
@@ -11,18 +11,11 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    fn a(x: int) -> int {
-        fn b(y: int) -> int {
-            if (y < -10,
-                error('aaa'),
-                a(y-1))
-        }
-        if (x <= 0,
-            x,
-            b(x))
+    fn a(x: int)->int{
+        x*2
     }
 
-    let z = a(2);
+    let z = a(3);
     "###;
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()
@@ -39,11 +32,6 @@ fn main() {
     println!("compiled!");
 
     let mut eval_scope = RootEvaluationScope::from_compilation_scope(&root_scope, runtime).unwrap();
-    println!("z={:?}", eval_scope.get_value("z").unwrap().unwrap().value);
-    let z_static = root_scope.get("z").unwrap();
-    if let XCompilationScopeItem::Value(_, t) = z_static {
-        println!("z: {:?}", root_scope.describe_type(t));
-    } else {
-        println!("z: {:?}", z_static);
-    }
+    let z_value =  &eval_scope.get_value("z").unwrap().clone().unwrap().value;
+    println!("z={:?}", z_value);
 }

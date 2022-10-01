@@ -1,8 +1,8 @@
-use crate::evaluation_scope::{EvaluatedVariable, XEvaluationScope};
+use crate::evaluation_scope::{EvaluatedVariable};
 use crate::native_types::XNativeValue;
 use crate::runtime::RTCell;
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
-use crate::{Identifier, XCompilationScope, XType};
+use crate::{Identifier, XFuncSpec, XType};
 
 use crate::util::lazy_bigint::LazyBigint;
 use derivative::Derivative;
@@ -13,6 +13,8 @@ use std::io::Write;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
+use crate::compilation_scopes::CompilationScope;
+use crate::runtime_scope::{EvaluationCell, RuntimeScopeTemplate, RuntimeScope};
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
@@ -22,15 +24,16 @@ pub enum XValue<W: Write + 'static> {
     String(String),
     Bool(bool),
     Function(XFunction<W>),
-    StructInstance(Vec<Rc<ManagedXValue<W>>>),
-    UnionInstance(usize, Rc<ManagedXValue<W>>),
+    StructInstance(Vec<EvaluatedVariable<W>>),
+    UnionInstance(usize, EvaluatedVariable<W>),
     Native(Box<dyn XNativeValue>),
 }
 
+// todo do these still have to be RCs? and pub? and dyn?
 pub type NativeCallable<W> = Rc<
     dyn Fn(
         &[XExpr<W>],
-        &XEvaluationScope<'_, W>,
+        &RuntimeScope<'_, W>,
         bool,
         RTCell<W>,
     ) -> Result<TailedEvalResult<W>, String>,
@@ -39,169 +42,60 @@ pub type DynBind<W> = Rc<
     dyn Fn(
         Option<&[XExpr<W>]>,
         Option<&[Arc<XType>]>,
-        &XCompilationScope<'_, W>,
+        &mut CompilationScope<'_, W>,
         Option<&[Arc<XType>]>,
-    ) -> Result<Rc<XStaticFunction<W>>, String>,
+    ) -> Result<XFunctionFactoryOutput<W>, String>,
 >; // todo make this a compilation error?
+
+pub struct XFunctionFactoryOutput<W: Write + 'static> {
+    pub(crate) spec: XFuncSpec,
+    pub(crate) func: XStaticFunction<W>,
+}
+
+impl<W: Write + 'static> XFunctionFactoryOutput<W>{
+    pub(crate) fn from_native(spec: XFuncSpec, callable: impl Fn(
+        &[XExpr<W>],
+        &RuntimeScope<'_, W>,
+        bool,
+        RTCell<W>,
+    ) -> Result<TailedEvalResult<W>, String> + 'static)->Self{
+        Self{
+            spec,
+            func: XStaticFunction::from_native(callable)
+        }
+    }
+}
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
 pub enum XFunction<W: Write + 'static> {
     Native(NativeCallable<W>),
-    UserFunction(
-        Rc<XStaticFunction<W>>,
-        Rc<HashMap<Identifier, EvaluatedVariable<W>>>,
-    ),
-    Recourse(usize),
-}
-
-impl<W: Write + 'static> XFunction<W> {
-    pub(crate) fn eval<'p>(
-        &'p self,
-        args: &[XExpr<W>],
-        parent_scope: &XEvaluationScope<'p, W>,
-        tail_available: bool,
-        runtime: RTCell<W>,
-    ) -> Result<TailedEvalResult<W>, String> {
-        match self {
-            Self::Native(native) => native(args, parent_scope, tail_available, runtime),
-            Self::UserFunction(..) => {
-                let arguments = args
-                    .iter()
-                    .map(|x| {
-                        x.eval(parent_scope, false, runtime.clone())
-                            .map(|r| r.unwrap_value())
-                    })
-                    .collect::<Result<Vec<_>, _>>()?;
-                self.eval_values(&arguments, parent_scope, runtime)
-                    .map(|r| r.into())
-            }
-            Self::Recourse(depth) => {
-                if tail_available && *depth == 0 {
-                    let arguments = args
-                        .iter()
-                        .map(|x| {
-                            x.eval(parent_scope, false, runtime.clone())
-                                .map(|r| r.unwrap_value())
-                        })
-                        .collect::<Result<Vec<_>, _>>()?;
-                    return Ok(TailedEvalResult::TailCall(arguments));
-                }
-                parent_scope.ancestor(*depth).recourse.unwrap().eval(
-                    args,
-                    parent_scope,
-                    tail_available,
-                    runtime,
-                )
-            }
-        }
-    }
-
-    pub(crate) fn eval_values<'p>(
-        &'p self,
-        args: &[Rc<ManagedXValue<W>>],
-        parent_scope: &XEvaluationScope<'p, W>,
-        runtime: RTCell<W>,
-    ) -> Result<Rc<ManagedXValue<W>>, String> {
-        match self {
-            Self::Native(native) => {
-                // we need to wrap all the values with dummy expressions, so that native functions can handle them
-                let args = args
-                    .iter()
-                    .map(|x| XExpr::Dummy(x.clone()))
-                    .collect::<Vec<_>>();
-                native(&args, parent_scope, false, runtime).map(|r| r.unwrap_value())
-            }
-            Self::UserFunction(func, closure) => {
-                let mut args = Cow::Borrowed(args);
-                let uf = match func.as_ref() {
-                    XStaticFunction::UserFunction(uf) => uf,
-                    _ => unreachable!(),
-                };
-                let mut recursion_depth = 0_usize;
-                loop {
-                    let closure_scope = if !closure.is_empty() {
-                        let mut scope =
-                            XEvaluationScope::from_parent(parent_scope, self, runtime.clone())?;
-                        for (&name, value) in closure.as_ref() {
-                            scope.add_value(name, value.clone());
-                        }
-                        Some(Box::new(scope))
-                    } else {
-                        None
-                    };
-                    let mut scope = XEvaluationScope::from_parent(
-                        match closure_scope {
-                            Some(ref scope) => scope,
-                            None => parent_scope,
-                        },
-                        self,
-                        runtime.clone(),
-                    )?;
-                    // explicit params
-                    for (&name, arg) in uf.param_names.iter().zip(args.iter()) {
-                        scope.add_value(name, Ok(arg.clone()));
-                    }
-                    //default params
-                    // we only want the defaults that haven't been specified
-                    for (default_expr, &name) in uf
-                        .defaults
-                        .iter()
-                        .rev()
-                        .zip(uf.param_names.iter().skip(args.len()).rev())
-                        .rev()
-                    {
-                        scope.add_value(
-                            name,
-                            Ok(default_expr
-                                .eval(&scope, false, runtime.clone())?
-                                .unwrap_value()),
-                        );
-                    }
-
-                    for decl in &uf.declarations {
-                        scope.add_from_declaration(decl, runtime.clone())?
-                    }
-
-                    match uf.output.eval(&scope, true, runtime.clone())? {
-                        TailedEvalResult::Value(value) => return Ok(value),
-                        TailedEvalResult::TailCall(new_args) => {
-                            args = Cow::Owned(new_args);
-                            recursion_depth += 1;
-                            if let Some(recursion_limit) = runtime.borrow().limits.recursion_limit {
-                                if recursion_depth > recursion_limit {
-                                    return Err(format!(
-                                        "Recursion limit of {} exceeded",
-                                        recursion_limit
-                                    ));
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Self::Recourse(depth) => parent_scope.ancestor(*depth).recourse.unwrap().eval_values(
-                args,
-                parent_scope,
-                runtime,
-            ),
-        }
-    }
+    UserFunction {
+        template: Rc<RuntimeScopeTemplate<W>>,
+        // todo both the function and the template store these and I don't know why
+        defaults: Vec<XExpr<W>>,
+        output: Box<XExpr<W>>,
+    },
 }
 
 impl<W: Write + 'static> Debug for XFunction<W> {
+    // todo is this needed?
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
-            Self::Native(_) => {
-                write!(f, "Native()")
+            Self::Native(..) => {
+                write!(f, "Native(..)")
             }
-            Self::UserFunction(params, ..) => {
-                write!(f, "UserFunction({:?})", params)
-            }
-            Self::Recourse(..) => {
-                write!(f, "Recourse()")
+            Self::UserFunction{..} => {
+                write!(f, "UserFunction(..)")
             }
         }
+    }
+}
+
+pub(crate) fn size_of_value<W: Write + 'static>(v: &EvaluatedVariable<W>)->usize{
+    match v {
+        Err(e) => 0, // todo manage errors (and store their size)
+        Ok(v) => v.size
     }
 }
 
@@ -213,12 +107,11 @@ impl<W: Write + 'static> XValue<W> {
             Self::String(s) => s.len(),
             Self::Bool(_) => 1,
             Self::Function(XFunction::Native(_)) => size_of::<usize>(),
-            Self::Function(XFunction::UserFunction(_, closure)) => {
-                size_of::<usize>() + closure.len() * size_of::<usize>()
+            Self::Function(XFunction::UserFunction{template, ..}) => {
+                size_of::<usize>() + template.cells.len() * size_of::<usize>()
             }
-            Self::Function(XFunction::Recourse(..)) => size_of::<usize>(),
             Self::StructInstance(items) => items.len() * size_of::<usize>(),
-            Self::UnionInstance(_, item) => item.size + size_of::<usize>(),
+            Self::UnionInstance(_, item) => size_of_value(item) + size_of::<usize>(),
             Self::Native(n) => size_of::<usize>() + n.size(),
         }
     }
@@ -226,8 +119,9 @@ impl<W: Write + 'static> XValue<W> {
 
 pub struct ManagedXValue<W: Write + 'static> {
     runtime: RTCell<W>,
-    size: usize, // this will be zero if the runtime has no size limit
-    pub value: XValue<W>,
+    size: usize,
+    // this will be zero if the runtime has no size limit
+    pub value: XValue<W>, // todo we need to manage errors too
 }
 
 impl<W: Write + 'static> Debug for ManagedXValue<W> {

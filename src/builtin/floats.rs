@@ -1,8 +1,8 @@
-use crate::builtin::core::xcmp;
+use crate::builtin::core::{eval, eval_if_present, xcmp};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, eval, meval, to_primitive, CompilationError,
+    add_binop, add_ufunc, add_ufunc_ref, meval, to_primitive, CompilationError,
     RootCompilationScope, XStaticFunction,
 };
 
@@ -63,15 +63,15 @@ pub(crate) fn add_float_is_close<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "is_close",
-        XStaticFunction::from_native(
             XFuncSpec::new_with_optional(
                 &[&X_FLOAT, &X_FLOAT],
                 &[&X_FLOAT, &X_FLOAT],
                 X_BOOL.clone(),
             ),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
-                let (a2, a3) = meval!(args, ns, rt, 2, 3);
+                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
+                let [a2, a3] = eval_if_present(args, ns, &rt, [2, 3])?;
                 let rel_tol = a2.map_or(1e-9, |a2| *to_primitive!(a2, Float));
                 let abs_tol = a3.map_or(1e-9, |a2| *to_primitive!(a2, Float));
                 let f0 = to_primitive!(a0, Float);

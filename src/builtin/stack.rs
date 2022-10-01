@@ -3,7 +3,7 @@ use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncSpec, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
-    eval, manage_native, to_native, CompilationError, RootCompilationScope, XStaticFunction, XType,
+    manage_native, to_native, CompilationError, RootCompilationScope, XStaticFunction, XType,
 };
 use derivative::Derivative;
 use rc::Rc;
@@ -13,6 +13,8 @@ use std::iter::from_fn;
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
+use crate::builtin::core::{eval, eval_result};
+use crate::evaluation_scope::EvaluatedVariable;
 
 #[derive(Debug, Clone)]
 pub(super) struct XStackType {}
@@ -35,15 +37,15 @@ impl NativeType for XStackType {
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 struct StackNode<W: Write + 'static> {
-    value: Rc<ManagedXValue<W>>,
+    value: EvaluatedVariable<W>,
     next: Option<Rc<StackNode<W>>>,
 }
 
 impl<W: Write + 'static> StackNode<W> {
-    fn first(value: Rc<ManagedXValue<W>>) -> Rc<Self> {
+    fn first(value: EvaluatedVariable<W>) -> Rc<Self> {
         Rc::new(Self { value, next: None })
     }
-    fn new(value: Rc<ManagedXValue<W>>, next: Rc<Self>) -> Rc<Self> {
+    fn new(value: EvaluatedVariable<W>, next: Rc<Self>) -> Rc<Self> {
         Rc::new(Self {
             value,
             next: Some(next),
@@ -72,7 +74,7 @@ impl<W: Write + 'static> XStack<W> {
         Self::default()
     }
 
-    pub(super) fn push(&self, value: Rc<ManagedXValue<W>>) -> Self {
+    pub(super) fn push(&self, value: EvaluatedVariable<W>) -> Self {
         let node = match self.head {
             None => StackNode::first(value),
             Some(ref head) => StackNode::new(value, head.clone()),
@@ -83,7 +85,7 @@ impl<W: Write + 'static> XStack<W> {
         }
     }
 
-    fn to_vec<const REV: bool>(&self) -> Vec<Rc<ManagedXValue<W>>> {
+    fn to_vec<const REV: bool>(&self) -> Vec<EvaluatedVariable<W>> {
         let mut vec = Vec::with_capacity(self.length);
         let mut node = &self.head;
         while let Some(ref n) = node {
@@ -96,7 +98,7 @@ impl<W: Write + 'static> XStack<W> {
         vec
     }
 
-    pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue<W>>> + '_ {
+    pub(super) fn iter(&self) -> impl Iterator<Item = EvaluatedVariable<W>> + '_ {
         let mut node = &self.head;
         from_fn(move || match &node {
             None => None,
@@ -141,8 +143,8 @@ pub(crate) fn add_stack_new<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "stack",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[], XStackType::xtype(X_UNKNOWN.clone())),
+        XStaticFunction::from_native(
             |_args, _ns, _tca, rt| Ok(manage_native!(XStack::<W>::new(), rt)),
         ),
     )
@@ -156,10 +158,11 @@ pub(crate) fn add_stack_push<W: Write + 'static>(
 
     scope.add_func(
         "push",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_stk, &t], t_stk.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                let [a0,] = eval(args, ns, &rt,[0])?;
+                let [a1] = eval_result(args, ns, &rt,[1])?;
                 let stk0 = to_native!(a0, XStack<W>);
                 Ok(manage_native!(stk0.push(a1), rt))
             },
@@ -175,10 +178,10 @@ pub(crate) fn add_stack_to_array<W: Write + 'static>(
 
     scope.add_func(
         "to_array",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_stk], XSequenceType::xtype(t)).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let [a0,] = eval(args, ns, &rt,[0])?;
                 let stk0 = to_native!(a0, XStack<W>);
                 Ok(manage_native!(XSequence::array(stk0.to_vec::<false>()), rt))
             },
@@ -194,10 +197,10 @@ pub(crate) fn add_stack_to_array_reversed<W: Write + 'static>(
 
     scope.add_func(
         "to_array_reversed",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_stk], XSequenceType::xtype(t)).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let [a0,] = eval(args, ns, &rt,[0])?;
                 let stk0 = to_native!(a0, XStack<W>);
                 Ok(manage_native!(XSequence::array(stk0.to_vec::<true>()), rt))
             },
@@ -213,10 +216,10 @@ pub(crate) fn add_stack_len<W: Write + 'static>(
 
     scope.add_func(
         "len",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_stk], X_INT.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let [a0,] = eval(args, ns, &rt,[0])?;
                 let stk0 = to_native!(a0, XStack<W>);
                 Ok(ManagedXValue::new(XValue::Int(stk0.length.into()), rt)?.into())
             },
@@ -232,10 +235,10 @@ pub(crate) fn add_stack_head<W: Write + 'static>(
 
     scope.add_func(
         "head",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_stk], t).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let [a0,] = eval(args, ns, &rt,[0])?;
                 let stk0 = to_native!(a0, XStack<W>);
                 match &stk0.head {
                     Some(v) => Ok(v.value.clone().into()),
@@ -254,10 +257,10 @@ pub(crate) fn add_stack_tail<W: Write + 'static>(
 
     scope.add_func(
         "tail",
-        XStaticFunction::from_native(
             XFuncSpec::new(&[&t_stk], t_stk.clone()).generic(params),
+        XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let (a0,) = eval!(args, ns, rt, 0);
+                let [a0,] = eval(args, ns, &rt,[0])?;
                 let stk0 = to_native!(a0, XStack<W>);
                 match &stk0.head {
                     Some(v) => Ok(manage_native!(

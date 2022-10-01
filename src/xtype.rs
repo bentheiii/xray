@@ -157,6 +157,7 @@ pub struct XFuncSpec {
     pub generic_params: Option<Vec<DefaultSymbol>>,
     pub(crate) params: Vec<XFuncParamSpec>,
     pub ret: Arc<XType>,
+    pub(crate) short_circuit_overloads: bool
 }
 
 impl XFuncSpec {
@@ -168,6 +169,7 @@ impl XFuncSpec {
                 .map(|t| XFuncParamSpec::required((*t).clone()))
                 .collect(),
             ret,
+            short_circuit_overloads: false
         }
     }
 
@@ -188,6 +190,7 @@ impl XFuncSpec {
                 )
                 .collect(),
             ret,
+            short_circuit_overloads: false,
         }
     }
 
@@ -196,6 +199,16 @@ impl XFuncSpec {
             generic_params: Some(gen_params),
             ..self
         }
+    }
+
+    pub(crate) fn is_generic(&self) -> bool{
+        self.generic_params.as_ref().map_or(
+            false,
+            |i| {
+                debug_assert!(!i.is_empty());
+                true
+            }
+        )
     }
 
     fn arg_len_range(&self) -> (usize, usize) {
@@ -220,34 +233,8 @@ impl XFuncSpec {
         self.ret.clone().resolve_bind(bind, None)
     }
     
-    pub(crate) fn xtype2(&self) -> Arc<XType> { // todo make this xtype1?
-        Arc::new(XType::XFunc(Self {
-            generic_params: self.generic_params.clone(),
-            params: self
-                .params
-                .iter()
-                .map(|p| XFuncParamSpec {
-                    type_: p.type_.clone(),
-                    required: p.required,
-                })
-                .collect(),
-            ret: self.ret.clone(),
-        }))
-    }
-
-    pub(crate) fn xtype(&self, bind: &Bind) -> Arc<XType> {
-        Arc::new(XType::XFunc(Self {
-            generic_params: None,
-            params: self
-                .params
-                .iter()
-                .map(|p| XFuncParamSpec {
-                    type_: p.type_.clone().resolve_bind(bind, None),
-                    required: p.required,
-                })
-                .collect(),
-            ret: self.ret.clone().resolve_bind(bind, None),
-        }))
+    pub(crate) fn xtype(&self) -> Arc<XType> {
+        Arc::new(XType::XFunc(self.clone()))
     }
 }
 

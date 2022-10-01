@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use crate::xvalue::{ManagedXValue, XValue};
 use num_traits::{One, Zero};
 
@@ -5,10 +6,14 @@ use std::io::Write;
 
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::XExpr;
-use crate::{Identifier, RTCell, XCompilationScope, XEvaluationScope, XType};
+use crate::{Identifier, RTCell, XType};
 use std::ops::Neg;
 use std::rc::Rc;
 use std::sync::Arc;
+use itertools::Itertools;
+use crate::compilation_scopes::CompilationScope;
+use crate::evaluation_scope::EvaluatedVariable;
+use crate::runtime_scope::RuntimeScope;
 
 #[macro_export]
 macro_rules! add_binop {
@@ -18,10 +23,10 @@ macro_rules! add_binop {
         ) -> Result<(), $crate::CompilationError<W>> {
             scope.add_func(
                 stringify!($name),
+                XFuncSpec::new(&[&$operand_type, &$operand_type], $return_type.clone()),
                 XStaticFunction::from_native(
-                    XFuncSpec::new(&[&$operand_type, &$operand_type], $return_type.clone()),
                     |args, ns, _tca, rt| {
-                        let (a0, a1) = eval!(args, ns, rt, 0, 1);
+                        let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                         let v0 = to_primitive!(a0, $operand_variant);
                         let v1 = to_primitive!(a1, $operand_variant);
                         let result: Result<_, String> = $func(v0, v1);
@@ -41,10 +46,10 @@ macro_rules! add_ufunc_ref {
         ) -> Result<(), $crate::CompilationError<W>> {
             scope.add_func(
                 stringify!($name),
+                XFuncSpec::new(&[&$operand_type], $return_type.clone()),
                 XStaticFunction::from_native(
-                    XFuncSpec::new(&[&$operand_type], $return_type.clone()),
                     |args, ns, _tca, rt| {
-                        let (a0,) = eval!(args, ns, rt, 0);
+                        let [a0,] = eval(args, ns, &rt,[0])?;
                         $func(a0, rt)
                     },
                 ),
@@ -105,13 +110,28 @@ macro_rules! intern {
     };
 }
 
-#[macro_export]
-macro_rules! eval {
-    ($args: expr, $ns: expr, $rt: expr, $($idx:expr),*) => {
-        ($(
-            $args[$idx].eval(&$ns, false, $rt.clone())?.unwrap_value(),
-        )*)
-    };
+// todo make this a one-to-one func
+pub(super) fn eval<W: Write + 'static, const M: usize>(args: &[XExpr<W>], ns: &RuntimeScope<W>, rt: &RTCell<W>, indices: [usize; M]) -> Result<[Rc<ManagedXValue<W>>; M], String> {
+    Ok(indices.iter().map(|&i| ns.eval(&args[i], rt.clone(), false).map(|i| i.unwrap_value()))
+        .collect::<Result<Result<Vec<_>, _>, _>>()??
+        .try_into().unwrap())
+}
+
+pub(super) fn eval_if_present<W: Write + 'static, const M: usize>(args: &[XExpr<W>], ns: &RuntimeScope<W>, rt: &RTCell<W>, indices: [usize; M]) -> Result<[Option<Rc<ManagedXValue<W>>>; M], String> {
+    Ok(indices.iter().map(|&i| args.get(i).map(
+        |a| ns.eval(a, rt.clone(), false).map(|i| i.unwrap_value())
+    ).transpose())
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .map(|i| i.transpose())
+        .collect::<Result<Vec<_>, _>>()?
+        .try_into().unwrap())
+}
+
+pub(super) fn eval_result<W: Write + 'static, const M: usize>(args: &[XExpr<W>], ns: &RuntimeScope<W>, rt: &RTCell<W>, indices: [usize; M]) -> Result<[EvaluatedVariable<W>; M], String> {
+    Ok(indices.iter().map(|&i| ns.eval(&args[i], rt.clone(), false).map(|i| i.unwrap_value()))
+        .collect::<Result<Vec<_>, _>>()?
+        .try_into().unwrap())
 }
 
 #[macro_export]
@@ -179,13 +199,13 @@ macro_rules! unpack_native {
 }
 
 pub(super) fn get_func<W: Write + 'static>(
-    scope: &XCompilationScope<W>,
+    scope: &mut CompilationScope<W>,
     symbol: Identifier,
     arguments: &[Arc<XType>],
     expected_return_type: &Arc<XType>,
 ) -> Result<XExpr<W>, String> {
-    let ret = scope.resolve_overload(symbol, arguments)?;
-    let ret_xtype = ret.xtype().unwrap();
+    let ret = scope.get_func(&symbol, arguments).map_err(|e| format!("{e:?}"))?; // todo improve error here
+    let ret_xtype = scope.type_of(&ret).unwrap();
     let func_spec = if let XType::XFunc(spec) = ret_xtype.as_ref() {
         spec
     } else {
@@ -199,10 +219,11 @@ pub(super) fn get_func<W: Write + 'static>(
 
 pub(super) fn eval_resolved_func<W: Write + 'static>(
     expr: &XExpr<W>,
-    ns: &XEvaluationScope<W>,
+    ns: &RuntimeScope<W>,
     rt: RTCell<W>,
-    args: &[Rc<ManagedXValue<W>>],
-) -> Result<Rc<ManagedXValue<W>>, String> {
-    let managed_func = expr.eval(ns, false, rt.clone())?.unwrap_value();
-    to_primitive!(managed_func, Function).eval_values(args, ns, rt)
+    args: Vec<EvaluatedVariable<W>>,
+) -> Result<EvaluatedVariable<W>, String> {
+    let managed_func = ns.eval(expr, rt.clone(), false)?.unwrap_value()?;
+    let func = to_primitive!(managed_func, Function);
+    ns.eval_func_with_values(func, args, rt, false).map(|v| v.unwrap_value())
 }

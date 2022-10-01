@@ -3,6 +3,7 @@ use crate::{unpack_types, CompilationError, RootCompilationScope, XFuncSpec, XSt
 
 use std::io::Write;
 use std::rc::Rc;
+use crate::xvalue::XFunctionFactoryOutput;
 
 pub(crate) fn add_unknown_eq<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -20,9 +21,9 @@ pub(crate) fn add_unknown_eq<W: Write + 'static>(
             return Err(format!("expected exactly unknown, got {a1:?}"));
         }
 
-        Ok(Rc::new(XStaticFunction::from_native_short_circut(
+        Ok(XFunctionFactoryOutput::from_native(
             XFuncSpec::new(&[&X_UNKNOWN, &X_UNKNOWN], X_BOOL.clone()),
             move |_args, _ns, _tca, _rt| Err("unknown eq applied".to_string()),
-        )))
+        ))
     })
 }

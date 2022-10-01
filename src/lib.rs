@@ -8,7 +8,7 @@ extern crate derivative;
 extern crate dyn_clone;
 
 pub mod builtin;
-pub mod compilation_scope;
+pub mod _compilation_scope;
 pub mod compile_err;
 pub mod evaluation_scope;
 pub mod native_types;
@@ -18,7 +18,8 @@ pub mod util;
 pub mod xexpr;
 pub mod xtype;
 pub mod xvalue;
-mod scopes;
+mod compilation_scopes;
+mod runtime_scope;
 
 extern crate pest;
 #[macro_use]
@@ -35,7 +36,7 @@ use crate::builtin::sequence::*;
 use crate::builtin::stack::*;
 use crate::builtin::str::*;
 use crate::builtin::unknown::add_unknown_eq;
-use crate::compilation_scope::{Declaration, RootCompilationScope, XCompilationScope};
+use crate::_compilation_scope::{Declaration, RootCompilationScope};
 use crate::compile_err::{CompilationError, TracedCompilationError};
 use crate::parser::XRayParser;
 
@@ -45,9 +46,8 @@ use crate::runtime::RTCell;
 
 use string_interner::DefaultSymbol;
 
-use crate::evaluation_scope::XEvaluationScope;
 use crate::xexpr::{
-    CompilationResult, UfData, XExplicitStaticArgSpec, XExplicitStaticFuncSpec, XStaticExpr,
+    CompilationResult, XExplicitStaticArgSpec, XExplicitStaticFuncSpec, XStaticExpr,
     XStaticFunction,
 };
 use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType};

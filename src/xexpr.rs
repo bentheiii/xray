@@ -1,7 +1,7 @@
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::compilation_scope::{XCompilationScopeItem, XFunctionFactory};
-use crate::evaluation_scope::XEvaluationScope;
+use crate::_compilation_scope::{XCompilationScopeItem, XFunctionFactory};
+use crate::evaluation_scope::{EvaluatedVariable};
 use crate::runtime::RTCell;
 use crate::xtype::{
     common_type, Bind, CompoundKind, XCompoundSpec, XFuncParamSpec, XType, X_BOOL, X_FLOAT, X_INT,
@@ -9,7 +9,7 @@ use crate::xtype::{
 };
 use crate::xvalue::{ManagedXValue, NativeCallable, XFunction, XValue};
 use crate::{
-    manage_native, CompilationError, Declaration, Identifier, XCompilationScope, XFuncSpec,
+    manage_native, CompilationError, Declaration, Identifier, XFuncSpec,
 };
 
 use crate::util::lazy_bigint::LazyBigint;
@@ -22,6 +22,8 @@ use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
+use crate::compilation_scopes::{CellSpec, CompilationScope};
+use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
 
 #[derive(Debug)]
 pub(crate) enum XStaticExpr {
@@ -56,7 +58,7 @@ impl<W: Write + 'static> CompilationResult<W> {
     fn new(expr: XExpr<W>, closure_vars: Vec<DefaultSymbol>) -> Self {
         Self { expr, closure_vars }
     }
-    fn join(results: impl IntoIterator<Item = Self>) -> JoinedCompilationResult<W> {
+    fn join(results: impl IntoIterator<Item=Self>) -> JoinedCompilationResult<W> {
         let mut exprs = vec![];
         let mut closure_vars = vec![];
         for result in results {
@@ -71,85 +73,6 @@ impl<W: Write + 'static> CompilationResult<W> {
     ) -> Self {
         Self::new(f(other.0), other.1)
     }
-}
-
-pub(crate) fn resolve_overload<'p, 'a, W: Write + 'static>(
-    overloads: impl IntoIterator<Item = &'a XFunctionFactory<W>>,
-    args: Option<&[XExpr<W>]>,
-    // promise, at least arg_types is Some, or dynamic_bind_types is Some
-    arg_types: Option<&[Arc<XType>]>,
-    dynamic_bind_types: Option<&[Arc<XType>]>,
-    name: DefaultSymbol,
-    namespace: &'p XCompilationScope<'p, W>,
-) -> Result<XExpr<W>, CompilationError<W>> {
-    assert!(arg_types.is_some() || dynamic_bind_types.is_some());
-    let mut exact_matches = vec![];
-    let mut generic_matches = vec![];
-    let mut dynamic_failures = vec![];
-    let is_unknown = arg_types.map_or(true, |t| t.iter().any(|t| t.is_unknown()));
-    // if the bindings are unknown, then we prefer generic solutions over exact solutions
-    for overload in overloads {
-        let (overload, is_generic) = match overload {
-            XFunctionFactory::Static(overload) => {
-                if dynamic_bind_types.is_some() {
-                    continue;
-                }
-                (overload.clone(), overload.is_generic())
-            }
-            XFunctionFactory::Dynamic(dyn_func) => {
-                match dyn_func(args, arg_types, namespace, dynamic_bind_types) {
-                    Ok(overload) => (overload, true),
-                    Err(err) => {
-                        dynamic_failures.push(err);
-                        continue;
-                    }
-                }
-            }
-        };
-        let b = arg_types.map_or_else(
-            || Some(Default::default()),
-            |arg_types| overload.bind(arg_types),
-        );
-        if let Some(bind) = b {
-            let item = XExpr::KnownOverload(overload.clone(), bind);
-            if overload.short_circuit_overloads() {
-                return Ok(item);
-            }
-            if is_generic ^ is_unknown {
-                &mut generic_matches
-            } else {
-                &mut exact_matches
-            }
-            .push(item);
-        }
-    }
-    if exact_matches.len() == 1 {
-        return Ok(exact_matches.swap_remove(0));
-    }
-    if exact_matches.len() > 1 {
-        return Err(CompilationError::AmbiguousOverload {
-            name,
-            is_generic: false,
-            items: exact_matches,
-            param_types: arg_types.map(|at| at.to_vec()),
-        });
-    }
-    if generic_matches.len() == 1 {
-        return Ok(generic_matches.swap_remove(0));
-    }
-    if generic_matches.len() > 1 {
-        return Err(CompilationError::AmbiguousOverload {
-            name,
-            is_generic: true,
-            items: generic_matches,
-            param_types: arg_types.map(|at| at.to_vec()),
-        });
-    }
-    Err(CompilationError::NoOverload {
-        name,
-        param_types: arg_types.map(|at| at.to_vec()),
-        dynamic_failures,
-    })
 }
 
 type JoinedCompilationResult<W> = (Vec<XExpr<W>>, Vec<DefaultSymbol>);
@@ -169,348 +92,6 @@ impl XStaticExpr {
     pub(crate) fn new_call_sym(name: Identifier, args: Vec<Self>) -> Self {
         Self::Call(Box::new(Self::Ident(name)), args)
     }
-
-    pub(crate) fn compile<'p, W: Write + 'static>(
-        self,
-        namespace: &'p XCompilationScope<'p, W>,
-    ) -> Result<CompilationResult<W>, CompilationError<W>> {
-        fn compile_many<'p, W: Write + 'static>(
-            exprs: impl IntoIterator<Item = XStaticExpr>,
-            namespace: &'p XCompilationScope<'p, W>,
-        ) -> Result<JoinedCompilationResult<W>, CompilationError<W>> {
-            let mut ret = vec![];
-            for item in exprs {
-                let item = item.compile(namespace)?;
-                ret.push(item);
-            }
-            Ok(CompilationResult::join(ret))
-        }
-
-        match self {
-            Self::LiteralBool(v) => Ok(XExpr::LiteralBool(v).into()),
-            Self::LiteralInt(v) => Ok(XExpr::LiteralInt(v).into()),
-            Self::LiteralFloat(v) => Ok(XExpr::LiteralFloat(v).into()),
-            Self::LiteralString(v) => Ok(XExpr::LiteralString(v).into()),
-            Self::Array(items) => Ok(CompilationResult::from_multi(
-                compile_many(items, namespace)?,
-                XExpr::Array,
-            )),
-            Self::Call(func, args) => {
-                let (compiled_args, mut cvars) = compile_many(args, namespace)?;
-                match func.as_ref() {
-                    Self::Member(obj, member_name) => {
-                        //special case: member access can be a variant constructor
-                        if let Self::Ident(name) = obj.as_ref() {
-                            if let Some(XCompilationScopeItem::Compound(
-                                CompoundKind::Union,
-                                spec,
-                            )) = namespace.get(*name)
-                            {
-                                return if let Some(&index) = spec.indices.get(member_name) {
-                                    if compiled_args.len() != 1 {
-                                        return Err(CompilationError::VariantConstructorOneArg);
-                                    }
-                                    let compiled_arg = compiled_args.into_iter().next().unwrap();
-                                    let com_type = Arc::new(XType::Compound(
-                                        CompoundKind::Union,
-                                        spec.clone(),
-                                        Bind::new(),
-                                    ));
-                                    let var_type = spec.fields[index]
-                                        .type_
-                                        .resolve_bind(&Bind::new(), Some(&com_type));
-                                    if let Some(bind) =
-                                        var_type.bind_in_assignment(&compiled_arg.xtype()?)
-                                    {
-                                        return Ok(CompilationResult::new(
-                                            XExpr::Variant(
-                                                spec,
-                                                bind,
-                                                index,
-                                                Box::new(compiled_arg),
-                                            ),
-                                            cvars,
-                                        ));
-                                    } else {
-                                        Err(CompilationError::VariantConstructorTypeArgMismatch {
-                                            union_name: spec.name,
-                                            variant_name: member_name.clone(),
-                                            expected_type: spec.fields[index].type_.clone(),
-                                            actual_type: compiled_arg.xtype()?,
-                                        })
-                                    }
-                                } else {
-                                    Err(CompilationError::MemberNotFound {
-                                        spec,
-                                        name: member_name.clone(),
-                                    })
-                                };
-                            }
-                        }
-                    }
-                    Self::Ident(name) => {
-                        match namespace.get(*name) {
-                            Some(XCompilationScopeItem::Overload(overloads)) => {
-                                let arg_types = compiled_args
-                                    .iter()
-                                    .map(|x| x.xtype())
-                                    .collect::<Result<Vec<_>, _>>()?;
-
-                                return Ok(CompilationResult::new(
-                                    XExpr::Call(
-                                        Box::new(resolve_overload(
-                                            overloads.iter().map(|o| &o.1),
-                                            Some(&compiled_args),
-                                            Some(&arg_types),
-                                            None,
-                                            *name,
-                                            namespace,
-                                        )?),
-                                        compiled_args,
-                                    ),
-                                    cvars,
-                                ));
-                            }
-                            Some(XCompilationScopeItem::Compound(CompoundKind::Struct, spec)) => {
-                                // todo support direct specialization?
-                                let arg_types = compiled_args
-                                    .iter()
-                                    .map(|x| x.xtype())
-                                    .collect::<Result<Vec<_>, _>>()?;
-                                if arg_types.len() != spec.fields.len() {
-                                    return Err(CompilationError::StructParamsLengthMismatch {
-                                        struct_name: spec.name,
-                                        expected_count: spec.fields.len(),
-                                        actual_count: arg_types.len(),
-                                    });
-                                }
-                                return if let Some(bind) = spec.bind(&arg_types) {
-                                    Ok(CompilationResult::new(
-                                        XExpr::Construct(spec.clone(), bind, compiled_args),
-                                        cvars,
-                                    ))
-                                } else {
-                                    Err(CompilationError::StructFieldTypeMismatch {
-                                        struct_name: spec.name,
-                                        expected_types: spec
-                                            .fields
-                                            .iter()
-                                            .map(|x| x.type_.clone())
-                                            .collect(),
-                                        actual_types: arg_types,
-                                    })
-                                };
-                            }
-                            _ => {}
-                        }
-                    }
-                    Self::SpecializedIdent(name, arg_types, dyn_bind_types) => {
-                        let actual_arg_types = compiled_args
-                            .iter()
-                            .map(|x| x.xtype())
-                            .collect::<Result<Vec<_>, _>>()?;
-                        let mut bind = Bind::new();
-                        if let Some(arg_types) = arg_types {
-                            for (idx, (arg_type, actual_type)) in
-                                arg_types.iter().zip(actual_arg_types.iter()).enumerate()
-                            {
-                                bind = arg_type
-                                    .bind_in_assignment(actual_type)
-                                    .and_then(|b| bind.mix(&b))
-                                    .ok_or_else(|| {
-                                        CompilationError::SpecializedFunctionTypeMismatch {
-                                            name: *name,
-                                            idx,
-                                            actual_type: actual_type.clone(),
-                                            expected_type: arg_type.clone(),
-                                        }
-                                    })?;
-                            }
-                        }
-                        return match namespace.get(*name) {
-                            Some(XCompilationScopeItem::Overload(overloads)) => {
-                                Ok(CompilationResult::new(
-                                    XExpr::Call(
-                                        Box::new(resolve_overload(
-                                            overloads.iter().map(|o| &o.1),
-                                            Some(&compiled_args),
-                                            arg_types.as_ref().map(|v| &v[..]),
-                                            dyn_bind_types.as_ref().map(|v| &v[..]),
-                                            *name,
-                                            namespace,
-                                        )?),
-                                        compiled_args,
-                                    ),
-                                    cvars,
-                                ))
-                            }
-                            Some(item) => Err(CompilationError::NonFunctionSpecialization {
-                                name: *name,
-                                item,
-                            }),
-                            None => Err(CompilationError::FunctionNotFound { name: *name }),
-                        };
-                    }
-                    _ => {}
-                }
-                let CompilationResult {
-                    expr: func_compiled,
-                    closure_vars: func_closure_vars,
-                } = func.compile(namespace)?;
-                cvars.extend(func_closure_vars.into_iter());
-                Ok(CompilationResult::new(
-                    XExpr::Call(Box::new(func_compiled), compiled_args),
-                    cvars,
-                ))
-            }
-            Self::Member(obj, member_name) => {
-                let obj_compiled = obj.compile(namespace)?;
-                let obj_type = obj_compiled.expr.xtype()?;
-                match obj_type.as_ref() {
-                    XType::Compound(_, spec, _) => {
-                        if let Some(&index) = spec.indices.get(&member_name) {
-                            Ok(CompilationResult::new(
-                                XExpr::Member(Box::new(obj_compiled.expr), index),
-                                obj_compiled.closure_vars,
-                            ))
-                        } else {
-                            Err(CompilationError::MemberNotFound {
-                                spec: spec.clone(),
-                                name: member_name.clone(),
-                            })
-                        }
-                    }
-                    XType::Tuple(types) => {
-                        let idx = member_name
-                            .strip_prefix("item")
-                            .map(|s| s.parse::<usize>().unwrap())
-                            .ok_or_else(|| CompilationError::NonItemTupleAccess {
-                                member: member_name.clone(),
-                            })?;
-                        if idx > types.len() {
-                            Err(CompilationError::TupleIndexOutOfBounds {
-                                tuple_type: obj_type.clone(),
-                                index: idx,
-                                max: types.len(),
-                            })
-                        } else {
-                            Ok(CompilationResult::new(
-                                XExpr::Member(Box::new(obj_compiled.expr), idx),
-                                obj_compiled.closure_vars,
-                            ))
-                        }
-                    }
-                    _ => Err(CompilationError::NonCompoundMemberAccess {
-                        xtype: obj_compiled.expr.xtype()?,
-                    }),
-                }
-            }
-            Self::Ident(name) => match namespace.get_with_depth(name) {
-                None => Err(CompilationError::ValueNotFound { name }),
-                Some((
-                    XCompilationScopeItem::Compound(..) | XCompilationScopeItem::NativeType(..),
-                    _,
-                )) => Err(CompilationError::TypeAsVariable { name }),
-                Some((item, depth)) => {
-                    match &item {
-                        XCompilationScopeItem::Value(height, t) => {
-                            let cvars = if *height > 0 && *height < namespace.height{
-                                vec![name]
-                            } else {
-                                vec![]
-                            };
-                            Ok(CompilationResult::new(
-                            XExpr::Ident(name, Box::new(IdentItem::Value(t.clone()))),
-                            cvars,
-                        ))},
-                        XCompilationScopeItem::Overload(overloads) => {
-                            if overloads.len() == 1 {
-                                // todo fix this if (turn into pattern)
-                                let overload = &overloads[0].1;
-                                match overload {
-                                    XFunctionFactory::Static(overload) => {
-                                        if overload.is_generic() {
-                                            Err(CompilationError::GenericFunctionAsVariable {
-                                                name,
-                                            })
-                                        } else {
-                                            Ok(CompilationResult::new(
-                                                XExpr::Ident(
-                                                    name,
-                                                    Box::new(IdentItem::Function(overload.clone())),
-                                                ),
-                                                vec![],
-                                            ))
-                                        }
-                                    }
-                                    XFunctionFactory::Dynamic(_) => {
-                                        Err(CompilationError::DynamicFunctionAsVariable { name })
-                                    }
-                                }
-                            } else {
-                                Err(CompilationError::OverloadedFunctionAsVariable { name })
-                            }
-                        }
-                        _ => unreachable!(),
-                    }
-                }
-            },
-            Self::SpecializedIdent(name, arg_types, bind_types) => match namespace
-                .get_with_depth(name)
-            {
-                Some((XCompilationScopeItem::Overload(overloads), depth)) => {
-                    Ok(CompilationResult::new(
-                        resolve_overload(
-                            overloads.iter().map(|o| &o.1),
-                            None,
-                            arg_types.as_ref().map(|v| &v[..]),
-                            bind_types.as_ref().map(|v| &v[..]),
-                            name,
-                            namespace,
-                        )?,
-                        vec![],
-                    ))
-                }
-                None => Err(CompilationError::FunctionNotFound { name }),
-                Some((item, _)) => Err(CompilationError::NonFunctionSpecialization { name, item }),
-            },
-            Self::Lambda(args, body) => {
-                let mut subscope = XCompilationScope::from_parent_lambda(namespace);
-                let (args, args_cvars): (Vec<_>, Vec<_>) = args
-                    .into_iter()
-                    .map(|a| a.compile(&subscope))
-                    .collect::<Result<Vec<_>, _>>()?
-                    .into_iter()
-                    .unzip();
-                for param in &args {
-                    subscope.add_param(param.name, param.type_.clone())?;
-                }
-                let body_result = body.compile(&subscope)?;
-                let body_type = body_result.expr.xtype()?;
-                return Ok(CompilationResult::from(XExpr::Lambda(Rc::new(
-                    XStaticFunction::UserFunction(UfData::new(
-                        XExplicitFuncSpec {
-                            generic_params: None,
-                            args,
-                            ret: body_type,
-                        },
-                        vec![],
-                        Box::new(body_result.expr),
-                        body_result
-                            .closure_vars
-                            .iter()
-                            .cloned()
-                            .chain(args_cvars.into_iter().flatten().unique())
-                            .collect(),
-                    )),
-                ))));
-            }
-            Self::Tuple(items) => Ok(CompilationResult::from_multi(
-                compile_many(items, namespace)?,
-                XExpr::Tuple,
-            )),
-        }
-    }
 }
 
 #[derive(Derivative)]
@@ -526,116 +107,66 @@ pub enum XExpr<W: Write + 'static> {
     Construct(Arc<XCompoundSpec>, Bind, Vec<XExpr<W>>),
     Variant(Arc<XCompoundSpec>, Bind, usize, Box<XExpr<W>>),
     Member(Box<XExpr<W>>, usize),
-    KnownOverload(Rc<XStaticFunction<W>>, Bind),
-    Ident(DefaultSymbol, Box<IdentItem<W>>),
-    Lambda(Rc<XStaticFunction<W>>),
+    // todo fund some way to divorce lambda and spec
+    Lambda(Rc<StaticUserFunction<W>>, XFuncSpec),
+    Value(usize),
     // this dummy exists for calling native functions with arguments that were already
     // evaluated
-    Dummy(Rc<ManagedXValue<W>>),
-}
-
-pub enum XStaticFunction<W: Write + 'static> {
-    // identical to a native, with the exception that will short-circut overload resolution
-    ShortCircutNative(XFuncSpec, NativeCallable<W>),
-    Native(XFuncSpec, NativeCallable<W>),
-    UserFunction(UfData<W>),
-    Recourse(Rc<XFuncSpec>, usize),
+    Dummy(EvaluatedVariable<W>),
 }
 
 #[derive(Derivative)]
-#[derivative(Debug(bound = ""))] // todo better debug
-pub struct UfData<W: Write + 'static> {
-    pub spec: XExplicitFuncSpec<W>,
-    pub output: Box<XExpr<W>>,
-    pub cvars: HashSet<DefaultSymbol>,
-
-    pub param_names: Vec<DefaultSymbol>,
-    pub defaults: Vec<XExpr<W>>,
-    pub declarations: Vec<Declaration<W>>,
+#[derivative(Clone(bound = ""))]
+pub enum XStaticFunction<W: Write + 'static> {
+    Native(NativeCallable<W>),
+    UserFunction(Rc<StaticUserFunction<W>>),
 }
 
-impl<W: Write + 'static> UfData<W> {
-    pub(crate) fn new(
-        spec: XExplicitFuncSpec<W>,
-        declarations: Vec<Declaration<W>>,
-        output: Box<XExpr<W>>,
-        cvars: HashSet<DefaultSymbol>,
-    ) -> Self {
-        Self {
-            param_names: spec.args.iter().map(|p| p.name).collect(),
-            defaults: spec
-                .args
-                .iter()
-                .skip_while(|p| p.default.is_none())
-                .map(|p| p.default.clone().unwrap())
-                .collect(),
-            spec,
-            output,
-            cvars,
-            declarations,
-        }
-    }
+#[derive(Derivative)]
+#[derivative(Debug(bound = ""))]
+pub struct StaticUserFunction<W: Write + 'static> {
+    pub(crate) param_len: usize,
+    pub(crate) defaults: Vec<XExpr<W>>,
+    pub(crate) cell_specs: Vec<CellSpec<W>>,
+    pub(crate) declarations: Vec<Declaration<W>>,
+    pub(crate) output: Box<XExpr<W>>, // todo does this have to be a box?
 }
 
 impl<W: Write + 'static> XStaticFunction<W> {
-    pub(crate) fn to_function(self: &Rc<Self>, closure: &XEvaluationScope<'_, W>) -> XFunction<W> {
-        match self.as_ref() {
-            Self::Native(_, native) | Self::ShortCircutNative(_, native) => {
+    pub(crate) fn to_function(&self, closure: &RuntimeScope<'_, W>, rt: RTCell<W>) -> Result<XFunction<W>, String> {
+        Ok(match self {
+            Self::Native(native) => {
                 XFunction::Native(native.clone())
             }
-            Self::UserFunction(..) => {
-                let key = RcHash(self.clone());
-                closure.get_ud_func(key).clone()
+            Self::UserFunction(uf) => {
+                XFunction::UserFunction {
+                    template: RuntimeScopeTemplate::from_specs(&uf.cell_specs, Some(closure), uf.declarations.clone(), rt, uf.defaults.clone(), Some(uf.output.clone()))?,
+                    defaults: uf.defaults.clone(),
+                    output: uf.output.clone(),
+                }
             }
-            Self::Recourse(_, depth) => XFunction::Recourse(*depth),
-        }
+        })
     }
 
-    pub(crate) fn from_native(
-        spec: XFuncSpec,
-        native: impl Fn(
-                &[XExpr<W>],
-                &XEvaluationScope<'_, W>,
-                bool,
-                RTCell<W>,
-            ) -> Result<TailedEvalResult<W>, String>
-            + 'static,
-    ) -> Self {
-        Self::Native(spec, Rc::new(native))
-    }
-
-    pub(crate) fn from_native_short_circut(
-        spec: XFuncSpec,
-        native: impl Fn(
-                &[XExpr<W>],
-                &XEvaluationScope<'_, W>,
-                bool,
-                RTCell<W>,
-            ) -> Result<TailedEvalResult<W>, String>
-            + 'static,
-    ) -> Self {
-        Self::ShortCircutNative(spec, Rc::new(native))
-    }
-
-    fn short_circuit_overloads(&self) -> bool {
-        matches!(self, Self::ShortCircutNative(..))
+    pub(crate) fn from_native(f: impl Fn(
+        &[XExpr<W>],
+        &RuntimeScope<'_, W>,
+        bool,
+        RTCell<W>,
+    ) -> Result<TailedEvalResult<W>, String> + 'static) -> Self {
+        Self::Native(Rc::new(f))
     }
 }
 
 impl<W: Write + 'static> Debug for XStaticFunction<W> {
+    // todo is this needed?
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
-            Self::Native(spec, _) => {
-                write!(f, "Native({:?})", spec)
+            Self::Native(..) => {
+                write!(f, "Native(..)")
             }
-            Self::ShortCircutNative(spec, _) => {
-                write!(f, "Native({:?})", spec)
-            }
-            Self::UserFunction(spec, ..) => {
-                write!(f, "UserFunction({:?})", spec)
-            }
-            Self::Recourse(spec, ..) => {
-                write!(f, "Recourse({:?})", spec)
+            Self::UserFunction(..) => {
+                write!(f, "UserFunction(..)")
             }
         }
     }
@@ -665,67 +196,6 @@ pub struct XExplicitStaticArgSpec {
     pub(crate) default: Option<XStaticExpr>,
 }
 
-impl XExplicitStaticFuncSpec {
-    pub(crate) fn to_spec(&self) -> XFuncSpec {
-        XFuncSpec {
-            generic_params: self.generic_params.clone(),
-            params: self
-                .args
-                .iter()
-                .map(|x| XFuncParamSpec {
-                    type_: x.type_.clone(),
-                    required: x.default.is_none(),
-                })
-                .collect(),
-            ret: self.ret.clone(),
-        }
-    }
-
-    pub(crate) fn compile<W: Write + 'static>(
-        self,
-        namespace: &XCompilationScope<W>,
-    ) -> Result<(XExplicitFuncSpec<W>, Vec<Identifier>), CompilationError<W>> {
-        let (args, cvars): (Vec<_>, Vec<_>) = self
-            .args
-            .into_iter()
-            .map(|a| a.compile(namespace))
-            .collect::<Result<Vec<_>, _>>()?
-            .into_iter()
-            .unzip();
-        Ok((
-            XExplicitFuncSpec {
-                generic_params: self.generic_params.clone(),
-                ret: self.ret,
-                args,
-            },
-            cvars.into_iter().flatten().unique().collect(),
-        ))
-    }
-}
-
-impl XExplicitStaticArgSpec {
-    pub(crate) fn compile<W: Write + 'static>(
-        self,
-        namespace: &XCompilationScope<W>,
-    ) -> Result<(XExplicitArgSpec<W>, Vec<Identifier>), CompilationError<W>> {
-        let (def_expr, cvars) = match self.default {
-            Some(def) => {
-                let res = def.compile(namespace)?;
-                (Some(res.expr), res.closure_vars)
-            }
-            None => (None, vec![]),
-        };
-        Ok((
-            XExplicitArgSpec {
-                name: self.name,
-                type_: self.type_.clone(),
-                default: def_expr,
-            },
-            cvars,
-        ))
-    }
-}
-
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub struct XExplicitFuncSpec<W: Write + 'static> {
@@ -742,56 +212,6 @@ pub struct XExplicitArgSpec<W: Write + 'static> {
     pub(crate) default: Option<XExpr<W>>,
 }
 
-impl<W: Write + 'static> XExplicitFuncSpec<W> {
-    pub(crate) fn to_spec(&self) -> XFuncSpec {
-        XFuncSpec {
-            generic_params: self.generic_params.clone(),
-            params: self
-                .args
-                .iter()
-                .map(|x| XFuncParamSpec {
-                    type_: x.type_.clone(),
-                    required: x.default.is_none(),
-                })
-                .collect(),
-            ret: self.ret.clone(),
-        }
-    }
-}
-
-impl<W: Write + 'static> XStaticFunction<W> {
-    fn bind(&self, args: &[Arc<XType>]) -> Option<Bind> {
-        match self {
-            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => spec.bind(args),
-            Self::Recourse(spec, ..) => spec.bind(args),
-            Self::UserFunction(ud, ..) => ud.spec.to_spec().bind(args),
-        }
-    }
-    fn rtype(&self, bind: &Bind) -> Arc<XType> {
-        match self {
-            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => spec.rtype(bind),
-            Self::Recourse(spec, ..) => spec.rtype(bind),
-            Self::UserFunction(ud, ..) => ud.spec.to_spec().rtype(bind),
-        }
-    }
-    fn is_generic(&self) -> bool {
-        match self {
-            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => {
-                spec.generic_params.is_some()
-            }
-            Self::Recourse(spec, ..) => spec.generic_params.is_some(),
-            Self::UserFunction(ud, ..) => ud.spec.generic_params.is_some(),
-        }
-    }
-    fn xtype(&self, bind: &Bind) -> Arc<XType> {
-        match self {
-            Self::Native(spec, _) | Self::ShortCircutNative(spec, _) => spec.xtype(bind),
-            Self::Recourse(spec, ..) => spec.xtype(bind),
-            Self::UserFunction(ud, ..) => ud.spec.to_spec().xtype(bind),
-        }
-    }
-}
-
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Debug(bound = ""))]
 pub enum IdentItem<W: Write + 'static> {
@@ -801,12 +221,12 @@ pub enum IdentItem<W: Write + 'static> {
 
 #[derive(Debug)]
 pub enum TailedEvalResult<W: Write + 'static> {
-    Value(Rc<ManagedXValue<W>>),
-    TailCall(Vec<Rc<ManagedXValue<W>>>),
+    Value(EvaluatedVariable<W>),
+    TailCall(Vec<EvaluatedVariable<W>>),
 }
 
 impl<W: Write + 'static> TailedEvalResult<W> {
-    pub(crate) fn unwrap_value(self) -> Rc<ManagedXValue<W>> {
+    pub(crate) fn unwrap_value(self) -> EvaluatedVariable<W> {
         match self {
             Self::Value(v) => v,
             Self::TailCall(_) => {
@@ -818,180 +238,12 @@ impl<W: Write + 'static> TailedEvalResult<W> {
 
 impl<W: Write + 'static> From<Rc<ManagedXValue<W>>> for TailedEvalResult<W> {
     fn from(v: Rc<ManagedXValue<W>>) -> Self {
-        Self::Value(v)
+        Self::Value(Ok(v))
     }
 }
 
-impl<W: Write + 'static> XExpr<W> {
-    pub(crate) fn xtype(&self) -> Result<Arc<XType>, CompilationError<W>> {
-        match self {
-            Self::LiteralBool(_) => Ok(X_BOOL.clone()),
-            Self::LiteralInt(_) => Ok(X_INT.clone()),
-            Self::LiteralFloat(_) => Ok(X_FLOAT.clone()),
-            Self::LiteralString(_) => Ok(X_STRING.clone()),
-            Self::Array(exprs) => {
-                let element_type = common_type(exprs.iter().map(|x| x.xtype()))?;
-                Ok(XType::XNative(Box::new(XSequenceType {}), vec![element_type]).into())
-            }
-            Self::Call(func, _) => {
-                if let Self::KnownOverload(func, bind) = func.as_ref() {
-                    return Ok(func.rtype(bind));
-                }
-                let func_type = func.xtype()?;
-                if let XType::XCallable(spec) = func_type.as_ref() {
-                    return Ok(spec.return_type.clone());
-                }
-                if let XType::XFunc(func) = func_type.as_ref() {
-                    return Ok(func.rtype(&Bind::new()));
-                }
-                Err(CompilationError::NotAFunction { type_: func_type })
-            }
-            Self::Construct(spec, binding, ..) => Ok(Arc::new(XType::Compound(
-                CompoundKind::Struct,
-                spec.clone(),
-                binding.clone(),
-            ))),
-            Self::Variant(spec, binding, ..) => Ok(Arc::new(XType::Compound(
-                CompoundKind::Union,
-                spec.clone(),
-                binding.clone(),
-            ))),
-            Self::Member(obj, idx) => {
-                let obj_type = obj.xtype()?;
-                match obj_type.as_ref() {
-                    XType::Compound(CompoundKind::Struct, spec, bind) => Ok(spec.fields[*idx]
-                        .type_
-                        .clone()
-                        .resolve_bind(bind, Some(&obj_type))),
-                    XType::Compound(CompoundKind::Union, spec, bind) => {
-                        let t = spec.fields[*idx]
-                            .type_
-                            .clone()
-                            .resolve_bind(bind, Some(&obj_type));
-                        Ok(XOptionalType::xtype(t))
-                    }
-                    XType::Tuple(fields) => Ok(fields[*idx].clone()),
-                    _ => Err(CompilationError::NotACompound {
-                        type_: obj_type.clone(),
-                    }),
-                }
-            }
-            Self::KnownOverload(func, bind) => Ok(func.xtype(bind)),
-            Self::Lambda(func) => Ok(func.xtype(&Bind::new())),
-            Self::Ident(_, item) => match item.as_ref() {
-                IdentItem::Value(xtype) => Ok(xtype.clone()),
-                IdentItem::Function(func) => Ok(func.xtype(&Bind::new())),
-            },
-            Self::Tuple(items) => {
-                let types = items
-                    .iter()
-                    .map(|x| x.xtype())
-                    .collect::<Result<Vec<_>, _>>()?;
-                Ok(Arc::new(XType::Tuple(types)))
-            }
-            Self::Dummy(_) => unreachable!(),
-        }
-    }
-
-    pub(crate) fn eval<'p>(
-        &self,
-        namespace: &XEvaluationScope<'p, W>,
-        tail_available: bool,
-        runtime: RTCell<W>,
-    ) -> Result<TailedEvalResult<W>, String> {
-        match &self {
-            Self::LiteralBool(b) => Ok(ManagedXValue::new(XValue::Bool(*b), runtime)?.into()),
-            Self::LiteralInt(i) => {
-                Ok(ManagedXValue::new(XValue::Int(LazyBigint::from(*i)), runtime)?.into())
-            }
-            Self::LiteralFloat(r) => Ok(ManagedXValue::new(XValue::Float(*r), runtime)?.into()),
-            Self::LiteralString(s) => {
-                Ok(ManagedXValue::new(XValue::String(s.clone()), runtime)?.into())
-            }
-            Self::Array(exprs) => {
-                let seq = if exprs.is_empty() {
-                    XSequence::Empty
-                } else {
-                    XSequence::array(
-                        exprs
-                            .iter()
-                            .map(|x| {
-                                x.eval(namespace, false, runtime.clone())
-                                    .map(|r| r.unwrap_value())
-                            })
-                            .collect::<Result<Vec<_>, _>>()?,
-                    )
-                };
-                Ok(ManagedXValue::new(XValue::Native(Box::new(seq)), runtime)?.into())
-            }
-            Self::Call(func, args) => {
-                let callable = func.eval(namespace, false, runtime.clone())?.unwrap_value();
-                let ret;
-                if let XValue::Function(xfunc) = &callable.value {
-                    ret = xfunc.eval(args, namespace, tail_available, runtime)?;
-                } else {
-                    return Err(format!("Expected function, got {:?}", callable));
-                }
-                Ok(ret)
-            }
-            Self::Construct(_, _, args) | Self::Tuple(args) => {
-                let items = args
-                    .iter()
-                    .map(|x| {
-                        x.eval(namespace, false, runtime.clone())
-                            .map(|r| r.unwrap_value())
-                    })
-                    .collect::<Result<Vec<_>, _>>()?;
-                Ok(ManagedXValue::new(XValue::StructInstance(items), runtime)?.into())
-            }
-            Self::Member(obj, idx) => {
-                let obj = obj.eval(namespace, false, runtime.clone())?.unwrap_value();
-                match &obj.value {
-                    XValue::StructInstance(items) => Ok(items[*idx].clone().into()),
-                    XValue::UnionInstance(variant, item) => Ok(if variant == idx {
-                        manage_native!(
-                            XOptional {
-                                value: Some(item.clone())
-                            },
-                            runtime
-                        )
-                    } else {
-                        manage_native!(XOptional::<W> { value: None }, runtime)
-                    }),
-                    _ => Err(format!("Expected struct, got {:?}", obj)),
-                }
-            }
-            Self::Variant(.., idx, expr) => {
-                let obj = expr.eval(namespace, false, runtime.clone())?.unwrap_value();
-                Ok(ManagedXValue::new(XValue::UnionInstance(*idx, obj), runtime)?.into())
-            }
-            Self::KnownOverload(func, ..) => Ok(ManagedXValue::new(
-                XValue::Function(func.clone().to_function(namespace)),
-                runtime,
-            )?
-            .into()),
-            Self::Lambda(func) => Ok(ManagedXValue::new(
-                XValue::Function(namespace.lock_closure(func, runtime.clone())),
-                runtime,
-            )?
-            .into()),
-            Self::Ident(name, item) => {
-                if let IdentItem::Function(func) = item.as_ref() {
-                    Ok(ManagedXValue::new(
-                        XValue::Function(func.clone().to_function(namespace)),
-                        runtime,
-                    )?
-                    .into())
-                } else {
-                    namespace
-                        .get_value(*name)
-                        .ok_or_else(|| {
-                            format!("Undefined identifier during evaluation: {:?}", name)
-                        })?
-                        .map(|v| v.into())
-                }
-            }
-            Self::Dummy(val) => Ok(val.clone().into()),
-        }
+impl<W: Write + 'static> From<EvaluatedVariable<W>> for TailedEvalResult<W> {
+    fn from(v: EvaluatedVariable<W>) -> Self {
+        Self::Value(v)
     }
 }
