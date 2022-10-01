@@ -464,9 +464,19 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(Arc::new(XType::Tuple(types)))
             }
-            XExpr::Value(cell_idx) => {
-                let cell = &self.cells[*cell_idx];
-                Ok(let_match!(cell; Cell::Variable(t) => t.clone()))
+            XExpr::Value(mut cell_idx) => {
+                let mut scope = self;
+                loop {
+                    let cell = &scope.cells[cell_idx];
+                    match cell{
+                        Cell::Variable(t) => break Ok(t.clone()),
+                        Cell::Capture {scope_height, cell_idx: new_idx} => {
+                            scope = scope.ancestor_at_height(*scope_height);
+                            cell_idx = *new_idx
+                        },
+                        _ => unreachable!()
+                    }
+                }
             }
             XExpr::Dummy(..) => unreachable!(),
         }
@@ -486,6 +496,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         dynamic_bind_types: Option<&[Arc<XType>]>,
         name: Identifier,
     ) -> Result<XExpr<W>, CompilationError<W>> {
+        #[derive(Derivative)]
+        #[derivative(Debug(bound = ""))]
         enum OverloadToConsider<W: Write + 'static> {
             /// height, cell
             FromCell(usize, usize),
@@ -580,6 +592,14 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
     pub(crate) fn get_variable_cell(&self, name: &Identifier) -> Option<&usize> {
         self.variables.get(name)
+    }
+
+    fn ancestor_at_height(&self, target_height: usize) -> &Self{
+        if self.height == target_height{
+            self
+        } else {
+            self.parent.unwrap().ancestor_at_height(target_height)
+        }
     }
 }
 

@@ -11,11 +11,14 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    fn a(x: int)->int{
-        x*2
+    fn a(t: int)->(int)->(int){
+        fn b(x:int)->int{
+            x+t
+        }
+        b
     }
-
-    let z = a(3);
+    let f = a(1);
+    let z = f(3);
     "###;
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()

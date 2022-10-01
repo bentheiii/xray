@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use std::ops::Index;
 
 pub(crate) struct IPush<T>(Vec<T>);
@@ -5,6 +6,12 @@ pub(crate) struct IPush<T>(Vec<T>);
 impl<T> Default for IPush<T> {
     fn default() -> Self {
         Self(Vec::new())
+    }
+}
+
+impl<T: Debug> Debug for IPush<T>{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 
@@ -20,6 +27,10 @@ impl<T> IPush<T> {
 
     pub(crate) fn iter(&self)-> impl Iterator<Item = &T>{
         self.0.iter()
+    }
+
+    pub(crate) fn len(&self)->usize{
+        self.0.len()
     }
 }
 

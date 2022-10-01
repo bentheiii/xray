@@ -159,7 +159,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .to_expr(body_iter.next().unwrap(), interner)?;
                 let out = subscope.compile(out_static_expr)
                     .map_err(|e| e.trace(&input))?;
-                let out_type = self.type_of(&out).map_err(|e| e.trace(&body))?; // todo improve trace?
+                let out_type = subscope.type_of(&out).map_err(|e| e.trace(&body))?; // todo improve trace?
                 let output = Box::new(out);
                 if spec.ret.bind_in_assignment(&out_type).is_none() {
                     return Err(CompilationError::FunctionOutputTypeMismatch {
