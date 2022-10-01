@@ -8,6 +8,8 @@ use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::{TailedEvalResult, XExpr};
 use crate::xvalue::{ManagedXValue, XFunction, XValue};
 
+use derivative::Derivative;
+
 pub(crate) enum TemplatedEvaluationCell<W: Write + 'static> {
     Owned(EvaluationCell<W>),
     FromTemplate(usize),
@@ -32,7 +34,8 @@ impl<W: Write + 'static> TemplatedEvaluationCell<W> {
 
 type EvaluatedValue<W> = Result<Rc<ManagedXValue<W>>, String>;
 
-#[derive(Default)]
+#[derive(Default, Derivative)]
+#[derivative(Debug(bound = ""))]
 pub(crate) enum EvaluationCell<W: Write + 'static> {
     #[default]
     Uninitialized,
@@ -261,7 +264,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 let mut recursion_depth = 0_usize;
                 loop {
                     let scope = Self::from_template(template.clone(), Some(self.clone()), rt.clone(), args, defaults)?;
-                    match scope.eval(output.as_ref(), rt.clone(), tail_available)?{
+                    match scope.eval(output.as_ref(), rt.clone(), true)?{
                         TailedEvalResult::TailCall(new_args) => {
                             recursion_depth += 1;
                             if let Some(recursion_limit) = rt.borrow().limits.recursion_limit {

@@ -6,7 +6,7 @@ use std::sync::Arc;
 use crate::util::ipush::IPush;
 use crate::xexpr::{StaticUserFunction, TailedEvalResult, XExpr};
 use crate::{Bind, CompilationError, Declaration, Identifier, let_match, RTCell, XCompoundSpec, XFuncSpec, XOptionalType, XSequenceType, XStaticExpr, XStaticFunction, XType};
-use crate::xtype::{common_type, CompoundKind, X_BOOL, X_FLOAT, X_INT, X_STRING};
+use crate::xtype::{common_type, CompoundKind, X_BOOL, X_FLOAT, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{DynBind, NativeCallable, XFunctionFactoryOutput};
 use derivative::Derivative;
 use itertools::Itertools;
@@ -79,6 +79,8 @@ pub struct CompilationScope<'p, W: Write + 'static> {
     types: HashMap<Identifier, Arc<XType>>,
 
     parent: Option<&'p CompilationScope<'p, W>>,
+    // will be none for root or lambda
+    recourse_xtype: Option<Arc<XType>>,
     height: usize,
 }
 
@@ -94,6 +96,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             types: Default::default(),
 
             parent: None,
+            recourse_xtype: None,
             height: 0,
         }
     }
@@ -119,7 +122,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
     fn add_recourse(&mut self, name: Identifier, spec: XFuncSpec) {
         // todo assert that no values/types use the identifier
-        let cell_idx = self.cells.ipush(Cell::Recourse); // this is really always supposed to be 0, assert?
+        let cell_idx = self.cells.ipush(Cell::Recourse);
+        self.recourse_xtype = Some(spec.xtype());
         self.functions.entry(name).or_default().push(Overload::Static { cell_idx, spec });
     }
 
@@ -416,13 +420,18 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let element_type = common_type(exprs.iter().map(|x| self.type_of(&x)))?;
                 Ok(XType::XNative(Box::new(XSequenceType), vec![element_type]).into())
             }
-            XExpr::Call(func, ..) => {
+            XExpr::Call(func, args) => {
                 let func_type = self.type_of(&func)?;
                 if let XType::XCallable(spec) = func_type.as_ref() {
                     return Ok(spec.return_type.clone());
                 }
                 if let XType::XFunc(func) = func_type.as_ref() {
-                    return Ok(func.rtype(&Bind::new()));
+                    let mut bind = Bind::new();
+                    for (param, arg) in func.params.iter().zip(args){
+                        let arg_type = self.type_of(arg)?;
+                        bind = bind.mix(&param.type_.bind_in_assignment(&arg_type).unwrap()).unwrap()
+                    }
+                    return Ok(func.rtype(&bind));
                 }
                 Err(CompilationError::NotAFunction { type_: func_type })
             }
@@ -474,6 +483,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             scope = scope.ancestor_at_height(*scope_height);
                             cell_idx = *new_idx
                         },
+                        Cell::Recourse => break Ok(self.recourse_xtype.clone().unwrap()),
                         _ => unreachable!()
                     }
                 }
