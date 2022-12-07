@@ -56,13 +56,13 @@ pub type Identifier = DefaultSymbol;
 
 pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     let mut ret = RootCompilationScope::new();
-
     add_int_type(&mut ret).unwrap();
     add_int_add(&mut ret).unwrap();
+    add_int_eq(&mut ret).unwrap();
+    /*
     add_int_mul(&mut ret).unwrap();
     add_int_mod(&mut ret).unwrap();
     add_int_div(&mut ret).unwrap();
-    add_int_eq(&mut ret).unwrap();
     add_int_sub(&mut ret).unwrap();
     add_int_lt(&mut ret).unwrap();
     add_int_le(&mut ret).unwrap();
@@ -188,6 +188,7 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_mapping_discard(&mut ret).unwrap();
     add_mapping_lookup(&mut ret).unwrap();
     add_mapping_new_dyn(&mut ret).unwrap();
+    */
 
     ret
 }

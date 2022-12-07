@@ -11,11 +11,42 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    fn a(t: int, r: int)->int{
-        if(t == 0, r, a(t-1,r+3))
+    let t = 4;
+    fn a(i:int, j: int) -> int{
+        fn s()->int{
+            t
+        }
+        s()
     }
-    let z = a(3000, 0);
+
+    fn b(i:int)->int{
+        a(i, 1)
+    }
+
+    let z = b(3);
     "###;
+    /*
+
+     */
+    /*
+
+    fn my_range(start: int, stop: int, step:int)->Sequence<int> {
+        fn range_helper(ret: Stack<int>, i:int)->Stack<int> {
+            (i >= stop).if(
+                ret,
+                range_helper(ret.push(i), i + step)
+            )
+        }
+        range_helper(stack(), start).to_array()
+    }
+
+
+    fn main()->Sequence<int> {
+        my_range(1,20,3)
+    }
+
+    let z = main();
+     */
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()
     };

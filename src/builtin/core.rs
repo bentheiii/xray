@@ -89,7 +89,7 @@ macro_rules! to_primitive {
     ($x: expr, $v: ident) => {
         match &$x.value {
             XValue::$v(__b) => __b,
-            _ => unreachable!(),
+            other => panic!("error when converting primitive, expected {}, got {:?}", stringify!($v), other),
         }
     };
     ($x: expr, $v: ident, $d: expr) => {

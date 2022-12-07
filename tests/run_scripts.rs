@@ -44,9 +44,7 @@ impl ScriptConfig {
             .get_user_defined_function("main")
             .expect(r#"function "main" found more than once"#)
             .expect(r#"function "main" not found"#);
-        panic!();
-        /*
-        let main_output = &eval_scope.eval(main_fn, &[])?.unwrap().value;
+        let main_output = &eval_scope.run_function(main_fn, vec![]).unwrap().unwrap_value().unwrap().value;
         if !matches!(main_output, XValue::Bool(true)) {
             panic!("main outputted {:?}, expected true", main_output)
         }
@@ -61,7 +59,6 @@ impl ScriptConfig {
                 .clone();
             assert_eq!(expected_output, &String::from_utf8(actual_stdout).unwrap())
         }
-         */
     }
 }
 

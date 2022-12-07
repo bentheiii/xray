@@ -10,6 +10,8 @@ use crate::xvalue::{ManagedXValue, XFunction, XValue};
 
 use derivative::Derivative;
 
+#[derive(Derivative)]
+#[derivative(Debug(bound = ""))]
 pub(crate) enum TemplatedEvaluationCell<W: Write + 'static> {
     Owned(EvaluationCell<W>),
     FromTemplate(usize),
@@ -32,7 +34,7 @@ impl<W: Write + 'static> TemplatedEvaluationCell<W> {
     }
 }
 
-type EvaluatedValue<W> = Result<Rc<ManagedXValue<W>>, String>;
+pub type EvaluatedValue<W> = Result<Rc<ManagedXValue<W>>, String>;
 
 #[derive(Default, Derivative)]
 #[derivative(Debug(bound = ""))]
@@ -41,7 +43,7 @@ pub(crate) enum EvaluationCell<W: Write + 'static> {
     Uninitialized,
     Value(EvaluatedValue<W>),
     LocalRecourse,
-    Recourse { height: usize, scope: XFunction<W> },  // todo
+    Recourse { depth: usize, scope: XFunction<W> },  // todo
 }
 
 impl<W: Write + 'static> EvaluationCell<W> {
@@ -50,16 +52,25 @@ impl<W: Write + 'static> EvaluationCell<W> {
             CellSpec::Variable => Ok(Self::Uninitialized),
             CellSpec::Recourse => Ok(Self::LocalRecourse),
             CellSpec::FactoryMadeFunction(native) => Ok(Self::Value(Ok(ManagedXValue::new(XValue::Function(XFunction::Native(native.clone())), rt)?))),
-            CellSpec::Capture { scope_height, cell_idx } => {
-                let (ancestor, cell) = parent.unwrap().ancestor_and_cell(*scope_height, *cell_idx);
+            CellSpec::Capture { ancestor_depth, cell_idx } => {
+                // note that the parent is already one-deep so we need to subtract one from the depth
+                let (ancestor, cell) = parent.unwrap().ancestor_and_cell(*ancestor_depth-1, *cell_idx);
                 match cell.as_ref(ancestor.template.as_ref()) {
-                    Self::Uninitialized => panic!("cannot capture uninitialized data"),
+                    Self::Uninitialized => {
+                        panic!("cannot capture uninitialized data")
+                    },
                     Self::Value(v) => Ok(Self::Value(v.clone())),
-                    Self::LocalRecourse => Ok(Self::Recourse {
-                        height: *scope_height,
-                        scope: ancestor.template.clone().to_function(),
-                    }),
-                    Self::Recourse { height, scope } => Ok(Self::Recourse { height: *height, scope: scope.clone() })
+                    Self::LocalRecourse => {
+                        println!("!!! D.0 {} {}", ancestor_depth, cell_idx);
+                        Ok(Self::Recourse {
+                            depth: *ancestor_depth-1,
+                            scope: ancestor.template.clone().to_function(),
+                        })
+                    },
+                    Self::Recourse { depth, scope } => {
+                        println!("!!! D.1 {} {} {}", ancestor_depth, depth, cell_idx);
+                        Ok(Self::Recourse { depth: ancestor_depth + depth, scope: scope.clone() })
+                    }
                 }
             }
         }
@@ -67,10 +78,12 @@ impl<W: Write + 'static> EvaluationCell<W> {
 }
 
 pub struct RuntimeScopeTemplate<W: Write + 'static> {
+    pub(crate) name: Option<String>,
     pub(crate) cells: Vec<EvaluationCell<W>>,
     pub(crate) declarations: Vec<Declaration<W>>,
     defaults: Vec<XExpr<W>>,
     output: Option<Box<XExpr<W>>>,
+    scope_depth: usize,
 }
 
 impl<W: Write + 'static> RuntimeScopeTemplate<W> {
@@ -82,13 +95,20 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
         }
     }
 
-    pub(crate) fn from_specs(cell_specs: &[CellSpec<W>], parent: Option<&RuntimeScope<W>>, declarations: Vec<Declaration<W>>, rt: RTCell<W>, defaults: Vec<XExpr<W>>, output: Option<Box<XExpr<W>>>) -> Result<Rc<Self>, String> {
+    pub(crate) fn from_specs(name: Option<String>, cell_specs: &[CellSpec<W>], parent: Option<&RuntimeScope<W>>, declarations: Vec<Declaration<W>>, rt: RTCell<W>, defaults: Vec<XExpr<W>>, output: Option<Box<XExpr<W>>>, scope_depth: usize) -> Result<Rc<Self>, String> {
         let cells = cell_specs.iter().map(|s| EvaluationCell::from_spec(s, parent, rt.clone())).collect::<Result<_, _>>()?;
+        println!("!!! H.0 {name:?} {cell_specs:?} {cells:?}");
+        if name == Some("s".to_string()){
+            let scope = parent.unwrap().parent.unwrap().parent.unwrap();
+            println!("!!! H.1 {name:?} {:?} {:?}", scope.template.name, scope.cells);
+        }
         Ok(Rc::new(Self {
+            name,
             cells,
             declarations,
             defaults,
-            output
+            output,
+            scope_depth
         }))
     }
 }
@@ -96,6 +116,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
 
 pub struct RuntimeScope<'a, W: Write + 'static> {
     pub(crate) cells: Vec<TemplatedEvaluationCell<W>>,
+    // every scope has two "depths", the stack depth, and the scope depth
     height: usize,
     parent: Option<&'a Self>,
     template: Rc<RuntimeScopeTemplate<W>>,
@@ -196,6 +217,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             }
             XExpr::Value(cell_idx) => {
                 let raw_value = self.get_cell_value(*cell_idx);
+                println!("!!! G.0 {cell_idx:?}, {:?}, {raw_value:?}", self.template.cells);
                 match raw_value {
                     EvaluationCell::Value(v) => Ok(v.clone()?.into()),
                     EvaluationCell::Uninitialized => panic!("access to uninitialized cell"),
@@ -222,15 +244,17 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                                         .collect::<Result<_, _>>()?;
                             return Ok(TailedEvalResult::TailCall(args))
                         }
-                        if let EvaluationCell::Recourse {height, scope} = cell{
+                        if let EvaluationCell::Recourse {depth, scope} = cell{
                             let ud_template = let_match!(scope; XFunction::UserFunction{template, ..} => template);
-                            if Rc::ptr_eq(&self.ancestor_at_height(*height).template, ud_template){
+                            if Rc::ptr_eq(&self.ancestor_at_depth(*depth).template, ud_template){
                                 panic!("I'm not sure if this happens or what to do here")
                             }
                         }
                     }
                 }
+                println!("!!! F.0 {} {:?}", self.height, callee);
                 let callee = self.eval(callee.as_ref(), rt.clone(), false)?.unwrap_value()?;
+                println!("!!! F.1 {} {:?}", self.height, callee);
                 let func = let_match!(&callee.value; XValue::Function(func) => func);
                 self.eval_func_with_expressions(func, &args, rt, tail_available)
             }
@@ -240,7 +264,8 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
     }
 
     fn eval_func_with_expressions(&self, func: &XFunction<W>, args: &[XExpr<W>], rt: RTCell<W>, tail_available: bool)->Result<TailedEvalResult<W>, String>{
-        match func {
+        println!("!!! E.1 {} {:?} {:?}", self.height, func, args);
+        let ret = match func {
             XFunction::Native(nc) => nc(args, self, tail_available, rt),
             XFunction::UserFunction {..} => {
                 let args = args.iter()
@@ -250,10 +275,13 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                     .collect::<Result<Vec<_>, _>>()?;
                 self.eval_func_with_values(func, args, rt, tail_available)
             },
-        }
+        };
+        println!("!!! E.2 {} {:?} {:?} {:?}", self.height, func, args, ret);
+        ret
     }
 
     pub(crate) fn eval_func_with_values(&'a self, func: &XFunction<W>, args: Vec<EvaluatedValue<W>>, rt: RTCell<W>, tail_available: bool)->Result<TailedEvalResult<W>, String>{
+        println!("!!! E.0 {} {:?} {:?}", self.height, func, args);
         match func {
             XFunction::Native(..) => {
                 let args = args.iter().cloned().map(XExpr::Dummy).collect::<Vec<_>>();
@@ -284,17 +312,18 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
         }
     }
 
-    fn ancestor_at_height(&self, height: usize) -> &Self {
+    fn ancestor_at_depth(&self, depth: usize) -> &Self {
         let mut current = self;
-        while current.height != height {
+        for _ in 0..depth{
             current = current.parent.expect("ran out of parents at runtime");
         }
         current
     }
 
 
-    fn ancestor_and_cell(&self, height: usize, cell_idx: usize) -> (&Self, &TemplatedEvaluationCell<W>) {
-        let ancestor = self.ancestor_at_height(height);
+    fn ancestor_and_cell(&self, depth: usize, cell_idx: usize) -> (&Self, &TemplatedEvaluationCell<W>) {
+        println!("!!! C.1 {depth} {cell_idx} {}", self.height);
+        let ancestor = self.ancestor_at_depth(depth);
         (ancestor, &ancestor.cells[cell_idx])
     }
 

@@ -1,5 +1,5 @@
 use crate::runtime::RTCell;
-use crate::xexpr::XStaticFunction;
+use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
 use crate::xvalue::{ManagedXValue, XFunction, XValue};
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
@@ -10,7 +10,7 @@ use crate::_compilation_scope::Declaration;
 use crate::util::rc_hash::RcHash;
 use crate::{let_match, Identifier, RootCompilationScope};
 use crate::compilation_scopes::{CellSpec, Overload};
-use crate::runtime_scope::{EvaluationCell, RuntimeScope, RuntimeScopeTemplate};
+use crate::runtime_scope::{EvaluatedValue, EvaluationCell, RuntimeScope, RuntimeScopeTemplate};
 
 pub type EvaluatedVariable<W> = Result<Rc<ManagedXValue<W>>, String>;
 
@@ -34,9 +34,9 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
         runtime: RTCell<W>,
     ) -> Result<Self, String> {
         let cell_specs = comp_scope.scope.cells.iter().map(|c| CellSpec::from(c.clone())).collect::<Vec<_>>();
-        let template = RuntimeScopeTemplate::from_specs(&cell_specs, None, comp_scope.scope.declarations.clone(), runtime.clone(), vec![], None)?;
+        let template = RuntimeScopeTemplate::from_specs(None, &cell_specs, None, comp_scope.scope.declarations.clone(), runtime.clone(), vec![], None, 0)?;
         let scope = RuntimeScope::from_template(template, None, runtime.clone(), vec![], &[])?;
-        let mut ret = Self {
+        let ret = Self {
             scope,
             compilation_scope: comp_scope,
             runtime,
@@ -87,5 +87,9 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
         } else {
             Ok(None)
         }
+    }
+    
+    pub fn run_function(&self, function: &XFunction<W>, args: Vec<EvaluatedValue<W>>)->Result<TailedEvalResult<W>, String>{
+        self.scope.eval_func_with_values(function, args, self.runtime.clone(), false)
     }
 }

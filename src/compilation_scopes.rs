@@ -20,10 +20,10 @@ pub(crate) enum Cell<W: Write + 'static> {
     Recourse,
     /// this can also be a parameter
     Variable(Arc<XType>),
-    /// capture will always lead either to a variable, or to a recourse
-    Capture { scope_height: usize, cell_idx: usize },
-    // scope height,
-    FactoryMadeFunction(XStaticFunction<W>),
+    /// will never lead to another capture
+    /// ancestor depth will never be zero
+    Capture { ancestor_depth: usize, cell_idx: usize },
+    FactoryMadeFunction(Arc<XType>, XStaticFunction<W>),
 }
 
 impl<W: Write + 'static> From<Cell<W>> for CellSpec<W> {
@@ -32,8 +32,8 @@ impl<W: Write + 'static> From<Cell<W>> for CellSpec<W> {
         {
             Cell::Recourse => Self::Recourse,
             Cell::Variable(..) => Self::Variable,
-            Cell::Capture { scope_height, cell_idx } => Self::Capture { scope_height, cell_idx },
-            Cell::FactoryMadeFunction(func) => match func {
+            Cell::Capture { ancestor_depth, cell_idx } => Self::Capture { ancestor_depth, cell_idx },
+            Cell::FactoryMadeFunction(_t, func) => match func {
                 XStaticFunction::Native(native) => Self::FactoryMadeFunction(native),
                 XStaticFunction::UserFunction(..) => panic!("unexpected factory resulting in user function")
             }
@@ -49,7 +49,7 @@ pub(crate) enum CellSpec<W: Write + 'static> {
     /// when the function is called, it is the caller's responsibility to fill the
     /// parameter cells with the arguments (including defaults)
     Variable,
-    Capture { scope_height: usize, cell_idx: usize },
+    Capture { ancestor_depth: usize, cell_idx: usize },
     // scope height,
     FactoryMadeFunction(#[derivative(Debug = "ignore")]NativeCallable<W>),
 }
@@ -194,13 +194,15 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         Ok(())
     }
 
-    pub(crate) fn to_static_ud(self, defaults: Vec<XExpr<W>>, param_len: usize, output: Box<XExpr<W>>) -> StaticUserFunction<W> {
+    pub(crate) fn to_static_ud(self, name: Option<String>, defaults: Vec<XExpr<W>>, param_len: usize, output: Box<XExpr<W>>) -> StaticUserFunction<W> {
         StaticUserFunction {
+            name,
             defaults,
             param_len,
             cell_specs: self.cells.into_iter().map(|c| CellSpec::from(c)).collect(),
             declarations: self.declarations,
             output,
+            scope_depth: self.height,
         }
     }
 
@@ -284,7 +286,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let output = subscope.compile(*output)?;
                 let param_len = args.len();
                 let defaults = args.into_iter().filter_map(|a| a.default.map(|s| subscope.compile(s))).collect::<Result<_, _>>()?;
-                let ud_func = subscope.to_static_ud(defaults, param_len, Box::new(output));
+                let ud_func = subscope.to_static_ud(None, defaults, param_len, Box::new(output));
                 Ok(XExpr::Lambda(Rc::new(ud_func), todo!()))
             }
             XStaticExpr::SpecializedIdent(name, turbofish, bind_types) => {
@@ -316,7 +318,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     }
                 };
                 let new_cell_idx = if height == self.height { cell_idx } else {
-                    let new_cell = Cell::Capture { scope_height: height, cell_idx };
+                    let new_cell = Cell::Capture { ancestor_depth: self.height - height, cell_idx };
                     self.cells.ipush(new_cell)
                 };
                 Ok(XExpr::Value(new_cell_idx))
@@ -479,12 +481,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     let cell = &scope.cells[cell_idx];
                     match cell{
                         Cell::Variable(t) => break Ok(t.clone()),
-                        Cell::Capture {scope_height, cell_idx: new_idx} => {
-                            scope = scope.ancestor_at_height(*scope_height);
+                        Cell::Capture {ancestor_depth, cell_idx: new_idx} => {
+                            scope = scope.ancestor_at_depth(*ancestor_depth);
                             cell_idx = *new_idx
                         },
                         Cell::Recourse => break Ok(self.recourse_xtype.clone().unwrap()),
-                        _ => unreachable!()
+                        Cell::FactoryMadeFunction(t, ..) => break Ok(t.clone()),
                     }
                 }
             }
@@ -511,15 +513,15 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         enum OverloadToConsider<W: Write + 'static> {
             /// height, cell
             FromCell(usize, usize),
-            FromFactory(XStaticFunction<W>),
+            FromFactory(Arc<XType>, XStaticFunction<W>),
         }
         fn prepare_return<W: Write + 'static>(namespace: &mut CompilationScope<W>, considered: OverloadToConsider<W>) -> XExpr<W> {
             let new_cell = match considered {
                 OverloadToConsider::FromCell(height, cell) => {
-                    if height == namespace.height { cell } else { namespace.cells.ipush(Cell::Capture { scope_height: height, cell_idx: cell }) }
+                    if height == namespace.height { cell } else { namespace.cells.ipush(Cell::Capture { ancestor_depth: namespace.height - height, cell_idx: cell }) }
                 }
-                OverloadToConsider::FromFactory(f) => {
-                    namespace.cells.ipush(Cell::FactoryMadeFunction(f))
+                OverloadToConsider::FromFactory(t, f) => {
+                    namespace.cells.ipush(Cell::FactoryMadeFunction(t, f))
                 }
             };
             XExpr::Value(new_cell)
@@ -541,7 +543,10 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 }
                 Overload::Factory(dyn_func) => {
                     match dyn_func(args, arg_types, self, dynamic_bind_types) {
-                        Ok(overload) => (overload.spec, OverloadToConsider::FromFactory(overload.func), true),
+                        Ok(overload) => {
+                            let xtype = overload.spec.xtype();
+                            (overload.spec, OverloadToConsider::FromFactory(xtype, overload.func), true)
+                        },
                         Err(err) => {
                             dynamic_failures.push(err);
                             continue;
@@ -604,12 +609,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         self.variables.get(name)
     }
 
-    fn ancestor_at_height(&self, target_height: usize) -> &Self{
-        if self.height == target_height{
-            self
-        } else {
-            self.parent.unwrap().ancestor_at_height(target_height)
+    fn ancestor_at_depth(&self, target_depth: usize) -> &Self{
+        let mut ret = self;
+        for _ in 0..target_depth{
+            ret = ret.parent.unwrap();
         }
+        ret
     }
 }
 

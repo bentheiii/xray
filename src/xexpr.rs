@@ -125,11 +125,13 @@ pub enum XStaticFunction<W: Write + 'static> {
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub struct StaticUserFunction<W: Write + 'static> {
+    pub(crate) name: Option<String>,
     pub(crate) param_len: usize,
     pub(crate) defaults: Vec<XExpr<W>>,
     pub(crate) cell_specs: Vec<CellSpec<W>>,
     pub(crate) declarations: Vec<Declaration<W>>,
     pub(crate) output: Box<XExpr<W>>, // todo does this have to be a box?
+    pub(crate) scope_depth: usize,
 }
 
 impl<W: Write + 'static> XStaticFunction<W> {
@@ -140,7 +142,7 @@ impl<W: Write + 'static> XStaticFunction<W> {
             }
             Self::UserFunction(uf) => {
                 XFunction::UserFunction {
-                    template: RuntimeScopeTemplate::from_specs(&uf.cell_specs, Some(closure), uf.declarations.clone(), rt, uf.defaults.clone(), Some(uf.output.clone()))?,
+                    template: RuntimeScopeTemplate::from_specs(uf.name.clone(), &uf.cell_specs, Some(closure), uf.declarations.clone(), rt, uf.defaults.clone(), Some(uf.output.clone()), uf.scope_depth)?,
                     defaults: uf.defaults.clone(),
                     output: uf.output.clone(),
                 }
@@ -165,8 +167,8 @@ impl<W: Write + 'static> Debug for XStaticFunction<W> {
             Self::Native(..) => {
                 write!(f, "Native(..)")
             }
-            Self::UserFunction(..) => {
-                write!(f, "UserFunction(..)")
+            Self::UserFunction(template, ..) => {
+                write!(f, "UserFunction({})", template.name.as_deref().unwrap_or(".."))
             }
         }
     }
@@ -219,14 +221,15 @@ pub enum IdentItem<W: Write + 'static> {
     Function(Rc<XStaticFunction<W>>),
 }
 
-#[derive(Debug)]
+#[derive(Derivative)]
+#[derivative(Debug(bound = ""))]
 pub enum TailedEvalResult<W: Write + 'static> {
     Value(EvaluatedVariable<W>),
     TailCall(Vec<EvaluatedVariable<W>>),
 }
 
 impl<W: Write + 'static> TailedEvalResult<W> {
-    pub(crate) fn unwrap_value(self) -> EvaluatedVariable<W> {
+    pub fn unwrap_value(self) -> EvaluatedVariable<W> {
         match self {
             Self::Value(v) => v,
             Self::TailCall(_) => {

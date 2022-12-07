@@ -85,8 +85,8 @@ impl<W: Write + 'static> Debug for XFunction<W> {
             Self::Native(..) => {
                 write!(f, "Native(..)")
             }
-            Self::UserFunction{..} => {
-                write!(f, "UserFunction(..)")
+            Self::UserFunction{template, ..} => {
+                write!(f, "UserFunction({})", template.name.as_deref().unwrap_or(".."))
             }
         }
     }
