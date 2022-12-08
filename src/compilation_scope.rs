@@ -429,8 +429,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let element_type = common_type(exprs.iter().map(|x| self.type_of(x)))?;
                 Ok(XType::XNative(Box::new(XSequenceType), vec![element_type]).into())
             }
-            XExpr::Call(func, args) => {
-                let func_type = self.type_of(func)?;
+            XExpr::Call(func0, args) => {
+                let func_type = self.type_of(func0)?;
                 if let XType::XCallable(spec) = func_type.as_ref() {
                     return Ok(spec.return_type.clone());
                 }
@@ -492,7 +492,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             scope = scope.ancestor_at_depth(*ancestor_depth);
                             cell_idx = *new_idx
                         },
-                        Cell::Recourse => break Ok(self.recourse_xtype.clone().unwrap()),
+                        Cell::Recourse => break Ok(scope.recourse_xtype.clone().unwrap()),
                         Cell::FactoryMadeFunction(t, ..) => break Ok(t.clone()),
                     }
                 }

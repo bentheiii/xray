@@ -10,10 +10,16 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    fn a(x: int ?= 1, y: int ?= 3)->int{
-        x*10+y
+    fn a()->int{
+        fn b(x:int)->int{
+            fn c(s: str, y:int)->int{
+                if(y<10, b(y+1), y)
+            }
+            c("", x*2)
+        }
+        b(0)
     }
-    let z = a(6);
+    let z = a();
     "###;
     /*
 
