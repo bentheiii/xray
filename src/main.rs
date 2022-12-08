@@ -11,21 +11,22 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    let t = 4;
-    fn a(i:int, j: int) -> int{
-        fn s(r: int)->int{
-            let w=3;
-            t+j+w+r
+    fn my_range(start: int, stop: int, step:int)->Sequence<int> {
+        fn range_helper(ret: Stack<int>, i:int)->Stack<int> {
+            (i >= stop).if(
+                ret,
+                range_helper(ret.push(i), i + step)
+            )
         }
-        s(2+i)
+        range_helper(stack(), start).to_array()
     }
 
-    fn b(i:int)->int{
-        let t = 5;
-        a(i, t)
+
+    fn main()->Sequence<int> {
+        my_range(1,20,3)
     }
 
-    let z = b(3);
+    let z = main();
     "###;
     /*
 

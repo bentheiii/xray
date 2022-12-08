@@ -1,0 +1,19 @@
+let t = 4;
+fn a(i:int, j: int) -> int{
+    fn s(r: int)->int{
+        let w=3;
+        t+j+w+r
+    }
+    s(2+i)
+}
+
+fn b(i:int)->int{
+    let t = 5;
+    a(i, t)
+}
+
+
+fn main()->bool{
+    let z = b(3);
+    assert(z == 17)
+}

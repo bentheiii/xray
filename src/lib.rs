@@ -60,13 +60,12 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_int_type(&mut ret).unwrap();
     add_int_add(&mut ret).unwrap();
     add_int_eq(&mut ret).unwrap();
-    /*
     add_int_mul(&mut ret).unwrap();
+    add_int_sub(&mut ret).unwrap();
+    add_int_le(&mut ret).unwrap();
     add_int_mod(&mut ret).unwrap();
     add_int_div(&mut ret).unwrap();
-    add_int_sub(&mut ret).unwrap();
     add_int_lt(&mut ret).unwrap();
-    add_int_le(&mut ret).unwrap();
     add_int_ge(&mut ret).unwrap();
     add_int_gt(&mut ret).unwrap();
     add_int_neg(&mut ret).unwrap();
@@ -112,7 +111,6 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_bool_hash(&mut ret).unwrap();
     add_bool_cmp(&mut ret).unwrap();
     add_bool_to_str(&mut ret).unwrap();
-
     add_if(&mut ret).unwrap();
     add_bool_assert(&mut ret).unwrap();
     add_error(&mut ret).unwrap();
@@ -189,7 +187,6 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_mapping_discard(&mut ret).unwrap();
     add_mapping_lookup(&mut ret).unwrap();
     add_mapping_new_dyn(&mut ret).unwrap();
-    */
 
     ret
 }

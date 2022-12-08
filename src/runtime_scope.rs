@@ -45,7 +45,7 @@ pub(crate) enum EvaluationCell<W: Write + 'static> {
     Uninitialized,
     Value(EvaluatedValue<W>),
     LocalRecourse,
-    Recourse { depth: StackDepth, scope: XFunction<W> },  // todo
+    Recourse { depth: ScopeDepth, scope: XFunction<W> },  // todo
 }
 
 impl<W: Write + 'static> EvaluationCell<W> {
@@ -63,12 +63,10 @@ impl<W: Write + 'static> EvaluationCell<W> {
                     }
                     Self::Value(v) => Ok(Self::Value(v.clone())),
                     Self::LocalRecourse => {
-                        println!("!!! D.0 {:?} {}", ancestor_depth, cell_idx);
-                        todo!()
+                        Ok(Self::Recourse {depth: *ancestor_depth, scope: ancestor.template.clone().to_function()})
                     }
-                    Self::Recourse { depth, scope } => {
-                        println!("!!! D.1 {:?} {:?} {}", ancestor_depth, depth, cell_idx);
-                        todo!()
+                    Self::Recourse { .. } => {
+                        panic!("I don't think this happens")
                     }
                 }
             }
@@ -110,10 +108,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
             }
         } else {None};
 
-        println!("!!! H.0 {name:?} {cell_specs:?}");
         let cells = cell_specs.iter().map(|s| EvaluationCell::from_spec(s, scope_parent, rt.clone())).collect::<Result<_, _>>()?;
-        println!("!!! H.1 {name:?} {cell_specs:?} {cells:?}");
-        println!("!!! H.2 {name:?} {:?}", scope_parent.map(|p| p.template.name.as_deref().unwrap_or("MAIN"),));
         Ok(Rc::new(Self {
             name,
             cells,
@@ -229,7 +224,6 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             }
             XExpr::Value(cell_idx) => {
                 let raw_value = self.get_cell_value(*cell_idx);
-                println!("!!! G.0 {cell_idx:?}, {:?}, {raw_value:?}", self.template.cells);
                 match raw_value {
                     EvaluationCell::Value(v) => Ok(v.clone()?.into()),
                     EvaluationCell::Uninitialized => panic!("access to uninitialized cell"),
@@ -256,18 +250,10 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                                 .collect::<Result<_, _>>()?;
                             return Ok(TailedEvalResult::TailCall(args));
                         }
-                        if let EvaluationCell::Recourse { depth, scope } = cell {
-                            todo!()
-                            /*let ud_template = let_match!(scope; XFunction::UserFunction{template, ..} => template);
-                            if Rc::ptr_eq(&self.ancestor_at_depth(*depth).template, ud_template){
-                                panic!("I'm not sure if this happens or what to do here")
-                            }*/
-                        }
+                        // todo can we recurse a parent call?
                     }
                 }
-                println!("!!! F.0 {:?} {:?}", self.height, callee);
                 let callee = self.eval(callee.as_ref(), rt.clone(), false)?.unwrap_value()?;
-                println!("!!! F.1 {:?} {:?}", self.height, callee);
                 let func = let_match!(&callee.value; XValue::Function(func) => func);
                 self.eval_func_with_expressions(func, &args, rt, tail_available)
             }
@@ -301,12 +287,18 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 self.eval_func_with_expressions(func, &args, rt, tail_available)
             }
             XFunction::UserFunction { template, defaults, output } => {
+                println!("!!! E.0.1 {:?} {:?} {:?}", self.template.name, template.name, args);
                 let mut args = args;
                 let mut recursion_depth = 0_usize;
                 loop {
+                    println!("!!! E.0.1.0 {:?}", template.name);
                     let scope = Self::from_template(template.clone(), Some(self.clone()), rt.clone(), args, defaults)?;
-                    match scope.eval(output.as_ref(), rt.clone(), true)? {
+                    println!("!!! E.0.1.1 {:?} {:?} {:?} {:?}", template.name, output, scope.cells, scope.template.cells);
+                    let v = scope.eval(output.as_ref(), rt.clone(), true);
+                    println!("!!! E.0.1.2 {:?}", template.name);
+                    match v? {
                         TailedEvalResult::TailCall(new_args) => {
+                            println!("!!! E.0.2 {:?} {:?}", template.name, new_args);
                             recursion_depth += 1;
                             if let Some(recursion_limit) = rt.borrow().limits.recursion_limit {
                                 if recursion_depth > recursion_limit {
@@ -318,7 +310,10 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                             }
                             args = new_args;
                         }
-                        v @ _ => break Ok(v)
+                        v @ _ => {
+                            println!("!!! E.0.3 {:?} {:?}", template.name, v);
+                            break Ok(v)
+                        }
                     }
                 }
             }
