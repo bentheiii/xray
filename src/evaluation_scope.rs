@@ -1,15 +1,15 @@
 use crate::runtime::RTCell;
-use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
+use crate::xexpr::{TailedEvalResult};
 use crate::xvalue::{ManagedXValue, XFunction, XValue};
-use std::collections::HashMap;
+
 use std::fmt::{Debug, Formatter};
 use std::io::Write;
 use std::rc::Rc;
 
-use crate::compilation_scope::Declaration;
-use crate::util::rc_hash::RcHash;
-use crate::{let_match, Identifier, RootCompilationScope};
-use crate::compilation_scopes::{CellSpec, Overload};
+
+
+use crate::{RootCompilationScope};
+use crate::compilation_scope::{CellSpec, Overload};
 use crate::runtime_scope::{EvaluatedValue, EvaluationCell, RuntimeScope, RuntimeScopeTemplate};
 
 pub type EvaluatedVariable<W> = Result<Rc<ManagedXValue<W>>, String>;

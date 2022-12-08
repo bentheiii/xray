@@ -6,9 +6,9 @@ use std::sync::Arc;
 use itertools::Itertools;
 use pest::iterators::Pair;
 use string_interner::StringInterner;
-use crate::compilation_scopes::CompilationScope;
+use crate::compilation_scope::CompilationScope;
 use crate::{Bind, CompilationError, Identifier, TracedCompilationError, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XExplicitStaticArgSpec, XFuncSpec, XStaticExpr, XStaticFunction, XType};
-use crate::xexpr::{XExpr};
+
 use crate::xtype::{CompoundKind, XFuncParamSpec};
 use std::iter::FromIterator;
 use std::rc::Rc;

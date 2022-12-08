@@ -16,6 +16,7 @@ impl<T: Debug> Debug for IPush<T>{
 }
 
 impl<T> IPush<T> {
+    #[allow(dead_code)]
     pub(crate) fn new() -> Self {
         Self::default()
     }
@@ -29,6 +30,7 @@ impl<T> IPush<T> {
         self.0.iter()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn len(&self)->usize{
         self.0.len()
     }

@@ -2,7 +2,6 @@ extern crate core;
 extern crate pest;
 
 use std::io::stdout;
-use xray::compilation_scope::XCompilationScopeItem;
 use xray::compile_err::ResolvedTracedCompilationError;
 use xray::evaluation_scope::RootEvaluationScope;
 
@@ -11,22 +10,12 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    fn my_range(start: int, stop: int, step:int)->Sequence<int> {
-        fn range_helper(ret: Stack<int>, i:int)->Stack<int> {
-            (i >= stop).if(
-                ret,
-                range_helper(ret.push(i), i + step)
-            )
-        }
-        range_helper(stack(), start).to_array()
-    }
+    fn foo(x: int)->int{1}
 
+    fn foo(x: str)->int{2}
 
-    fn main()->Sequence<int> {
-        my_range(1,20,3)
-    }
-
-    let z = main();
+    let e = error("hi");
+    let z = foo(e);
     "###;
     /*
 

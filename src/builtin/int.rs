@@ -15,7 +15,7 @@ use std::io::Write;
 use std::ops::Neg;
 use std::rc;
 
-use crate::compilation_scope::RootCompilationScope;
+use crate::root_compilation_scope::RootCompilationScope;
 use crate::util::lazy_bigint::LazyBigint;
 
 pub(crate) fn add_int_type<W: Write + 'static>(

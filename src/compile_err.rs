@@ -1,4 +1,4 @@
-use crate::compilation_scope::XCompilationScopeItem;
+use crate::root_compilation_scope::XCompilationScopeItem;
 use crate::parser::Rule;
 use crate::xexpr::XExpr;
 use crate::xtype::CompoundKind;
@@ -65,7 +65,7 @@ pub enum CompilationError<W: Write + 'static> {
     AmbiguousOverload {
         name: Identifier,
         is_generic: bool,
-        items: Vec<XExpr<W>>,
+        items: usize, // todo improve
         param_types: Option<Vec<Arc<XType>>>,
     },
     NoOverload {
@@ -238,7 +238,7 @@ macro_rules! resolve_variants {
 }
 
 impl<W: Write + 'static> Resolve for CompilationError<W> {
-    type Output = ResolvedCompilationError<W>;
+    type Output = ResolvedCompilationError;
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
         resolve_variants!(
             self,
@@ -343,7 +343,7 @@ impl<W: Write + 'static> TracedCompilationError<W> {
         self,
         interner: &StringInterner,
         input: &str,
-    ) -> ResolvedTracedCompilationError<W> {
+    ) -> ResolvedTracedCompilationError {
         let Self(err, ((start_line, _), start_pos), (_, end_pos)) = self;
         ResolvedTracedCompilationError::Compilation(
             err.resolve(interner),
@@ -381,7 +381,7 @@ impl Display for ResolvedCompilationScopeItem {
 }
 
 #[derive(IntoStaticStr)]
-pub enum ResolvedCompilationError<W: Write + 'static> {
+pub enum ResolvedCompilationError {
     VariableTypeMismatch {
         variable_name: String,
         expected_type: ResolvedType,
@@ -422,7 +422,7 @@ pub enum ResolvedCompilationError<W: Write + 'static> {
     AmbiguousOverload {
         name: String,
         is_generic: bool,
-        items: Vec<XExpr<W>>,
+        items: usize,
         param_types: Option<Vec<ResolvedType>>,
     },
     NoOverload {
@@ -502,7 +502,7 @@ pub enum ResolvedCompilationError<W: Write + 'static> {
     },
 }
 
-impl<W: Write + 'static> Display for ResolvedCompilationError<W> {
+impl Display for ResolvedCompilationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::VariableTypeMismatch {
@@ -737,12 +737,12 @@ impl<W: Write + 'static> Display for ResolvedCompilationError<W> {
     }
 }
 
-pub enum ResolvedTracedCompilationError<W: Write + 'static> {
+pub enum ResolvedTracedCompilationError {
     Syntax(pest::error::Error<Rule>),
-    Compilation(ResolvedCompilationError<W>, usize, String),
+    Compilation(ResolvedCompilationError, usize, String),
 }
 
-impl<W: Write + 'static> Display for ResolvedTracedCompilationError<W> {
+impl Display for ResolvedTracedCompilationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Syntax(e) => Display::fmt(e, f),
@@ -752,7 +752,7 @@ impl<W: Write + 'static> Display for ResolvedTracedCompilationError<W> {
                 r,
                 start_line,
                 errant_area,
-                <&ResolvedCompilationError<W> as Into<&'static str>>::into(r)
+                <&ResolvedCompilationError as Into<&'static str>>::into(r)
             ),
         }
     }

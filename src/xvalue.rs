@@ -2,19 +2,19 @@ use crate::evaluation_scope::{EvaluatedVariable};
 use crate::native_types::XNativeValue;
 use crate::runtime::RTCell;
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
-use crate::{Identifier, XFuncSpec, XType};
+use crate::{XFuncSpec, XType};
 
 use crate::util::lazy_bigint::LazyBigint;
 use derivative::Derivative;
-use std::borrow::Cow;
-use std::collections::HashMap;
+
+
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
-use crate::compilation_scopes::CompilationScope;
-use crate::runtime_scope::{EvaluationCell, RuntimeScopeTemplate, RuntimeScope};
+use crate::compilation_scope::CompilationScope;
+use crate::runtime_scope::{RuntimeScopeTemplate, RuntimeScope};
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
@@ -94,7 +94,7 @@ impl<W: Write + 'static> Debug for XFunction<W> {
 
 pub(crate) fn size_of_value<W: Write + 'static>(v: &EvaluatedVariable<W>)->usize{
     match v {
-        Err(e) => 0, // todo manage errors (and store their size)
+        Err(_e) => 0, // todo manage errors (and store their size)
         Ok(v) => v.size
     }
 }

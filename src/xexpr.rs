@@ -1,28 +1,27 @@
-use crate::builtin::optional::{XOptional, XOptionalType};
-use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::compilation_scope::{XCompilationScopeItem, XFunctionFactory};
+
+
+
 use crate::evaluation_scope::{EvaluatedVariable};
 use crate::runtime::RTCell;
 use crate::xtype::{
-    common_type, Bind, CompoundKind, XCompoundSpec, XFuncParamSpec, XType, X_BOOL, X_FLOAT, X_INT,
-    X_STRING,
+    Bind, XCompoundSpec, XType,
 };
-use crate::xvalue::{ManagedXValue, NativeCallable, XFunction, XValue};
+use crate::xvalue::{ManagedXValue, NativeCallable, XFunction};
 use crate::{
-    manage_native, CompilationError, Declaration, Identifier, XFuncSpec,
+    Declaration, Identifier, XFuncSpec,
 };
 
-use crate::util::lazy_bigint::LazyBigint;
-use crate::util::rc_hash::RcHash;
+
+
 use derivative::Derivative;
-use itertools::Itertools;
-use std::collections::HashSet;
+
+
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
-use crate::compilation_scopes::{CellSpec, CompilationScope};
+use crate::compilation_scope::{CellSpec};
 use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
 use crate::units::ScopeDepth;
 
@@ -40,43 +39,6 @@ pub(crate) enum XStaticExpr {
     SpecializedIdent(Identifier, Option<Vec<Arc<XType>>>, Option<Vec<Arc<XType>>>),
     Lambda(Vec<XExplicitStaticArgSpec>, Box<XStaticExpr>),
 }
-
-pub(crate) struct CompilationResult<W: Write + 'static> {
-    pub(crate) expr: XExpr<W>,
-    pub(crate) closure_vars: Vec<Identifier>,
-}
-
-impl<W: Write + 'static> From<XExpr<W>> for CompilationResult<W> {
-    fn from(expr: XExpr<W>) -> Self {
-        Self {
-            expr,
-            closure_vars: vec![],
-        }
-    }
-}
-
-impl<W: Write + 'static> CompilationResult<W> {
-    fn new(expr: XExpr<W>, closure_vars: Vec<DefaultSymbol>) -> Self {
-        Self { expr, closure_vars }
-    }
-    fn join(results: impl IntoIterator<Item=Self>) -> JoinedCompilationResult<W> {
-        let mut exprs = vec![];
-        let mut closure_vars = vec![];
-        for result in results {
-            exprs.push(result.expr);
-            closure_vars.extend(result.closure_vars.iter().copied());
-        }
-        (exprs, closure_vars)
-    }
-    fn from_multi(
-        other: JoinedCompilationResult<W>,
-        f: impl FnOnce(Vec<XExpr<W>>) -> XExpr<W>,
-    ) -> Self {
-        Self::new(f(other.0), other.1)
-    }
-}
-
-type JoinedCompilationResult<W> = (Vec<XExpr<W>>, Vec<DefaultSymbol>);
 
 impl XStaticExpr {
     pub(crate) fn new_call(
