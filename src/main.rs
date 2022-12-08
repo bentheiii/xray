@@ -10,8 +10,7 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    let f = (x:int) -> {x*x};
-    let z = f(12);
+    let z = is_error(1/0);
     "###;
     /*
 

@@ -66,7 +66,7 @@ pub(crate) fn add_is_error<W: Write + 'static>(
             XFuncSpec::new(&[&t], X_BOOL.clone()).generic(params),
         XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let [a0] = eval_result(args, ns, &rt, [0])?;
+                let a0 = ns.eval(&args[0], rt.clone(), false);
                 Ok(ManagedXValue::new(XValue::Bool(a0.is_err()), rt)?.into())
             },
         ),

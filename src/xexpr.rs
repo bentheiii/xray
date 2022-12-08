@@ -8,7 +8,7 @@ use crate::xtype::{
 };
 use crate::xvalue::{ManagedXValue, NativeCallable, XFunction};
 use crate::{
-    Declaration, Identifier, XFuncSpec,
+    Declaration, Identifier,
 };
 
 
