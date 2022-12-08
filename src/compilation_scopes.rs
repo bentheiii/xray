@@ -1,8 +1,10 @@
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::io::{Write};
 use std::iter;
 use std::rc::Rc;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use crate::util::ipush::IPush;
 use crate::xexpr::{StaticUserFunction, TailedEvalResult, XExpr};
 use crate::{Bind, CompilationError, Declaration, Identifier, let_match, RTCell, XCompoundSpec, XFuncSpec, XOptionalType, XSequenceType, XStaticExpr, XStaticFunction, XType};
@@ -12,6 +14,15 @@ use derivative::Derivative;
 use itertools::Itertools;
 use crate::evaluation_scope::MultipleUD;
 use crate::runtime_scope::RuntimeScope;
+use crate::units::{ScopeDepth, StackDepth};
+
+/*
+A Little about scopes:
+during compilation there is only one scope hierarchy: the scope hierarchy
+however during runtime there are actually two:
+    the scope hierarchy, which is where captures come from
+    and the stack hierarchy, which we should use for recursions
+ */
 
 /// this is the information stored for a cell during compilation
 #[derive(Derivative)]
@@ -22,7 +33,7 @@ pub(crate) enum Cell<W: Write + 'static> {
     Variable(Arc<XType>),
     /// will never lead to another capture
     /// ancestor depth will never be zero
-    Capture { ancestor_depth: usize, cell_idx: usize },
+    Capture { ancestor_depth: ScopeDepth, cell_idx: usize },
     FactoryMadeFunction(Arc<XType>, XStaticFunction<W>),
 }
 
@@ -49,7 +60,7 @@ pub(crate) enum CellSpec<W: Write + 'static> {
     /// when the function is called, it is the caller's responsibility to fill the
     /// parameter cells with the arguments (including defaults)
     Variable,
-    Capture { ancestor_depth: usize, cell_idx: usize },
+    Capture { ancestor_depth: ScopeDepth, cell_idx: usize },
     // scope height,
     FactoryMadeFunction(#[derivative(Debug = "ignore")]NativeCallable<W>),
 }
@@ -81,9 +92,13 @@ pub struct CompilationScope<'p, W: Write + 'static> {
     parent: Option<&'p CompilationScope<'p, W>>,
     // will be none for root or lambda
     recourse_xtype: Option<Arc<XType>>,
-    height: usize,
+    height: ScopeDepth,
+    pub(crate) id: usize,
 }
-
+static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+fn next_id()->usize{
+    NEXT_ID.fetch_add(1, Ordering::SeqCst)
+}
 
 impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     pub(crate) fn root() -> Self {
@@ -97,7 +112,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
             parent: None,
             recourse_xtype: None,
-            height: 0,
+            height: ScopeDepth(0),
+            id: next_id()
         }
     }
 
@@ -194,7 +210,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         Ok(())
     }
 
-    pub(crate) fn to_static_ud(self, name: Option<String>, defaults: Vec<XExpr<W>>, param_len: usize, output: Box<XExpr<W>>) -> StaticUserFunction<W> {
+    pub(crate) fn to_static_ud(self, name: Option<String>, defaults: Vec<XExpr<W>>, param_len: usize, output: Box<XExpr<W>>, parent_id: usize) -> StaticUserFunction<W> {
         StaticUserFunction {
             name,
             defaults,
@@ -203,6 +219,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             declarations: self.declarations,
             output,
             scope_depth: self.height,
+            parent_id,
+            id: self.id
         }
     }
 
@@ -286,7 +304,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let output = subscope.compile(*output)?;
                 let param_len = args.len();
                 let defaults = args.into_iter().filter_map(|a| a.default.map(|s| subscope.compile(s))).collect::<Result<_, _>>()?;
-                let ud_func = subscope.to_static_ud(None, defaults, param_len, Box::new(output));
+                let ud_func = subscope.to_static_ud(None, defaults, param_len, Box::new(output), self.id);
                 Ok(XExpr::Lambda(Rc::new(ud_func), todo!()))
             }
             XStaticExpr::SpecializedIdent(name, turbofish, bind_types) => {
@@ -478,6 +496,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             XExpr::Value(mut cell_idx) => {
                 let mut scope = self;
                 loop {
+                    println!("!!! A.0 {cell_idx}, {:?}", scope.cells);
                     let cell = &scope.cells[cell_idx];
                     match cell{
                         Cell::Variable(t) => break Ok(t.clone()),
@@ -512,7 +531,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         #[derivative(Debug(bound = ""))]
         enum OverloadToConsider<W: Write + 'static> {
             /// height, cell
-            FromCell(usize, usize),
+            FromCell(ScopeDepth, usize),
             FromFactory(Arc<XType>, XStaticFunction<W>),
         }
         fn prepare_return<W: Write + 'static>(namespace: &mut CompilationScope<W>, considered: OverloadToConsider<W>) -> XExpr<W> {
@@ -609,9 +628,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         self.variables.get(name)
     }
 
-    fn ancestor_at_depth(&self, target_depth: usize) -> &Self{
+    fn ancestor_at_depth(&self, target_depth: ScopeDepth) -> &Self{
         let mut ret = self;
-        for _ in 0..target_depth{
+        for _ in 0..target_depth.0{
             ret = ret.parent.unwrap();
         }
         ret
@@ -619,5 +638,5 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 }
 
 
-type TracedOverload<W> = (usize, Overload<W>);
-type TracedValue = (usize, usize);
+type TracedOverload<W> = (ScopeDepth, Overload<W>);
+type TracedValue = (ScopeDepth, usize);

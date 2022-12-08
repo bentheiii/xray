@@ -169,7 +169,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     }
                         .trace(&input));
                 }
-                let func = subscope.to_static_ud(Some(fn_name.to_string()),defaults, param_len, output);
+                let func = subscope.to_static_ud(Some(fn_name.to_string()),defaults, param_len, output, self.id);
                 self.add_static_func(fn_symbol, spec, XStaticFunction::UserFunction(Rc::new(func)))
                     .map_err(|e| e.trace(&input))?;
                 Ok(())

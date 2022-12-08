@@ -24,6 +24,7 @@ use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
 use crate::compilation_scopes::{CellSpec, CompilationScope};
 use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
+use crate::units::ScopeDepth;
 
 #[derive(Debug)]
 pub(crate) enum XStaticExpr {
@@ -131,7 +132,9 @@ pub struct StaticUserFunction<W: Write + 'static> {
     pub(crate) cell_specs: Vec<CellSpec<W>>,
     pub(crate) declarations: Vec<Declaration<W>>,
     pub(crate) output: Box<XExpr<W>>, // todo does this have to be a box?
-    pub(crate) scope_depth: usize,
+    pub(crate) scope_depth: ScopeDepth, // todo is this used?
+    pub(crate) id: usize,
+    pub(crate) parent_id: usize,
 }
 
 impl<W: Write + 'static> XStaticFunction<W> {
@@ -142,7 +145,7 @@ impl<W: Write + 'static> XStaticFunction<W> {
             }
             Self::UserFunction(uf) => {
                 XFunction::UserFunction {
-                    template: RuntimeScopeTemplate::from_specs(uf.name.clone(), &uf.cell_specs, Some(closure), uf.declarations.clone(), rt, uf.defaults.clone(), Some(uf.output.clone()), uf.scope_depth)?,
+                    template: RuntimeScopeTemplate::from_specs(uf.id, uf.name.clone(), &uf.cell_specs, Some(closure), Some(uf.parent_id), uf.declarations.clone(), rt, uf.defaults.clone(), Some(uf.output.clone()))?,
                     defaults: uf.defaults.clone(),
                     output: uf.output.clone(),
                 }

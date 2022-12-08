@@ -14,7 +14,7 @@ fn main() {
     let t = 4;
     fn a(i:int, j: int) -> int{
         fn s()->int{
-            t
+            t+j
         }
         s()
     }

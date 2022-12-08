@@ -34,7 +34,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
         runtime: RTCell<W>,
     ) -> Result<Self, String> {
         let cell_specs = comp_scope.scope.cells.iter().map(|c| CellSpec::from(c.clone())).collect::<Vec<_>>();
-        let template = RuntimeScopeTemplate::from_specs(None, &cell_specs, None, comp_scope.scope.declarations.clone(), runtime.clone(), vec![], None, 0)?;
+        let template = RuntimeScopeTemplate::from_specs(comp_scope.scope.id, None, &cell_specs, None, None, comp_scope.scope.declarations.clone(), runtime.clone(), vec![], None)?;
         let scope = RuntimeScope::from_template(template, None, runtime.clone(), vec![], &[])?;
         let ret = Self {
             scope,

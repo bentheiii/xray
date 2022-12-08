@@ -20,6 +20,7 @@ pub mod xtype;
 pub mod xvalue;
 mod compilation_scopes;
 mod runtime_scope;
+mod units;
 
 extern crate pest;
 #[macro_use]
