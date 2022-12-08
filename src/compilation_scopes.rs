@@ -496,7 +496,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             XExpr::Value(mut cell_idx) => {
                 let mut scope = self;
                 loop {
-                    println!("!!! A.0 {cell_idx}, {:?}", scope.cells);
                     let cell = &scope.cells[cell_idx];
                     match cell{
                         Cell::Variable(t) => break Ok(t.clone()),

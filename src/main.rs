@@ -13,20 +13,30 @@ fn main() {
     let input = r###"
     let t = 4;
     fn a(i:int, j: int) -> int{
-        fn s()->int{
-            t+j
+        fn s(r: int)->int{
+            let w=3;
+            t+j+w+r
         }
-        s()
+        s(2+i)
     }
 
     fn b(i:int)->int{
-        a(i, 1)
+        let t = 5;
+        a(i, t)
     }
 
     let z = b(3);
     "###;
     /*
 
+    fn d(i: int)->(int)->(int){
+        fn ret(x:int)->int{
+            x+i
+        }
+        ret
+    }
+    let f = d(6);
+    let z = f(9);
      */
     /*
 

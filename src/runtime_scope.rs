@@ -113,6 +113,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
         println!("!!! H.0 {name:?} {cell_specs:?}");
         let cells = cell_specs.iter().map(|s| EvaluationCell::from_spec(s, scope_parent, rt.clone())).collect::<Result<_, _>>()?;
         println!("!!! H.1 {name:?} {cell_specs:?} {cells:?}");
+        println!("!!! H.2 {name:?} {:?}", scope_parent.map(|p| p.template.name.as_deref().unwrap_or("MAIN"),));
         Ok(Rc::new(Self {
             name,
             cells,
@@ -120,7 +121,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
             defaults,
             output,
             id,
-            scope_parent_height: scope_parent.map(|p|p.height - stack_parent.unwrap().height + 2)
+            scope_parent_height: scope_parent.map(|p|p.height)
         }))
     }
 }
@@ -326,6 +327,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
 
     fn stack_ancestor_at_depth(&self, depth: StackDepth) -> &Self {
         let mut current = self;
+        println!("!!! I.0 {:?} {:?}", self.template.name, depth);
         for _ in 0..depth.0 {
             current = current.stack_parent.expect("ran out of stack parents at runtime");
         }
@@ -352,6 +354,6 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
     }
 
     fn scope_parent(&self)->Option<&Self>{
-        self.template.scope_parent_height.map(|d|self.stack_ancestor_at_depth(d))
+        self.template.scope_parent_height.map(|d|self.stack_ancestor_at_depth(self.height-d))
     }
 }
