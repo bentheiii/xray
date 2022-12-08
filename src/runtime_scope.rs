@@ -80,6 +80,7 @@ pub struct RuntimeScopeTemplate<W: Write + 'static> {
     pub(crate) cells: Vec<EvaluationCell<W>>,
     pub(crate) declarations: Vec<Declaration<W>>,
     pub(crate) scope_parent_height: Option<StackDepth>, // todo just use parent id?
+    pub(crate) param_count: usize,
     defaults: Vec<XExpr<W>>,
     output: Option<Box<XExpr<W>>>,
 }
@@ -94,7 +95,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
     }
 
     #[allow(clippy::too_many_arguments)] // todo
-    pub(crate) fn from_specs(id: usize, name: Option<String>, cell_specs: &[CellSpec<W>], stack_parent: Option<&RuntimeScope<W>>, parent_id: Option<usize>, declarations: Vec<Declaration<W>>, rt: RTCell<W>, defaults: Vec<XExpr<W>>, output: Option<Box<XExpr<W>>>) -> Result<Rc<Self>, String> {
+    pub(crate) fn from_specs(id: usize, name: Option<String>, param_count: usize, cell_specs: &[CellSpec<W>], stack_parent: Option<&RuntimeScope<W>>, parent_id: Option<usize>, declarations: Vec<Declaration<W>>, rt: RTCell<W>, defaults: Vec<XExpr<W>>, output: Option<Box<XExpr<W>>>) -> Result<Rc<Self>, String> {
         // in order to get the namespace parent, we need to go up the stack until we reach one with the same id
         let scope_parent = if let Some(parent_id) = parent_id {
             {
@@ -117,6 +118,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
             defaults,
             output,
             id,
+            param_count,
             scope_parent_height: scope_parent.map(|p|p.height)
         }))
     }
@@ -145,13 +147,13 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             template: template.clone(),
         };
 
-        let default_offset = args.len() - defaults.len();
+        let default_offset = template.param_count - defaults.len();
 
         for declaration in &template.declarations {
             match declaration {
                 Declaration::Parameter { cell_idx, argument_idx } => {
                     let new_value = args.get_mut(*argument_idx).map_or_else(
-                        || ret.eval(defaults.get(argument_idx - default_offset).unwrap(), rt.clone(), false).map(|v| v.unwrap_value()),
+                        || ret.scope_parent().unwrap().eval(&defaults[argument_idx - default_offset], rt.clone(), false).map(|v| v.unwrap_value()),
                         |i| Ok(mem::replace(i, Err("this value has already been used".to_string()))),
                     )?;
                     ret.cells[*cell_idx].put(new_value);
@@ -336,6 +338,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
         self.cells[idx].as_ref(self.template.as_ref())
     }
 
+    // todo just make this a field?
     fn scope_parent(&self)->Option<&Self>{
         self.template.scope_parent_height.map(|d|self.stack_ancestor_at_depth(self.height-d))
     }

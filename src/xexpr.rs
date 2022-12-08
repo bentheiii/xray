@@ -107,7 +107,7 @@ impl<W: Write + 'static> XStaticFunction<W> {
             }
             Self::UserFunction(uf) => {
                 XFunction::UserFunction {
-                    template: RuntimeScopeTemplate::from_specs(uf.id, uf.name.clone(), &uf.cell_specs, Some(closure), Some(uf.parent_id), uf.declarations.clone(), rt, uf.defaults.clone(), Some(uf.output.clone()))?,
+                    template: RuntimeScopeTemplate::from_specs(uf.id, uf.name.clone(), uf.param_len, &uf.cell_specs, Some(closure), Some(uf.parent_id), uf.declarations.clone(), rt, uf.defaults.clone(), Some(uf.output.clone()))?,
                     defaults: uf.defaults.clone(),
                     output: uf.output.clone(),
                 }

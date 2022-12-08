@@ -37,19 +37,6 @@ add_ufunc!(
     |a: &String| Err(a.clone())
 );
 
-pub(crate) fn add_cast<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
-    let ([t], params) = scope.generics_from_names(["T"]);
-    scope.add_func(
-        "cast",
-            XFuncSpec::new(&[&t], t.clone()).generic(params),
-        XStaticFunction::from_native(
-            |args, ns, tca, rt| ns.eval(&args[0], rt, tca),
-        ),
-    )
-}
-
 pub(crate) fn add_debug<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError<W>> {
@@ -268,6 +255,25 @@ pub(crate) fn add_cmp_le<W: Write + 'static>(
                     ManagedXValue::new(XValue::Bool(!to_primitive!(cmp, Int).is_positive()), rt)?
                         .into(),
                 )
+            },
+        ))
+    })
+}
+
+pub(crate) fn add_cast<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_dyn_func("cast", move |_params, _types, _ns, bind| {
+        let bind_len = bind.map_or(0, |a| a.len());
+        if bind_len != 1 {
+            return Err(format!("this dyn func requires exactly 1 bind, got {bind_len}"));
+        }
+        let t_out = &bind.unwrap()[0];
+
+        Ok(XFunctionFactoryOutput::from_native(
+            XFuncSpec::new(&[&t_out], t_out.clone()),
+            move |args, ns, tca, rt| {
+                ns.eval(&args[0], rt, tca)
             },
         ))
     })

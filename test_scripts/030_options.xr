@@ -7,13 +7,13 @@ fn main()->bool{
     && assert(some(15).map_or(neg::<int>, error('')) == -15)
 
     && assert((some(15) || 16) == 15)
-    && assert((some(15) || cast::<int>(error(''))) == 15)
+    && assert((some(15) || cast<int>(error(''))) == 15)
     && assert((null() || 16) == 16)
 
     && assert((some(15) || some(16)) == some(15))
-    && assert((some(15) || cast::<Optional<int>>(error(''))) == some(15))
+    && assert((some(15) || cast<Optional<int>>(error(''))) == some(15))
     && assert((some(15) || null()) == some(15))
-    && assert((cast::<Optional<int>>(null()) || some(16)) == some(16))
+    && assert((cast<Optional<int>>(null()) || some(16)) == some(16))
 
     && assert((some(15) && some(16)) == some(16))
     && assert((some(15) && null()) == null())

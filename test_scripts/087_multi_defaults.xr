@@ -1,0 +1,9 @@
+fn a(x: int ?= 1, y: int ?= 3)->int{
+    x*10+y
+}
+
+fn main()->bool{
+    assert(a() == 13)
+    && assert(a(5) == 53)
+    && assert(a(9,7) == 97)
+}
