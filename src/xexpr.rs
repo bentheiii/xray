@@ -70,8 +70,6 @@ pub enum XExpr<W: Write + 'static> {
     Construct(Arc<XCompoundSpec>, Bind, Vec<XExpr<W>>),
     Variant(Arc<XCompoundSpec>, Bind, usize, Box<XExpr<W>>),
     Member(Box<XExpr<W>>, usize),
-    // todo fund some way to divorce lambda and spec
-    Lambda(Rc<StaticUserFunction<W>>, XFuncSpec),
     Value(usize),
     // this dummy exists for calling native functions with arguments that were already
     // evaluated

@@ -150,6 +150,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         Ok(())
     }
 
+    pub(crate) fn add_anonymous_func(&mut self, spec: XFuncSpec, func: XStaticFunction<W>) -> Result<XExpr<W>, CompilationError<W>> {
+        let cell_idx = self.cells.ipush(Cell::Variable(spec.xtype()));
+        self.declarations.push(Declaration::Function { cell_idx, func });
+        Ok(XExpr::Value(cell_idx))
+    }
+
     pub(crate) fn add_dynamic_func(&mut self, name: Identifier, func: impl Fn(
         Option<&[XExpr<W>]>,
         Option<&[Arc<XType>]>,
@@ -291,10 +297,13 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             XStaticExpr::Lambda(args, output) => {
                 let mut subscope = CompilationScope::from_parent_lambda(self, args.iter().map(|arg| (arg.name, arg.type_.clone())));
                 let output = subscope.compile(*output)?;
+                let output_type = subscope.type_of(&output)?;
                 let param_len = args.len();
+                let arg_types: Vec<_> = args.iter().map(|a| &a.type_).collect();
+                let spec = XFuncSpec::new(&arg_types, output_type);
                 let defaults = args.into_iter().filter_map(|a| a.default.map(|s| subscope.compile(s))).collect::<Result<_, _>>()?;
                 let ud_func = subscope.into_static_ud(None, defaults, param_len, Box::new(output), self.id);
-                Ok(XExpr::Lambda(Rc::new(ud_func), todo!()))
+                self.add_anonymous_func(spec, XStaticFunction::UserFunction(Rc::new(ud_func)))
             }
             XStaticExpr::SpecializedIdent(name, turbofish, bind_types) => {
                 let overloads = self.get_overloads(&name);
@@ -474,7 +483,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     }),
                 }
             }
-            XExpr::Lambda(_, spec) => Ok(spec.xtype()),
             XExpr::Tuple(items) => {
                 let types = items
                     .iter()

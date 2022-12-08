@@ -260,7 +260,6 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 let func = let_match!(&callee.value; XValue::Function(func) => func);
                 self.eval_func_with_expressions(func, args, rt, tail_available)
             }
-            XExpr::Lambda(..) => todo!(),
             XExpr::Dummy(v) => v.clone().map(|v| v.into()),
         }
     }
