@@ -146,7 +146,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         // todo assert that no values/types use the identifier
         let cell_idx = self.cells.ipush(Cell::Variable(spec.xtype()));
         self.functions.entry(name).or_default().push(Overload::Static { cell_idx, spec });
-        Ok(self.declarations.push(Declaration::Function { cell_idx, func }))
+        self.declarations.push(Declaration::Function { cell_idx, func });
+        Ok(())
     }
 
     pub(crate) fn add_dynamic_func(&mut self, name: Identifier, func: impl Fn(
@@ -165,7 +166,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         // todo assert that no overloads/types use the identifier
         let cell_idx = self.cells.ipush(Cell::Variable(xtype));
         self.variables.insert(name, cell_idx);
-        Ok(self.declarations.push(Declaration::Value { cell_idx, expr }))
+        self.declarations.push(Declaration::Value { cell_idx, expr });
+        Ok(())
     }
 
     fn add_parameter(&mut self, name: Identifier, arg_idx: usize, xtype: Arc<XType>) {
@@ -198,12 +200,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         Ok(())
     }
 
-    pub(crate) fn to_static_ud(self, name: Option<String>, defaults: Vec<XExpr<W>>, param_len: usize, output: Box<XExpr<W>>, parent_id: usize) -> StaticUserFunction<W> {
+    pub(crate) fn into_static_ud(self, name: Option<String>, defaults: Vec<XExpr<W>>, param_len: usize, output: Box<XExpr<W>>, parent_id: usize) -> StaticUserFunction<W> {
         StaticUserFunction {
             name,
             defaults,
             param_len,
-            cell_specs: self.cells.into_iter().map(|c| CellSpec::from(c)).collect(),
+            cell_specs: self.cells.into_iter().map(CellSpec::from).collect(),
             declarations: self.declarations,
             output,
             scope_depth: self.height,
@@ -213,7 +215,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     }
 
     fn get_overloads(&self, name: &Identifier) -> Vec<TracedOverload<W>> {
-        let mut parent = self.parent.map_or_else(|| vec![], |p| p.get_overloads(name));
+        let mut parent = self.parent.map_or_else(Vec::new, |p| p.get_overloads(name));
         if let Some(my_overloads) = self.functions.get(name) {
             let my_height = self.height;
             parent.extend(my_overloads.iter().map(
@@ -233,8 +235,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     }
 
     pub(crate) fn get_type(&self, name: &Identifier) -> Option<Arc<XType>> {
-        self.types.get(name)
-            .map(|t| t.clone())
+        self.types.get(name).cloned()
             .or_else(|| self.parent.and_then(|p| p.get_type(name)))
     }
 
@@ -292,7 +293,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let output = subscope.compile(*output)?;
                 let param_len = args.len();
                 let defaults = args.into_iter().filter_map(|a| a.default.map(|s| subscope.compile(s))).collect::<Result<_, _>>()?;
-                let ud_func = subscope.to_static_ud(None, defaults, param_len, Box::new(output), self.id);
+                let ud_func = subscope.into_static_ud(None, defaults, param_len, Box::new(output), self.id);
                 Ok(XExpr::Lambda(Rc::new(ud_func), todo!()))
             }
             XStaticExpr::SpecializedIdent(name, turbofish, bind_types) => {
@@ -381,13 +382,13 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         // special case: overloaded function
                         let overloads = self.get_overloads(name);
                         if !overloads.is_empty() {
-                            let arg_types: Vec<_> = args.iter().map(|a| self.type_of(&a)).collect::<Result<_, _>>()?;
+                            let arg_types: Vec<_> = args.iter().map(|a| self.type_of(a)).collect::<Result<_, _>>()?;
                             let overload = self.resolve_overload(overloads, Some(&args[..]), Some(&arg_types[..]), None, *name)?;
                             return Ok(XExpr::Call(Box::new(overload), args));
                         }
                         // special case: struct construction
                         if let Some(XType::Compound(CompoundKind::Struct, spec, ..)) = self.get_type(name).as_deref() {
-                            let arg_types: Vec<_> = args.iter().map(|a| self.type_of(&a)).collect::<Result<_, _>>()?;
+                            let arg_types: Vec<_> = args.iter().map(|a| self.type_of(a)).collect::<Result<_, _>>()?;
                             if arg_types.len() != spec.fields.len() {
                                 return Err(CompilationError::StructParamsLengthMismatch {
                                     struct_name: spec.name,
@@ -425,11 +426,11 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             XExpr::LiteralFloat(..) => Ok(X_FLOAT.clone()),
             XExpr::LiteralString(..) => Ok(X_STRING.clone()),
             XExpr::Array(exprs) => {
-                let element_type = common_type(exprs.iter().map(|x| self.type_of(&x)))?;
+                let element_type = common_type(exprs.iter().map(|x| self.type_of(x)))?;
                 Ok(XType::XNative(Box::new(XSequenceType), vec![element_type]).into())
             }
             XExpr::Call(func, args) => {
-                let func_type = self.type_of(&func)?;
+                let func_type = self.type_of(func)?;
                 if let XType::XCallable(spec) = func_type.as_ref() {
                     return Ok(spec.return_type.clone());
                 }
@@ -454,7 +455,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 binding.clone(),
             ))),
             XExpr::Member(obj, idx) => {
-                let obj_type = self.type_of(&obj)?;
+                let obj_type = self.type_of(obj)?;
                 match obj_type.as_ref() {
                     XType::Compound(CompoundKind::Struct, spec, bind) => Ok(spec.fields[*idx]
                         .type_
@@ -477,7 +478,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             XExpr::Tuple(items) => {
                 let types = items
                     .iter()
-                    .map(|x| self.type_of(&x))
+                    .map(|x| self.type_of(x))
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(Arc::new(XType::Tuple(types)))
             }

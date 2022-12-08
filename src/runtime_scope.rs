@@ -93,6 +93,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
         }
     }
 
+    #[allow(clippy::too_many_arguments)] // todo
     pub(crate) fn from_specs(id: usize, name: Option<String>, cell_specs: &[CellSpec<W>], stack_parent: Option<&RuntimeScope<W>>, parent_id: Option<usize>, declarations: Vec<Declaration<W>>, rt: RTCell<W>, defaults: Vec<XExpr<W>>, output: Option<Box<XExpr<W>>>) -> Result<Rc<Self>, String> {
         // in order to get the namespace parent, we need to go up the stack until we reach one with the same id
         let scope_parent = if let Some(parent_id) = parent_id {
@@ -208,7 +209,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             XExpr::Member(obj, idx) => {
                 let obj = self.eval(obj, rt.clone(), false)?.unwrap_value()?;
                 match &obj.as_ref().value {
-                    XValue::StructInstance(items) => items[*idx].clone().map(|e| TailedEvalResult::from(e)),
+                    XValue::StructInstance(items) => items[*idx].clone().map(TailedEvalResult::from),
                     XValue::UnionInstance(variant, item) => Ok(if variant == idx {
                         manage_native!(
                             XOptional {
@@ -228,7 +229,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                     EvaluationCell::Value(v) => Ok(v.clone()?.into()),
                     EvaluationCell::Uninitialized => panic!("access to uninitialized cell"),
                     EvaluationCell::Recourse { scope, .. } => ManagedXValue::new(XValue::Function(scope.clone()), rt).map(|v| v.into()),
-                    EvaluationCell::LocalRecourse => ManagedXValue::new(XValue::Function(self.template.clone().to_function().clone()), rt).map(|v| v.into()),
+                    EvaluationCell::LocalRecourse => ManagedXValue::new(XValue::Function(self.template.clone().to_function()), rt).map(|v| v.into()),
                 }
             }
             XExpr::Variant(.., idx, expr) => {
@@ -255,7 +256,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 }
                 let callee = self.eval(callee.as_ref(), rt.clone(), false)?.unwrap_value()?;
                 let func = let_match!(&callee.value; XValue::Function(func) => func);
-                self.eval_func_with_expressions(func, &args, rt, tail_available)
+                self.eval_func_with_expressions(func, args, rt, tail_available)
             }
             XExpr::Lambda(..) => todo!(),
             XExpr::Dummy(v) => v.clone().map(|v| v.into()),
@@ -263,7 +264,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
     }
 
     fn eval_func_with_expressions(&self, func: &XFunction<W>, args: &[XExpr<W>], rt: RTCell<W>, tail_available: bool) -> Result<TailedEvalResult<W>, String> {
-        let ret = match func {
+        match func {
             XFunction::Native(nc) => nc(args, self, tail_available, rt),
             XFunction::UserFunction { .. } => {
                 let args = args.iter()
@@ -273,8 +274,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                     .collect::<Result<Vec<_>, _>>()?;
                 self.eval_func_with_values(func, args, rt, tail_available)
             }
-        };
-        ret
+        }
     }
 
     pub(crate) fn eval_func_with_values(&'a self, func: &XFunction<W>, args: Vec<EvaluatedValue<W>>, rt: RTCell<W>, tail_available: bool) -> Result<TailedEvalResult<W>, String> {
@@ -287,7 +287,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 let mut args = args;
                 let mut recursion_depth = 0_usize;
                 loop {
-                    let scope = Self::from_template(template.clone(), Some(self.clone()), rt.clone(), args, defaults)?;
+                    let scope = Self::from_template(template.clone(), Some(self), rt.clone(), args, defaults)?;
                     let v = scope.eval(output.as_ref(), rt.clone(), true);
                     match v? {
                         TailedEvalResult::TailCall(new_args) => {
@@ -302,7 +302,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                             }
                             args = new_args;
                         }
-                        v @ _ => {
+                        v => {
                             break Ok(v)
                         }
                     }

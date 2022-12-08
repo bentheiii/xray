@@ -41,6 +41,8 @@ lazy_static! {
     };
 }
 
+type ParamSpecs = Vec<(Identifier, Arc<XType>, Option<XStaticExpr>)>;
+
 impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     pub(crate) fn feed(
         &mut self,
@@ -66,7 +68,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .next()
                     .map(|et| self.get_complete_type(et, parent_gen_param_names, interner, None))
                     .transpose()?;
-                let expr = self.to_expr(inners.next().unwrap(), interner)?;
+                let expr = self.parse_expr(inners.next().unwrap(), interner)?;
                 let compiled = self.compile(expr).map_err(|e| e.trace(&input))?;
                 let symbol = interner.get_or_intern(var_name);
                 let comp_xtype = self.type_of(&compiled).map_err(|e| e.trace(&explicit_type_opt))?;
@@ -142,7 +144,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let spec = XFuncSpec {
                     generic_params: specific_gen_params,
                     params: param_specs,
-                    ret: rtype.clone(),
+                    ret: rtype,
                     short_circuit_overloads: false,
                 };
                 let defaults = param_static_defaults.into_iter().filter_map(
@@ -156,7 +158,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let mut body_iter = body.clone().into_inner();
                 subscope.feed(body_iter.next().unwrap(), &gen_param_names, interner)?;
                 let out_static_expr = subscope
-                    .to_expr(body_iter.next().unwrap(), interner)?;
+                    .parse_expr(body_iter.next().unwrap(), interner)?;
                 let out = subscope.compile(out_static_expr)
                     .map_err(|e| e.trace(&input))?;
                 let out_type = subscope.type_of(&out).map_err(|e| e.trace(&body))?; // todo improve trace?
@@ -164,12 +166,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 if spec.ret.bind_in_assignment(&out_type).is_none() {
                     return Err(CompilationError::FunctionOutputTypeMismatch {
                         function_name: fn_symbol,
-                        expected_type: spec.ret.clone(),
+                        expected_type: spec.ret,
                         actual_type: out_type,
                     }
                         .trace(&input));
                 }
-                let func = subscope.to_static_ud(Some(fn_name.to_string()),defaults, param_len, output, self.id);
+                let func = subscope.into_static_ud(Some(fn_name.to_string()), defaults, param_len, output, self.id);
                 self.add_static_func(fn_symbol, spec, XStaticFunction::UserFunction(Rc::new(func)))
                     .map_err(|e| e.trace(&input))?;
                 Ok(())
@@ -318,10 +320,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                     return Ok(Arc::new(XType::XGeneric(symbol)));
                                 }
                                 // todo check if the name is a value/overload
-                                return Err(CompilationError::TypeNotFound {
+                                Err(CompilationError::TypeNotFound {
                                     name: name.to_string(),
-                                }
-                                    .trace(&input));
+                                }.trace(&input))
                             }
                             Some(t) => {
                                 match t.as_ref() {
@@ -365,7 +366,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         }
     }
 
-    fn to_expr(
+    fn parse_expr(
         &mut self,
         input: Pair<Rule>,
         interner: &mut StringInterner,
@@ -411,7 +412,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 );
                 CLIMBER.climb(
                     input.into_inner(),
-                    |pair| self.to_expr(pair, interner),
+                    |pair| self.parse_expr(pair, interner),
                     |lhs, op, rhs| {
                         let lhs = lhs?;
                         let rhs = rhs?;
@@ -441,7 +442,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             }
             Rule::expression1 => {
                 let mut iter = input.into_inner().rev();
-                let mut expr = self.to_expr(iter.next().unwrap(), interner)?;
+                let mut expr = self.parse_expr(iter.next().unwrap(), interner)?;
                 for inner in iter {
                     let func = match inner.as_rule() {
                         Rule::UNARY_PLUS => "pos",
@@ -456,7 +457,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             }
             Rule::expression2 => {
                 let mut iter = input.into_inner();
-                let mut ret = self.to_expr(iter.next().unwrap(), interner)?;
+                let mut ret = self.parse_expr(iter.next().unwrap(), interner)?;
                 for accessor in iter {
                     match accessor.as_rule() {
                         Rule::method => {
@@ -467,7 +468,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             let args = match meth_call_iter.next().unwrap().into_inner().next() {
                                 None => Ok(vec![ret]),
                                 Some(c) => iter::once(Ok(ret))
-                                    .chain(c.into_inner().map(|p| self.to_expr(p, interner)))
+                                    .chain(c.into_inner().map(|p| self.parse_expr(p, interner)))
                                     .collect(),
                             }?;
                             ret = XStaticExpr::Call(Box::new(method), args);
@@ -481,13 +482,13 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             let raw_args = iter.next().unwrap();
                             let args = raw_args.into_inner().next().map_or_else(
                                 || Ok(vec![]),
-                                |c| c.into_inner().map(|p| self.to_expr(p, interner)).collect(),
+                                |c| c.into_inner().map(|p| self.parse_expr(p, interner)).collect(),
                             )?;
                             ret = XStaticExpr::Call(Box::new(ret), args);
                         }
                         Rule::index => {
                             let idx =
-                                self.to_expr(accessor.into_inner().next().unwrap(), interner)?;
+                                self.parse_expr(accessor.into_inner().next().unwrap(), interner)?;
                             ret = XStaticExpr::new_call("get", vec![ret, idx], interner)
                         }
                         _ => {
@@ -538,7 +539,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let mut iter = input.into_inner();
                 let parts = iter.next().map_or_else(
                     || Ok(vec![]),
-                    |c| c.into_inner().map(|p| self.to_expr(p, interner)).collect(),
+                    |c| c.into_inner().map(|p| self.parse_expr(p, interner)).collect(),
                 )?;
                 Ok(XStaticExpr::Array(parts))
             }
@@ -546,7 +547,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let mut iter = input.into_inner();
                 let parts = iter.next().map_or_else(
                     || Ok(vec![]),
-                    |c| c.into_inner().map(|p| self.to_expr(p, interner)).collect(),
+                    |c| c.into_inner().map(|p| self.parse_expr(p, interner)).collect(),
                 )?;
                 Ok(XStaticExpr::Tuple(parts))
             }
@@ -598,7 +599,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         .trace(&input));
                 }
                 let body = iter.next().unwrap();
-                let ret = self.to_expr(body.clone(), interner)?;
+                let ret = self.parse_expr(body.clone(), interner)?;
                 let params = params.into_iter().map(|(name, xtype, default)|
                     XExplicitStaticArgSpec {
                         name,
@@ -619,7 +620,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         param_pairs: Pair<Rule>,
         gen_param_names: &HashSet<String>,
         interner: &mut StringInterner,
-    ) -> Result<Vec<(Identifier, Arc<XType>, Option<XStaticExpr>)>, TracedCompilationError<W>> {
+    ) -> Result<ParamSpecs, TracedCompilationError<W>> {
         param_pairs
             .into_inner()
             .map(|p| -> Result<_, TracedCompilationError<W>> {
@@ -636,7 +637,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .next()
                     .map(|d| {
                         let d = d.into_inner().next().unwrap();
-                        self.to_expr(d.clone(), interner)
+                        self.parse_expr(d.clone(), interner)
                     })
                     .transpose()?;
                 Ok((name, type_, default))

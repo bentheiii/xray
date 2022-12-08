@@ -172,7 +172,7 @@ pub(crate) fn add_mapping_set<W: Write + 'static>(
         XStaticFunction::from_native(
             |args, ns, _tca, rt| {
                 let [a0,] = eval(args, ns, &rt,[0])?;
-                let [a1, a2] = eval_result(args, ns, &rt,[01, 2])?;
+                let [a1, a2] = eval_result(args, ns, &rt,[1, 2])?;
                 let mapping = to_native!(a0, XMapping<W>);
                 mapping.with_update(once((a1, a2)), ns, rt)
             },

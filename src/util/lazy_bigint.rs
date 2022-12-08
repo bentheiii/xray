@@ -152,7 +152,6 @@ impl Sub for LazyBigint {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        let ret =
         match (self, rhs) {
             (a, Self::Short(0)) => a,
             (Self::Short(s1), Self::Short(s2)) => s1.checked_sub(s2).map_or_else(
@@ -161,8 +160,7 @@ impl Sub for LazyBigint {
             ),
             (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => Self::from(b - s),
             (Self::Long(b0), Self::Long(b1)) => Self::from(b0 - b1),
-        };
-        ret
+        }
     }
 }
 
@@ -338,7 +336,6 @@ impl PartialOrd for LazyBigint {
 
 impl Ord for LazyBigint {
     fn cmp(&self, other: &Self) -> Ordering {
-        let ret =
         match (self, other) {
             (Self::Short(s0), Self::Short(s1)) => s0.cmp(s1),
             (Self::Long(b0), Self::Long(b1)) => b0.cmp(b1),
@@ -356,8 +353,7 @@ impl Ord for LazyBigint {
                     Ordering::Less
                 }
             }
-        };
-        ret
+        }
     }
 }
 
