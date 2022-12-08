@@ -2,7 +2,7 @@ use crate::xexpr::XExpr;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::{
-    add_ufunc, add_ufunc_ref, meval, to_primitive, unpack_types, CompilationError,
+    add_ufunc, add_ufunc_ref, to_primitive, unpack_types, CompilationError,
     RootCompilationScope, XStaticFunction, XType,
 };
 use rc::Rc;

@@ -2,7 +2,7 @@ use crate::builtin::core::{eval, eval_if_present, xcmp};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, meval, to_primitive, CompilationError,
+    add_binop, add_ufunc, add_ufunc_ref, to_primitive, CompilationError,
     RootCompilationScope, XStaticFunction,
 };
 

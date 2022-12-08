@@ -8,10 +8,8 @@ use crate::{
     RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
-use rc::Rc;
 use std::fmt::Debug;
 use std::io::Write;
-use std::rc;
 use std::sync::Arc;
 use crate::evaluation_scope::EvaluatedVariable;
 

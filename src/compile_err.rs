@@ -1,4 +1,4 @@
-use crate::_compilation_scope::XCompilationScopeItem;
+use crate::compilation_scope::XCompilationScopeItem;
 use crate::parser::Rule;
 use crate::xexpr::XExpr;
 use crate::xtype::CompoundKind;

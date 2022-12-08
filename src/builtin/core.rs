@@ -10,7 +10,6 @@ use crate::{Identifier, RTCell, XType};
 use std::ops::Neg;
 use std::rc::Rc;
 use std::sync::Arc;
-use itertools::Itertools;
 use crate::compilation_scopes::CompilationScope;
 use crate::evaluation_scope::EvaluatedVariable;
 use crate::runtime_scope::RuntimeScope;

@@ -7,7 +7,7 @@ use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
 use crate::xvalue::{ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    manage_native, meval, to_native, to_primitive, unpack_native, unpack_types,
+    manage_native, to_native, to_primitive, unpack_native, unpack_types,
     CompilationError, RTCell, RootCompilationScope, XCallableSpec,
     XStaticFunction, XType,
 };
@@ -26,7 +26,6 @@ use crate::evaluation_scope::EvaluatedVariable;
 use crate::runtime_scope::RuntimeScope;
 
 use crate::util::lazy_bigint::LazyBigint;
-use crate::util::try_extend::try_extend;
 
 #[derive(Debug, Clone)]
 pub(crate) struct XSequenceType;
@@ -379,8 +378,6 @@ pub(crate) fn add_sequence_insert<W: Write + 'static>(
             XFuncSpec::new(&[&t_arr, &X_INT, &t], t_arr.clone()).generic(params),
         XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let [a0, a1, a2] = eval(args, ns, &rt,[0, 1, 2])?;
-                
                 let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
                 let [a2,] = eval_result(args, ns, &rt,[2])?;
                 let seq = to_native!(a0, XSequence<W>);

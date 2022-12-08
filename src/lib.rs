@@ -8,7 +8,7 @@ extern crate derivative;
 extern crate dyn_clone;
 
 pub mod builtin;
-pub mod _compilation_scope;
+//pub mod __compilation_scope;
 pub mod compile_err;
 pub mod evaluation_scope;
 pub mod native_types;
@@ -21,6 +21,7 @@ pub mod xvalue;
 mod compilation_scopes;
 mod runtime_scope;
 mod units;
+mod compilation_scope;
 
 extern crate pest;
 #[macro_use]
@@ -37,7 +38,7 @@ use crate::builtin::sequence::*;
 use crate::builtin::stack::*;
 use crate::builtin::str::*;
 use crate::builtin::unknown::add_unknown_eq;
-use crate::_compilation_scope::{Declaration, RootCompilationScope};
+use crate::compilation_scope::{Declaration, RootCompilationScope};
 use crate::compile_err::{CompilationError, TracedCompilationError};
 use crate::parser::XRayParser;
 

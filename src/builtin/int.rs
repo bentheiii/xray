@@ -3,7 +3,7 @@ use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, manage_native, meval, to_primitive,
+    add_binop, add_ufunc, add_ufunc_ref, manage_native, to_primitive,
     CompilationError, XStaticFunction,
 };
 
@@ -15,7 +15,7 @@ use std::io::Write;
 use std::ops::Neg;
 use std::rc;
 
-use crate::_compilation_scope::RootCompilationScope;
+use crate::compilation_scope::RootCompilationScope;
 use crate::util::lazy_bigint::LazyBigint;
 
 pub(crate) fn add_int_type<W: Write + 'static>(

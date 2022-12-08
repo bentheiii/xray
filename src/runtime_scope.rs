@@ -263,7 +263,6 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
     }
 
     fn eval_func_with_expressions(&self, func: &XFunction<W>, args: &[XExpr<W>], rt: RTCell<W>, tail_available: bool) -> Result<TailedEvalResult<W>, String> {
-        println!("!!! E.1 {:?} {:?} {:?}", self.height, func, args);
         let ret = match func {
             XFunction::Native(nc) => nc(args, self, tail_available, rt),
             XFunction::UserFunction { .. } => {
@@ -275,30 +274,23 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 self.eval_func_with_values(func, args, rt, tail_available)
             }
         };
-        println!("!!! E.2 {:?} {:?} {:?} {:?}", self.height, func, args, ret);
         ret
     }
 
     pub(crate) fn eval_func_with_values(&'a self, func: &XFunction<W>, args: Vec<EvaluatedValue<W>>, rt: RTCell<W>, tail_available: bool) -> Result<TailedEvalResult<W>, String> {
-        println!("!!! E.0 {:?} {:?} {:?}", self.height, func, args);
         match func {
             XFunction::Native(..) => {
                 let args = args.iter().cloned().map(XExpr::Dummy).collect::<Vec<_>>();
                 self.eval_func_with_expressions(func, &args, rt, tail_available)
             }
             XFunction::UserFunction { template, defaults, output } => {
-                println!("!!! E.0.1 {:?} {:?} {:?}", self.template.name, template.name, args);
                 let mut args = args;
                 let mut recursion_depth = 0_usize;
                 loop {
-                    println!("!!! E.0.1.0 {:?}", template.name);
                     let scope = Self::from_template(template.clone(), Some(self.clone()), rt.clone(), args, defaults)?;
-                    println!("!!! E.0.1.1 {:?} {:?} {:?} {:?}", template.name, output, scope.cells, scope.template.cells);
                     let v = scope.eval(output.as_ref(), rt.clone(), true);
-                    println!("!!! E.0.1.2 {:?}", template.name);
                     match v? {
                         TailedEvalResult::TailCall(new_args) => {
-                            println!("!!! E.0.2 {:?} {:?}", template.name, new_args);
                             recursion_depth += 1;
                             if let Some(recursion_limit) = rt.borrow().limits.recursion_limit {
                                 if recursion_depth > recursion_limit {
@@ -311,7 +303,6 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                             args = new_args;
                         }
                         v @ _ => {
-                            println!("!!! E.0.3 {:?} {:?}", template.name, v);
                             break Ok(v)
                         }
                     }
@@ -322,7 +313,6 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
 
     fn stack_ancestor_at_depth(&self, depth: StackDepth) -> &Self {
         let mut current = self;
-        println!("!!! I.0 {:?} {:?}", self.template.name, depth);
         for _ in 0..depth.0 {
             current = current.stack_parent.expect("ran out of stack parents at runtime");
         }
@@ -338,9 +328,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
     }
 
     fn scope_ancestor_and_cell(&self, depth: ScopeDepth, cell_idx: usize) -> (&Self, &TemplatedEvaluationCell<W>) {
-        println!("!!! C.1 {:?} {depth:?} {cell_idx} {:?}", self.template.name, self.height);
         let ancestor = self.scope_ancestor_at_depth(depth);
-        println!("!!! C.2 {:?} {:?}", ancestor.template.name, ancestor.cells);
         (ancestor, &ancestor.cells[cell_idx])
     }
 

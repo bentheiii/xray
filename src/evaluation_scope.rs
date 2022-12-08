@@ -6,7 +6,7 @@ use std::fmt::{Debug, Formatter};
 use std::io::Write;
 use std::rc::Rc;
 
-use crate::_compilation_scope::Declaration;
+use crate::compilation_scope::Declaration;
 use crate::util::rc_hash::RcHash;
 use crate::{let_match, Identifier, RootCompilationScope};
 use crate::compilation_scopes::{CellSpec, Overload};

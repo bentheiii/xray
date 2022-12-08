@@ -1,6 +1,6 @@
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::_compilation_scope::{XCompilationScopeItem, XFunctionFactory};
+use crate::compilation_scope::{XCompilationScopeItem, XFunctionFactory};
 use crate::evaluation_scope::{EvaluatedVariable};
 use crate::runtime::RTCell;
 use crate::xtype::{

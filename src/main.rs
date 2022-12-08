@@ -2,7 +2,7 @@ extern crate core;
 extern crate pest;
 
 use std::io::stdout;
-use xray::_compilation_scope::XCompilationScopeItem;
+use xray::compilation_scope::XCompilationScopeItem;
 use xray::compile_err::ResolvedTracedCompilationError;
 use xray::evaluation_scope::RootEvaluationScope;
 
@@ -72,7 +72,7 @@ fn main() {
     };
     println!("compiled!");
 
-    let mut eval_scope = RootEvaluationScope::from_compilation_scope(&root_scope, runtime).unwrap();
+    let eval_scope = RootEvaluationScope::from_compilation_scope(&root_scope, runtime).unwrap();
     let z_value =  &eval_scope.get_value("z").unwrap().clone().unwrap().value;
     println!("z={:?}", z_value);
 }

@@ -1,8 +1,7 @@
 use crate::xtype::{X_BOOL, X_UNKNOWN};
-use crate::{unpack_types, CompilationError, RootCompilationScope, XFuncSpec, XStaticFunction};
+use crate::{unpack_types, CompilationError, RootCompilationScope, XFuncSpec};
 
 use std::io::Write;
-use std::rc::Rc;
 use crate::xvalue::XFunctionFactoryOutput;
 
 pub(crate) fn add_unknown_eq<W: Write + 'static>(

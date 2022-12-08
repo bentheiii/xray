@@ -152,7 +152,6 @@ impl Sub for LazyBigint {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        println!("!!! J.0 {} - {}", self, rhs);
         let ret =
         match (self, rhs) {
             (a, Self::Short(0)) => a,
@@ -163,7 +162,6 @@ impl Sub for LazyBigint {
             (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => Self::from(b - s),
             (Self::Long(b0), Self::Long(b1)) => Self::from(b0 - b1),
         };
-        println!("!!! J.1 {}", ret);
         ret
     }
 }
