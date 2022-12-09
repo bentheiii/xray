@@ -73,8 +73,6 @@ pub enum XFunction<W: Write + 'static> {
     Native(NativeCallable<W>),
     UserFunction {
         template: Rc<RuntimeScopeTemplate<W>>,
-        // todo both the function and the template store these and I don't know why
-        defaults: Vec<XExpr<W>>,
         output: Box<XExpr<W>>,
     },
 }

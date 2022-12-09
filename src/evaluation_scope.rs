@@ -36,7 +36,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
     ) -> Result<Self, RuntimeError> {
         let cell_specs = comp_scope.scope.cells.iter().map(|c| CellSpec::from(c.clone())).collect::<Vec<_>>();
         let template = RuntimeScopeTemplate::from_specs(comp_scope.scope.id, None, 0, &cell_specs, None, None, comp_scope.scope.declarations.clone(), runtime.clone(), vec![], None)?;
-        let scope = RuntimeScope::from_template(template, None, runtime.clone(), vec![], &[])?;
+        let scope = RuntimeScope::from_template(template, None, runtime.clone(), vec![])?;
         let ret = Self {
             scope,
             compilation_scope: comp_scope,

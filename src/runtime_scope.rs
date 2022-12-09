@@ -82,14 +82,13 @@ pub struct RuntimeScopeTemplate<W: Write + 'static> {
     pub(crate) declarations: Vec<Declaration<W>>,
     pub(crate) scope_parent_height: Option<StackDepth>, // todo just use parent id?
     pub(crate) param_count: usize,
-    defaults: Vec<XExpr<W>>,
+    defaults: Vec<EvaluatedValue<W>>,
     output: Option<Box<XExpr<W>>>,
 }
 
 impl<W: Write + 'static> RuntimeScopeTemplate<W> {
     fn to_function(self: Rc<Self>) -> XFunction<W> {
         XFunction::UserFunction {
-            defaults: self.defaults.clone(),
             output: self.output.clone().unwrap(),
             template: self,
         }
@@ -112,6 +111,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
         } else {None};
 
         let cells = cell_specs.iter().map(|s| EvaluationCell::from_spec(s, scope_parent, rt.clone())).collect::<Result<_, _>>()?;
+        let defaults = defaults.iter().map(|d| scope_parent.unwrap().eval(d, rt.clone(), false).map(|r| r.unwrap_value())).collect::<Result<_, _>>()?;
         Ok(Rc::new(Self {
             name,
             cells,
@@ -134,7 +134,7 @@ pub struct RuntimeScope<'a, W: Write + 'static> {
 }
 
 impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
-    pub(crate) fn from_template(template: Rc<RuntimeScopeTemplate<W>>, stack_parent: Option<&'a Self>, rt: RTCell<W>, mut args: Vec<EvaluatedValue<W>>, defaults: &[XExpr<W>]) -> Result<Rc<Self>, RuntimeError> {
+    pub(crate) fn from_template(template: Rc<RuntimeScopeTemplate<W>>, stack_parent: Option<&'a Self>, rt: RTCell<W>, mut args: Vec<EvaluatedValue<W>>) -> Result<Rc<Self>, RuntimeError> {
         let mut ret = Self {
             cells: template.cells.iter().enumerate().map(|(idx, c)|
                 if let EvaluationCell::Uninitialized = c {
@@ -148,15 +148,15 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             template: template.clone(),
         };
 
-        let default_offset = template.param_count - defaults.len();
+        let default_offset = template.param_count - template.defaults.len();
 
         for declaration in &template.declarations {
             match declaration {
                 Declaration::Parameter { cell_idx, argument_idx } => {
                     let new_value = args.get_mut(*argument_idx).map_or_else(
-                        || ret.scope_parent().unwrap().eval(&defaults[argument_idx - default_offset], rt.clone(), false).map(|v| v.unwrap_value()),
-                        |i| Ok(mem::replace(i, Err("this value has already been used".to_string()))),
-                    )?;
+                        || template.defaults[argument_idx - default_offset].clone(),
+                        |i| mem::replace(i, Err("this value has already been used".to_string())),
+                    );
                     ret.cells[*cell_idx].put(new_value);
                 }
                 Declaration::Value { cell_idx, expr } => {
@@ -285,11 +285,11 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 let args = args.iter().cloned().map(XExpr::Dummy).collect::<Vec<_>>();
                 self.eval_func_with_expressions(func, &args, rt, tail_available)
             }
-            XFunction::UserFunction { template, defaults, output } => {
+            XFunction::UserFunction { template, output } => {
                 let mut args = args;
                 let mut recursion_depth = 0_usize;
                 loop {
-                    let scope = Self::from_template(template.clone(), Some(self), rt.clone(), args, defaults)?;
+                    let scope = Self::from_template(template.clone(), Some(self), rt.clone(), args)?;
                     let v = scope.eval(output.as_ref(), rt.clone(), true);
                     match v? {
                         TailedEvalResult::TailCall(new_args) => {

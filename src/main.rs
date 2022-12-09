@@ -10,8 +10,16 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    let q = error("ni ni");
-    let z = if_error(1/0, 0.5);
+    fn foo()->(int)->(int){
+        let DEF = 10;
+        fn g(t: int, x: int ?= DEF)->int{
+            t + x*2
+        }
+        g
+    }
+
+    let f = foo();
+    let z = f(7);
     "###;
     /*
 
