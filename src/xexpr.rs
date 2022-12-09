@@ -1,30 +1,20 @@
-
-
-
-use crate::evaluation_scope::{EvaluatedVariable};
+use crate::evaluation_scope::EvaluatedVariable;
 use crate::runtime::RTCell;
-use crate::xtype::{
-    Bind, XCompoundSpec, XType,
-};
+use crate::xtype::{Bind, XCompoundSpec, XType};
 use crate::xvalue::{ManagedXValue, NativeCallable, XFunction};
-use crate::{
-    Declaration, Identifier,
-};
-
-
+use crate::{Declaration, Identifier};
 
 use derivative::Derivative;
 
-
+use crate::compilation_scope::CellSpec;
+use crate::runtime_err::RuntimeError;
+use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
+use crate::units::ScopeDepth;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
-use crate::compilation_scope::{CellSpec};
-use crate::runtime_err::RuntimeError;
-use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
-use crate::units::ScopeDepth;
 
 #[derive(Debug)]
 pub(crate) enum XStaticExpr {
@@ -99,26 +89,40 @@ pub struct StaticUserFunction<W: Write + 'static> {
 }
 
 impl<W: Write + 'static> XStaticFunction<W> {
-    pub(crate) fn to_function(&self, closure: &RuntimeScope<'_, W>, rt: RTCell<W>) -> Result<XFunction<W>, RuntimeError> {
+    pub(crate) fn to_function(
+        &self,
+        closure: &RuntimeScope<'_, W>,
+        rt: RTCell<W>,
+    ) -> Result<XFunction<W>, RuntimeError> {
         Ok(match self {
-            Self::Native(native) => {
-                XFunction::Native(native.clone())
-            }
-            Self::UserFunction(uf) => {
-                XFunction::UserFunction {
-                    template: RuntimeScopeTemplate::from_specs(uf.id, uf.name.clone(), uf.param_len, &uf.cell_specs, Some(closure), Some(uf.parent_id), uf.declarations.clone(), rt, uf.defaults.clone(), Some(uf.output.clone()))?,
-                    output: uf.output.clone(),
-                }
-            }
+            Self::Native(native) => XFunction::Native(native.clone()),
+            Self::UserFunction(uf) => XFunction::UserFunction {
+                template: RuntimeScopeTemplate::from_specs(
+                    uf.id,
+                    uf.name.clone(),
+                    uf.param_len,
+                    &uf.cell_specs,
+                    Some(closure),
+                    Some(uf.parent_id),
+                    uf.declarations.clone(),
+                    rt,
+                    uf.defaults.clone(),
+                    Some(uf.output.clone()),
+                )?,
+                output: uf.output.clone(),
+            },
         })
     }
 
-    pub(crate) fn from_native(f: impl Fn(
-        &[XExpr<W>],
-        &RuntimeScope<'_, W>,
-        bool,
-        RTCell<W>,
-    ) -> Result<TailedEvalResult<W>, RuntimeError> + 'static) -> Self {
+    pub(crate) fn from_native(
+        f: impl Fn(
+                &[XExpr<W>],
+                &RuntimeScope<'_, W>,
+                bool,
+                RTCell<W>,
+            ) -> Result<TailedEvalResult<W>, RuntimeError>
+            + 'static,
+    ) -> Self {
         Self::Native(Rc::new(f))
     }
 }
@@ -131,7 +135,11 @@ impl<W: Write + 'static> Debug for XStaticFunction<W> {
                 write!(f, "Native(..)")
             }
             Self::UserFunction(template, ..) => {
-                write!(f, "UserFunction({})", template.name.as_deref().unwrap_or(".."))
+                write!(
+                    f,
+                    "UserFunction({})",
+                    template.name.as_deref().unwrap_or("..")
+                )
             }
         }
     }

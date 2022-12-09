@@ -1,5 +1,5 @@
-use std::ops::{Add, Sub};
 use num_traits::Zero;
+use std::ops::{Add, Sub};
 
 #[derive(Eq, PartialEq, Debug, Ord, PartialOrd, Copy, Clone)]
 pub(crate) struct ScopeDepth(pub usize);
@@ -9,7 +9,7 @@ pub(crate) struct StackDepth(pub usize);
 
 macro_rules! arith {
     ($t:ty) => {
-        impl Add<Self> for $t{
+        impl Add<Self> for $t {
             type Output = Self;
 
             fn add(self, rhs: Self) -> Self::Output {
@@ -17,7 +17,7 @@ macro_rules! arith {
             }
         }
 
-        impl Add<usize> for $t{
+        impl Add<usize> for $t {
             type Output = Self;
 
             fn add(self, rhs: usize) -> Self::Output {
@@ -25,7 +25,7 @@ macro_rules! arith {
             }
         }
 
-        impl Sub<Self> for $t{
+        impl Sub<Self> for $t {
             type Output = Self;
 
             fn sub(self, rhs: Self) -> Self::Output {
@@ -33,7 +33,7 @@ macro_rules! arith {
             }
         }
 
-        impl Sub<usize> for $t{
+        impl Sub<usize> for $t {
             type Output = Self;
 
             fn sub(self, rhs: usize) -> Self::Output {
@@ -41,7 +41,7 @@ macro_rules! arith {
             }
         }
 
-        impl Zero for $t{
+        impl Zero for $t {
             fn is_zero(&self) -> bool {
                 self.0.is_zero()
             }
@@ -50,9 +50,8 @@ macro_rules! arith {
                 Self(Zero::zero())
             }
         }
-    }
+    };
 }
-
 
 arith!(ScopeDepth);
 arith!(StackDepth);

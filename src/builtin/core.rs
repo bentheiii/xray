@@ -1,17 +1,17 @@
-use crate::xvalue::{XValue};
+use crate::xvalue::XValue;
 use num_traits::{One, Zero};
 
 use std::io::Write;
 
+use crate::compilation_scope::CompilationScope;
+use crate::evaluation_scope::EvaluatedVariable;
+use crate::runtime_err::RuntimeError;
+use crate::runtime_scope::RuntimeScope;
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::XExpr;
 use crate::{forward_err, Identifier, RTCell, XType};
 use std::ops::Neg;
 use std::sync::Arc;
-use crate::compilation_scope::CompilationScope;
-use crate::evaluation_scope::EvaluatedVariable;
-use crate::runtime_err::RuntimeError;
-use crate::runtime_scope::RuntimeScope;
 
 #[macro_export]
 macro_rules! add_binop {
@@ -22,16 +22,14 @@ macro_rules! add_binop {
             scope.add_func(
                 stringify!($name),
                 XFuncSpec::new(&[&$operand_type, &$operand_type], $return_type.clone()),
-                XStaticFunction::from_native(
-                    |args, ns, _tca, rt| {
-                        let a0 = $crate::xraise!(eval(&args[0], ns, &rt)?);
-                        let a1 = $crate::xraise!(eval(&args[1], ns, &rt)?);
-                        let v0 = to_primitive!(a0, $operand_variant);
-                        let v1 = to_primitive!(a1, $operand_variant);
-                        let result: Result<_, String> = $func(v0, v1);
-                        Ok(ManagedXValue::from_result(result, rt.clone())?.into())
-                    },
-                ),
+                XStaticFunction::from_native(|args, ns, _tca, rt| {
+                    let a0 = $crate::xraise!(eval(&args[0], ns, &rt)?);
+                    let a1 = $crate::xraise!(eval(&args[1], ns, &rt)?);
+                    let v0 = to_primitive!(a0, $operand_variant);
+                    let v1 = to_primitive!(a1, $operand_variant);
+                    let result: Result<_, String> = $func(v0, v1);
+                    Ok(ManagedXValue::from_result(result, rt.clone())?.into())
+                }),
             )
         }
     };
@@ -46,12 +44,10 @@ macro_rules! add_ufunc_ref {
             scope.add_func(
                 stringify!($name),
                 XFuncSpec::new(&[&$operand_type], $return_type.clone()),
-                XStaticFunction::from_native(
-                    |args, ns, _tca, rt| {
-                        let a0 = $crate::xraise!(eval(&args[0], ns, &rt)?);
-                        $func(a0, rt)
-                    },
-                ),
+                XStaticFunction::from_native(|args, ns, _tca, rt| {
+                    let a0 = $crate::xraise!(eval(&args[0], ns, &rt)?);
+                    $func(a0, rt)
+                }),
             )
         }
     };
@@ -88,7 +84,11 @@ macro_rules! to_primitive {
     ($x: expr, $v: ident) => {
         match &$x.value {
             XValue::$v(__b) => __b,
-            other => panic!("error when converting primitive, expected {}, got {:?}", stringify!($v), other),
+            other => panic!(
+                "error when converting primitive, expected {}, got {:?}",
+                stringify!($v),
+                other
+            ),
         }
     };
     ($x: expr, $v: ident, $d: expr) => {
@@ -110,14 +110,18 @@ macro_rules! intern {
 }
 
 // todo make this a one-to-one func
-pub(super) fn eval<W: Write + 'static>(expr: &XExpr<W>, ns: &RuntimeScope<W>, rt: &RTCell<W>) -> Result<EvaluatedVariable<W>, RuntimeError> {
+pub(super) fn eval<W: Write + 'static>(
+    expr: &XExpr<W>,
+    ns: &RuntimeScope<W>,
+    rt: &RTCell<W>,
+) -> Result<EvaluatedVariable<W>, RuntimeError> {
     ns.eval(expr, rt.clone(), false).map(|i| i.unwrap_value())
 }
 
 #[macro_export]
 macro_rules! xraise {
     ($e: expr) => {{
-        match $e{
+        match $e {
             Ok(__i) => __i,
             Err(__e) => return Ok($crate::xexpr::TailedEvalResult::Value(Err(__e.into()))),
         }
@@ -127,9 +131,9 @@ macro_rules! xraise {
 #[macro_export]
 macro_rules! xraise_opt {
     ($e: expr) => {{
-        match $e{
-            None=>None,
-            Some(__i)=>Some(xraise!(__i))
+        match $e {
+            None => None,
+            Some(__i) => Some(xraise!(__i)),
         }
     }};
 }
@@ -204,7 +208,9 @@ pub(super) fn get_func<W: Write + 'static>(
     arguments: &[Arc<XType>],
     expected_return_type: &Arc<XType>,
 ) -> Result<XExpr<W>, String> {
-    let ret = scope.get_func(&symbol, arguments).map_err(|e| format!("{e:?}"))?; // todo improve error here
+    let ret = scope
+        .get_func(&symbol, arguments)
+        .map_err(|e| format!("{e:?}"))?; // todo improve error here
     let ret_xtype = scope.type_of(&ret).unwrap();
     let func_spec = if let XType::XFunc(spec) = ret_xtype.as_ref() {
         spec
@@ -225,5 +231,6 @@ pub(super) fn eval_resolved_func<W: Write + 'static>(
 ) -> Result<EvaluatedVariable<W>, RuntimeError> {
     let managed_func = forward_err!(ns.eval(expr, rt.clone(), false)?.unwrap_value());
     let func = to_primitive!(managed_func, Function);
-    ns.eval_func_with_values(func, args, rt, false).map(|v| v.unwrap_value())
+    ns.eval_func_with_values(func, args, rt, false)
+        .map(|v| v.unwrap_value())
 }

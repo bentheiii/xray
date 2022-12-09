@@ -1,11 +1,17 @@
 use crate::builtin::core::{eval, get_func};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
+use crate::evaluation_scope::EvaluatedVariable;
 use crate::native_types::{NativeType, XNativeValue};
+use crate::runtime_err::RuntimeError;
+use crate::runtime_scope::RuntimeScope;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
-use crate::{manage_native, to_native, to_primitive, unpack_types, CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType, xraise};
+use crate::{
+    manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError, RTCell,
+    RootCompilationScope, XCallableSpec, XStaticFunction, XType,
+};
 use derivative::Derivative;
 use num_traits::ToPrimitive;
 use rc::Rc;
@@ -17,9 +23,6 @@ use std::iter::once;
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
-use crate::evaluation_scope::EvaluatedVariable;
-use crate::runtime_err::RuntimeError;
-use crate::runtime_scope::RuntimeScope;
 
 use crate::xexpr::TailedEvalResult;
 
@@ -54,8 +57,8 @@ struct XMapping<W: Write + 'static> {
 macro_rules! parse_hash {
     ($v: expr) => {{
         xraise!(to_primitive!(xraise!($v.unwrap_value()), Int)
-                .to_u64()
-                .ok_or("hash is out of bounds"))
+            .to_u64()
+            .ok_or("hash is out of bounds"))
     }};
 }
 
@@ -82,7 +85,12 @@ impl<W: Write + 'static> XMapping<W> {
         let mut eq_func = None;
         let mut new_dict = self.inner.clone();
         for (k, v) in items {
-            let hash_key = parse_hash!(ns.eval_func_with_values(hash_func, vec![k.clone()], rt.clone(), false)?);
+            let hash_key = parse_hash!(ns.eval_func_with_values(
+                hash_func,
+                vec![k.clone()],
+                rt.clone(),
+                false
+            )?);
 
             let spot = new_dict.entry(hash_key);
             match spot {
@@ -96,7 +104,14 @@ impl<W: Write + 'static> XMapping<W> {
                     let mut found = false;
                     for (i, (existing_k, _existing_v)) in spot.get().iter().enumerate() {
                         if *to_primitive!(
-                            xraise!(ns.eval_func_with_values(eq_func.unwrap(), vec![existing_k.clone(), k.clone()], rt.clone(), false)?.unwrap_value()),
+                            xraise!(ns
+                                .eval_func_with_values(
+                                    eq_func.unwrap(),
+                                    vec![existing_k.clone(), k.clone()],
+                                    rt.clone(),
+                                    false
+                                )?
+                                .unwrap_value()),
                             Bool
                         ) {
                             spot.get_mut()[i].1 = v.clone();
@@ -138,30 +153,28 @@ pub(crate) fn add_mapping_new<W: Write + 'static>(
 
     scope.add_func(
         "mapping",
-            XFuncSpec::new(
-                &[
-                    &Arc::new(XCallable(XCallableSpec {
-                        param_types: vec![k.clone()],
-                        return_type: X_INT.clone(),
-                    })),
-                    &Arc::new(XCallable(XCallableSpec {
-                        param_types: vec![k.clone(), k.clone()],
-                        return_type: X_BOOL.clone(),
-                    })),
-                ],
-                XMappingType::xtype(k, X_UNKNOWN.clone()),
-            )
-            .generic(params),
-        XStaticFunction::from_native(
-            |args, ns, _tca, rt| {
-                let hash_func = xraise!(eval(&args[0], ns, &rt)?);
-                let eq_func = xraise!(eval(&args[1], ns, &rt)?);
-                Ok(manage_native!(
-                    XMapping::new(hash_func, eq_func, Default::default()),
-                    rt
-                ))
-            },
-        ),
+        XFuncSpec::new(
+            &[
+                &Arc::new(XCallable(XCallableSpec {
+                    param_types: vec![k.clone()],
+                    return_type: X_INT.clone(),
+                })),
+                &Arc::new(XCallable(XCallableSpec {
+                    param_types: vec![k.clone(), k.clone()],
+                    return_type: X_BOOL.clone(),
+                })),
+            ],
+            XMappingType::xtype(k, X_UNKNOWN.clone()),
+        )
+        .generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let hash_func = xraise!(eval(&args[0], ns, &rt)?);
+            let eq_func = xraise!(eval(&args[1], ns, &rt)?);
+            Ok(manage_native!(
+                XMapping::new(hash_func, eq_func, Default::default()),
+                rt
+            ))
+        }),
     )
 }
 
@@ -173,16 +186,14 @@ pub(crate) fn add_mapping_set<W: Write + 'static>(
 
     scope.add_func(
         "set",
-            XFuncSpec::new(&[&mp, &k, &v], mp.clone()).generic(params),
-        XStaticFunction::from_native(
-            |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let a1 = eval(&args[1], ns, &rt)?;
-                let a2 = eval(&args[2], ns, &rt)?;
-                let mapping = to_native!(a0, XMapping<W>);
-                mapping.with_update(once((a1, a2)), ns, rt)
-            },
-        ),
+        XFuncSpec::new(&[&mp, &k, &v], mp.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = eval(&args[1], ns, &rt)?;
+            let a2 = eval(&args[2], ns, &rt)?;
+            let mapping = to_native!(a0, XMapping<W>);
+            mapping.with_update(once((a1, a2)), ns, rt)
+        }),
     )
 }
 
@@ -194,28 +205,28 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(
 
     scope.add_func(
         "update",
-            XFuncSpec::new(
-                &[
-                    &mp,
-                    &XSequenceType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
-                ],
-                mp.clone(),
-            )
-            .generic(params),
-        XStaticFunction::from_native(
-            |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                let mapping = to_native!(a0, XMapping<W>);
-                let seq = to_native!(a1, XSequence<W>);
-                let arr = xraise!(seq.slice(ns, rt.clone()).collect::<Result<Result<Vec<_>,_>, _>>()?);
-                let items = arr.iter().map(|t| {
-                    let tup = to_primitive!(t, StructInstance);
-                    (tup[0].clone(), tup[1].clone())
-                });
-                mapping.with_update(items, ns, rt)
-            },
-        ),
+        XFuncSpec::new(
+            &[
+                &mp,
+                &XSequenceType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
+            ],
+            mp.clone(),
+        )
+        .generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let mapping = to_native!(a0, XMapping<W>);
+            let seq = to_native!(a1, XSequence<W>);
+            let arr = xraise!(seq
+                .slice(ns, rt.clone())
+                .collect::<Result<Result<Vec<_>, _>, _>>()?);
+            let items = arr.iter().map(|t| {
+                let tup = to_primitive!(t, StructInstance);
+                (tup[0].clone(), tup[1].clone())
+            });
+            mapping.with_update(items, ns, rt)
+        }),
     )
 }
 
@@ -227,37 +238,47 @@ pub(crate) fn add_mapping_lookup<W: Write + 'static>(
 
     scope.add_func(
         "lookup",
-            XFuncSpec::new(&[&mp, &k], XOptionalType::xtype(v)).generic(params),
-        XStaticFunction::from_native(
-            |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let a1 = eval(&args[1], ns, &rt)?;
-                let mapping = to_native!(a0, XMapping<W>);
-                let hash_func = to_primitive!(mapping.hash_func, Function);
-                let hash_key = parse_hash!(ns.eval_func_with_values(hash_func, vec![a1.clone()], rt.clone(), false)?);
-                let spot = mapping.inner.get(&hash_key);
-                match spot {
-                    None => Ok(manage_native!(XOptional::<W> { value: None }, rt)),
-                    Some(candidates) => {
-                        let eq_func = to_primitive!(mapping.eq_func, Function);
-                        for (k, v) in candidates.iter() {
-                            if *to_primitive!(
-                                xraise!(ns.eval_func_with_values(eq_func, vec![a1.clone(), k.clone()], rt.clone(), false)?.unwrap_value()),
-                                Bool
-                            ) {
-                                return Ok(manage_native!(
-                                    XOptional {
-                                        value: Some(v.clone())
-                                    },
-                                    rt
-                                ));
-                            }
+        XFuncSpec::new(&[&mp, &k], XOptionalType::xtype(v)).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = eval(&args[1], ns, &rt)?;
+            let mapping = to_native!(a0, XMapping<W>);
+            let hash_func = to_primitive!(mapping.hash_func, Function);
+            let hash_key = parse_hash!(ns.eval_func_with_values(
+                hash_func,
+                vec![a1.clone()],
+                rt.clone(),
+                false
+            )?);
+            let spot = mapping.inner.get(&hash_key);
+            match spot {
+                None => Ok(manage_native!(XOptional::<W> { value: None }, rt)),
+                Some(candidates) => {
+                    let eq_func = to_primitive!(mapping.eq_func, Function);
+                    for (k, v) in candidates.iter() {
+                        if *to_primitive!(
+                            xraise!(ns
+                                .eval_func_with_values(
+                                    eq_func,
+                                    vec![a1.clone(), k.clone()],
+                                    rt.clone(),
+                                    false
+                                )?
+                                .unwrap_value()),
+                            Bool
+                        ) {
+                            return Ok(manage_native!(
+                                XOptional {
+                                    value: Some(v.clone())
+                                },
+                                rt
+                            ));
                         }
-                        Ok(manage_native!(XOptional::<W> { value: None }, rt))
                     }
+                    Ok(manage_native!(XOptional::<W> { value: None }, rt))
                 }
-            },
-        ),
+            }
+        }),
     )
 }
 
@@ -269,32 +290,42 @@ pub(crate) fn add_mapping_get<W: Write + 'static>(
 
     scope.add_func(
         "get",
-            XFuncSpec::new(&[&mp, &k], v).generic(params),
-        XStaticFunction::from_native(
-            |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let a1 = eval(&args[1], ns, &rt)?;
-                let mapping = to_native!(a0, XMapping<W>);
-                let hash_func = to_primitive!(mapping.hash_func, Function);
-                let hash_key = parse_hash!(ns.eval_func_with_values(hash_func, vec![a1.clone()], rt.clone(), false)?);
-                let spot = mapping.inner.get(&hash_key);
-                match spot {
-                    None => xraise!(Err("key not found".to_string())),
-                    Some(candidates) => {
-                        let eq_func = to_primitive!(mapping.eq_func, Function);
-                        for (k, v) in candidates.iter() {
-                            if *to_primitive!(
-                                xraise!(ns.eval_func_with_values(eq_func, vec![a1.clone(), k.clone()], rt.clone(), false)?.unwrap_value()),
-                                Bool
-                            ) {
-                                return Ok(v.clone().into());
-                            }
+        XFuncSpec::new(&[&mp, &k], v).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = eval(&args[1], ns, &rt)?;
+            let mapping = to_native!(a0, XMapping<W>);
+            let hash_func = to_primitive!(mapping.hash_func, Function);
+            let hash_key = parse_hash!(ns.eval_func_with_values(
+                hash_func,
+                vec![a1.clone()],
+                rt.clone(),
+                false
+            )?);
+            let spot = mapping.inner.get(&hash_key);
+            match spot {
+                None => xraise!(Err("key not found".to_string())),
+                Some(candidates) => {
+                    let eq_func = to_primitive!(mapping.eq_func, Function);
+                    for (k, v) in candidates.iter() {
+                        if *to_primitive!(
+                            xraise!(ns
+                                .eval_func_with_values(
+                                    eq_func,
+                                    vec![a1.clone(), k.clone()],
+                                    rt.clone(),
+                                    false
+                                )?
+                                .unwrap_value()),
+                            Bool
+                        ) {
+                            return Ok(v.clone().into());
                         }
-                        xraise!(Err("key not found".to_string()))
                     }
+                    xraise!(Err("key not found".to_string()))
                 }
-            },
-        ),
+            }
+        }),
     )
 }
 
@@ -306,15 +337,13 @@ pub(crate) fn add_mapping_len<W: Write + 'static>(
 
     scope.add_func(
         "len",
-            XFuncSpec::new(&[&mp], X_INT.clone()).generic(params),
-        XStaticFunction::from_native(
-            |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let mapping = to_native!(a0, XMapping<W>);
-                let len: usize = mapping.inner.values().map(|v| v.len()).sum();
-                Ok(ManagedXValue::new(XValue::Int(len.into()), rt)?.into())
-            },
-        ),
+        XFuncSpec::new(&[&mp], X_INT.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let mapping = to_native!(a0, XMapping<W>);
+            let len: usize = mapping.inner.values().map(|v| v.len()).sum();
+            Ok(ManagedXValue::new(XValue::Int(len.into()), rt)?.into())
+        }),
     )
 }
 
@@ -326,30 +355,31 @@ pub(crate) fn add_mapping_entries<W: Write + 'static>(
 
     scope.add_func(
         "entries",
-            XFuncSpec::new(
-                &[&mp],
-                XSequenceType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
-            )
-            .generic(params),
-        XStaticFunction::from_native(
-            |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let mapping = to_native!(a0, XMapping<W>);
-                let entries = mapping
-                    .inner
-                    .values()
-                    .flat_map(|lst| {
-                        lst.iter().map(|(k, v)| {
-                            ManagedXValue::new(
-                                XValue::StructInstance(vec![k.clone(), v.clone()]),
-                                rt.clone(),
-                            )
-                        })
+        XFuncSpec::new(
+            &[&mp],
+            XSequenceType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
+        )
+        .generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let mapping = to_native!(a0, XMapping<W>);
+            let entries = mapping
+                .inner
+                .values()
+                .flat_map(|lst| {
+                    lst.iter().map(|(k, v)| {
+                        ManagedXValue::new(
+                            XValue::StructInstance(vec![k.clone(), v.clone()]),
+                            rt.clone(),
+                        )
                     })
-                    .collect::<Result<Vec<_>, _>>()?;
-                Ok(manage_native!(XSequence::array(entries.into_iter().map(Ok).collect()), rt))
-            },
-        ),
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+            Ok(manage_native!(
+                XSequence::array(entries.into_iter().map(Ok).collect()),
+                rt
+            ))
+        }),
     )
 }
 
@@ -361,31 +391,41 @@ pub(crate) fn add_mapping_contains<W: Write + 'static>(
 
     scope.add_func(
         "contains",
-            XFuncSpec::new(&[&mp, &k], X_BOOL.clone()).generic(params),
-        XStaticFunction::from_native(
-            |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let a1 = eval(&args[1], ns, &rt)?;
-                let mapping = to_native!(a0, XMapping<W>);
-                let hash_func = to_primitive!(mapping.hash_func, Function);
-                let hash_key = parse_hash!(ns.eval_func_with_values(hash_func, vec![a1.clone()], rt.clone(), false)?);
-                let spot = mapping.inner.get(&hash_key);
-                let mut ret = false;
-                if let Some(candidates) = spot {
-                    let eq_func = to_primitive!(mapping.eq_func, Function);
-                    for (k, _) in candidates.iter() {
-                        if *to_primitive!(
-                            xraise!(ns.eval_func_with_values(eq_func, vec![a1.clone(), k.clone()], rt.clone(), false)?.unwrap_value()),
-                            Bool
-                        ) {
-                            ret = true;
-                            break;
-                        }
+        XFuncSpec::new(&[&mp, &k], X_BOOL.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = eval(&args[1], ns, &rt)?;
+            let mapping = to_native!(a0, XMapping<W>);
+            let hash_func = to_primitive!(mapping.hash_func, Function);
+            let hash_key = parse_hash!(ns.eval_func_with_values(
+                hash_func,
+                vec![a1.clone()],
+                rt.clone(),
+                false
+            )?);
+            let spot = mapping.inner.get(&hash_key);
+            let mut ret = false;
+            if let Some(candidates) = spot {
+                let eq_func = to_primitive!(mapping.eq_func, Function);
+                for (k, _) in candidates.iter() {
+                    if *to_primitive!(
+                        xraise!(ns
+                            .eval_func_with_values(
+                                eq_func,
+                                vec![a1.clone(), k.clone()],
+                                rt.clone(),
+                                false
+                            )?
+                            .unwrap_value()),
+                        Bool
+                    ) {
+                        ret = true;
+                        break;
                     }
                 }
-                Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
-            },
-        ),
+            }
+            Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
+        }),
     )
 }
 
@@ -397,55 +437,61 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
 
     scope.add_func(
         "pop",
-            XFuncSpec::new(&[&mp, &k], mp.clone()).generic(params),
-        XStaticFunction::from_native(
-            |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let a1 = eval(&args[1], ns, &rt)?;
-                let mapping = to_native!(a0, XMapping<W>);
-                let hash_func = to_primitive!(mapping.hash_func, Function);
-                let hash_key = parse_hash!(ns.eval_func_with_values(hash_func, vec![a1.clone()], rt.clone(), false)?);
-                let spot = mapping.inner.get(&hash_key);
-                let mut new_spot = None;
-                if let Some(candidates) = spot {
-                    let eq_func = to_primitive!(mapping.eq_func, Function);
-                    for (i, (k, _)) in candidates.iter().enumerate() {
-                        if *to_primitive!(
-                                xraise!(ns.eval_func_with_values(eq_func, vec![a1.clone(), k.clone()], rt.clone(), false)?.unwrap_value()),
-                                Bool
-                            ) {
-                            new_spot = Some(
-                                candidates[..i]
-                                    .iter()
-                                    .cloned()
-                                    .chain(candidates[i + 1..].iter().cloned())
-                                    .collect(),
-                            );
-                            break;
-                        }
+        XFuncSpec::new(&[&mp, &k], mp.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = eval(&args[1], ns, &rt)?;
+            let mapping = to_native!(a0, XMapping<W>);
+            let hash_func = to_primitive!(mapping.hash_func, Function);
+            let hash_key = parse_hash!(ns.eval_func_with_values(
+                hash_func,
+                vec![a1.clone()],
+                rt.clone(),
+                false
+            )?);
+            let spot = mapping.inner.get(&hash_key);
+            let mut new_spot = None;
+            if let Some(candidates) = spot {
+                let eq_func = to_primitive!(mapping.eq_func, Function);
+                for (i, (k, _)) in candidates.iter().enumerate() {
+                    if *to_primitive!(
+                        xraise!(ns
+                            .eval_func_with_values(
+                                eq_func,
+                                vec![a1.clone(), k.clone()],
+                                rt.clone(),
+                                false
+                            )?
+                            .unwrap_value()),
+                        Bool
+                    ) {
+                        new_spot = Some(
+                            candidates[..i]
+                                .iter()
+                                .cloned()
+                                .chain(candidates[i + 1..].iter().cloned())
+                                .collect(),
+                        );
+                        break;
                     }
                 }
-                match new_spot {
-                    None => xraise!(Err("Key not found in mapping".to_string())),
-                    Some(new_spot) => {
-                        let mut new_dict = HashMap::from([(hash_key, new_spot)]);
-                        for (k, v) in &mapping.inner {
-                            if *k != hash_key {
-                                new_dict.insert(*k, v.clone());
-                            }
+            }
+            match new_spot {
+                None => xraise!(Err("Key not found in mapping".to_string())),
+                Some(new_spot) => {
+                    let mut new_dict = HashMap::from([(hash_key, new_spot)]);
+                    for (k, v) in &mapping.inner {
+                        if *k != hash_key {
+                            new_dict.insert(*k, v.clone());
                         }
-                        Ok(manage_native!(
-                            XMapping::new(
-                                mapping.hash_func.clone(),
-                                mapping.eq_func.clone(),
-                                new_dict
-                            ),
-                            rt
-                        ))
                     }
+                    Ok(manage_native!(
+                        XMapping::new(mapping.hash_func.clone(), mapping.eq_func.clone(), new_dict),
+                        rt
+                    ))
                 }
-            },
-        ),
+            }
+        }),
     )
 }
 
@@ -457,55 +503,61 @@ pub(crate) fn add_mapping_discard<W: Write + 'static>(
 
     scope.add_func(
         "discard",
-            XFuncSpec::new(&[&mp, &k], mp.clone()).generic(params),
-        XStaticFunction::from_native(
-            |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let a1 = eval(&args[1], ns, &rt)?;
-                let mapping = to_native!(a0, XMapping<W>);
-                let hash_func = to_primitive!(mapping.hash_func, Function);
-                let hash_key = parse_hash!(ns.eval_func_with_values(hash_func, vec![a1.clone()], rt.clone(), false)?);
-                let spot = mapping.inner.get(&hash_key);
-                let mut new_spot = None;
-                if let Some(candidates) = spot {
-                    let eq_func = to_primitive!(mapping.eq_func, Function);
-                    for (i, (k, _)) in candidates.iter().enumerate() {
-                        if *to_primitive!(
-                                xraise!(ns.eval_func_with_values(eq_func, vec![a1.clone(), k.clone()], rt.clone(), false)?.unwrap_value()),
-                                Bool
-                            ) {
-                            new_spot = Some(
-                                candidates[..i]
-                                    .iter()
-                                    .cloned()
-                                    .chain(candidates[i + 1..].iter().cloned())
-                                    .collect(),
-                            );
-                            break;
-                        }
+        XFuncSpec::new(&[&mp, &k], mp.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = eval(&args[1], ns, &rt)?;
+            let mapping = to_native!(a0, XMapping<W>);
+            let hash_func = to_primitive!(mapping.hash_func, Function);
+            let hash_key = parse_hash!(ns.eval_func_with_values(
+                hash_func,
+                vec![a1.clone()],
+                rt.clone(),
+                false
+            )?);
+            let spot = mapping.inner.get(&hash_key);
+            let mut new_spot = None;
+            if let Some(candidates) = spot {
+                let eq_func = to_primitive!(mapping.eq_func, Function);
+                for (i, (k, _)) in candidates.iter().enumerate() {
+                    if *to_primitive!(
+                        xraise!(ns
+                            .eval_func_with_values(
+                                eq_func,
+                                vec![a1.clone(), k.clone()],
+                                rt.clone(),
+                                false
+                            )?
+                            .unwrap_value()),
+                        Bool
+                    ) {
+                        new_spot = Some(
+                            candidates[..i]
+                                .iter()
+                                .cloned()
+                                .chain(candidates[i + 1..].iter().cloned())
+                                .collect(),
+                        );
+                        break;
                     }
                 }
-                match new_spot {
-                    None => Ok(a0.clone().into()),
-                    Some(new_spot) => {
-                        let mut new_dict = HashMap::from([(hash_key, new_spot)]);
-                        for (k, v) in &mapping.inner {
-                            if *k != hash_key {
-                                new_dict.insert(*k, v.clone());
-                            }
+            }
+            match new_spot {
+                None => Ok(a0.clone().into()),
+                Some(new_spot) => {
+                    let mut new_dict = HashMap::from([(hash_key, new_spot)]);
+                    for (k, v) in &mapping.inner {
+                        if *k != hash_key {
+                            new_dict.insert(*k, v.clone());
                         }
-                        Ok(manage_native!(
-                            XMapping::new(
-                                mapping.hash_func.clone(),
-                                mapping.eq_func.clone(),
-                                new_dict
-                            ),
-                            rt
-                        ))
                     }
+                    Ok(manage_native!(
+                        XMapping::new(mapping.hash_func.clone(), mapping.eq_func.clone(), new_dict),
+                        rt
+                    ))
                 }
-            },
-        ),
+            }
+        }),
     )
 }
 
@@ -524,9 +576,10 @@ pub(crate) fn add_mapping_new_dyn<W: Write + 'static>(
         Ok(XFunctionFactoryOutput::from_native(
             XFuncSpec::new(&[], XMappingType::xtype(a0.clone(), X_UNKNOWN.clone())),
             move |_args, ns, _tca, rt| {
-
-                let inner_equal_value = xraise!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
-                let inner_hash_value = xraise!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
+                let inner_equal_value =
+                    xraise!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
+                let inner_hash_value =
+                    xraise!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
                 Ok(manage_native!(
                     XMapping::new(inner_hash_value, inner_equal_value, Default::default()),
                     rt

@@ -9,7 +9,7 @@ impl<T> Default for IPush<T> {
     }
 }
 
-impl<T: Debug> Debug for IPush<T>{
+impl<T: Debug> Debug for IPush<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
     }
@@ -26,12 +26,12 @@ impl<T> IPush<T> {
         self.0.len() - 1
     }
 
-    pub(crate) fn iter(&self)-> impl Iterator<Item = &T>{
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
         self.0.iter()
     }
 
     #[allow(dead_code)]
-    pub(crate) fn len(&self)->usize{
+    pub(crate) fn len(&self) -> usize {
         self.0.len()
     }
 }

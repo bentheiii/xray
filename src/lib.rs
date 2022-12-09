@@ -1,5 +1,4 @@
 #![allow(incomplete_features)]
-#![feature(trait_upcasting)]
 #![warn(clippy::all)]
 
 #[macro_use]
@@ -9,20 +8,20 @@ extern crate dyn_clone;
 
 pub mod builtin;
 //pub mod __compilation_scope;
+mod compilation_scope;
 pub mod compile_err;
 pub mod evaluation_scope;
 pub mod native_types;
 pub mod parser;
+pub mod root_compilation_scope;
 pub mod runtime;
+mod runtime_err;
+mod runtime_scope;
+mod units;
 pub mod util;
 pub mod xexpr;
 pub mod xtype;
 pub mod xvalue;
-mod compilation_scope;
-mod runtime_scope;
-mod units;
-pub mod root_compilation_scope;
-mod runtime_err;
 
 extern crate pest;
 #[macro_use]
@@ -39,9 +38,9 @@ use crate::builtin::sequence::*;
 use crate::builtin::stack::*;
 use crate::builtin::str::*;
 use crate::builtin::unknown::add_unknown_eq;
-use crate::root_compilation_scope::{Declaration, RootCompilationScope};
 use crate::compile_err::{CompilationError, TracedCompilationError};
 use crate::parser::XRayParser;
+use crate::root_compilation_scope::{Declaration, RootCompilationScope};
 
 use std::io::Write;
 
@@ -49,10 +48,7 @@ use crate::runtime::RTCell;
 
 use string_interner::DefaultSymbol;
 
-use crate::xexpr::{
-    XExplicitStaticArgSpec, XStaticExpr,
-    XStaticFunction,
-};
+use crate::xexpr::{XExplicitStaticArgSpec, XStaticExpr, XStaticFunction};
 use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType};
 
 pub type Identifier = DefaultSymbol;

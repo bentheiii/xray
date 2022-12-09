@@ -44,7 +44,12 @@ impl ScriptConfig {
             .get_user_defined_function("main")
             .expect(r#"function "main" found more than once"#)
             .expect(r#"function "main" not found"#);
-        let main_output = &eval_scope.run_function(main_fn, vec![]).unwrap().unwrap_value().unwrap().value;
+        let main_output = &eval_scope
+            .run_function(main_fn, vec![])
+            .unwrap()
+            .unwrap_value()
+            .unwrap()
+            .value;
         if !matches!(main_output, XValue::Bool(true)) {
             panic!("main outputted {:?}, expected true", main_output)
         }
@@ -75,7 +80,8 @@ fn test_script(script_number: usize) {
         })
         .unwrap()
         .unwrap();
-    let input = fs::read_to_string(&file_path).unwrap_or_else(|_| { panic!("{}", file_path.to_str().unwrap().to_string()) });
+    let input = fs::read_to_string(&file_path)
+        .unwrap_or_else(|_| panic!("{}", file_path.to_str().unwrap().to_string()));
 
     let config: ScriptConfig =
         match fs::read_to_string(format!("test_scripts/{script_number:0>3}.toml")) {

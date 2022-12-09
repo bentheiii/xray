@@ -1,9 +1,9 @@
-use crate::builtin::core::{xcmp, eval};
+use crate::builtin::core::{eval, xcmp};
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
 use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, to_primitive, CompilationError,
-    RootCompilationScope, XStaticFunction,
+    add_binop, add_ufunc, add_ufunc_ref, to_primitive, CompilationError, RootCompilationScope,
+    XStaticFunction,
 };
 
 use crate::util::lazy_bigint::LazyBigint;
@@ -45,10 +45,8 @@ pub(crate) fn add_str_to_str<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "to_str",
-            XFuncSpec::new(&[&X_STRING], X_STRING.clone()),
-        XStaticFunction::from_native(
-            |args, ns, tca, rt| ns.eval(&args[0], rt, tca),
-        ),
+        XFuncSpec::new(&[&X_STRING], X_STRING.clone()),
+        XStaticFunction::from_native(|args, ns, tca, rt| ns.eval(&args[0], rt, tca)),
     )
 }
 

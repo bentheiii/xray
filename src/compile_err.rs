@@ -1,5 +1,5 @@
-use crate::root_compilation_scope::XCompilationScopeItem;
 use crate::parser::Rule;
+use crate::root_compilation_scope::XCompilationScopeItem;
 use crate::xexpr::XExpr;
 use crate::xtype::CompoundKind;
 use crate::Identifier;
@@ -647,10 +647,7 @@ impl Display for ResolvedCompilationError {
                 )
             }
             Self::NonFunctionSpecialization { name, item } => {
-                write!(
-                    f,
-                    "Cannot specialize non-function {name} (found {item})",
-                )
+                write!(f, "Cannot specialize non-function {name} (found {item})",)
             }
             Self::SpecializedFunctionTypeMismatch {
                 name,

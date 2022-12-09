@@ -1,14 +1,17 @@
 use crate::xexpr::XExpr;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
-use crate::{add_ufunc, add_ufunc_ref, to_primitive, unpack_types, CompilationError, RootCompilationScope, XStaticFunction, XType, xraise, xraise_opt};
+use crate::{
+    add_ufunc, add_ufunc_ref, to_primitive, unpack_types, xraise, xraise_opt, CompilationError,
+    RootCompilationScope, XStaticFunction, XType,
+};
 use rc::Rc;
 
 use crate::builtin::core::{eval, eval_resolved_func, get_func};
+use crate::runtime_err::RuntimeError;
 use num_traits::Signed;
 use std::io::Write;
 use std::rc;
-use crate::runtime_err::RuntimeError;
 
 pub(crate) fn add_if<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -16,13 +19,11 @@ pub(crate) fn add_if<W: Write + 'static>(
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if",
-            XFuncSpec::new(&[&X_BOOL, &t, &t], t.clone()).generic(params),
-        XStaticFunction::from_native(
-            |args, ns, tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                ns.eval(&args[if *to_primitive!(a0, Bool) { 1 } else { 2 }], rt, tca)
-            },
-        ),
+        XFuncSpec::new(&[&X_BOOL, &t, &t], t.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            ns.eval(&args[if *to_primitive!(a0, Bool) { 1 } else { 2 }], rt, tca)
+        }),
     )
 }
 
@@ -41,16 +42,14 @@ pub(crate) fn add_debug<W: Write + 'static>(
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "debug",
-            XFuncSpec::new_with_optional(&[&t], &[&X_STRING], t.clone()).generic(params),
-        XStaticFunction::from_native(
-            |args: &[XExpr<W>], ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
-                let b = to_primitive!(a1, String, "".to_string());
-                writeln!(rt.borrow_mut().stdout, "{b}{a0:?}").map_err(RuntimeError::OutputFailure)?;
-                Ok(a0.into())
-            },
-        ),
+        XFuncSpec::new_with_optional(&[&t], &[&X_STRING], t.clone()).generic(params),
+        XStaticFunction::from_native(|args: &[XExpr<W>], ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
+            let b = to_primitive!(a1, String, "".to_string());
+            writeln!(rt.borrow_mut().stdout, "{b}{a0:?}").map_err(RuntimeError::OutputFailure)?;
+            Ok(a0.into())
+        }),
     )
 }
 
@@ -60,13 +59,11 @@ pub(crate) fn add_is_error<W: Write + 'static>(
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "is_error",
-            XFuncSpec::new(&[&t], X_BOOL.clone()).generic(params),
-        XStaticFunction::from_native(
-            |args, ns, _tca, rt| {
-                let a0 = eval(&args[0], ns, &rt)?;
-                Ok(ManagedXValue::new(XValue::Bool(a0.is_err()), rt)?.into())
-            },
-        ),
+        XFuncSpec::new(&[&t], X_BOOL.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = eval(&args[0], ns, &rt)?;
+            Ok(ManagedXValue::new(XValue::Bool(a0.is_err()), rt)?.into())
+        }),
     )
 }
 
@@ -76,17 +73,15 @@ pub(crate) fn add_if_error<W: Write + 'static>(
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if_error",
-            XFuncSpec::new(&[&t, &t], t.clone()).generic(params),
-        XStaticFunction::from_native(
-            |args, ns, tca, rt| {
-                let a0 = eval(&args[0], ns, &rt)?;
-                if a0.is_ok(){
-                    Ok(a0.into())
-                } else {
-                    ns.eval(&args[1], rt, tca)
-                }
-            },
-        ),
+        XFuncSpec::new(&[&t, &t], t.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, tca, rt| {
+            let a0 = eval(&args[0], ns, &rt)?;
+            if a0.is_ok() {
+                Ok(a0.into())
+            } else {
+                ns.eval(&args[1], rt, tca)
+            }
+        }),
     )
 }
 
@@ -142,9 +137,15 @@ pub(crate) fn add_display<W: Write + 'static>(
                 let a0 = eval(&args[0], ns, &rt)?;
                 let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
                 let b = to_primitive!(a1, String, "".to_string());
-                let string = xraise!(eval_resolved_func(&inner_to_str, ns, rt.clone(), vec![a0.clone()])?);
+                let string = xraise!(eval_resolved_func(
+                    &inner_to_str,
+                    ns,
+                    rt.clone(),
+                    vec![a0.clone()]
+                )?);
                 let str_slice = to_primitive!(string, String);
-                writeln!(rt.borrow_mut().stdout, "{b}{str_slice}").map_err(RuntimeError::OutputFailure)?;
+                writeln!(rt.borrow_mut().stdout, "{b}{str_slice}")
+                    .map_err(RuntimeError::OutputFailure)?;
                 Ok(a0.into())
             },
         ))
@@ -169,7 +170,12 @@ pub(crate) fn add_cmp_lt<W: Write + 'static>(
             move |args, ns, _tca, rt| {
                 let a0 = eval(&args[0], ns, &rt)?;
                 let a1 = eval(&args[1], ns, &rt)?;
-                let cmp = xraise!(eval_resolved_func(&inner_func, ns, rt.clone(), vec![a0, a1])?);
+                let cmp = xraise!(eval_resolved_func(
+                    &inner_func,
+                    ns,
+                    rt.clone(),
+                    vec![a0, a1]
+                )?);
                 Ok(
                     ManagedXValue::new(XValue::Bool(to_primitive!(cmp, Int).is_negative()), rt)?
                         .into(),
@@ -198,7 +204,12 @@ pub(crate) fn add_cmp_gt<W: Write + 'static>(
             move |args, ns, _tca, rt| {
                 let a0 = eval(&args[0], ns, &rt)?;
                 let a1 = eval(&args[1], ns, &rt)?;
-                let cmp = xraise!(eval_resolved_func(&inner_func, ns, rt.clone(), vec![a0, a1])?);
+                let cmp = xraise!(eval_resolved_func(
+                    &inner_func,
+                    ns,
+                    rt.clone(),
+                    vec![a0, a1]
+                )?);
                 Ok(
                     ManagedXValue::new(XValue::Bool(to_primitive!(cmp, Int).is_positive()), rt)?
                         .into(),
@@ -226,7 +237,12 @@ pub(crate) fn add_cmp_ge<W: Write + 'static>(
             move |args, ns, _tca, rt| {
                 let a0 = eval(&args[0], ns, &rt)?;
                 let a1 = eval(&args[1], ns, &rt)?;
-                let cmp = xraise!(eval_resolved_func(&inner_func, ns, rt.clone(), vec![a0, a1])?);
+                let cmp = xraise!(eval_resolved_func(
+                    &inner_func,
+                    ns,
+                    rt.clone(),
+                    vec![a0, a1]
+                )?);
                 Ok(
                     ManagedXValue::new(XValue::Bool(!to_primitive!(cmp, Int).is_negative()), rt)?
                         .into(),
@@ -255,7 +271,12 @@ pub(crate) fn add_cmp_le<W: Write + 'static>(
             move |args, ns, _tca, rt| {
                 let a0 = eval(&args[0], ns, &rt)?;
                 let a1 = eval(&args[1], ns, &rt)?;
-                let cmp = xraise!(eval_resolved_func(&inner_func, ns, rt.clone(), vec![a0, a1])?);
+                let cmp = xraise!(eval_resolved_func(
+                    &inner_func,
+                    ns,
+                    rt.clone(),
+                    vec![a0, a1]
+                )?);
                 Ok(
                     ManagedXValue::new(XValue::Bool(!to_primitive!(cmp, Int).is_positive()), rt)?
                         .into(),
@@ -271,15 +292,15 @@ pub(crate) fn add_cast<W: Write + 'static>(
     scope.add_dyn_func("cast", move |_params, _types, _ns, bind| {
         let bind_len = bind.map_or(0, |a| a.len());
         if bind_len != 1 {
-            return Err(format!("this dyn func requires exactly 1 bind, got {bind_len}"));
+            return Err(format!(
+                "this dyn func requires exactly 1 bind, got {bind_len}"
+            ));
         }
         let t_out = &bind.unwrap()[0];
 
         Ok(XFunctionFactoryOutput::from_native(
             XFuncSpec::new(&[t_out], t_out.clone()),
-            move |args, ns, tca, rt| {
-                ns.eval(&args[0], rt, tca)
-            },
+            move |args, ns, tca, rt| ns.eval(&args[0], rt, tca),
         ))
     })
 }

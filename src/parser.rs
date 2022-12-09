@@ -1,19 +1,22 @@
+use crate::compilation_scope::CompilationScope;
+use crate::{
+    Bind, CompilationError, Identifier, TracedCompilationError, XCallableSpec, XCompoundFieldSpec,
+    XCompoundSpec, XExplicitStaticArgSpec, XFuncSpec, XStaticExpr, XStaticFunction, XType,
+};
+use itertools::Itertools;
+use pest::iterators::Pair;
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::io::Write;
 use std::iter;
 use std::sync::Arc;
-use itertools::Itertools;
-use pest::iterators::Pair;
 use string_interner::StringInterner;
-use crate::compilation_scope::CompilationScope;
-use crate::{Bind, CompilationError, Identifier, TracedCompilationError, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XExplicitStaticArgSpec, XFuncSpec, XStaticExpr, XStaticFunction, XType};
 
 use crate::xtype::{CompoundKind, XFuncParamSpec};
+use pest::prec_climber::Assoc::{Left, Right};
+use pest::prec_climber::{Operator, PrecClimber};
 use std::iter::FromIterator;
 use std::rc::Rc;
-use pest::prec_climber::{Operator, PrecClimber};
-use pest::prec_climber::Assoc::{Left, Right};
 
 #[derive(Parser)]
 #[grammar = "xray.pest"]
@@ -71,7 +74,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let expr = self.parse_expr(inners.next().unwrap(), interner)?;
                 let compiled = self.compile(expr).map_err(|e| e.trace(&input))?;
                 let symbol = interner.get_or_intern(var_name);
-                let comp_xtype = self.type_of(&compiled).map_err(|e| e.trace(&explicit_type_opt))?;
+                let comp_xtype = self
+                    .type_of(&compiled)
+                    .map_err(|e| e.trace(&explicit_type_opt))?;
                 if let Some(complete_type) = complete_type {
                     if complete_type != comp_xtype {
                         return Err(CompilationError::VariableTypeMismatch {
@@ -79,7 +84,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             expected_type: complete_type,
                             actual_type: comp_xtype,
                         }
-                            .trace(&input));
+                        .trace(&input));
                     }
                 }
                 self.add_variable(interner.get_or_intern(var_name), compiled, comp_xtype)
@@ -93,17 +98,15 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let fn_symbol = interner.get_or_intern(fn_name);
                 let gen_params = inners.next().unwrap();
                 let mut gen_param_names = parent_gen_param_names.clone();
-                let specific_gen_params = gen_params.into_inner().next().map(
-                    |gen_params| {
-                        let mut _names = vec![];
-                        for param in gen_params.into_inner() {
-                            _names.push(interner.get_or_intern(param.as_str()));
-                            // todo why do we need to do this? can't we just add them as types to the scope?
-                            gen_param_names.insert(param.as_str().to_string());
-                        }
-                        _names
+                let specific_gen_params = gen_params.into_inner().next().map(|gen_params| {
+                    let mut _names = vec![];
+                    for param in gen_params.into_inner() {
+                        _names.push(interner.get_or_intern(param.as_str()));
+                        // todo why do we need to do this? can't we just add them as types to the scope?
+                        gen_param_names.insert(param.as_str().to_string());
                     }
-                );
+                    _names
+                });
                 let params = match inners.next().unwrap().into_inner().next() {
                     None => vec![],
                     Some(param_pairs) => {
@@ -120,7 +123,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         function_name: Some(fn_symbol),
                         param_name: *out_of_order_param_name,
                     }
-                        .trace(&input));
+                    .trace(&input));
                 }
                 let rtype = self.get_complete_type(
                     inners.next().unwrap(),
@@ -129,37 +132,39 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     None,
                 )?;
                 let body = inners.next().unwrap();
-                let (param_names, param_specs, param_static_defaults): (Vec<_>, Vec<_>, Vec<_>) = params.into_iter().map(
-                    |(name, xtype, default)| {
-                        (
-                            name,
-                            XFuncParamSpec {
-                                type_: xtype,
-                                required: default.is_none(),
-                            },
-                            default
-                        )
-                    }
-                ).multiunzip();
+                let (param_names, param_specs, param_static_defaults): (Vec<_>, Vec<_>, Vec<_>) =
+                    params
+                        .into_iter()
+                        .map(|(name, xtype, default)| {
+                            (
+                                name,
+                                XFuncParamSpec {
+                                    type_: xtype,
+                                    required: default.is_none(),
+                                },
+                                default,
+                            )
+                        })
+                        .multiunzip();
                 let spec = XFuncSpec {
                     generic_params: specific_gen_params,
                     params: param_specs,
                     ret: rtype,
                     short_circuit_overloads: false,
                 };
-                let defaults = param_static_defaults.into_iter().filter_map(
-                    |s| s.map(|s| self.compile(s))
-                ).collect::<Result<_, _>>().map_err(|e| e.trace(&input))?;
-                let param_len = param_names.len();  // todo make it so we don't need this
-                let mut subscope = CompilationScope::from_parent(self,
-                                                                 param_names,
-                                                                 fn_symbol,
-                                                                 spec.clone());
+                let defaults = param_static_defaults
+                    .into_iter()
+                    .filter_map(|s| s.map(|s| self.compile(s)))
+                    .collect::<Result<_, _>>()
+                    .map_err(|e| e.trace(&input))?;
+                let param_len = param_names.len(); // todo make it so we don't need this
+                let mut subscope =
+                    CompilationScope::from_parent(self, param_names, fn_symbol, spec.clone());
                 let mut body_iter = body.clone().into_inner();
                 subscope.feed(body_iter.next().unwrap(), &gen_param_names, interner)?;
-                let out_static_expr = subscope
-                    .parse_expr(body_iter.next().unwrap(), interner)?;
-                let out = subscope.compile(out_static_expr)
+                let out_static_expr = subscope.parse_expr(body_iter.next().unwrap(), interner)?;
+                let out = subscope
+                    .compile(out_static_expr)
                     .map_err(|e| e.trace(&input))?;
                 let out_type = subscope.type_of(&out).map_err(|e| e.trace(&body))?; // todo improve trace?
                 let output = Box::new(out);
@@ -169,11 +174,21 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         expected_type: spec.ret,
                         actual_type: out_type,
                     }
-                        .trace(&input));
+                    .trace(&input));
                 }
-                let func = subscope.into_static_ud(Some(fn_name.to_string()), defaults, param_len, output, self.id);
-                self.add_static_func(fn_symbol, spec, XStaticFunction::UserFunction(Rc::new(func)))
-                    .map_err(|e| e.trace(&input))?;
+                let func = subscope.into_static_ud(
+                    Some(fn_name.to_string()),
+                    defaults,
+                    param_len,
+                    output,
+                    self.id,
+                );
+                self.add_static_func(
+                    fn_symbol,
+                    spec,
+                    XStaticFunction::UserFunction(Rc::new(func)),
+                )
+                .map_err(|e| e.trace(&input))?;
                 Ok(())
             }
             Rule::compound_def => {
@@ -322,40 +337,38 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                 // todo check if the name is a value/overload
                                 Err(CompilationError::TypeNotFound {
                                     name: name.to_string(),
-                                }.trace(&input))
-                            }
-                            Some(t) => {
-                                match t.as_ref() {
-                                    XType::XNative(t, ..) => {
-                                        if gen_params.len() != t.generic_names().len() {
-                                            return Err(CompilationError::GenericParamCountMismatch {
-                                                type_name: name.to_string(),
-                                                expected_count: t.generic_names().len(),
-                                                actual_count: gen_params.len(),
-                                            }
-                                                .trace(&input));
-                                        }
-                                        Ok(Arc::new(XType::XNative(t.clone(), gen_params)))
-                                    }
-                                    XType::Compound(kind, t, ..) => {
-                                        if gen_params.len() != t.generic_names.len() {
-                                            return Err(CompilationError::GenericParamCountMismatch {
-                                                type_name: name.to_string(),
-                                                expected_count: t.generic_names.len(),
-                                                actual_count: gen_params.len(),
-                                            }
-                                                .trace(&input));
-                                        }
-                                        let bind = Bind::from_iter(
-                                            t.generic_names.iter().cloned().zip(gen_params.into_iter()),
-                                        );
-                                        Ok(Arc::new(XType::Compound(*kind, t.clone(), bind)))
-                                    }
-                                    _ => Ok(t)
                                 }
+                                .trace(&input))
                             }
+                            Some(t) => match t.as_ref() {
+                                XType::XNative(t, ..) => {
+                                    if gen_params.len() != t.generic_names().len() {
+                                        return Err(CompilationError::GenericParamCountMismatch {
+                                            type_name: name.to_string(),
+                                            expected_count: t.generic_names().len(),
+                                            actual_count: gen_params.len(),
+                                        }
+                                        .trace(&input));
+                                    }
+                                    Ok(Arc::new(XType::XNative(t.clone(), gen_params)))
+                                }
+                                XType::Compound(kind, t, ..) => {
+                                    if gen_params.len() != t.generic_names.len() {
+                                        return Err(CompilationError::GenericParamCountMismatch {
+                                            type_name: name.to_string(),
+                                            expected_count: t.generic_names.len(),
+                                            actual_count: gen_params.len(),
+                                        }
+                                        .trace(&input));
+                                    }
+                                    let bind = Bind::from_iter(
+                                        t.generic_names.iter().cloned().zip(gen_params.into_iter()),
+                                    );
+                                    Ok(Arc::new(XType::Compound(*kind, t.clone(), bind)))
+                                }
+                                _ => Ok(t),
+                            },
                         }
-
                     }
                 }
             }
@@ -482,7 +495,11 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             let raw_args = iter.next().unwrap();
                             let args = raw_args.into_inner().next().map_or_else(
                                 || Ok(vec![]),
-                                |c| c.into_inner().map(|p| self.parse_expr(p, interner)).collect(),
+                                |c| {
+                                    c.into_inner()
+                                        .map(|p| self.parse_expr(p, interner))
+                                        .collect()
+                                },
                             )?;
                             ret = XStaticExpr::Call(Box::new(ret), args);
                         }
@@ -539,7 +556,11 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let mut iter = input.into_inner();
                 let parts = iter.next().map_or_else(
                     || Ok(vec![]),
-                    |c| c.into_inner().map(|p| self.parse_expr(p, interner)).collect(),
+                    |c| {
+                        c.into_inner()
+                            .map(|p| self.parse_expr(p, interner))
+                            .collect()
+                    },
                 )?;
                 Ok(XStaticExpr::Array(parts))
             }
@@ -547,7 +568,11 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let mut iter = input.into_inner();
                 let parts = iter.next().map_or_else(
                     || Ok(vec![]),
-                    |c| c.into_inner().map(|p| self.parse_expr(p, interner)).collect(),
+                    |c| {
+                        c.into_inner()
+                            .map(|p| self.parse_expr(p, interner))
+                            .collect()
+                    },
                 )?;
                 Ok(XStaticExpr::Tuple(parts))
             }
@@ -596,17 +621,18 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         function_name: None,
                         param_name: *out_of_order_param_name,
                     }
-                        .trace(&input));
+                    .trace(&input));
                 }
                 let body = iter.next().unwrap();
                 let ret = self.parse_expr(body.clone(), interner)?;
-                let params = params.into_iter().map(|(name, xtype, default)|
-                    XExplicitStaticArgSpec {
+                let params = params
+                    .into_iter()
+                    .map(|(name, xtype, default)| XExplicitStaticArgSpec {
                         name,
                         type_: xtype,
                         default,
-                    }
-                ).collect();
+                    })
+                    .collect();
                 Ok(XStaticExpr::Lambda(params, Box::new(ret)))
             }
             _ => {

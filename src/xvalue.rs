@@ -1,4 +1,4 @@
-use crate::evaluation_scope::{EvaluatedVariable};
+use crate::evaluation_scope::EvaluatedVariable;
 use crate::native_types::XNativeValue;
 use crate::runtime::RTCell;
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
@@ -7,15 +7,14 @@ use crate::{XFuncSpec, XType};
 use crate::util::lazy_bigint::LazyBigint;
 use derivative::Derivative;
 
-
+use crate::compilation_scope::CompilationScope;
+use crate::runtime_err::RuntimeError;
+use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
-use crate::compilation_scope::CompilationScope;
-use crate::runtime_err::RuntimeError;
-use crate::runtime_scope::{RuntimeScopeTemplate, RuntimeScope};
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
@@ -53,16 +52,20 @@ pub struct XFunctionFactoryOutput<W: Write + 'static> {
     pub(crate) func: XStaticFunction<W>,
 }
 
-impl<W: Write + 'static> XFunctionFactoryOutput<W>{
-    pub(crate) fn from_native(spec: XFuncSpec, callable: impl Fn(
-        &[XExpr<W>],
-        &RuntimeScope<'_, W>,
-        bool,
-        RTCell<W>,
-    ) -> Result<TailedEvalResult<W>, RuntimeError> + 'static)->Self{
-        Self{
+impl<W: Write + 'static> XFunctionFactoryOutput<W> {
+    pub(crate) fn from_native(
+        spec: XFuncSpec,
+        callable: impl Fn(
+                &[XExpr<W>],
+                &RuntimeScope<'_, W>,
+                bool,
+                RTCell<W>,
+            ) -> Result<TailedEvalResult<W>, RuntimeError>
+            + 'static,
+    ) -> Self {
+        Self {
             spec,
-            func: XStaticFunction::from_native(callable)
+            func: XStaticFunction::from_native(callable),
         }
     }
 }
@@ -84,17 +87,21 @@ impl<W: Write + 'static> Debug for XFunction<W> {
             Self::Native(..) => {
                 write!(f, "Native(..)")
             }
-            Self::UserFunction{template, ..} => {
-                write!(f, "UserFunction({})", template.name.as_deref().unwrap_or(".."))
+            Self::UserFunction { template, .. } => {
+                write!(
+                    f,
+                    "UserFunction({})",
+                    template.name.as_deref().unwrap_or("..")
+                )
             }
         }
     }
 }
 
-pub(crate) fn size_of_value<W: Write + 'static>(v: &EvaluatedVariable<W>)->usize{
+pub(crate) fn size_of_value<W: Write + 'static>(v: &EvaluatedVariable<W>) -> usize {
     match v {
         Err(_e) => 0, // todo manage errors (and store their size)
-        Ok(v) => v.size
+        Ok(v) => v.size,
     }
 }
 
@@ -106,7 +113,7 @@ impl<W: Write + 'static> XValue<W> {
             Self::String(s) => s.len(),
             Self::Bool(_) => 1,
             Self::Function(XFunction::Native(_)) => size_of::<usize>(),
-            Self::Function(XFunction::UserFunction{template, ..}) => {
+            Self::Function(XFunction::UserFunction { template, .. }) => {
                 size_of::<usize>() + template.cells.len() * size_of::<usize>()
             }
             Self::StructInstance(items) => items.len() * size_of::<usize>(),
@@ -157,10 +164,13 @@ impl<W: Write + 'static> ManagedXValue<W> {
         }))
     }
 
-    pub(crate) fn from_result(value: Result<XValue<W>, String>, runtime: RTCell<W>) -> Result<EvaluatedVariable<W>, RuntimeError> {
+    pub(crate) fn from_result(
+        value: Result<XValue<W>, String>,
+        runtime: RTCell<W>,
+    ) -> Result<EvaluatedVariable<W>, RuntimeError> {
         match value {
-            Ok(value)=>Self::new(value, runtime).map(Ok),
-            Err(e) => Ok(Err(e))
+            Ok(value) => Self::new(value, runtime).map(Ok),
+            Err(e) => Ok(Err(e)),
         }
     }
 }

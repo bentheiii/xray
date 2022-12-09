@@ -1,7 +1,10 @@
 use crate::builtin::core::{eval, xcmp};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, CompilationError, RootCompilationScope, XStaticFunction, xraise, xraise_opt};
+use crate::{
+    add_binop, add_ufunc, add_ufunc_ref, to_primitive, xraise, xraise_opt, CompilationError,
+    RootCompilationScope, XStaticFunction,
+};
 
 use crate::util::lazy_bigint::LazyBigint;
 use num_traits::{FromPrimitive, Zero};
@@ -60,30 +63,24 @@ pub(crate) fn add_float_is_close<W: Write + 'static>(
 ) -> Result<(), CompilationError<W>> {
     scope.add_func(
         "is_close",
-            XFuncSpec::new_with_optional(
-                &[&X_FLOAT, &X_FLOAT],
-                &[&X_FLOAT, &X_FLOAT],
-                X_BOOL.clone(),
-            ),
-        XStaticFunction::from_native(
-            |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                let a2 = xraise_opt!(args.get(2).map(|e| eval(e, ns, &rt)).transpose()?);
-                let a3 = xraise_opt!(args.get(3).map(|e| eval(e, ns, &rt)).transpose()?);
-                let rel_tol = a2.map_or(1e-9, |a2| *to_primitive!(a2, Float));
-                let abs_tol = a3.map_or(1e-9, |a2| *to_primitive!(a2, Float));
-                let f0 = to_primitive!(a0, Float);
-                let f1 = to_primitive!(a1, Float);
-                let tol = max_by(
-                    rel_tol * max_by(f0.abs(), f1.abs(), |a, b| a.partial_cmp(b).unwrap()),
-                    abs_tol,
-                    |a, b| a.partial_cmp(b).unwrap(),
-                );
-                let ret = (f1 - f0).abs() <= tol;
-                Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
-            },
-        ),
+        XFuncSpec::new_with_optional(&[&X_FLOAT, &X_FLOAT], &[&X_FLOAT, &X_FLOAT], X_BOOL.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise_opt!(args.get(2).map(|e| eval(e, ns, &rt)).transpose()?);
+            let a3 = xraise_opt!(args.get(3).map(|e| eval(e, ns, &rt)).transpose()?);
+            let rel_tol = a2.map_or(1e-9, |a2| *to_primitive!(a2, Float));
+            let abs_tol = a3.map_or(1e-9, |a2| *to_primitive!(a2, Float));
+            let f0 = to_primitive!(a0, Float);
+            let f1 = to_primitive!(a1, Float);
+            let tol = max_by(
+                rel_tol * max_by(f0.abs(), f1.abs(), |a, b| a.partial_cmp(b).unwrap()),
+                abs_tol,
+                |a, b| a.partial_cmp(b).unwrap(),
+            );
+            let ret = (f1 - f0).abs() <= tol;
+            Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
+        }),
     )
 }
 

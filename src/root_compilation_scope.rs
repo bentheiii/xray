@@ -2,18 +2,12 @@ use crate::parser::Rule;
 use crate::xexpr::{XExpr, XStaticFunction};
 use crate::xtype::{CompoundKind, XCompoundSpec, XFuncSpec, XType};
 use crate::xvalue::{DynBind, XFunctionFactoryOutput};
-use crate::{
-    CompilationError, Identifier,
-    XRayParser,
-};
+use crate::{CompilationError, Identifier, XRayParser};
 
-
-use std::collections::{HashSet};
+use std::collections::HashSet;
 use std::convert::TryInto;
 
 use std::io::Write;
-
-
 
 use std::ops::Deref;
 use std::rc::Rc;
@@ -24,8 +18,6 @@ use crate::compile_err::ResolvedTracedCompilationError;
 use crate::pest::Parser;
 
 use derivative::Derivative;
-
-
 
 use crate::compilation_scope::CompilationScope;
 
@@ -60,15 +52,22 @@ pub enum XCompilationScopeItem<W: Write + 'static> {
     Overload(Vec<OverloadWithHeight<W>>),
 }
 
-
-
 /// these will always point to variable cells
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Debug(bound = ""))]
 pub enum Declaration<W: Write + 'static> {
-    Parameter { cell_idx: usize, argument_idx: usize },
-    Value { cell_idx: usize, expr: XExpr<W> },
-    Function { cell_idx: usize, func: XStaticFunction<W> },
+    Parameter {
+        cell_idx: usize,
+        argument_idx: usize,
+    },
+    Value {
+        cell_idx: usize,
+        expr: XExpr<W>,
+    },
+    Function {
+        cell_idx: usize,
+        func: XStaticFunction<W>,
+    },
 }
 
 pub struct RootCompilationScope<W: Write + 'static> {
@@ -99,7 +98,8 @@ impl<W: Write + 'static> RootCompilationScope<W> {
         spec: XFuncSpec,
         func: XStaticFunction<W>,
     ) -> Result<(), CompilationError<W>> {
-        self.scope.add_static_func(self.interner.get_or_intern_static(name), spec, func)
+        self.scope
+            .add_static_func(self.interner.get_or_intern_static(name), spec, func)
     }
 
     pub fn add_dyn_func(

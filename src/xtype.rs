@@ -157,7 +157,7 @@ pub struct XFuncSpec {
     pub generic_params: Option<Vec<DefaultSymbol>>,
     pub(crate) params: Vec<XFuncParamSpec>,
     pub ret: Arc<XType>,
-    pub(crate) short_circuit_overloads: bool
+    pub(crate) short_circuit_overloads: bool,
 }
 
 impl XFuncSpec {
@@ -169,7 +169,7 @@ impl XFuncSpec {
                 .map(|t| XFuncParamSpec::required((*t).clone()))
                 .collect(),
             ret,
-            short_circuit_overloads: false
+            short_circuit_overloads: false,
         }
     }
 
@@ -201,14 +201,11 @@ impl XFuncSpec {
         }
     }
 
-    pub(crate) fn is_generic(&self) -> bool{
-        self.generic_params.as_ref().map_or(
-            false,
-            |i| {
-                debug_assert!(!i.is_empty());
-                true
-            }
-        )
+    pub(crate) fn is_generic(&self) -> bool {
+        self.generic_params.as_ref().map_or(false, |i| {
+            debug_assert!(!i.is_empty());
+            true
+        })
     }
 
     fn arg_len_range(&self) -> (usize, usize) {
@@ -232,7 +229,7 @@ impl XFuncSpec {
     pub(crate) fn rtype(&self, bind: &Bind) -> Arc<XType> {
         self.ret.clone().resolve_bind(bind, None)
     }
-    
+
     pub(crate) fn xtype(&self) -> Arc<XType> {
         Arc::new(XType::XFunc(self.clone()))
     }
