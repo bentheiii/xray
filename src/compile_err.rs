@@ -512,8 +512,7 @@ impl Display for ResolvedCompilationError {
             } => {
                 write!(
                     f,
-                    "Variable {} has type {}, but expected {}",
-                    variable_name, actual_type, expected_type
+                    "Variable {variable_name} has type {actual_type}, but expected {expected_type}"
                 )
             }
             Self::RequiredParamsAfterOptionalParams {
@@ -547,12 +546,11 @@ impl Display for ResolvedCompilationError {
             } => {
                 write!(
                     f,
-                    "Function {} has output type {}, but expected {}",
-                    function_name, actual_type, expected_type
+                    "Function {function_name} has output type {actual_type}, but expected {expected_type}"
                 )
             }
             Self::TypeNotFound { name } => {
-                write!(f, "Type {} not found", name)
+                write!(f, "Type {name} not found")
             }
             Self::GenericParamCountMismatch {
                 type_name,
@@ -561,18 +559,17 @@ impl Display for ResolvedCompilationError {
             } => {
                 write!(
                     f,
-                    "Type {} has {} generic parameters, but expected {}",
-                    type_name, actual_count, expected_count
+                    "Type {type_name} has {actual_count} generic parameters, but expected {expected_count}"
                 )
             }
             Self::ValueIsNotType { name, item } => {
-                write!(f, "{} is not of type (found {})", name, item,)
+                write!(f, "{name} is not of type (found {item})",)
             }
             Self::PairNotType => {
                 write!(f, "Expression cannot be interpreted as a type",)
             }
             Self::NameAlreadyDefined { name, other } => {
-                write!(f, "Name {} is already defined as {}", name, other)
+                write!(f, "Name {name} is already defined as {other}")
             }
             Self::AmbiguousOverload {
                 name,
@@ -623,8 +620,7 @@ impl Display for ResolvedCompilationError {
             } => {
                 write!(
                     f,
-                    "Variant {} of union {} has type {}, but expected {}",
-                    variant_name, union_name, actual_type, expected_type
+                    "Variant {variant_name} of union {union_name} has type {actual_type}, but expected {expected_type}"
                 )
             }
             Self::StructParamsLengthMismatch {
@@ -634,8 +630,7 @@ impl Display for ResolvedCompilationError {
             } => {
                 write!(
                     f,
-                    "Struct {} has {} parameters, but expected {}",
-                    struct_name, actual_count, expected_count
+                    "Struct {struct_name} has {actual_count} parameters, but expected {expected_count}"
                 )
             }
             Self::StructFieldTypeMismatch {
@@ -654,8 +649,7 @@ impl Display for ResolvedCompilationError {
             Self::NonFunctionSpecialization { name, item } => {
                 write!(
                     f,
-                    "Cannot specialize non-function {} (found {})",
-                    name, item,
+                    "Cannot specialize non-function {name} (found {item})",
                 )
             }
             Self::SpecializedFunctionTypeMismatch {
@@ -666,24 +660,22 @@ impl Display for ResolvedCompilationError {
             } => {
                 write!(
                     f,
-                    "Specialized argument at index {} of function {} has type {}, but expected {}",
-                    idx, name, actual_type, expected_type,
+                    "Specialized argument at index {idx} of function {name} has type {actual_type}, but expected {expected_type}",
                 )
             }
             Self::FunctionNotFound { name } => {
-                write!(f, "Function {} not found", name)
+                write!(f, "Function {name} not found")
             }
             Self::MemberNotFound { spec, name } => {
-                write!(f, "Member {} not found in compound {}", name, spec)
+                write!(f, "Member {name} not found in compound {spec}")
             }
             Self::NonCompoundMemberAccess { xtype } => {
-                write!(f, "Cannot access member of non-compound type {}", xtype)
+                write!(f, "Cannot access member of non-compound type {xtype}")
             }
             Self::NonItemTupleAccess { member } => {
                 write!(
                     f,
-                    "Member access to tuple must be of the for \"item<positive number>\", got {:?}",
-                    member
+                    "Member access to tuple must be of the for \"item<positive number>\", got {member:?}"
                 )
             }
             Self::TupleIndexOutOfBounds {
@@ -693,44 +685,40 @@ impl Display for ResolvedCompilationError {
             } => {
                 write!(
                     f,
-                    "Tuple index {} out of bounds for tuple {} of size {}",
-                    index, tuple_type, max_index
+                    "Tuple index {index} out of bounds for tuple {tuple_type} of size {max_index}"
                 )
             }
             Self::ValueNotFound { name } => {
-                write!(f, "Value {} not found", name)
+                write!(f, "Value {name} not found")
             }
             Self::TypeAsVariable { name } => {
-                write!(f, "Cannot use type {} as variable", name)
+                write!(f, "Cannot use type {name} as variable")
             }
             Self::GenericFunctionAsVariable { name } => {
-                write!(f, "Cannot use generic function {} as variable", name)
+                write!(f, "Cannot use generic function {name} as variable")
             }
             Self::OverloadedFunctionAsVariable { name } => {
-                write!(f, "Cannot use overloaded function {} as variable", name)
+                write!(f, "Cannot use overloaded function {name} as variable")
             }
             Self::IncompatibleTypes { type0, type1 } => {
-                write!(f, "Incompatible types: {} and {}", type0, type1)
+                write!(f, "Incompatible types: {type0} and {type1}")
             }
             Self::NotAFunction { type_ } => {
                 write!(
                     f,
-                    "expression does not evaluate to a function (got {})",
-                    type_
+                    "expression does not evaluate to a function (got {type_})"
                 )
             }
             Self::NotACompound { type_ } => {
                 write!(
                     f,
-                    "expression does not evaluate to a compound (got {})",
-                    type_
+                    "expression does not evaluate to a compound (got {type_})"
                 )
             }
             Self::DynamicFunctionAsVariable { name } => {
                 write!(
                     f,
-                    "Cannot use unspecialized dynamic function {} as variable",
-                    name
+                    "Cannot use unspecialized dynamic function {name} as variable"
                 )
             }
         }

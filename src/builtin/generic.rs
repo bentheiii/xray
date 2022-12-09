@@ -83,7 +83,7 @@ pub(crate) fn add_if_error<W: Write + 'static>(
                 if a0.is_ok(){
                     Ok(a0.into())
                 } else {
-                    ns.eval(&args[1], rt.clone(), tca)
+                    ns.eval(&args[1], rt, tca)
                 }
             },
         ),
@@ -130,7 +130,7 @@ pub(crate) fn add_display<W: Write + 'static>(
         if let Some(t1) = t1 {
             if let XType::String = t1.as_ref() {
             } else {
-                return Err(format!("argument 2 must be a string, got {:?}", t1));
+                return Err(format!("argument 2 must be a string, got {t1:?}"));
             }
         }
 
@@ -276,7 +276,7 @@ pub(crate) fn add_cast<W: Write + 'static>(
         let t_out = &bind.unwrap()[0];
 
         Ok(XFunctionFactoryOutput::from_native(
-            XFuncSpec::new(&[&t_out], t_out.clone()),
+            XFuncSpec::new(&[t_out], t_out.clone()),
             move |args, ns, tca, rt| {
                 ns.eval(&args[0], rt, tca)
             },

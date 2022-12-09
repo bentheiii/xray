@@ -7,7 +7,7 @@ pub struct MemoryWriter<W> {
 
 impl<W: Write> Write for MemoryWriter<W> {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.memory.write(buf)?;
+        self.memory.write_all(buf)?;
         self.inner.write(buf)
     }
 
