@@ -10,5 +10,5 @@ fn outer(x:int)->(int)->(float){
 
 fn main()->bool{
     let func = outer(3);
-    assert(func(4) == 3.0)
+    assert(func(4) == 1.35)
 }
