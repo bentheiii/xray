@@ -564,6 +564,11 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     apply_escapes(input.clone().into_inner().next().unwrap().as_str()).map_err(|e| e.trace(&input))?,
                 ))
             }
+            Rule::RAW_STRING => {
+                Ok(XStaticExpr::LiteralString(
+                    input.clone().into_inner().next().unwrap().as_str().to_string(),
+                ))
+            }
             Rule::bool => {
                 return Ok(XStaticExpr::LiteralBool(input.as_str() == "true"));
             }

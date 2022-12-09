@@ -28,6 +28,7 @@ expression2 = {
   index = {"[" ~ expression ~ "]"}
 expression3 = _{
     STRING
+    | RAW_STRING
     | bool
     | NUMBER_ANY
     | container
@@ -129,6 +130,12 @@ STRING = {single_quote_str | double_quote_str}
   inner_string_single = @{(!("'" ~ PEEK)~ ("\'" | "\\\\" | ANY))*}
  double_quote_str = _{PUSH("#"*) ~ "\"" ~ inner_string_double ~ "\"" ~ POP}
   inner_string_double = @{(!("\"" ~ PEEK)~ ("\\\"" | "\\\\" | ANY))*}
+
+RAW_STRING = {"r" ~ (raw_single_quote_str | raw_double_quote_str)}
+ raw_single_quote_str = _{PUSH("#"*) ~ "'" ~ raw_inner_string_single ~ "'" ~ POP}
+  raw_inner_string_single = @{(!("'" ~ PEEK)~ ANY)*}
+ raw_double_quote_str = _{PUSH("#"*) ~ "\"" ~ raw_inner_string_double ~ "\"" ~ POP}
+  raw_inner_string_double = @{(!("\"" ~ PEEK)~ ANY)*}
 
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }
 COMMENT = _{ ("/*" ~ (!"*/" ~ ANY)* ~ "*/") | ("//" ~ (!NEWLINE ~ ANY)* ~ NEWLINE) }
