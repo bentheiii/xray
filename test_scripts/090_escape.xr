@@ -1,0 +1,5 @@
+fn main()->bool{
+    assert("\"hi\"".chars() == ["\"", "h", "i", "\""])
+    && assert("a\u{125}b"[1].ord() == 293)
+    && assert("a\u{125}b"[1] == 293.chr())
+}

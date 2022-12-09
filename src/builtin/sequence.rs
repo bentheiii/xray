@@ -199,7 +199,7 @@ impl<W: Write + 'static> XNativeValue for XSequence<W> {
 }
 
 fn value_to_idx<W: Write + 'static>(arr: &XSequence<W>, i: &LazyBigint) -> Result<usize, String> {
-    // todo whi is this not a method?
+    // todo why is this not a method?
     let mut i = Cow::Borrowed(i);
     if i.is_negative() {
         i = Cow::Owned(i.into_owned() + LazyBigint::from(arr.len()));

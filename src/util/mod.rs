@@ -5,3 +5,4 @@ pub mod try_extend;
 pub mod trysort;
 #[macro_use]
 pub mod forward_err;
+pub mod str_escapes;

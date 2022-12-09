@@ -534,3 +534,13 @@ fn test_script_087() {
 fn test_script_088() {
     test_script(88);
 }
+
+#[test]
+fn test_script_089() {
+    test_script(89);
+}
+
+#[test]
+fn test_script_090() {
+    test_script(90);
+}

@@ -145,6 +145,7 @@ pub enum CompilationError<W: Write + 'static> {
     },
     InvalidAutoLocation,
     AutoSpecializationWithoutCall,
+    BadEscapeSequence {sequence: String}
 }
 
 trait Resolve {
@@ -327,6 +328,7 @@ impl<W: Write + 'static> Resolve for CompilationError<W> {
             DynamicFunctionAsVariable { name },
             InvalidAutoLocation {},
             AutoSpecializationWithoutCall {},
+            BadEscapeSequence {sequence}
         )
     }
 }
@@ -506,6 +508,7 @@ pub enum ResolvedCompilationError {
     },
     InvalidAutoLocation,
     AutoSpecializationWithoutCall,
+    BadEscapeSequence {sequence: String}
 }
 
 impl Display for ResolvedCompilationError {
@@ -729,6 +732,9 @@ impl Display for ResolvedCompilationError {
             }
             Self::AutoSpecializationWithoutCall => {
                 write!(f, "overloads specialized with auto \"$\" mut be called immediately")
+            }
+            Self::BadEscapeSequence {sequence} => {
+                write!(f, "bad escape sequence: {sequence}")
             }
         }
     }

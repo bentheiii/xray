@@ -1,0 +1,12 @@
+fn main()->bool{
+    let s = "abc";
+
+    assert(s.chars() == ["a", "b", "c"])
+    && assert("".chars() == [])
+    && assert(s[0] == "a")
+    && assert(s[1] == "b")
+    && assert(s[2] == "c")
+    && assert(s[-1] == "c")
+    && assert(s[-2] == "b")
+    && assert(s[-3] == "a")
+}

@@ -17,6 +17,7 @@ use pest::prec_climber::Assoc::{Left, Right};
 use pest::prec_climber::{Operator, PrecClimber};
 use std::iter::FromIterator;
 use std::rc::Rc;
+use crate::util::str_escapes::apply_escapes;
 
 #[derive(Parser)]
 #[grammar = "xray.pest"]
@@ -559,9 +560,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 return Ok(XStaticExpr::Ident(interner.get_or_intern(input.as_str())));
             }
             Rule::STRING => {
-                return Ok(XStaticExpr::LiteralString(
-                    input.into_inner().next().unwrap().as_str().to_string(),
-                ));
+                Ok(XStaticExpr::LiteralString(
+                    apply_escapes(input.clone().into_inner().next().unwrap().as_str()).map_err(|e| e.trace(&input))?,
+                ))
             }
             Rule::bool => {
                 return Ok(XStaticExpr::LiteralBool(input.as_str() == "true"));

@@ -75,6 +75,7 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_int_ne(&mut ret).unwrap();
     add_int_hash(&mut ret).unwrap();
     add_int_cmp(&mut ret).unwrap();
+    add_int_chr(&mut ret).unwrap();
 
     add_float_type(&mut ret).unwrap();
     add_float_add(&mut ret).unwrap();
@@ -99,6 +100,9 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_str_hash(&mut ret).unwrap();
     add_str_cmp(&mut ret).unwrap();
     add_str_to_str(&mut ret).unwrap();
+    add_str_chars(&mut ret).unwrap();
+    add_str_get(&mut ret).unwrap();
+    add_str_ord(&mut ret).unwrap();
 
     add_bool_type(&mut ret).unwrap();
     add_bool_and(&mut ret).unwrap();

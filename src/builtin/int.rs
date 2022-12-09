@@ -11,6 +11,7 @@ use rc::Rc;
 use std::io::Write;
 use std::ops::Neg;
 use std::rc;
+use std::convert::TryFrom;
 
 use crate::root_compilation_scope::RootCompilationScope;
 use crate::util::lazy_bigint::LazyBigint;
@@ -169,3 +170,21 @@ pub(crate) fn add_int_hash<W: Write + 'static>(
 }
 
 add_binfunc!(add_int_cmp, cmp, X_INT, Int, X_INT, |a, b| Ok(xcmp(a, b)));
+
+
+
+pub(crate) fn add_int_chr<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "chr",
+        XFuncSpec::new(&[&X_INT], X_STRING.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], &ns, &rt)?);
+            let s = to_primitive!(a0, Int);
+            let Some(ord) = s.to_u32() else {xraise!(Err("number too large"))};
+            let Ok(chr) = char::try_from(ord) else {xraise!(Err("value is not a unicode char"))};
+            Ok(ManagedXValue::new(XValue::String(chr.into()), rt)?.into())
+        }),
+    )
+}
