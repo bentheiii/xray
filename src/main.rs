@@ -67,5 +67,5 @@ fn main() {
 
     let eval_scope = RootEvaluationScope::from_compilation_scope(&root_scope, runtime).unwrap();
     let z_value =  &eval_scope.get_value("z").unwrap().clone().unwrap().value;
-    println!("z={:?}", z_value);
+    println!("z={z_value:?}");
 }

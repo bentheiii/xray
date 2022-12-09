@@ -360,8 +360,8 @@ impl Ord for LazyBigint {
 impl Display for LazyBigint {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Short(s) => write!(f, "{}", s),
-            Self::Long(b) => write!(f, "{}", b),
+            Self::Short(s) => write!(f, "{s}"),
+            Self::Long(b) => write!(f, "{b}"),
         }
     }
 }

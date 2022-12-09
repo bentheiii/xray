@@ -1,3 +1,5 @@
+// NOTE THIS TEST IS IGNORED FOR NOW
+
 fn foo(s: Set<int>)->Set<int> {
     s | set(17, 2)
 }

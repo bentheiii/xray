@@ -143,7 +143,7 @@ impl<W: Write + 'static> RootCompilationScope<W> {
     pub fn feed_file(&mut self, input: &str) -> Result<(), ResolvedTracedCompilationError> {
         let body = XRayParser::parse(Rule::header, input)
             .map(|mut p| p.next().unwrap())
-            .map_err(ResolvedTracedCompilationError::Syntax)?;
+            .map_err(|s| ResolvedTracedCompilationError::Syntax(Box::new(s)))?;
         self.scope
             .feed(body, &HashSet::new(), &mut self.interner)
             .map_err(|e| e.resolve_with_input(&self.interner, input))

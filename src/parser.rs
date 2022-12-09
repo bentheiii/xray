@@ -220,7 +220,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             }
             Rule::EOI => Ok(()),
             _ => {
-                println!("{:?}", input);
+                println!("{input:?}");
                 Ok(())
             }
         }

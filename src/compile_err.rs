@@ -738,7 +738,7 @@ impl Display for ResolvedCompilationError {
 }
 
 pub enum ResolvedTracedCompilationError {
-    Syntax(pest::error::Error<Rule>),
+    Syntax(Box<pest::error::Error<Rule>>),
     Compilation(ResolvedCompilationError, usize, String),
 }
 
