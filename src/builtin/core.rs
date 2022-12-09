@@ -97,16 +97,6 @@ macro_rules! to_primitive {
     };
 }
 
-#[macro_export]
-macro_rules! intern {
-    ($interner: expr, $($name:expr),*) => {
-        vec![$(
-            $interner.get_or_intern_static($name),
-        )*]
-    };
-}
-
-// todo make this a one-to-one func
 pub(super) fn eval<W: Write + 'static>(
     expr: &XExpr<W>,
     ns: &RuntimeScope<W>,
@@ -123,15 +113,6 @@ macro_rules! xraise_opt {
             Some(__i) => Some(xraise!(__i)),
         }
     }};
-}
-
-#[macro_export]
-macro_rules! meval {
-    ($args: expr, $ns: expr, $rt: expr, $($idx:expr),*) => {
-        ($(
-            $args.get($idx).map(|e| e.eval(&$ns, false, $rt.clone())).transpose()?.map(|e| e.unwrap_value().clone()),
-        )*)
-    };
 }
 
 #[macro_export]
