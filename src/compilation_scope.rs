@@ -399,7 +399,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     // todo check if a type/varaible exists and maybe raise that?
                     return Err(CompilationError::ValueNotFound { name });
                 }
-                println!("!!! A {turbofish:?} {bind_types:?}");
                 self.resolve_overload(
                     overloads,
                     None,
