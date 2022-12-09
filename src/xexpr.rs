@@ -27,6 +27,7 @@ pub(crate) enum XStaticExpr {
     Call(Box<XStaticExpr>, Vec<XStaticExpr>),
     Member(Box<XStaticExpr>, String),
     Ident(Identifier),
+    // todo we always specialize with turbofish or bind, but never both, enforce with enum
     SpecializedIdent(Identifier, Option<Vec<Arc<XType>>>, Option<Vec<Arc<XType>>>),
     Lambda(Vec<XExplicitStaticArgSpec>, Box<XStaticExpr>),
 }

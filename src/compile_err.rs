@@ -143,6 +143,8 @@ pub enum CompilationError<W: Write + 'static> {
     NotACompound {
         type_: Arc<XType>,
     },
+    InvalidAutoLocation,
+    AutoSpecializationWithoutCall,
 }
 
 trait Resolve {
@@ -322,7 +324,9 @@ impl<W: Write + 'static> Resolve for CompilationError<W> {
             IncompatibleTypes { type0, type1 },
             NotAFunction { type_ },
             NotACompound { type_ },
-            DynamicFunctionAsVariable { name }
+            DynamicFunctionAsVariable { name },
+            InvalidAutoLocation {},
+            AutoSpecializationWithoutCall {},
         )
     }
 }
@@ -500,6 +504,8 @@ pub enum ResolvedCompilationError {
     DynamicFunctionAsVariable {
         name: String,
     },
+    InvalidAutoLocation,
+    AutoSpecializationWithoutCall,
 }
 
 impl Display for ResolvedCompilationError {
@@ -717,6 +723,12 @@ impl Display for ResolvedCompilationError {
                     f,
                     "Cannot use unspecialized dynamic function {name} as variable"
                 )
+            }
+            Self::InvalidAutoLocation => {
+                write!(f, "the auto type \"$\" can only be placed inside turbofish specializations")
+            }
+            Self::AutoSpecializationWithoutCall => {
+                write!(f, "overloads specialized with auto \"$\" mut be called immediately")
             }
         }
     }

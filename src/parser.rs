@@ -69,7 +69,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .clone()
                     .into_inner()
                     .next()
-                    .map(|et| self.get_complete_type(et, parent_gen_param_names, interner, None))
+                    .map(|et| self.get_complete_type(et, parent_gen_param_names, interner, None, false))
                     .transpose()?;
                 let expr = self.parse_expr(inners.next().unwrap(), interner)?;
                 let compiled = self.compile(expr).map_err(|e| e.trace(&input))?;
@@ -130,6 +130,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     &gen_param_names,
                     interner,
                     None,
+                    false // todo yes?
                 )?;
                 let body = inners.next().unwrap();
                 let (param_names, param_specs, param_static_defaults): (Vec<_>, Vec<_>, Vec<_>) =
@@ -221,6 +222,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             &gen_param_names,
                             interner,
                             Some(var_name),
+                            false
                         )?;
                         Ok(XCompoundFieldSpec {
                             name: name.to_string(),
@@ -247,6 +249,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         generic_param_names: &HashSet<String>,
         interner: &mut StringInterner,
         tail_name: Option<&str>,
+        auto_allowed: bool,
     ) -> Result<Arc<XType>, TracedCompilationError<W>> {
         match input.as_rule() {
             Rule::complete_type => {
@@ -267,6 +270,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                             generic_param_names,
                                             interner,
                                             tail_name,
+                                            false
                                         )
                                     })
                                     .collect::<Result<Vec<_>, _>>()
@@ -278,6 +282,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             generic_param_names,
                             interner,
                             tail_name,
+                            false
                         )?;
                         Ok(Arc::new(XType::XCallable(XCallableSpec {
                             param_types,
@@ -297,11 +302,19 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                             generic_param_names,
                                             interner,
                                             tail_name,
+                                            false
                                         )
                                     })
                                     .collect::<Result<Vec<_>, _>>()?;
                                 Ok(Arc::new(XType::Tuple(tup_types)))
                             }
+                        }
+                    }
+                    Rule::auto_type => {
+                        if auto_allowed{
+                            Ok(Arc::new(XType::Auto))
+                        } else {
+                            Err(CompilationError::InvalidAutoLocation.trace(&part1))
                         }
                     }
                     _ => {
@@ -317,6 +330,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                             generic_param_names,
                                             interner,
                                             tail_name,
+                                            false
                                         )
                                     })
                                     .collect::<Result<Vec<_>, _>>()
@@ -580,7 +594,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let mut iter = input.into_inner();
                 let cname = iter.next().unwrap().as_str();
                 let args = iter
-                    .map(|p| self.get_complete_type(p, &HashSet::new(), interner, None))
+                    .map(|p| self.get_complete_type(p, &HashSet::new(), interner, None, true))
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(XStaticExpr::SpecializedIdent(
                     interner.get_or_intern(cname),
@@ -592,7 +606,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let mut iter = input.into_inner();
                 let cname = iter.next().unwrap().as_str();
                 let args = iter
-                    .map(|p| self.get_complete_type(p, &HashSet::new(), interner, None))
+                    .map(|p| self.get_complete_type(p, &HashSet::new(), interner, None, false))
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(XStaticExpr::SpecializedIdent(
                     interner.get_or_intern(cname),
@@ -658,6 +672,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     gen_param_names,
                     interner,
                     None,
+                    false
                 )?;
                 let default = param_iter
                     .next()

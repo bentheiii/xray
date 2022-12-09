@@ -24,6 +24,8 @@ pub enum XType {
     Tuple(Vec<Arc<XType>>),
     // the actual value of this type is a struct
     XTail(Vec<Arc<XType>>),
+    // this value must be resolved by turbofish and the like
+    Auto,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Copy)]
@@ -557,6 +559,7 @@ impl XType {
             ),
             Self::XUnknown => "?".to_string(),
             Self::XTail(_) => "tail".to_string(), // todo make unreachable
+            Self::Auto => "$".to_string(), // todo make unreachable?
         }
     }
 }

@@ -104,12 +104,14 @@ complete_type = {
   CNAME ~ generic_arguments?
   | signature
   | tup_type
+  | auto_type
  }
  generic_arguments = {"<" ~ (complete_type ~ ",")* ~ complete_type ~ ">"}
  signature = {"(" ~ param_specs_opt ~ ")" ~ "->" ~ "(" ~ complete_type ~ ")"}
  param_specs_opt = { param_specs? }
  param_specs = {(complete_type ~ ",")* ~ complete_type}
  tup_type = {"(" ~ param_specs? ~ ")"}
+ auto_type = {"$"}
 
 CNAME = @{("_" | ASCII_ALPHA) ~ ("_" | ASCII_ALPHANUMERIC)*}
 
