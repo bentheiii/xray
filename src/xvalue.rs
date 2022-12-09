@@ -14,6 +14,7 @@ use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
 use crate::compilation_scope::CompilationScope;
+use crate::runtime_err::RuntimeError;
 use crate::runtime_scope::{RuntimeScopeTemplate, RuntimeScope};
 
 #[derive(Derivative)]
@@ -36,7 +37,7 @@ pub type NativeCallable<W> = Rc<
         &RuntimeScope<'_, W>,
         bool,
         RTCell<W>,
-    ) -> Result<TailedEvalResult<W>, String>,
+    ) -> Result<TailedEvalResult<W>, RuntimeError>,
 >;
 pub type DynBind<W> = Rc<
     dyn Fn(
@@ -58,7 +59,7 @@ impl<W: Write + 'static> XFunctionFactoryOutput<W>{
         &RuntimeScope<'_, W>,
         bool,
         RTCell<W>,
-    ) -> Result<TailedEvalResult<W>, String> + 'static)->Self{
+    ) -> Result<TailedEvalResult<W>, RuntimeError> + 'static)->Self{
         Self{
             spec,
             func: XStaticFunction::from_native(callable)
@@ -137,7 +138,7 @@ impl<W: Write + 'static> Drop for ManagedXValue<W> {
 }
 
 impl<W: Write + 'static> ManagedXValue<W> {
-    pub(crate) fn new(value: XValue<W>, runtime: RTCell<W>) -> Result<Rc<Self>, String> {
+    pub(crate) fn new(value: XValue<W>, runtime: RTCell<W>) -> Result<Rc<Self>, RuntimeError> {
         let size;
         {
             let size_limit = runtime.borrow().limits.size_limit;
@@ -145,10 +146,7 @@ impl<W: Write + 'static> ManagedXValue<W> {
                 size = value.size();
                 runtime.borrow_mut().size += size;
                 if runtime.borrow().size > max_size {
-                    return Err(format!(
-                        "Size limit exceeded: {} bytes",
-                        runtime.borrow().size
-                    ));
+                    return Err(RuntimeError::AllocationLimitReached);
                 }
             } else {
                 size = 0;
@@ -159,5 +157,12 @@ impl<W: Write + 'static> ManagedXValue<W> {
             size,
             value,
         }))
+    }
+
+    pub(crate) fn from_result(value: Result<XValue<W>, String>, runtime: RTCell<W>) -> Result<EvaluatedVariable<W>, RuntimeError> {
+        match value {
+            Ok(value)=>Self::new(value, runtime).map(Ok),
+            Err(e) => Ok(Err(e))
+        }
     }
 }

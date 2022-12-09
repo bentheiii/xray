@@ -22,6 +22,7 @@ use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
 use crate::compilation_scope::{CellSpec};
+use crate::runtime_err::RuntimeError;
 use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
 use crate::units::ScopeDepth;
 
@@ -98,7 +99,7 @@ pub struct StaticUserFunction<W: Write + 'static> {
 }
 
 impl<W: Write + 'static> XStaticFunction<W> {
-    pub(crate) fn to_function(&self, closure: &RuntimeScope<'_, W>, rt: RTCell<W>) -> Result<XFunction<W>, String> {
+    pub(crate) fn to_function(&self, closure: &RuntimeScope<'_, W>, rt: RTCell<W>) -> Result<XFunction<W>, RuntimeError> {
         Ok(match self {
             Self::Native(native) => {
                 XFunction::Native(native.clone())
@@ -118,7 +119,7 @@ impl<W: Write + 'static> XStaticFunction<W> {
         &RuntimeScope<'_, W>,
         bool,
         RTCell<W>,
-    ) -> Result<TailedEvalResult<W>, String> + 'static) -> Self {
+    ) -> Result<TailedEvalResult<W>, RuntimeError> + 'static) -> Self {
         Self::Native(Rc::new(f))
     }
 }

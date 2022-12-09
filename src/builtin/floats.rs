@@ -1,10 +1,7 @@
-use crate::builtin::core::{eval, eval_if_present, xcmp};
+use crate::builtin::core::{eval, xcmp};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, to_primitive, CompilationError,
-    RootCompilationScope, XStaticFunction,
-};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, to_primitive, CompilationError, RootCompilationScope, XStaticFunction, xraise, xraise_opt};
 
 use crate::util::lazy_bigint::LazyBigint;
 use num_traits::{FromPrimitive, Zero};
@@ -70,8 +67,10 @@ pub(crate) fn add_float_is_close<W: Write + 'static>(
             ),
         XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
-                let [a2, a3] = eval_if_present(args, ns, &rt, [2, 3])?;
+                let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                let a1 = xraise!(eval(&args[1], ns, &rt)?);
+                let a2 = xraise_opt!(args.get(2).map(|e| eval(e, ns, &rt)).transpose()?);
+                let a3 = xraise_opt!(args.get(3).map(|e| eval(e, ns, &rt)).transpose()?);
                 let rel_tol = a2.map_or(1e-9, |a2| *to_primitive!(a2, Float));
                 let abs_tol = a3.map_or(1e-9, |a2| *to_primitive!(a2, Float));
                 let f0 = to_primitive!(a0, Float);

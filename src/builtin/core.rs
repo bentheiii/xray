@@ -1,17 +1,16 @@
-use std::convert::TryInto;
-use crate::xvalue::{ManagedXValue, XValue};
+use crate::xvalue::{XValue};
 use num_traits::{One, Zero};
 
 use std::io::Write;
 
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::XExpr;
-use crate::{Identifier, RTCell, XType};
+use crate::{forward_err, Identifier, RTCell, XType};
 use std::ops::Neg;
-use std::rc::Rc;
 use std::sync::Arc;
 use crate::compilation_scope::CompilationScope;
 use crate::evaluation_scope::EvaluatedVariable;
+use crate::runtime_err::RuntimeError;
 use crate::runtime_scope::RuntimeScope;
 
 #[macro_export]
@@ -25,11 +24,12 @@ macro_rules! add_binop {
                 XFuncSpec::new(&[&$operand_type, &$operand_type], $return_type.clone()),
                 XStaticFunction::from_native(
                     |args, ns, _tca, rt| {
-                        let [a0, a1] = eval(args, ns, &rt,[0, 1])?;
+                        let a0 = $crate::xraise!(eval(&args[0], ns, &rt)?);
+                        let a1 = $crate::xraise!(eval(&args[1], ns, &rt)?);
                         let v0 = to_primitive!(a0, $operand_variant);
                         let v1 = to_primitive!(a1, $operand_variant);
                         let result: Result<_, String> = $func(v0, v1);
-                        Ok(ManagedXValue::new(result?, rt.clone())?.into())
+                        Ok(ManagedXValue::from_result(result, rt.clone())?.into())
                     },
                 ),
             )
@@ -48,7 +48,7 @@ macro_rules! add_ufunc_ref {
                 XFuncSpec::new(&[&$operand_type], $return_type.clone()),
                 XStaticFunction::from_native(
                     |args, ns, _tca, rt| {
-                        let [a0,] = eval(args, ns, &rt,[0])?;
+                        let a0 = $crate::xraise!(eval(&args[0], ns, &rt)?);
                         $func(a0, rt)
                     },
                 ),
@@ -67,7 +67,7 @@ macro_rules! add_ufunc {
             $return_type,
             |a: Rc<ManagedXValue<W>>, rt: $crate::runtime::RTCell<W>| {
                 let result: Result<_, String> = $func(to_primitive!(a, $operand_variant));
-                Ok(ManagedXValue::new(result?, rt.clone())?.into())
+                Ok(ManagedXValue::from_result(result, rt.clone())?.into())
             }
         );
     };
@@ -110,27 +110,28 @@ macro_rules! intern {
 }
 
 // todo make this a one-to-one func
-pub(super) fn eval<W: Write + 'static, const M: usize>(args: &[XExpr<W>], ns: &RuntimeScope<W>, rt: &RTCell<W>, indices: [usize; M]) -> Result<[Rc<ManagedXValue<W>>; M], String> {
-    Ok(indices.iter().map(|&i| ns.eval(&args[i], rt.clone(), false).map(|i| i.unwrap_value()))
-        .collect::<Result<Result<Vec<_>, _>, _>>()??
-        .try_into().unwrap())
+pub(super) fn eval<W: Write + 'static>(expr: &XExpr<W>, ns: &RuntimeScope<W>, rt: &RTCell<W>) -> Result<EvaluatedVariable<W>, RuntimeError> {
+    ns.eval(expr, rt.clone(), false).map(|i| i.unwrap_value())
 }
 
-pub(super) fn eval_if_present<W: Write + 'static, const M: usize>(args: &[XExpr<W>], ns: &RuntimeScope<W>, rt: &RTCell<W>, indices: [usize; M]) -> Result<[Option<Rc<ManagedXValue<W>>>; M], String> {
-    Ok(indices.iter().map(|&i| args.get(i).map(
-        |a| ns.eval(a, rt.clone(), false).map(|i| i.unwrap_value())
-    ).transpose())
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .map(|i| i.transpose())
-        .collect::<Result<Vec<_>, _>>()?
-        .try_into().unwrap())
+#[macro_export]
+macro_rules! xraise {
+    ($e: expr) => {{
+        match $e{
+            Ok(__i) => __i,
+            Err(__e) => return Ok($crate::xexpr::TailedEvalResult::Value(Err(__e.into()))),
+        }
+    }};
 }
 
-pub(super) fn eval_result<W: Write + 'static, const M: usize>(args: &[XExpr<W>], ns: &RuntimeScope<W>, rt: &RTCell<W>, indices: [usize; M]) -> Result<[EvaluatedVariable<W>; M], String> {
-    Ok(indices.iter().map(|&i| ns.eval(&args[i], rt.clone(), false).map(|i| i.unwrap_value()))
-        .collect::<Result<Vec<_>, _>>()?
-        .try_into().unwrap())
+#[macro_export]
+macro_rules! xraise_opt {
+    ($e: expr) => {{
+        match $e{
+            None=>None,
+            Some(__i)=>Some(xraise!(__i))
+        }
+    }};
 }
 
 #[macro_export]
@@ -221,8 +222,8 @@ pub(super) fn eval_resolved_func<W: Write + 'static>(
     ns: &RuntimeScope<W>,
     rt: RTCell<W>,
     args: Vec<EvaluatedVariable<W>>,
-) -> Result<EvaluatedVariable<W>, String> {
-    let managed_func = ns.eval(expr, rt.clone(), false)?.unwrap_value()?;
+) -> Result<EvaluatedVariable<W>, RuntimeError> {
+    let managed_func = forward_err!(ns.eval(expr, rt.clone(), false)?.unwrap_value());
     let func = to_primitive!(managed_func, Function);
     ns.eval_func_with_values(func, args, rt, false).map(|v| v.unwrap_value())
 }

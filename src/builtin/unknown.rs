@@ -1,5 +1,5 @@
 use crate::xtype::{X_BOOL, X_UNKNOWN};
-use crate::{unpack_types, CompilationError, RootCompilationScope, XFuncSpec};
+use crate::{unpack_types, CompilationError, RootCompilationScope, XFuncSpec, xraise};
 
 use std::io::Write;
 use crate::xvalue::XFunctionFactoryOutput;
@@ -22,7 +22,7 @@ pub(crate) fn add_unknown_eq<W: Write + 'static>(
 
         Ok(XFunctionFactoryOutput::from_native(
             XFuncSpec::new(&[&X_UNKNOWN, &X_UNKNOWN], X_BOOL.clone()),
-            move |_args, _ns, _tca, _rt| Err("unknown eq applied".to_string()),
+            move |_args, _ns, _tca, _rt| xraise!(Err("unknown eq applied".to_string())),
         ))
     })
 }

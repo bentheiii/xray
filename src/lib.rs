@@ -22,6 +22,7 @@ mod compilation_scope;
 mod runtime_scope;
 mod units;
 pub mod root_compilation_scope;
+mod runtime_err;
 
 extern crate pest;
 #[macro_use]

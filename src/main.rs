@@ -10,7 +10,8 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    let z = is_error(1/0);
+    let q = error("ni ni");
+    let z = if_error(1/0, 0.5);
     "###;
     /*
 

@@ -4,12 +4,13 @@ use std::io::Write;
 use std::mem;
 use std::rc::Rc;
 use crate::compilation_scope::CellSpec;
-use crate::{Declaration, let_match, manage_native, RTCell, XOptional, XSequence};
+use crate::{Declaration, let_match, manage_native, RTCell, XOptional, xraise, XSequence};
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::{TailedEvalResult, XExpr};
 use crate::xvalue::{ManagedXValue, XFunction, XValue};
 
 use derivative::Derivative;
+use crate::runtime_err::RuntimeError;
 use crate::units::{ScopeDepth, StackDepth};
 
 #[derive(Derivative)]
@@ -49,7 +50,7 @@ pub(crate) enum EvaluationCell<W: Write + 'static> {
 }
 
 impl<W: Write + 'static> EvaluationCell<W> {
-    fn from_spec(cell: &CellSpec<W>, parent: Option<&RuntimeScope<W>>, rt: RTCell<W>) -> Result<Self, String> {
+    fn from_spec(cell: &CellSpec<W>, parent: Option<&RuntimeScope<W>>, rt: RTCell<W>) -> Result<Self, RuntimeError> {
         match cell {
             CellSpec::Variable => Ok(Self::Uninitialized),
             CellSpec::Recourse => Ok(Self::LocalRecourse),
@@ -95,7 +96,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
     }
 
     #[allow(clippy::too_many_arguments)] // todo
-    pub(crate) fn from_specs(id: usize, name: Option<String>, param_count: usize, cell_specs: &[CellSpec<W>], stack_parent: Option<&RuntimeScope<W>>, parent_id: Option<usize>, declarations: Vec<Declaration<W>>, rt: RTCell<W>, defaults: Vec<XExpr<W>>, output: Option<Box<XExpr<W>>>) -> Result<Rc<Self>, String> {
+    pub(crate) fn from_specs(id: usize, name: Option<String>, param_count: usize, cell_specs: &[CellSpec<W>], stack_parent: Option<&RuntimeScope<W>>, parent_id: Option<usize>, declarations: Vec<Declaration<W>>, rt: RTCell<W>, defaults: Vec<XExpr<W>>, output: Option<Box<XExpr<W>>>) -> Result<Rc<Self>, RuntimeError> {
         // in order to get the namespace parent, we need to go up the stack until we reach one with the same id
         let scope_parent = if let Some(parent_id) = parent_id {
             {
@@ -133,7 +134,7 @@ pub struct RuntimeScope<'a, W: Write + 'static> {
 }
 
 impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
-    pub(crate) fn from_template(template: Rc<RuntimeScopeTemplate<W>>, stack_parent: Option<&'a Self>, rt: RTCell<W>, mut args: Vec<EvaluatedValue<W>>, defaults: &[XExpr<W>]) -> Result<Rc<Self>, String> {
+    pub(crate) fn from_template(template: Rc<RuntimeScopeTemplate<W>>, stack_parent: Option<&'a Self>, rt: RTCell<W>, mut args: Vec<EvaluatedValue<W>>, defaults: &[XExpr<W>]) -> Result<Rc<Self>, RuntimeError> {
         let mut ret = Self {
             cells: template.cells.iter().enumerate().map(|(idx, c)|
                 if let EvaluationCell::Uninitialized = c {
@@ -172,7 +173,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
         Ok(Rc::new(ret))
     }
 
-    pub(crate) fn eval(&self, expr: &XExpr<W>, rt: RTCell<W>, tail_available: bool) -> Result<TailedEvalResult<W>, String> {
+    pub(crate) fn eval(&self, expr: &XExpr<W>, rt: RTCell<W>, tail_available: bool) -> Result<TailedEvalResult<W>, RuntimeError> {
         match expr {
             XExpr::LiteralBool(b) => Ok(ManagedXValue::new(XValue::Bool(*b), rt)?.into()),
             XExpr::LiteralInt(i) => {
@@ -209,9 +210,9 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 Ok(ManagedXValue::new(XValue::StructInstance(items), rt)?.into())
             }
             XExpr::Member(obj, idx) => {
-                let obj = self.eval(obj, rt.clone(), false)?.unwrap_value()?;
+                let obj = xraise!(self.eval(obj, rt.clone(), false)?.unwrap_value());
                 match &obj.as_ref().value {
-                    XValue::StructInstance(items) => items[*idx].clone().map(TailedEvalResult::from),
+                    XValue::StructInstance(items) => Ok(TailedEvalResult::from(items[*idx].clone())),
                     XValue::UnionInstance(variant, item) => Ok(if variant == idx {
                         manage_native!(
                             XOptional {
@@ -228,7 +229,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             XExpr::Value(cell_idx) => {
                 let raw_value = self.get_cell_value(*cell_idx);
                 match raw_value {
-                    EvaluationCell::Value(v) => Ok(v.clone()?.into()),
+                    EvaluationCell::Value(v) => Ok(v.clone().into()),
                     EvaluationCell::Uninitialized => panic!("access to uninitialized cell"),
                     EvaluationCell::Recourse { scope, .. } => ManagedXValue::new(XValue::Function(scope.clone()), rt).map(|v| v.into()),
                     EvaluationCell::LocalRecourse => ManagedXValue::new(XValue::Function(self.template.clone().to_function()), rt).map(|v| v.into()),
@@ -256,15 +257,15 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                         // todo can we recurse a parent call?
                     }
                 }
-                let callee = self.eval(callee.as_ref(), rt.clone(), false)?.unwrap_value()?;
+                let callee = xraise!(self.eval(callee.as_ref(), rt.clone(), false)?.unwrap_value());
                 let func = let_match!(&callee.value; XValue::Function(func) => func);
                 self.eval_func_with_expressions(func, args, rt, tail_available)
             }
-            XExpr::Dummy(v) => v.clone().map(|v| v.into()),
+            XExpr::Dummy(v) => Ok(TailedEvalResult::from(v.clone())),
         }
     }
 
-    fn eval_func_with_expressions(&self, func: &XFunction<W>, args: &[XExpr<W>], rt: RTCell<W>, tail_available: bool) -> Result<TailedEvalResult<W>, String> {
+    fn eval_func_with_expressions(&self, func: &XFunction<W>, args: &[XExpr<W>], rt: RTCell<W>, tail_available: bool) -> Result<TailedEvalResult<W>, RuntimeError> {
         match func {
             XFunction::Native(nc) => nc(args, self, tail_available, rt),
             XFunction::UserFunction { .. } => {
@@ -278,7 +279,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
         }
     }
 
-    pub(crate) fn eval_func_with_values(&'a self, func: &XFunction<W>, args: Vec<EvaluatedValue<W>>, rt: RTCell<W>, tail_available: bool) -> Result<TailedEvalResult<W>, String> {
+    pub(crate) fn eval_func_with_values(&'a self, func: &XFunction<W>, args: Vec<EvaluatedValue<W>>, rt: RTCell<W>, tail_available: bool) -> Result<TailedEvalResult<W>, RuntimeError> {
         match func {
             XFunction::Native(..) => {
                 let args = args.iter().cloned().map(XExpr::Dummy).collect::<Vec<_>>();
@@ -295,10 +296,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                             recursion_depth += 1;
                             if let Some(recursion_limit) = rt.borrow().limits.recursion_limit {
                                 if recursion_depth > recursion_limit {
-                                    return Err(format!(
-                                        "Recursion limit of {} exceeded",
-                                        recursion_limit
-                                    ));
+                                    return Err(RuntimeError::MaximumRecursion);
                                 }
                             }
                             args = new_args;

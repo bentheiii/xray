@@ -1,5 +1,6 @@
 use std::mem::size_of;
 use std::{mem, ptr};
+use crate::forward_err;
 
 // this is a copy-paste of the std implementation, with the added bonus that the comparison
 // function can fail
@@ -8,11 +9,11 @@ use std::{mem, ptr};
 ///
 /// This is the integral subroutine of insertion sort.
 #[cfg(not(no_global_oom_handling))]
-fn insert_head<T, F, E>(v: &mut [T], is_less: &mut F) -> Result<(), E>
+fn insert_head<T, F, E0, E1>(v: &mut [T], is_less: &mut F) -> Result<Result<(), E1>, E0>
 where
-    F: FnMut(&T, &T) -> Result<bool, E>,
+    F: FnMut(&T, &T) -> Result<Result<bool, E1>, E0>,
 {
-    if v.len() >= 2 && is_less(&v[1], &v[0])? {
+    if v.len() >= 2 && forward_err!(is_less(&v[1], &v[0])?) {
         unsafe {
             // There are three ways to implement insertion here:
             //
@@ -50,7 +51,7 @@ where
             ptr::copy_nonoverlapping(&v[1], &mut v[0], 1);
 
             for i in 2..v.len() {
-                if !is_less(&v[i], &*tmp)? {
+                if !forward_err!(is_less(&v[i], &*tmp)?) {
                     break;
                 }
                 ptr::copy_nonoverlapping(&v[i], &mut v[i - 1], 1);
@@ -74,7 +75,7 @@ where
         }
     }
 
-    Ok(())
+    Ok(Ok(()))
 }
 
 /// Merges non-decreasing runs `v[..mid]` and `v[mid..]` using `buf` as temporary storage, and
@@ -85,9 +86,9 @@ where
 /// The two slices must be non-empty and `mid` must be in bounds. Buffer `buf` must be long enough
 /// to hold a copy of the shorter slice. Also, `T` must not be a zero-sized type.
 #[cfg(not(no_global_oom_handling))]
-unsafe fn merge<T, F, E>(v: &mut [T], mid: usize, buf: *mut T, is_less: &mut F) -> Result<(), E>
+unsafe fn merge<T, F, E0, E1>(v: &mut [T], mid: usize, buf: *mut T, is_less: &mut F) -> Result<Result<(),E1>, E0>
 where
-    F: FnMut(&T, &T) -> Result<bool, E>,
+    F: FnMut(&T, &T) -> Result<Result<bool, E1>, E0>,
 {
     let len = v.len();
     let v = v.as_mut_ptr();
@@ -132,7 +133,7 @@ where
             // Consume the lesser side.
             // If equal, prefer the left run to maintain stability.
             unsafe {
-                let to_copy = if is_less(&*right, &**left)? {
+                let to_copy = if forward_err!(is_less(&*right, &**left)?) {
                     get_and_increment(&mut right)
                 } else {
                     get_and_increment(left)
@@ -160,7 +161,7 @@ where
             // Consume the greater side.
             // If equal, prefer the right run to maintain stability.
             unsafe {
-                let to_copy = if is_less(&*right.offset(-1), &*left.offset(-1))? {
+                let to_copy = if forward_err!(is_less(&*right.offset(-1), &*left.offset(-1))?) {
                     decrement_and_get(left)
                 } else {
                     decrement_and_get(right)
@@ -200,7 +201,7 @@ where
         }
     }
 
-    Ok(())
+    Ok(Ok(()))
 }
 
 /// This merge sort borrows some (but not all) ideas from TimSort, which is described in detail
@@ -216,9 +217,9 @@ where
 ///
 /// The invariants ensure that the total running time is *O*(*n* \* log(*n*)) worst-case.
 #[cfg(not(no_global_oom_handling))]
-pub(crate) fn try_sort<T, F, E>(v: &mut [T], mut is_less: F) -> Result<(), E>
+pub(crate) fn try_sort<T, F, E0, E1>(v: &mut [T], mut is_less: F) -> Result<Result<(), E1>, E0>
 where
-    F: FnMut(&T, &T) -> Result<bool, E>,
+    F: FnMut(&T, &T) -> Result<Result<bool, E1>, E0>,
 {
     // Slices of up to this length get sorted using insertion sort.
     const MAX_INSERTION: usize = 20;
@@ -227,7 +228,7 @@ where
 
     // Sorting has no meaningful behavior on zero-sized types.
     if size_of::<T>() == 0 {
-        return Ok(());
+        return Ok(Ok(()));
     }
 
     let len = v.len();
@@ -236,10 +237,10 @@ where
     if len <= MAX_INSERTION {
         if len >= 2 {
             for i in (0..len - 1).rev() {
-                insert_head(&mut v[i..], &mut is_less)?;
+                forward_err!(insert_head(&mut v[i..], &mut is_less)?);
             }
         }
-        return Ok(());
+        return Ok(Ok(()));
     }
 
     // Allocate a buffer to use as scratch memory. We keep the length 0 so we can keep in it
@@ -260,14 +261,14 @@ where
         if start > 0 {
             start -= 1;
             unsafe {
-                if is_less(v.get_unchecked(start + 1), v.get_unchecked(start))? {
-                    while start > 0 && is_less(v.get_unchecked(start), v.get_unchecked(start - 1))?
+                if forward_err!(is_less(v.get_unchecked(start + 1), v.get_unchecked(start))?) {
+                    while start > 0 && forward_err!(is_less(v.get_unchecked(start), v.get_unchecked(start - 1))?)
                     {
                         start -= 1;
                     }
                     v[start..end].reverse();
                 } else {
-                    while start > 0 && !is_less(v.get_unchecked(start), v.get_unchecked(start - 1))?
+                    while start > 0 && forward_err!(is_less(v.get_unchecked(start), v.get_unchecked(start - 1))?)
                     {
                         start -= 1;
                     }
@@ -279,7 +280,7 @@ where
         // merge sort on short sequences, so this significantly improves performance.
         while start > 0 && end - start < MIN_RUN {
             start -= 1;
-            insert_head(&mut v[start..end], &mut is_less)?;
+            forward_err!(insert_head(&mut v[start..end], &mut is_less)?);
         }
 
         // Push this run onto the stack.
@@ -294,12 +295,12 @@ where
             let left = runs[r + 1];
             let right = runs[r];
             unsafe {
-                merge(
+                forward_err!(merge(
                     &mut v[left.start..right.start + right.len],
                     left.len,
                     buf.as_mut_ptr(),
                     &mut is_less,
-                )?;
+                )?);
             }
             runs[r] = Run {
                 start: left.start,
@@ -351,5 +352,5 @@ where
         len: usize,
     }
 
-    Ok(())
+    Ok(Ok(()))
 }

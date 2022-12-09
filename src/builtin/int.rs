@@ -1,11 +1,8 @@
-use crate::builtin::core::{xcmp, eval, eval_if_present};
+use crate::builtin::core::{xcmp, eval};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, manage_native, to_primitive,
-    CompilationError, XStaticFunction,
-};
+use crate::{add_binop, add_ufunc, add_ufunc_ref, manage_native, to_primitive, CompilationError, XStaticFunction, xraise, xraise_opt};
 
 use num_traits::{Pow, Signed, ToPrimitive, Zero};
 
@@ -122,9 +119,9 @@ pub(crate) fn add_int_digits<W: Write + 'static>(
         XFuncSpec::new_with_optional(&[&X_INT], &[&X_INT], XSequenceType::xtype(X_INT.clone())),
         XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let [a0, ] = eval(args, ns, &rt, [0])?;
+                let a0 = xraise!(eval(&args[0], ns, &rt)?);
                 let n = to_primitive!(a0, Int);
-                let [a1, ] = eval_if_present(args, ns, &rt, [1])?;
+                let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
                 let b = to_primitive!(a1, Int, LazyBigint::from(10));
                 let mut digits = Vec::new();
                 let mut n = n.clone();

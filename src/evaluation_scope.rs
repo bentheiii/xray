@@ -10,6 +10,7 @@ use std::rc::Rc;
 
 use crate::{RootCompilationScope};
 use crate::compilation_scope::{CellSpec, Overload};
+use crate::runtime_err::RuntimeError;
 use crate::runtime_scope::{EvaluatedValue, EvaluationCell, RuntimeScope, RuntimeScopeTemplate};
 
 pub type EvaluatedVariable<W> = Result<Rc<ManagedXValue<W>>, String>;
@@ -32,7 +33,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
     pub fn from_compilation_scope(
         comp_scope: &'c RootCompilationScope<W>,
         runtime: RTCell<W>,
-    ) -> Result<Self, String> {
+    ) -> Result<Self, RuntimeError> {
         let cell_specs = comp_scope.scope.cells.iter().map(|c| CellSpec::from(c.clone())).collect::<Vec<_>>();
         let template = RuntimeScopeTemplate::from_specs(comp_scope.scope.id, None, 0, &cell_specs, None, None, comp_scope.scope.declarations.clone(), runtime.clone(), vec![], None)?;
         let scope = RuntimeScope::from_template(template, None, runtime.clone(), vec![], &[])?;
@@ -89,7 +90,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
         }
     }
     
-    pub fn run_function(&self, function: &XFunction<W>, args: Vec<EvaluatedValue<W>>)->Result<TailedEvalResult<W>, String>{
+    pub fn run_function(&self, function: &XFunction<W>, args: Vec<EvaluatedValue<W>>)->Result<TailedEvalResult<W>, RuntimeError>{
         self.scope.eval_func_with_values(function, args, self.runtime.clone(), false)
     }
 }

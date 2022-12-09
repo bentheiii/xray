@@ -2,9 +2,7 @@ use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncSpec, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{
-    manage_native, to_native, CompilationError, RootCompilationScope, XStaticFunction, XType,
-};
+use crate::{manage_native, to_native, CompilationError, RootCompilationScope, XStaticFunction, XType, xraise};
 use derivative::Derivative;
 use rc::Rc;
 use std::fmt::Debug;
@@ -13,7 +11,7 @@ use std::iter::from_fn;
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
-use crate::builtin::core::{eval, eval_result};
+use crate::builtin::core::{eval};
 use crate::evaluation_scope::EvaluatedVariable;
 
 #[derive(Debug, Clone)]
@@ -161,8 +159,8 @@ pub(crate) fn add_stack_push<W: Write + 'static>(
             XFuncSpec::new(&[&t_stk, &t], t_stk.clone()).generic(params),
         XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let [a0,] = eval(args, ns, &rt,[0])?;
-                let [a1] = eval_result(args, ns, &rt,[1])?;
+                let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                let a1 = eval(&args[1], ns, &rt)?;
                 let stk0 = to_native!(a0, XStack<W>);
                 Ok(manage_native!(stk0.push(a1), rt))
             },
@@ -181,7 +179,7 @@ pub(crate) fn add_stack_to_array<W: Write + 'static>(
             XFuncSpec::new(&[&t_stk], XSequenceType::xtype(t)).generic(params),
         XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let [a0,] = eval(args, ns, &rt,[0])?;
+                let a0 = xraise!(eval(&args[0], ns, &rt)?);
                 let stk0 = to_native!(a0, XStack<W>);
                 Ok(manage_native!(XSequence::array(stk0.to_vec::<false>()), rt))
             },
@@ -200,7 +198,7 @@ pub(crate) fn add_stack_to_array_reversed<W: Write + 'static>(
             XFuncSpec::new(&[&t_stk], XSequenceType::xtype(t)).generic(params),
         XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let [a0,] = eval(args, ns, &rt,[0])?;
+                let a0 = xraise!(eval(&args[0], ns, &rt)?);
                 let stk0 = to_native!(a0, XStack<W>);
                 Ok(manage_native!(XSequence::array(stk0.to_vec::<true>()), rt))
             },
@@ -219,7 +217,7 @@ pub(crate) fn add_stack_len<W: Write + 'static>(
             XFuncSpec::new(&[&t_stk], X_INT.clone()).generic(params),
         XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let [a0,] = eval(args, ns, &rt,[0])?;
+                let a0 = xraise!(eval(&args[0], ns, &rt)?);
                 let stk0 = to_native!(a0, XStack<W>);
                 Ok(ManagedXValue::new(XValue::Int(stk0.length.into()), rt)?.into())
             },
@@ -238,11 +236,11 @@ pub(crate) fn add_stack_head<W: Write + 'static>(
             XFuncSpec::new(&[&t_stk], t).generic(params),
         XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let [a0,] = eval(args, ns, &rt,[0])?;
+                let a0 = xraise!(eval(&args[0], ns, &rt)?);
                 let stk0 = to_native!(a0, XStack<W>);
                 match &stk0.head {
                     Some(v) => Ok(v.value.clone().into()),
-                    None => Err("stack is empty".to_string()),
+                    None => Ok(Err("stack is empty".to_string()).into()),
                 }
             },
         ),
@@ -260,7 +258,7 @@ pub(crate) fn add_stack_tail<W: Write + 'static>(
             XFuncSpec::new(&[&t_stk], t_stk.clone()).generic(params),
         XStaticFunction::from_native(
             |args, ns, _tca, rt| {
-                let [a0,] = eval(args, ns, &rt,[0])?;
+                let a0 = xraise!(eval(&args[0], ns, &rt)?);
                 let stk0 = to_native!(a0, XStack<W>);
                 match &stk0.head {
                     Some(v) => Ok(manage_native!(
@@ -270,7 +268,7 @@ pub(crate) fn add_stack_tail<W: Write + 'static>(
                         },
                         rt
                     )),
-                    None => Err("stack is empty".to_string()),
+                    None => xraise!(Err("stack is empty".to_string())),
                 }
             },
         ),
