@@ -1,11 +1,8 @@
-use crate::builtin::core::{eval, xcmp};
+use crate::builtin::core::{eval, ufunc_ref, xcmp};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, manage_native, to_primitive, xraise, xraise_opt,
-    CompilationError, XStaticFunction,
-};
+use crate::{add_binfunc, manage_native, to_primitive, xraise, xraise_opt, CompilationError, XStaticFunction, ufunc};
 
 use num_traits::{Pow, Signed, ToPrimitive, Zero};
 
@@ -26,7 +23,7 @@ pub(crate) fn add_int_type<W: Write + 'static>(
 
 macro_rules! add_int_binop {
     ($fn_name:ident, $name:ident, $func:expr) => {
-        add_binop!($fn_name, $name, X_INT, Int, X_INT, $func);
+        add_binfunc!($fn_name, $name, X_INT, Int, X_INT, $func);
     };
 }
 
@@ -54,7 +51,7 @@ add_int_binop!(
     bit_and,
     |a: &LazyBigint, b: &LazyBigint| Ok(XValue::Int(a.clone() & b.clone()))
 );
-add_binop!(
+add_binfunc!(
     add_int_div,
     div,
     X_INT,
@@ -68,7 +65,7 @@ add_binop!(
         }
     }
 );
-add_binop!(
+add_binfunc!(
     add_int_pow,
     pow,
     X_INT,
@@ -82,37 +79,44 @@ add_binop!(
         Ok(XValue::Int(a.clone().pow(b.clone())))
     }
 );
-add_binop!(add_int_lt, lt, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
+add_binfunc!(add_int_lt, lt, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
     a < b
 )));
-add_binop!(add_int_gt, gt, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
+add_binfunc!(add_int_gt, gt, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
     a > b
 )));
-add_binop!(add_int_eq, eq, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
+add_binfunc!(add_int_eq, eq, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
     a == b
 )));
-add_binop!(add_int_ne, ne, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
+add_binfunc!(add_int_ne, ne, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
     a != b
 )));
-add_binop!(add_int_le, le, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
+add_binfunc!(add_int_le, le, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
     a <= b
 )));
-add_binop!(add_int_ge, ge, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
+add_binfunc!(add_int_ge, ge, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
     a >= b
 )));
 
-add_ufunc!(add_int_neg, neg, X_INT, Int, X_INT, |a: &LazyBigint| {
-    Ok(XValue::Int(a.clone().neg()))
-});
+pub(crate) fn add_int_neg<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "neg",
+        XFuncSpec::new(&[&X_INT], X_INT.clone()),
+        ufunc!(Int, |a: &LazyBigint| Ok(XValue::Int(a.clone().neg()))),
+    )
+}
 
-add_ufunc!(
-    add_int_to_str,
-    to_str,
-    X_INT,
-    Int,
-    X_STRING,
-    |a: &LazyBigint| Ok(XValue::String(a.to_string()))
-);
+pub(crate) fn add_int_to_str<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "to_str",
+        XFuncSpec::new(&[&X_INT], X_STRING.clone()),
+        ufunc!(Int, |a: &LazyBigint| Ok(XValue::String(a.to_string()))),
+    )
+}
 
 pub(crate) fn add_int_digits<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -147,19 +151,21 @@ pub(crate) fn add_int_digits<W: Write + 'static>(
     )
 }
 
-add_ufunc_ref!(
-    add_int_hash,
-    hash,
-    X_INT,
-    X_INT,
-    |a: Rc<ManagedXValue<W>>, rt| {
-        let v = to_primitive!(a, Int);
-        if v.to_u64().is_some() {
-            // the number is already within the bounds
-            return Ok(a.into());
-        }
-        Ok(ManagedXValue::new(XValue::Int(v.first_u64_digit()), rt)?.into())
-    }
-);
+pub(crate) fn add_int_hash<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "hash",
+        XFuncSpec::new(&[&X_INT], X_INT.clone()),
+        ufunc_ref(|a: Rc<ManagedXValue<W>>, rt| {
+            let v = to_primitive!(a, Int);
+            if v.to_u64().is_some() {
+                // the number is already within the bounds
+                return Ok(a.into());
+            }
+            Ok(ManagedXValue::new(XValue::Int(v.first_u64_digit()), rt)?.into())
+        }),
+    )
+}
 
-add_binop!(add_int_cmp, cmp, X_INT, Int, X_INT, |a, b| Ok(xcmp(a, b)));
+add_binfunc!(add_int_cmp, cmp, X_INT, Int, X_INT, |a, b| Ok(xcmp(a, b)));

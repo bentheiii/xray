@@ -1,4 +1,4 @@
-use crate::xvalue::XValue;
+use crate::xvalue::{ManagedXValue, XValue};
 use num_traits::{One, Zero};
 
 use std::io::Write;
@@ -8,13 +8,26 @@ use crate::evaluation_scope::EvaluatedVariable;
 use crate::runtime_err::RuntimeError;
 use crate::runtime_scope::RuntimeScope;
 use crate::util::lazy_bigint::LazyBigint;
-use crate::xexpr::XExpr;
-use crate::{forward_err, Identifier, RTCell, XType};
+use crate::xexpr::{TailedEvalResult, XExpr};
+use crate::{forward_err, Identifier, RTCell, XStaticFunction, XType};
 use std::ops::Neg;
+use std::rc::Rc;
 use std::sync::Arc;
 
+
+
 #[macro_export]
-macro_rules! add_binop {
+macro_rules! xraise {
+    ($e: expr) => {{
+        match $e {
+            Ok(__i) => __i,
+            Err(__e) => return Ok($crate::xexpr::TailedEvalResult::Value(Err(__e.into()))),
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! add_binfunc {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
         pub(crate) fn $fn_name<W: Write + 'static>(
             scope: &mut RootCompilationScope<W>,
@@ -35,38 +48,22 @@ macro_rules! add_binop {
     };
 }
 
-#[macro_export]
-macro_rules! add_ufunc_ref {
-    ($fn_name:ident, $name:ident, $operand_type: ident, $return_type:ident, $func:expr) => {
-        pub(crate) fn $fn_name<W: Write + 'static>(
-            scope: &mut RootCompilationScope<W>,
-        ) -> Result<(), $crate::CompilationError<W>> {
-            scope.add_func(
-                stringify!($name),
-                XFuncSpec::new(&[&$operand_type], $return_type.clone()),
-                XStaticFunction::from_native(|args, ns, _tca, rt| {
-                    let a0 = $crate::xraise!(eval(&args[0], ns, &rt)?);
-                    $func(a0, rt)
-                }),
-            )
-        }
-    };
+pub fn ufunc_ref<W: Write + 'static, F>(func: F) ->XStaticFunction<W>
+    where F: Fn(Rc<ManagedXValue<W>>, RTCell<W>) -> Result<TailedEvalResult<W>, RuntimeError> + 'static {
+    XStaticFunction::from_native(move |args, ns, _tca, rt| {
+        let a0 = xraise!(eval(&args[0], ns, &rt)?);
+        func(a0, rt)
+    })
 }
 
 #[macro_export]
-macro_rules! add_ufunc {
-    ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
-        add_ufunc_ref!(
-            $fn_name,
-            $name,
-            $operand_type,
-            $return_type,
-            |a: Rc<ManagedXValue<W>>, rt: $crate::runtime::RTCell<W>| {
-                let result: Result<_, String> = $func(to_primitive!(a, $operand_variant));
-                Ok(ManagedXValue::from_result(result, rt.clone())?.into())
-            }
-        );
-    };
+macro_rules! ufunc {
+    ($operand_variant:ident, $func:expr) => {{
+        $crate::builtin::core::ufunc_ref(|a: Rc<ManagedXValue<W>>, rt: $crate::runtime::RTCell<W>| {
+            let result: Result<_, String> = $func(to_primitive!(a, $operand_variant));
+            Ok(ManagedXValue::from_result(result, rt.clone())?.into())
+        })
+    }};
 }
 
 #[macro_export]
@@ -116,16 +113,6 @@ pub(super) fn eval<W: Write + 'static>(
     rt: &RTCell<W>,
 ) -> Result<EvaluatedVariable<W>, RuntimeError> {
     ns.eval(expr, rt.clone(), false).map(|i| i.unwrap_value())
-}
-
-#[macro_export]
-macro_rules! xraise {
-    ($e: expr) => {{
-        match $e {
-            Ok(__i) => __i,
-            Err(__e) => return Ok($crate::xexpr::TailedEvalResult::Value(Err(__e.into()))),
-        }
-    }};
 }
 
 #[macro_export]

@@ -2,10 +2,7 @@ use crate::builtin::core::{eval, xcmp};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, manage_native, to_primitive, xraise, CompilationError,
-    RootCompilationScope, XStaticFunction,
-};
+use crate::{add_binfunc, manage_native, to_primitive, xraise, CompilationError, RootCompilationScope, XStaticFunction, ufunc};
 use num_traits::{One, Zero};
 use rc::Rc;
 
@@ -19,7 +16,7 @@ pub(crate) fn add_bool_type<W: Write + 'static>(
     scope.add_native_type("bool", X_BOOL.clone())
 }
 
-add_binop!(add_bool_eq, eq, X_BOOL, Bool, X_BOOL, |a, b| Ok(
+add_binfunc!(add_bool_eq, eq, X_BOOL, Bool, X_BOOL, |a, b| Ok(
     XValue::Bool(a == b)
 ));
 
@@ -52,9 +49,15 @@ pub(crate) fn add_bool_assert<W: Write + 'static>(
     )
 }
 
-add_ufunc!(add_bool_not, not, X_BOOL, Bool, X_BOOL, |a: &bool| {
-    Ok(XValue::Bool(!a))
-});
+pub(crate) fn add_bool_not<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "not",
+        XFuncSpec::new(&[&X_BOOL], X_BOOL.clone()),
+        ufunc!(Bool, |a: &bool| {Ok(XValue::Bool(!a))}),
+    )
+}
 
 pub(crate) fn add_bool_and<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -113,23 +116,28 @@ pub(crate) fn add_bool_then<W: Write + 'static>(
     )
 }
 
-add_ufunc!(add_bool_hash, hash, X_BOOL, Bool, X_INT, |a: &bool| {
-    Ok(XValue::Int(if *a { One::one() } else { Zero::zero() }))
-});
+pub(crate) fn add_bool_hash<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "hash",
+        XFuncSpec::new(&[&X_BOOL], X_INT.clone()),
+        ufunc!(Bool, |a: &bool| {Ok(XValue::Int(if *a { One::one() } else { Zero::zero() }))}),
+    )
+}
 
-add_ufunc!(
-    add_bool_to_str,
-    to_str,
-    X_BOOL,
-    Bool,
-    X_STRING,
-    |a: &bool| {
-        Ok(XValue::String(
+pub(crate) fn add_bool_to_str<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "to_str",
+        XFuncSpec::new(&[&X_BOOL], X_STRING.clone()),
+        ufunc!(Bool, |a: &bool| {Ok(XValue::String(
             if *a { "true" } else { "false" }.to_string(),
-        ))
-    }
-);
+        ))}),
+    )
+}
 
-add_binop!(add_bool_cmp, cmp, X_BOOL, Bool, X_INT, |a, b| Ok(xcmp(
+add_binfunc!(add_bool_cmp, cmp, X_BOOL, Bool, X_INT, |a, b| Ok(xcmp(
     a, b
 )));

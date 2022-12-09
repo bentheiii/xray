@@ -1,10 +1,7 @@
 use crate::builtin::core::{eval, xcmp};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXValue, XValue};
-use crate::{
-    add_binop, add_ufunc, add_ufunc_ref, to_primitive, xraise, xraise_opt, CompilationError,
-    RootCompilationScope, XStaticFunction,
-};
+use crate::{add_binfunc, to_primitive, xraise, xraise_opt, CompilationError, RootCompilationScope, XStaticFunction, ufunc};
 
 use crate::util::lazy_bigint::LazyBigint;
 use num_traits::{FromPrimitive, Zero};
@@ -22,7 +19,7 @@ pub(crate) fn add_float_type<W: Write + 'static>(
 
 macro_rules! add_float_binop {
     ($fn_name:ident, $name:ident, $func:expr) => {
-        add_binop!($fn_name, $name, X_FLOAT, Float, X_FLOAT, $func);
+        add_binfunc!($fn_name, $name, X_FLOAT, Float, X_FLOAT, $func);
     };
 }
 
@@ -50,7 +47,7 @@ add_float_binop!(add_float_pow, pow, |a: &f64, b: &f64| {
         Ok(XValue::Float(a.powf(*b)))
     }
 });
-add_binop!(
+add_binfunc!(
     add_float_eq,
     eq,
     X_FLOAT,
@@ -84,45 +81,76 @@ pub(crate) fn add_float_is_close<W: Write + 'static>(
     )
 }
 
-add_ufunc!(add_float_floor, floor, X_FLOAT, Float, X_INT, |a: &f64| Ok(
-    XValue::Int(LazyBigint::from_f64(a.floor()).unwrap())
-));
-add_ufunc!(add_float_ceil, ceil, X_FLOAT, Float, X_INT, |a: &f64| Ok(
-    XValue::Int(LazyBigint::from_f64(a.ceil()).unwrap())
-));
-add_ufunc!(add_float_trunc, trunc, X_FLOAT, Float, X_INT, |a: &f64| Ok(
-    XValue::Int(LazyBigint::from_f64(a.trunc()).unwrap())
-));
-add_ufunc!(add_float_neg, neg, X_FLOAT, Float, X_FLOAT, |a: &f64| Ok(
-    XValue::Float(-a)
-));
-add_ufunc!(
-    add_float_sqrt,
-    sqrt,
-    X_FLOAT,
-    Float,
-    X_FLOAT,
-    |a: &f64| if *a < 0.0 {
-        Err("undefined exponential".to_string())
-    } else {
-        Ok(XValue::Float(a.sqrt()))
-    }
-);
+pub(crate) fn add_float_floor<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "floor",
+        XFuncSpec::new(&[&X_FLOAT], X_INT.clone()),
+        ufunc!(Float, |a: &f64| Ok(XValue::Int(LazyBigint::from_f64(a.floor()).unwrap()))),
+    )
+}
 
-add_ufunc!(
-    add_float_to_str,
-    to_str,
-    X_FLOAT,
-    Float,
-    X_STRING,
-    |a: &f64| {
+pub(crate) fn add_float_ceil<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "ceil",
+        XFuncSpec::new(&[&X_FLOAT], X_INT.clone()),
+        ufunc!(Float, |a: &f64| Ok(XValue::Int(LazyBigint::from_f64(a.ceil()).unwrap()))),
+    )
+}
+
+pub(crate) fn add_float_trunc<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "trunc",
+        XFuncSpec::new(&[&X_FLOAT], X_INT.clone()),
+        ufunc!(Float, |a: &f64| Ok(XValue::Int(LazyBigint::from_f64(a.trunc()).unwrap()))),
+    )
+}
+
+pub(crate) fn add_float_neg<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "neg",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64| Ok(XValue::Float(-a))),
+    )
+}
+
+pub(crate) fn add_float_sqrt<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "sqrt",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64| {
+            if *a < 0.0{
+                Err("cannot find square root of negative number".to_string())
+            } else {
+                Ok(XValue::Float(a.sqrt()))
+            }
+        }),
+    )
+}
+
+pub(crate) fn add_float_to_str<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "to_str",
+        XFuncSpec::new(&[&X_FLOAT], X_STRING.clone()),
+        ufunc!(Float, |a: &f64| {
         Ok(XValue::String(format!(
             "{:?}",
             if *a == -0.0 { 0.0 } else { *a }
         )))
-    }
-);
+    }))
+}
 
-add_binop!(add_float_cmp, cmp, X_FLOAT, Float, X_INT, |a, b| Ok(xcmp(
+add_binfunc!(add_float_cmp, cmp, X_FLOAT, Float, X_INT, |a, b| Ok(xcmp(
     a, b
 )));

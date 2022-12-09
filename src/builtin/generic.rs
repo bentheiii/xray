@@ -1,10 +1,7 @@
 use crate::xexpr::XExpr;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
-use crate::{
-    add_ufunc, add_ufunc_ref, to_primitive, unpack_types, xraise, xraise_opt, CompilationError,
-    RootCompilationScope, XStaticFunction, XType,
-};
+use crate::{to_primitive, unpack_types, xraise, xraise_opt, CompilationError, RootCompilationScope, XStaticFunction, XType, ufunc};
 use rc::Rc;
 
 use crate::builtin::core::{eval, eval_resolved_func, get_func};
@@ -27,14 +24,15 @@ pub(crate) fn add_if<W: Write + 'static>(
     )
 }
 
-add_ufunc!(
-    add_error,
-    error,
-    X_STRING,
-    String,
-    X_UNKNOWN,
-    |a: &String| Err(a.clone())
-);
+pub(crate) fn add_error<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "error",
+        XFuncSpec::new(&[&X_STRING], X_UNKNOWN.clone()),
+        ufunc!(String, |a: &String| Err(a.clone())),
+    )
+}
 
 pub(crate) fn add_debug<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
