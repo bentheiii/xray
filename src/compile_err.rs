@@ -124,7 +124,7 @@ trait Resolve {
 impl Resolve for Arc<XType> {
     type Output = ResolvedType;
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
-        ResolvedType(self.to_string_with_interner(interner), self.clone())
+        ResolvedType(self.to_string_with_interner(interner))
     }
 }
 
@@ -297,7 +297,7 @@ impl TracedCompilationError {
     }
 }
 
-pub struct ResolvedType(String, Arc<XType>);
+pub struct ResolvedType(String);
 
 impl Display for ResolvedType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

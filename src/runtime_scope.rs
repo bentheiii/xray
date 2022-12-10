@@ -193,6 +193,10 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             stack_parent,
             template: template.clone(),
         };
+        if rt.borrow().limits.depth_limit.map_or(false, |limit| ret.height.0 >= limit){
+            return Err(RuntimeError::MaximumStackDepth)
+        }
+
 
         let default_offset = template.param_count - template.defaults.len();
 

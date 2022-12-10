@@ -381,7 +381,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 }
             }
             _ => {
-                println!("{:?}", input.as_str());
                 Err(CompilationError::PairNotType.trace(&input))
             }
         }
