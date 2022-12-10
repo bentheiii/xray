@@ -167,18 +167,11 @@ macro_rules! unpack_types {
     }};
 }
 
-#[macro_export]
-macro_rules! unpack_native {
-    ($t: expr, $name: literal, $($bind_idx: literal),*) => {{
-        match $t.as_ref(){
-            XType::XNative(nt0, bind) if nt0.name() == $name => (
-                $(
-                bind[$bind_idx].clone()
-                ),*,
-            ),
-            _ => return Err(format!("Expected {} type, got {:?}", $name, $t))
-        }
-    }};
+pub(crate) fn unpack_native<'a>(t: &'a Arc<XType>, name: &str) -> Result<&'a [Arc<XType>], String> {
+    match t.as_ref() {
+        XType::XNative(nt0, bind) if nt0.name() == name => Ok(&bind[..]),
+        _ => Err(format!("Expected {} type, got {:?}", name, t)),
+    }
 }
 
 pub(super) fn get_func<W: Write + 'static>(

@@ -1,11 +1,11 @@
-use crate::builtin::core::{eval, eval_resolved_func, get_func};
+use crate::builtin::core::{eval, eval_resolved_func, get_func, unpack_native};
 use crate::evaluation_scope::EvaluatedValue;
 use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncSpec, X_BOOL, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    manage_native, to_native, to_primitive, unpack_native, unpack_types, xraise, CompilationError,
+    manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError,
     RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
@@ -249,13 +249,16 @@ pub(crate) fn add_optional_eq<W: Write + 'static>(
         }
 
         let (a0, a1) = unpack_types!(types, 0, 1);
-        let (t0,) = unpack_native!(a0, "Optional", 0);
-        let (t1,) = unpack_native!(a1, "Optional", 0);
+        let [t0] = unpack_native(a0, "Optional")? else {unreachable!()};
+        let [t1] = unpack_native(a1, "Optional")? else {unreachable!()};
         let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t1.clone()], &X_BOOL)?;
 
         Ok(XFunctionFactoryOutput::from_native(
             XFuncSpec::new(
-                &[&XOptionalType::xtype(t0), &XOptionalType::xtype(t1)],
+                &[
+                    &XOptionalType::xtype(t0.clone()),
+                    &XOptionalType::xtype(t1.clone()),
+                ],
                 X_BOOL.clone(),
             ),
             move |args, ns, _tca, rt| {

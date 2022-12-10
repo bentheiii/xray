@@ -1,4 +1,4 @@
-use crate::builtin::core::{eval, get_func};
+use crate::builtin::core::{eval, get_func, unpack_native};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::stack::{XStack, XStackType};
 use crate::evaluation_scope::EvaluatedValue;
@@ -10,9 +10,8 @@ use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    forward_err, manage_native, to_native, to_primitive, unpack_native, unpack_types, xraise,
-    xraise_opt, CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction,
-    XType,
+    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, xraise_opt,
+    CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
 use either::Either;
@@ -379,9 +378,7 @@ pub(crate) fn add_sequence_rpush<W: Write + 'static>(
             let a1 = eval(&args[1], ns, &rt)?;
             let seq0 = to_native!(a0, XSequence<W>);
             let mut arr = vec![a1];
-            arr.try_extend(
-                seq0.slice(ns, rt.clone())
-            )?;
+            arr.try_extend(seq0.slice(ns, rt.clone()))?;
             Ok(manage_native!(XSequence::array(arr), rt))
         }),
     )
@@ -408,10 +405,7 @@ pub(crate) fn add_sequence_insert<W: Write + 'static>(
                 .take(idx)
                 .collect::<Result<Vec<_>, _>>()?;
             ret.push(a2);
-            ret.try_extend(
-                seq.slice(ns, rt.clone())
-                    .skip(idx),
-            )?;
+            ret.try_extend(seq.slice(ns, rt.clone()).skip(idx))?;
             Ok(manage_native!(XSequence::array(ret), rt))
         }),
     )
@@ -439,10 +433,7 @@ pub(crate) fn add_sequence_pop<W: Write + 'static>(
                 .slice(ns, rt.clone())
                 .take(idx)
                 .collect::<Result<Vec<_>, _>>()?;
-            ret.try_extend(
-                seq.slice(ns, rt.clone())
-                    .skip(idx + 1),
-            )?;
+            ret.try_extend(seq.slice(ns, rt.clone()).skip(idx + 1))?;
             Ok(manage_native!(XSequence::array(ret), rt))
         }),
     )
@@ -471,8 +462,7 @@ pub(crate) fn add_sequence_set<W: Write + 'static>(
             ret.push(a2);
             ret.try_extend(
                 // todo avoid collecting
-                seq.slice(ns, rt.clone())
-                    .skip(idx + 1),
+                seq.slice(ns, rt.clone()).skip(idx + 1),
             )?;
             Ok(manage_native!(XSequence::array(ret), rt))
         }),
@@ -508,16 +498,9 @@ pub(crate) fn add_sequence_swap<W: Write + 'static>(
                 .take(idx1)
                 .collect::<Result<Vec<_>, _>>()?;
             ret.push(seq.get(idx2, ns, rt.clone())?);
-            ret.try_extend(
-                seq.slice(ns, rt.clone())
-                    .take(idx2)
-                    .skip(idx1 + 1),
-            )?;
+            ret.try_extend(seq.slice(ns, rt.clone()).take(idx2).skip(idx1 + 1))?;
             ret.push(seq.get(idx1, ns, rt.clone())?);
-            ret.try_extend(
-                seq.slice(ns, rt.clone())
-                    .skip(idx2 + 1),
-            )?;
+            ret.try_extend(seq.slice(ns, rt.clone()).skip(idx2 + 1))?;
             Ok(manage_native!(XSequence::array(ret), rt))
         }),
     )
@@ -920,9 +903,7 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
             if start_idx == 0 {
                 Ok(a0.clone().into())
             } else {
-                ret.try_extend(
-                    arr,
-                )?;
+                ret.try_extend(arr)?;
                 Ok(manage_native!(XSequence::array(ret), rt))
             }
         }),
@@ -996,14 +977,17 @@ pub(crate) fn add_sequence_eq<W: Write + 'static>(
         }
 
         let (a0, a1) = unpack_types!(types, 0, 1);
-        let (t0,) = unpack_native!(a0, "Sequence", 0);
-        let (t1,) = unpack_native!(a1, "Sequence", 0);
+        let [t0] = unpack_native(a0, "Sequence")? else {unreachable!()};
+        let [t1] = unpack_native(a1, "Sequence")? else {unreachable!()};
 
         let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t1.clone()], &X_BOOL)?;
 
         Ok(XFunctionFactoryOutput::from_native(
             XFuncSpec::new(
-                &[&XSequenceType::xtype(t0), &XSequenceType::xtype(t1)],
+                &[
+                    &XSequenceType::xtype(t0.clone()),
+                    &XSequenceType::xtype(t1.clone()),
+                ],
                 X_BOOL.clone(),
             ),
             move |args, ns, _tca, rt| {
@@ -1048,9 +1032,9 @@ pub(crate) fn add_sequence_dyn_sort<W: Write + 'static>(
         }
 
         let (a0,) = unpack_types!(types, 0);
-        let (t0,) = unpack_native!(a0, "Sequence", 0);
+        let [t0] = unpack_native(a0, "Sequence")? else {unreachable!()};
 
-        let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t0], &X_INT)?;
+        let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t0.clone()], &X_INT)?;
 
         Ok(XFunctionFactoryOutput::from_native(
             XFuncSpec::new(&[a0], a0.clone()),

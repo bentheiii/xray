@@ -6,11 +6,11 @@ use crate::native_types::{NativeType, XNativeValue};
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
-use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError, RTCell,
-    RootCompilationScope, XCallableSpec, XStaticFunction, XType,
+    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError,
+    RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
 use num_traits::ToPrimitive;
@@ -443,35 +443,11 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
                 rt.clone()
             );
             let spot = mapping.inner.get(&hash_key);
-            let mut new_spot = None;
-            if let Some(candidates) = spot {
-                let eq_func = to_primitive!(mapping.eq_func, Function);
-                for (i, (k, _)) in candidates.iter().enumerate() {
-                    if *to_primitive!(
-                        xraise!(ns
-                            .eval_func_with_values(
-                                eq_func,
-                                vec![a1.clone(), k.clone()],
-                                rt.clone(),
-                                false
-                            )?
-                            .unwrap_value()),
-                        Bool
-                    ) {
-                        new_spot = Some(
-                            candidates[..i]
-                                .iter()
-                                .cloned()
-                                .chain(candidates[i + 1..].iter().cloned())
-                                .collect(),
-                        );
-                        break;
-                    }
-                }
-            }
-            match new_spot {
+            match spot {
                 None => xraise!(Err(ManagedXError::new("key not found", rt)?)),
-                Some(new_spot) => {
+                Some(candidates) => {
+                    let eq_func = to_primitive!(mapping.eq_func, Function);
+                    let Some(new_spot) = xraise!(bucket_without(candidates, eq_func, &a1, ns, &rt)?) else { xraise!(Err(ManagedXError::new("key not found", rt)?)) };
                     let mut new_dict = HashMap::from([(hash_key, new_spot)]);
                     for (k, v) in &mapping.inner {
                         if *k != hash_key {
@@ -486,6 +462,32 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
             }
         }),
     )
+}
+
+fn bucket_without<W: Write + 'static>(
+    old_bucket: &MappingBucket<W>,
+    eq_func: &XFunction<W>,
+    key: &EvaluatedValue<W>,
+    ns: &RuntimeScope<W>,
+    rt: &RTCell<W>,
+) -> Result<Result<Option<MappingBucket<W>>, Rc<ManagedXError<W>>>, RuntimeViolation> {
+    for (i, (k, _)) in old_bucket.iter().enumerate() {
+        if *to_primitive!(
+            forward_err!(ns
+                .eval_func_with_values(eq_func, vec![key.clone(), k.clone()], rt.clone(), false)?
+                .unwrap_value()),
+            Bool
+        ) {
+            return Ok(Ok(Some(
+                old_bucket[..i]
+                    .iter()
+                    .cloned()
+                    .chain(old_bucket[i + 1..].iter().cloned())
+                    .collect(),
+            )));
+        }
+    }
+    Ok(Ok(None))
 }
 
 pub(crate) fn add_mapping_discard<W: Write + 'static>(
@@ -507,35 +509,11 @@ pub(crate) fn add_mapping_discard<W: Write + 'static>(
                 rt.clone()
             );
             let spot = mapping.inner.get(&hash_key);
-            let mut new_spot = None;
-            if let Some(candidates) = spot {
-                let eq_func = to_primitive!(mapping.eq_func, Function);
-                for (i, (k, _)) in candidates.iter().enumerate() {
-                    if *to_primitive!(
-                        xraise!(ns
-                            .eval_func_with_values(
-                                eq_func,
-                                vec![a1.clone(), k.clone()],
-                                rt.clone(),
-                                false
-                            )?
-                            .unwrap_value()),
-                        Bool
-                    ) {
-                        new_spot = Some(
-                            candidates[..i]
-                                .iter()
-                                .cloned()
-                                .chain(candidates[i + 1..].iter().cloned())
-                                .collect(),
-                        );
-                        break;
-                    }
-                }
-            }
-            match new_spot {
+            match spot {
                 None => Ok(a0.clone().into()),
-                Some(new_spot) => {
+                Some(candidates) => {
+                    let eq_func = to_primitive!(mapping.eq_func, Function);
+                    let Some(new_spot) = xraise!(bucket_without(candidates, eq_func, &a1, ns, &rt)?) else { return Ok(a0.clone().into()); };
                     let mut new_dict = HashMap::from([(hash_key, new_spot)]);
                     for (k, v) in &mapping.inner {
                         if *k != hash_key {

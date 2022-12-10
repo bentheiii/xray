@@ -42,7 +42,6 @@ type DynCallback<W> = dyn Fn(
     Option<&[Arc<XType>]>,
 ) -> Result<XFunctionFactoryOutput<W>, String>; // todo different error?
 
-
 pub type NativeCallable<W> = Rc<NativeCallback<W>>;
 pub type DynBind<W> = Rc<DynCallback<W>>;
 
@@ -55,12 +54,12 @@ impl<W: Write + 'static> XFunctionFactoryOutput<W> {
     pub(crate) fn from_native(
         spec: XFuncSpec,
         callable: impl Fn(
-            &[XExpr<W>],
-            &RuntimeScope<'_, W>,
-            bool,
-            RTCell<W>,
-        ) -> Result<TailedEvalResult<W>, RuntimeViolation>
-        + 'static,
+                &[XExpr<W>],
+                &RuntimeScope<'_, W>,
+                bool,
+                RTCell<W>,
+            ) -> Result<TailedEvalResult<W>, RuntimeViolation>
+            + 'static,
     ) -> Self {
         Self {
             spec,
