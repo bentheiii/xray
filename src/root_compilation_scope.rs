@@ -109,13 +109,13 @@ impl<W: Write + 'static> RootCompilationScope<W> {
         self.interner.get(name)
     }
 
-    pub fn feed_file(&mut self, input: &str) -> Result<(), ResolvedTracedCompilationError> {
+    pub fn feed_file(&mut self, input: &str) -> Result<(), Box<ResolvedTracedCompilationError>> {
         let body = XRayParser::parse(Rule::header, input)
             .map(|mut p| p.next().unwrap())
             .map_err(|s| ResolvedTracedCompilationError::Syntax(Box::new(s)))?;
         self.scope
             .feed(body, &HashSet::new(), &mut self.interner)
-            .map_err(|e| e.resolve_with_input(&self.interner, input))
+            .map_err(|e| Box::new(e.resolve_with_input(&self.interner, input)))
     }
 
     pub fn describe_type(&self, t: impl Deref<Target = XType>) -> String {

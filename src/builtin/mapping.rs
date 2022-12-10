@@ -136,7 +136,7 @@ impl<W: Write + 'static> XMapping<W> {
 
 impl<W: Write + 'static> XNativeValue for XMapping<W> {
     fn size(&self) -> usize {
-        (self.inner.len() * 2 + 2) * size_of::<usize>()
+        (self.inner.values().map(|b| b.len() * 2 + 1).sum::<usize>() + 2) * size_of::<usize>()
     }
 }
 
@@ -220,7 +220,7 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(
             let mapping = to_native!(a0, XMapping<W>);
             let seq = to_native!(a1, XSequence<W>);
             let arr = xraise!(seq
-                .slice(ns, rt.clone())
+                .iter(ns, rt.clone())
                 .collect::<Result<Result<Vec<_>, _>, _>>()?);
             let items = arr.iter().map(|t| {
                 let tup = to_primitive!(t, StructInstance);
@@ -464,6 +464,7 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
     )
 }
 
+#[allow(clippy::type_complexity)]
 fn bucket_without<W: Write + 'static>(
     old_bucket: &MappingBucket<W>,
     eq_func: &XFunction<W>,

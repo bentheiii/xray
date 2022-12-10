@@ -32,8 +32,10 @@ impl ScriptConfig {
 
         match comp_scope.feed_file(input) {
             Ok(v) => v,
-            Err(e @ ResolvedTracedCompilationError::Compilation(..)) => panic!("{}", e),
-            Err(ResolvedTracedCompilationError::Syntax(s)) => panic!("{}", s),
+            Err(b) => match b.as_ref() {
+                e @ ResolvedTracedCompilationError::Compilation(..) => panic!("{}", e),
+                ResolvedTracedCompilationError::Syntax(s) => panic!("{}", s),
+            },
         };
 
         let runtime = limits.to_runtime(output);
