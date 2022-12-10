@@ -8,7 +8,7 @@ use std::mem;
 use std::rc::Rc;
 
 use crate::evaluation_scope::EvaluatedValue;
-use crate::runtime_err::RuntimeError;
+use crate::runtime_violation::RuntimeViolation;
 use crate::units::{ScopeDepth, StackDepth};
 use derivative::Derivative;
 
@@ -54,7 +54,7 @@ impl<W: Write + 'static> EvaluationCell<W> {
         cell: &CellSpec<W>,
         parent: Option<&RuntimeScope<W>>,
         rt: RTCell<W>,
-    ) -> Result<Self, RuntimeError> {
+    ) -> Result<Self, RuntimeViolation> {
         match cell {
             CellSpec::Variable => Ok(Self::Uninitialized),
             CellSpec::Recourse => Ok(Self::LocalRecourse),
@@ -119,7 +119,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
         rt: RTCell<W>,
         defaults: Vec<XExpr<W>>,
         output: Option<Box<XExpr<W>>>,
-    ) -> Result<Rc<Self>, RuntimeError> {
+    ) -> Result<Rc<Self>, RuntimeViolation> {
         // in order to get the namespace parent, we need to go up the stack until we reach one with the same id
         let scope_parent = if let Some(parent_id) = parent_id {
             {
@@ -175,7 +175,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
         stack_parent: Option<&'a Self>,
         rt: RTCell<W>,
         mut args: Vec<EvaluatedValue<W>>,
-    ) -> Result<Rc<Self>, RuntimeError> {
+    ) -> Result<Rc<Self>, RuntimeViolation> {
         let mut ret = Self {
             cells: template
                 .cells
@@ -194,7 +194,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             template: template.clone(),
         };
         if rt.borrow().limits.depth_limit.map_or(false, |limit| ret.height.0 >= limit){
-            return Err(RuntimeError::MaximumStackDepth)
+            return Err(RuntimeViolation::MaximumStackDepth)
         }
 
 
@@ -234,7 +234,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
         expr: &XExpr<W>,
         rt: RTCell<W>,
         tail_available: bool,
-    ) -> Result<TailedEvalResult<W>, RuntimeError> {
+    ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
         match expr {
             XExpr::LiteralBool(b) => Ok(ManagedXValue::new(XValue::Bool(*b), rt)?.into()),
             XExpr::LiteralInt(i) => {
@@ -333,7 +333,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
         args: &[XExpr<W>],
         rt: RTCell<W>,
         tail_available: bool,
-    ) -> Result<TailedEvalResult<W>, RuntimeError> {
+    ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
         match func {
             XFunction::Native(nc) => nc(args, self, tail_available, rt),
             XFunction::UserFunction { .. } => {
@@ -352,7 +352,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
         args: Vec<EvaluatedValue<W>>,
         rt: RTCell<W>,
         tail_available: bool,
-    ) -> Result<TailedEvalResult<W>, RuntimeError> {
+    ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
         match func {
             XFunction::Native(..) => {
                 let args = args.iter().cloned().map(XExpr::Dummy).collect::<Vec<_>>();
@@ -370,7 +370,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                             recursion_depth += 1;
                             if let Some(recursion_limit) = rt.borrow().limits.recursion_limit {
                                 if recursion_depth > recursion_limit {
-                                    return Err(RuntimeError::MaximumRecursion);
+                                    return Err(RuntimeViolation::MaximumRecursion);
                                 }
                             }
                             args = new_args;

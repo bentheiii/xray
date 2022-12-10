@@ -15,7 +15,7 @@ pub mod native_types;
 pub mod parser;
 pub mod root_compilation_scope;
 pub mod runtime;
-mod runtime_err;
+mod runtime_violation;
 mod runtime_scope;
 mod units;
 pub mod util;

@@ -8,7 +8,7 @@ use crate::{
 use rc::Rc;
 
 use crate::builtin::core::{eval, eval_resolved_func, get_func};
-use crate::runtime_err::RuntimeError;
+use crate::runtime_violation::RuntimeViolation;
 use num_traits::Signed;
 use std::io::Write;
 use std::rc;
@@ -48,7 +48,7 @@ pub(crate) fn add_debug<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
             let b = to_primitive!(a1, String, "".to_string());
-            writeln!(rt.borrow_mut().stdout, "{b}{a0:?}").map_err(RuntimeError::OutputFailure)?;
+            writeln!(rt.borrow_mut().stdout, "{b}{a0:?}").map_err(RuntimeViolation::OutputFailure)?;
             Ok(a0.into())
         }),
     )
@@ -146,7 +146,7 @@ pub(crate) fn add_display<W: Write + 'static>(
                 )?);
                 let str_slice = to_primitive!(string, String);
                 writeln!(rt.borrow_mut().stdout, "{b}{str_slice}")
-                    .map_err(RuntimeError::OutputFailure)?;
+                    .map_err(RuntimeViolation::OutputFailure)?;
                 Ok(a0.into())
             },
         ))

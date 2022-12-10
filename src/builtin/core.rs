@@ -5,7 +5,7 @@ use std::io::Write;
 
 use crate::compilation_scope::CompilationScope;
 use crate::evaluation_scope::EvaluatedValue;
-use crate::runtime_err::RuntimeError;
+use crate::runtime_violation::RuntimeViolation;
 use crate::runtime_scope::RuntimeScope;
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::{TailedEvalResult, XExpr};
@@ -52,7 +52,7 @@ macro_rules! add_binfunc {
 
 pub fn ufunc_ref<W: Write + 'static, F>(func: F) -> XStaticFunction<W>
 where
-    F: Fn(Rc<ManagedXValue<W>>, RTCell<W>) -> Result<TailedEvalResult<W>, RuntimeError> + 'static,
+    F: Fn(Rc<ManagedXValue<W>>, RTCell<W>) -> Result<TailedEvalResult<W>, RuntimeViolation> + 'static,
 {
     XStaticFunction::from_native(move |args, ns, _tca, rt| {
         let a0 = xraise!(eval(&args[0], ns, &rt)?);
@@ -111,7 +111,7 @@ pub(super) fn eval<W: Write + 'static>(
     expr: &XExpr<W>,
     ns: &RuntimeScope<W>,
     rt: &RTCell<W>,
-) -> Result<EvaluatedValue<W>, RuntimeError> {
+) -> Result<EvaluatedValue<W>, RuntimeViolation> {
     ns.eval(expr, rt.clone(), false).map(|i| i.unwrap_value())
 }
 
@@ -206,7 +206,7 @@ pub(super) fn eval_resolved_func<W: Write + 'static>(
     ns: &RuntimeScope<W>,
     rt: RTCell<W>,
     args: Vec<EvaluatedValue<W>>,
-) -> Result<EvaluatedValue<W>, RuntimeError> {
+) -> Result<EvaluatedValue<W>, RuntimeViolation> {
     let managed_func = forward_err!(ns.eval(expr, rt.clone(), false)?.unwrap_value());
     let func = to_primitive!(managed_func, Function);
     ns.eval_func_with_values(func, args, rt, false)

@@ -7,7 +7,7 @@ use crate::{Declaration, Identifier};
 use derivative::Derivative;
 
 use crate::compilation_scope::CellSpec;
-use crate::runtime_err::RuntimeError;
+use crate::runtime_violation::RuntimeViolation;
 use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
@@ -92,7 +92,7 @@ impl<W: Write + 'static> XStaticFunction<W> {
         &self,
         closure: &RuntimeScope<'_, W>,
         rt: RTCell<W>,
-    ) -> Result<XFunction<W>, RuntimeError> {
+    ) -> Result<XFunction<W>, RuntimeViolation> {
         Ok(match self {
             Self::Native(native) => XFunction::Native(native.clone()),
             Self::UserFunction(uf) => XFunction::UserFunction {
@@ -119,7 +119,7 @@ impl<W: Write + 'static> XStaticFunction<W> {
                 &RuntimeScope<'_, W>,
                 bool,
                 RTCell<W>,
-            ) -> Result<TailedEvalResult<W>, RuntimeError>
+            ) -> Result<TailedEvalResult<W>, RuntimeViolation>
             + 'static,
     ) -> Self {
         Self::Native(Rc::new(f))

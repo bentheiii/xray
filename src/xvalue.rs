@@ -8,7 +8,7 @@ use crate::util::lazy_bigint::LazyBigint;
 use derivative::Derivative;
 
 use crate::compilation_scope::CompilationScope;
-use crate::runtime_err::RuntimeError;
+use crate::runtime_violation::RuntimeViolation;
 use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
@@ -36,7 +36,7 @@ pub type NativeCallable<W> = Rc<
         &RuntimeScope<'_, W>,
         bool,
         RTCell<W>,
-    ) -> Result<TailedEvalResult<W>, RuntimeError>,
+    ) -> Result<TailedEvalResult<W>, RuntimeViolation>,
 >;
 pub type DynBind<W> = Rc<
     dyn Fn(
@@ -60,7 +60,7 @@ impl<W: Write + 'static> XFunctionFactoryOutput<W> {
                 &RuntimeScope<'_, W>,
                 bool,
                 RTCell<W>,
-            ) -> Result<TailedEvalResult<W>, RuntimeError>
+            ) -> Result<TailedEvalResult<W>, RuntimeViolation>
             + 'static,
     ) -> Self {
         Self {
@@ -143,7 +143,7 @@ impl<W: Write + 'static> Drop for ManagedXValue<W> {
 }
 
 impl<W: Write + 'static> ManagedXValue<W> {
-    pub(crate) fn new(value: XValue<W>, runtime: RTCell<W>) -> Result<Rc<Self>, RuntimeError> {
+    pub(crate) fn new(value: XValue<W>, runtime: RTCell<W>) -> Result<Rc<Self>, RuntimeViolation> {
         let size;
         {
             let size_limit = runtime.borrow().limits.size_limit;
@@ -151,7 +151,7 @@ impl<W: Write + 'static> ManagedXValue<W> {
                 size = value.size();
                 runtime.borrow_mut().size += size;
                 if runtime.borrow().size > max_size {
-                    return Err(RuntimeError::AllocationLimitReached);
+                    return Err(RuntimeViolation::AllocationLimitReached);
                 }
             } else {
                 size = 0;
@@ -167,7 +167,7 @@ impl<W: Write + 'static> ManagedXValue<W> {
     pub(crate) fn from_result(
         value: Result<XValue<W>, Rc<ManagedXError<W>>>,
         runtime: RTCell<W>,
-    ) -> Result<EvaluatedValue<W>, RuntimeError> {
+    ) -> Result<EvaluatedValue<W>, RuntimeViolation> {
         match value {
             Ok(value) => Self::new(value, runtime).map(Ok),
             Err(e) => Ok(Err(e)),
@@ -198,7 +198,7 @@ impl<W: Write + 'static> ManagedXError<W> {
     pub(crate) fn new<T: Into<String>>(
         error: T,
         runtime: RTCell<W>,
-    ) -> Result<Rc<Self>, RuntimeError> {
+    ) -> Result<Rc<Self>, RuntimeViolation> {
         let size;
         let error = error.into();
         {
@@ -207,7 +207,7 @@ impl<W: Write + 'static> ManagedXError<W> {
                 size = error.len();
                 runtime.borrow_mut().size += size;
                 if runtime.borrow().size > max_size {
-                    return Err(RuntimeError::AllocationLimitReached);
+                    return Err(RuntimeViolation::AllocationLimitReached);
                 }
             } else {
                 size = 0;

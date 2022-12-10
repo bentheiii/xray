@@ -3,7 +3,7 @@ use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::stack::{XStack, XStackType};
 use crate::evaluation_scope::EvaluatedValue;
 use crate::native_types::{NativeType, XNativeValue};
-use crate::runtime_err::RuntimeError;
+use crate::runtime_violation::RuntimeViolation;
 use crate::runtime_scope::RuntimeScope;
 use crate::util::trysort::try_sort;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
@@ -93,7 +93,7 @@ impl<W: Write + 'static> XSequence<W> {
         idx: usize,
         ns: &RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> Result<EvaluatedValue<W>, RuntimeError> {
+    ) -> Result<EvaluatedValue<W>, RuntimeViolation> {
         match self {
             Self::Empty => unreachable!(),
             Self::Array(arr) => Ok(arr[idx].clone()),
@@ -121,7 +121,7 @@ impl<W: Write + 'static> XSequence<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> impl DoubleEndedIterator<Item = Result<EvaluatedValue<W>, RuntimeError>> + 'a {
+    ) -> impl DoubleEndedIterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
         (0..self.len()).map(move |idx| self.get(idx, ns, rt.clone()))
     }
 
@@ -134,7 +134,7 @@ impl<W: Write + 'static> XSequence<W> {
         cmp_func: &XFunction<W>,
         ns: &RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> Result<Result<Option<Self>, Rc<ManagedXError<W>>>, RuntimeError> {
+    ) -> Result<Result<Option<Self>, Rc<ManagedXError<W>>>, RuntimeViolation> {
         let arr = self.slice(ns, rt.clone()).collect::<Result<Vec<_>, _>>()?;
         // first we check if the seq is already sorted
         let mut is_sorted = true;
@@ -166,7 +166,7 @@ impl<W: Write + 'static> XSequence<W> {
             let mut ret = arr;
             forward_err!(try_sort(
                 &mut ret,
-                |a, b| -> Result<Result<_, Rc<ManagedXError<W>>>, RuntimeError> {
+                |a, b| -> Result<Result<_, Rc<ManagedXError<W>>>, RuntimeViolation> {
                     Ok(Ok(to_primitive!(
                         forward_err!(ns
                             .eval_func_with_values(
@@ -202,7 +202,7 @@ fn value_to_idx<W: Write + 'static>(
     arr: &XSequence<W>,
     i: &LazyBigint,
     rt: RTCell<W>,
-) -> Result<Result<usize, Rc<ManagedXError<W>>>, RuntimeError> {
+) -> Result<Result<usize, Rc<ManagedXError<W>>>, RuntimeViolation> {
     // todo why is this not a method?
     let mut i = Cow::Borrowed(i);
     if i.is_negative() {

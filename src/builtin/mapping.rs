@@ -3,7 +3,7 @@ use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::evaluation_scope::EvaluatedValue;
 use crate::native_types::{NativeType, XNativeValue};
-use crate::runtime_err::RuntimeError;
+use crate::runtime_violation::RuntimeViolation;
 use crate::runtime_scope::RuntimeScope;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
@@ -83,7 +83,7 @@ impl<W: Write + 'static> XMapping<W> {
         items: impl Iterator<Item = (EvaluatedValue<W>, EvaluatedValue<W>)>,
         ns: &RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> Result<TailedEvalResult<W>, RuntimeError> {
+    ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
         let hash_func = to_primitive!(self.hash_func, Function);
         let mut eq_func = None;
         let mut new_dict = self.inner.clone();

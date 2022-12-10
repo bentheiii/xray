@@ -7,7 +7,7 @@ use std::io::Write;
 use std::rc::Rc;
 
 use crate::compilation_scope::{CellSpec, Overload};
-use crate::runtime_err::RuntimeError;
+use crate::runtime_violation::RuntimeViolation;
 use crate::runtime_scope::{EvaluationCell, RuntimeScope, RuntimeScopeTemplate};
 use crate::RootCompilationScope;
 
@@ -31,7 +31,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
     pub fn from_compilation_scope(
         comp_scope: &'c RootCompilationScope<W>,
         runtime: RTCell<W>,
-    ) -> Result<Self, RuntimeError> {
+    ) -> Result<Self, RuntimeViolation> {
         let cell_specs = comp_scope
             .scope
             .cells
@@ -105,7 +105,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
         &self,
         function: &XFunction<W>,
         args: Vec<EvaluatedValue<W>>,
-    ) -> Result<TailedEvalResult<W>, RuntimeError> {
+    ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
         self.scope
             .eval_func_with_values(function, args, self.runtime.clone(), false)
     }
