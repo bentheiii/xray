@@ -1,0 +1,10 @@
+struct A(i: int)
+
+fn to_str(a: A)->str{
+    f"I am A and I'm here to say {a::i}"
+}
+
+fn main()->bool{
+    let f = f"hi {A(15)} there";
+    assert(f == "hi I am A and I'm here to say 15 there")
+}

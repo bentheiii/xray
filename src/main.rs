@@ -10,7 +10,7 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    let z = r"a\\".chars();
+    let z = f"a {1+10}";
     "###;
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()

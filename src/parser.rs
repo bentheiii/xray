@@ -17,7 +17,7 @@ use pest::prec_climber::Assoc::{Left, Right};
 use pest::prec_climber::{Operator, PrecClimber};
 use std::iter::FromIterator;
 use std::rc::Rc;
-use crate::util::str_escapes::apply_escapes;
+use crate::util::str_escapes::{apply_brace_escape, apply_escapes};
 
 #[derive(Parser)]
 #[grammar = "xray.pest"]
@@ -566,8 +566,28 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             }
             Rule::RAW_STRING => {
                 Ok(XStaticExpr::LiteralString(
-                    input.clone().into_inner().next().unwrap().as_str().to_string(),
+                    input.into_inner().next().unwrap().as_str().to_string(),
                 ))
+            }
+            Rule::FORMATTED_STRING => {
+                let add_sym = interner.get_or_intern_static("add");
+                let to_str_sym = interner.get_or_intern_static("to_str");
+                let mut ret = None;
+                for part in input.into_inner().next().unwrap().into_inner(){
+                    let expr = match part.as_rule() {
+                        Rule::expression => XStaticExpr::new_call_sym(to_str_sym, vec![self.parse_expr(part,interner)?]),
+                        _ => XStaticExpr::LiteralString(
+                            apply_brace_escape(
+                                &apply_escapes(part.clone().as_str()).map_err(|e| e.trace(&part))?
+                            ),
+                        )
+                    };
+                    ret = Some(match ret{
+                        None => expr,
+                        Some(prev) => XStaticExpr::new_call_sym(add_sym, vec![prev, expr])
+                    });
+                }
+                Ok(ret.unwrap_or_else(|| XStaticExpr::LiteralString("".to_string())))
             }
             Rule::bool => {
                 return Ok(XStaticExpr::LiteralBool(input.as_str() == "true"));

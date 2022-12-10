@@ -43,6 +43,13 @@ pub(crate) fn apply_escapes<W: Write + 'static>(origin: &str) -> Result<String, 
     Ok(ret)
 }
 
+pub(crate) fn apply_brace_escape(origin: &str)->String{
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"(\{)\{|(\})\}").unwrap();
+    }
+    RE.replace_all(&origin, r"$1$2").into_owned()
+}
+
 #[cfg(test)]
 mod tests{
     use std::io::Stdout;
@@ -66,5 +73,15 @@ mod tests{
     #[test]
     fn test_unicode() {
         assert_eq!(apply_escapes::<Stdout>(r"a\u{1Ab}b\u{0}c").unwrap(), "a\u{1Ab}b\0c")
+    }
+
+    #[test]
+    fn test_braces_simple() {
+        assert_eq!(apply_brace_escape("abc"), "abc")
+    }
+
+    #[test]
+    fn test_braces_complex() {
+        assert_eq!(apply_brace_escape("1 2 {{ a b }} 3 4"), "1 2 { a b } 3 4")
     }
 }
