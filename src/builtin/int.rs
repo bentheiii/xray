@@ -1,7 +1,7 @@
 use crate::builtin::core::{eval, ufunc_ref, xcmp};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
-use crate::xvalue::{ManagedXValue, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use crate::{add_binfunc, manage_native, to_primitive, xraise, xraise_opt, CompilationError, XStaticFunction, ufunc};
 
 use num_traits::{Pow, Signed, ToPrimitive, Zero};
@@ -182,8 +182,8 @@ pub(crate) fn add_int_chr<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], &ns, &rt)?);
             let s = to_primitive!(a0, Int);
-            let Some(ord) = s.to_u32() else {xraise!(Err("number too large"))};
-            let Ok(chr) = char::try_from(ord) else {xraise!(Err("value is not a unicode char"))};
+            let Some(ord) = s.to_u32() else {xraise!(Err(ManagedXError::new("number too large", rt)?))};
+            let Ok(chr) = char::try_from(ord) else {xraise!(Err(ManagedXError::new("value is not a unicode char", rt)?))};
             Ok(ManagedXValue::new(XValue::String(chr.into()), rt)?.into())
         }),
     )

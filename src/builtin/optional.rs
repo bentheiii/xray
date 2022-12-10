@@ -1,5 +1,5 @@
 use crate::builtin::core::{eval, eval_resolved_func, get_func};
-use crate::evaluation_scope::EvaluatedVariable;
+use crate::evaluation_scope::EvaluatedValue;
 use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncSpec, X_BOOL, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
@@ -34,7 +34,7 @@ impl NativeType for XOptionalType {
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub(crate) struct XOptional<W: Write + 'static> {
-    pub(crate) value: Option<EvaluatedVariable<W>>,
+    pub(crate) value: Option<EvaluatedValue<W>>,
 }
 
 impl<W: Write + 'static> XNativeValue for XOptional<W> {

@@ -1,6 +1,6 @@
 use crate::builtin::core::{eval, xcmp};
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
-use crate::xvalue::{ManagedXValue, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use crate::{add_binfunc, to_primitive, CompilationError, RootCompilationScope, XStaticFunction, ufunc, XSequenceType, xraise, manage_native, XSequence};
 
 use crate::util::lazy_bigint::LazyBigint;
@@ -92,12 +92,12 @@ pub(crate) fn add_str_get<W: Write + 'static>(
             let s = to_primitive!(a0, String);
             let i = to_primitive!(a1, Int);
             let Some(char) = (if i.is_negative(){
-                let Some(i) = i.clone().neg().to_usize() else { xraise!(Err("index too large".to_string())) };
+                let Some(i) = i.clone().neg().to_usize() else { xraise!(Err(ManagedXError::new("index too large",rt)?)) };
                 s.chars().nth_back(i-1)
             } else {
-                let Some(i) = (i).to_usize() else { xraise!(Err("index too large".to_string())) };
+                let Some(i) = (i).to_usize() else { xraise!(Err(ManagedXError::new("index too large",rt)?)) };
                 s.chars().nth(i)
-            }) else { xraise!(Err("index out of bounds".to_string()))};
+            }) else { xraise!(Err(ManagedXError::new("index out of bounds",rt)?))};
             Ok(ManagedXValue::new(XValue::String(char.to_string()), rt)?.into())
         }),
     )
@@ -112,7 +112,7 @@ pub(crate) fn add_str_ord<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], &ns, &rt)?);
             let s = to_primitive!(a0, String);
-            let Ok(chr) = s.chars().exactly_one() else { xraise!(Err("ord is only applicable to single-char strings".to_string()))};
+            let Ok(chr) = s.chars().exactly_one() else { xraise!(Err(ManagedXError::new("cannot ord a string without exactly one char",rt)?))};
             Ok(ManagedXValue::new(XValue::Int(LazyBigint::from_u64(chr.into()).unwrap()), rt)?.into())
         }),
     )

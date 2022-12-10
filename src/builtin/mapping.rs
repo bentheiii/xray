@@ -1,12 +1,12 @@
 use crate::builtin::core::{eval, get_func};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::evaluation_scope::EvaluatedVariable;
+use crate::evaluation_scope::EvaluatedValue;
 use crate::native_types::{NativeType, XNativeValue};
 use crate::runtime_err::RuntimeError;
 use crate::runtime_scope::RuntimeScope;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
-use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
     manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError, RTCell,
@@ -44,7 +44,7 @@ impl NativeType for XMappingType {
     }
 }
 
-type MappingBucket<W> = Vec<(EvaluatedVariable<W>, EvaluatedVariable<W>)>;
+type MappingBucket<W> = Vec<(EvaluatedValue<W>, EvaluatedValue<W>)>;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
@@ -55,10 +55,10 @@ struct XMapping<W: Write + 'static> {
 }
 
 macro_rules! parse_hash {
-    ($v: expr) => {{
+    ($v: expr, $rt: expr) => {{
         xraise!(to_primitive!(xraise!($v.unwrap_value()), Int)
             .to_u64()
-            .ok_or("hash is out of bounds"))
+            .ok_or($crate::xvalue::ManagedXError::new("hash is out of bounds", $rt)?))
     }};
 }
 
@@ -77,7 +77,7 @@ impl<W: Write + 'static> XMapping<W> {
 
     fn with_update(
         &self,
-        items: impl Iterator<Item = (EvaluatedVariable<W>, EvaluatedVariable<W>)>,
+        items: impl Iterator<Item = (EvaluatedValue<W>, EvaluatedValue<W>)>,
         ns: &RuntimeScope<W>,
         rt: RTCell<W>,
     ) -> Result<TailedEvalResult<W>, RuntimeError> {
@@ -90,7 +90,7 @@ impl<W: Write + 'static> XMapping<W> {
                 vec![k.clone()],
                 rt.clone(),
                 false
-            )?);
+            )?, rt.clone());
 
             let spot = new_dict.entry(hash_key);
             match spot {
@@ -249,7 +249,7 @@ pub(crate) fn add_mapping_lookup<W: Write + 'static>(
                 vec![a1.clone()],
                 rt.clone(),
                 false
-            )?);
+            )?, rt.clone());
             let spot = mapping.inner.get(&hash_key);
             match spot {
                 None => Ok(manage_native!(XOptional::<W> { value: None }, rt)),
@@ -301,10 +301,10 @@ pub(crate) fn add_mapping_get<W: Write + 'static>(
                 vec![a1.clone()],
                 rt.clone(),
                 false
-            )?);
+            )?, rt.clone());
             let spot = mapping.inner.get(&hash_key);
             match spot {
-                None => xraise!(Err("key not found".to_string())),
+                None => xraise!(Err(ManagedXError::new("key not found", rt)?)),
                 Some(candidates) => {
                     let eq_func = to_primitive!(mapping.eq_func, Function);
                     for (k, v) in candidates.iter() {
@@ -322,7 +322,7 @@ pub(crate) fn add_mapping_get<W: Write + 'static>(
                             return Ok(v.clone().into());
                         }
                     }
-                    xraise!(Err("key not found".to_string()))
+                    xraise!(Err(ManagedXError::new("key not found", rt)?))
                 }
             }
         }),
@@ -402,7 +402,7 @@ pub(crate) fn add_mapping_contains<W: Write + 'static>(
                 vec![a1.clone()],
                 rt.clone(),
                 false
-            )?);
+            )?, rt.clone());
             let spot = mapping.inner.get(&hash_key);
             let mut ret = false;
             if let Some(candidates) = spot {
@@ -448,7 +448,7 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
                 vec![a1.clone()],
                 rt.clone(),
                 false
-            )?);
+            )?, rt.clone());
             let spot = mapping.inner.get(&hash_key);
             let mut new_spot = None;
             if let Some(candidates) = spot {
@@ -477,7 +477,7 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
                 }
             }
             match new_spot {
-                None => xraise!(Err("Key not found in mapping".to_string())),
+                None => xraise!(Err(ManagedXError::new("key not found", rt)?)),
                 Some(new_spot) => {
                     let mut new_dict = HashMap::from([(hash_key, new_spot)]);
                     for (k, v) in &mapping.inner {
@@ -514,7 +514,7 @@ pub(crate) fn add_mapping_discard<W: Write + 'static>(
                 vec![a1.clone()],
                 rt.clone(),
                 false
-            )?);
+            )?, rt.clone());
             let spot = mapping.inner.get(&hash_key);
             let mut new_spot = None;
             if let Some(candidates) = spot {

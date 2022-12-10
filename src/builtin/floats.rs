@@ -1,6 +1,6 @@
 use crate::builtin::core::{eval, xcmp};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
-use crate::xvalue::{ManagedXValue, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use crate::{add_binfunc, to_primitive, xraise, xraise_opt, CompilationError, RootCompilationScope, XStaticFunction, ufunc};
 
 use crate::util::lazy_bigint::LazyBigint;
@@ -26,27 +26,65 @@ macro_rules! add_float_binop {
 add_float_binop!(add_float_add, add, |a, b| Ok(XValue::Float(a + b)));
 add_float_binop!(add_float_sub, sub, |a, b| Ok(XValue::Float(a - b)));
 add_float_binop!(add_float_mul, mul, |a, b| Ok(XValue::Float(a * b)));
-add_float_binop!(add_float_mod, mod, |a: &f64, b: &f64| {
-    if b.is_zero() {
-        Err("modulo by zero".to_string())
-    } else {
-        Ok(XValue::Float(((a % b) + b) % b))
-    }
-});
-add_float_binop!(add_float_div, div, |a: &f64, b: &f64| {
-    if b.is_zero() {
-        Err("division by zero".to_string())
-    } else {
-        Ok(XValue::Float(a / b))
-    }
-});
-add_float_binop!(add_float_pow, pow, |a: &f64, b: &f64| {
-    if (*a <= 0.0 && *b <= 0.0) || (*a < 0.0 && *b < 1.0) {
-        Err("undefined exponential".to_string())
-    } else {
-        Ok(XValue::Float(a.powf(*b)))
-    }
-});
+pub(crate) fn add_float_mod<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "mod",
+        XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_FLOAT.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a = to_primitive!(a0, Float);
+            let b = to_primitive!(a1, Float);
+            if b.is_zero() {
+                xraise!(Err(ManagedXError::new("modulo by zero", rt)?))
+            } else {
+                Ok(ManagedXValue::new(XValue::Float(((a % b) + b) % b), rt)?.into())
+            }
+        }),
+    )
+}
+
+pub(crate) fn add_float_div<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "div",
+        XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_FLOAT.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a = to_primitive!(a0, Float);
+            let b = to_primitive!(a1, Float);
+            if b.is_zero() {
+                xraise!(Err(ManagedXError::new("division by zero", rt)?))
+            } else {
+                Ok(ManagedXValue::new(XValue::Float(a/b), rt)?.into())
+            }
+        }),
+    )
+}
+
+pub(crate) fn add_float_pow<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError<W>> {
+    scope.add_func(
+        "pow",
+        XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_FLOAT.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a = to_primitive!(a0, Float);
+            let b = to_primitive!(a1, Float);
+            if (*a <= 0.0 && *b <= 0.0) || (*a < 0.0 && *b < 1.0) {
+                xraise!(Err(ManagedXError::new("undefined exponenitial", rt)?))
+            } else {
+                Ok(ManagedXValue::new(XValue::Float(a.powf(*b)), rt)?.into())
+            }
+        }),
+    )
+}
 add_binfunc!(
     add_float_eq,
     eq,

@@ -1,6 +1,6 @@
 use crate::runtime::RTCell;
 use crate::xexpr::TailedEvalResult;
-use crate::xvalue::{ManagedXValue, XFunction, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XValue};
 
 use std::fmt::{Debug, Formatter};
 use std::io::Write;
@@ -8,10 +8,10 @@ use std::rc::Rc;
 
 use crate::compilation_scope::{CellSpec, Overload};
 use crate::runtime_err::RuntimeError;
-use crate::runtime_scope::{EvaluatedValue, EvaluationCell, RuntimeScope, RuntimeScopeTemplate};
+use crate::runtime_scope::{EvaluationCell, RuntimeScope, RuntimeScopeTemplate};
 use crate::RootCompilationScope;
 
-pub type EvaluatedVariable<W> = Result<Rc<ManagedXValue<W>>, String>;
+pub type EvaluatedValue<W> = Result<Rc<ManagedXValue<W>>, Rc<ManagedXError<W>>>;
 
 pub struct MultipleUD; // for trying to access an ambiguous user-defined
 
@@ -59,7 +59,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
         Ok(ret)
     }
 
-    pub fn get_value(&self, name: &str) -> Option<&EvaluatedVariable<W>> {
+    pub fn get_value(&self, name: &str) -> Option<&EvaluatedValue<W>> {
         let id = self.compilation_scope.get_identifer(name);
         if let Some(id) = id {
             let cell_idx = self.compilation_scope.scope.get_variable_cell(&id)?;

@@ -1,7 +1,7 @@
 use crate::compilation_scope::CellSpec;
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::{TailedEvalResult, XExpr};
-use crate::xvalue::{ManagedXValue, XFunction, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XValue};
 use crate::{manage_native, xraise, Declaration, RTCell, XOptional, XSequence};
 use std::io::Write;
 use std::mem;
@@ -10,6 +10,7 @@ use std::rc::Rc;
 use crate::runtime_err::RuntimeError;
 use crate::units::{ScopeDepth, StackDepth};
 use derivative::Derivative;
+use crate::evaluation_scope::EvaluatedValue;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
@@ -34,8 +35,6 @@ impl<W: Write + 'static> TemplatedEvaluationCell<W> {
         }
     }
 }
-
-pub type EvaluatedValue<W> = Result<Rc<ManagedXValue<W>>, String>;
 
 #[derive(Default, Derivative)]
 #[derivative(Debug(bound = ""))]
@@ -204,9 +203,9 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                     argument_idx,
                 } => {
                     let new_value = args.get_mut(*argument_idx).map_or_else(
-                        || template.defaults[argument_idx - default_offset].clone(),
-                        |i| mem::replace(i, Err("this value has already been used".to_string())),
-                    );
+                        || Ok(template.defaults[argument_idx - default_offset].clone()),
+                        |i| Ok(mem::replace(i, Err(ManagedXError::new("", rt.clone())?))),
+                    )?;
                     ret.cells[*cell_idx].put(new_value);
                 }
                 Declaration::Value { cell_idx, expr } => {

@@ -1,7 +1,7 @@
 use crate::builtin::core::{eval, xcmp};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
-use crate::xvalue::{ManagedXValue, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use crate::{add_binfunc, manage_native, to_primitive, xraise, CompilationError, RootCompilationScope, XStaticFunction, ufunc};
 use num_traits::{One, Zero};
 use rc::Rc;
@@ -43,7 +43,7 @@ pub(crate) fn add_bool_assert<W: Write + 'static>(
                     }
                     _ => "assertion is untrue".to_string(),
                 };
-                Ok(Err(msg).into())
+                Ok(Err(ManagedXError::new(msg,rt)?).into())
             }
         }),
     )

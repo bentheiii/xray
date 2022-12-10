@@ -1,9 +1,9 @@
 use crate::builtin::core::eval;
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::evaluation_scope::EvaluatedVariable;
+use crate::evaluation_scope::EvaluatedValue;
 use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncSpec, X_INT, X_UNKNOWN};
-use crate::xvalue::{ManagedXValue, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use crate::{
     manage_native, to_native, xraise, CompilationError, RootCompilationScope, XStaticFunction,
     XType,
@@ -38,15 +38,15 @@ impl NativeType for XStackType {
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 struct StackNode<W: Write + 'static> {
-    value: EvaluatedVariable<W>,
+    value: EvaluatedValue<W>,
     next: Option<Rc<StackNode<W>>>,
 }
 
 impl<W: Write + 'static> StackNode<W> {
-    fn first(value: EvaluatedVariable<W>) -> Rc<Self> {
+    fn first(value: EvaluatedValue<W>) -> Rc<Self> {
         Rc::new(Self { value, next: None })
     }
-    fn new(value: EvaluatedVariable<W>, next: Rc<Self>) -> Rc<Self> {
+    fn new(value: EvaluatedValue<W>, next: Rc<Self>) -> Rc<Self> {
         Rc::new(Self {
             value,
             next: Some(next),
@@ -75,7 +75,7 @@ impl<W: Write + 'static> XStack<W> {
         Self::default()
     }
 
-    pub(super) fn push(&self, value: EvaluatedVariable<W>) -> Self {
+    pub(super) fn push(&self, value: EvaluatedValue<W>) -> Self {
         let node = match self.head {
             None => StackNode::first(value),
             Some(ref head) => StackNode::new(value, head.clone()),
@@ -86,7 +86,7 @@ impl<W: Write + 'static> XStack<W> {
         }
     }
 
-    fn to_vec<const REV: bool>(&self) -> Vec<EvaluatedVariable<W>> {
+    fn to_vec<const REV: bool>(&self) -> Vec<EvaluatedValue<W>> {
         let mut vec = Vec::with_capacity(self.length);
         let mut node = &self.head;
         while let Some(ref n) = node {
@@ -99,7 +99,7 @@ impl<W: Write + 'static> XStack<W> {
         vec
     }
 
-    pub(super) fn iter(&self) -> impl Iterator<Item = EvaluatedVariable<W>> + '_ {
+    pub(super) fn iter(&self) -> impl Iterator<Item = EvaluatedValue<W>> + '_ {
         let mut node = &self.head;
         from_fn(move || match &node {
             None => None,
@@ -234,7 +234,7 @@ pub(crate) fn add_stack_head<W: Write + 'static>(
             let stk0 = to_native!(a0, XStack<W>);
             match &stk0.head {
                 Some(v) => Ok(v.value.clone().into()),
-                None => Ok(Err("stack is empty".to_string()).into()),
+                None => Ok(Err(ManagedXError::new("stack is empty", rt)?).into()),
             }
         }),
     )
@@ -260,7 +260,7 @@ pub(crate) fn add_stack_tail<W: Write + 'static>(
                     },
                     rt
                 )),
-                None => xraise!(Err("stack is empty".to_string())),
+                None => xraise!(Err(ManagedXError::new("stack is empty", rt)?)),
             }
         }),
     )

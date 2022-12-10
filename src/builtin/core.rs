@@ -4,7 +4,7 @@ use num_traits::{One, Zero};
 use std::io::Write;
 
 use crate::compilation_scope::CompilationScope;
-use crate::evaluation_scope::EvaluatedVariable;
+use crate::evaluation_scope::EvaluatedValue;
 use crate::runtime_err::RuntimeError;
 use crate::runtime_scope::RuntimeScope;
 use crate::util::lazy_bigint::LazyBigint;
@@ -41,7 +41,11 @@ macro_rules! add_binfunc {
                     let v0 = to_primitive!(a0, $operand_variant);
                     let v1 = to_primitive!(a1, $operand_variant);
                     let result: Result<_, String> = $func(v0, v1);
-                    Ok(ManagedXValue::from_result(result, rt.clone())?.into())
+                    let result = match result{
+                        Ok(v) => Ok(v),
+                        Err(s) => Err($crate::xvalue::ManagedXError::new(s, rt.clone())?)
+                    };
+                    Ok(ManagedXValue::from_result(result, rt)?.into())
                 }),
             )
         }
@@ -61,7 +65,11 @@ macro_rules! ufunc {
     ($operand_variant:ident, $func:expr) => {{
         $crate::builtin::core::ufunc_ref(|a: Rc<ManagedXValue<W>>, rt: $crate::runtime::RTCell<W>| {
             let result: Result<_, String> = $func(to_primitive!(a, $operand_variant));
-            Ok(ManagedXValue::from_result(result, rt.clone())?.into())
+            let result = match result{
+                Ok(v) => Ok(v),
+                Err(s) => Err($crate::xvalue::ManagedXError::new(s, rt.clone())?)
+            };
+            Ok(ManagedXValue::from_result(result, rt)?.into())
         })
     }};
 }
@@ -101,7 +109,7 @@ pub(super) fn eval<W: Write + 'static>(
     expr: &XExpr<W>,
     ns: &RuntimeScope<W>,
     rt: &RTCell<W>,
-) -> Result<EvaluatedVariable<W>, RuntimeError> {
+) -> Result<EvaluatedValue<W>, RuntimeError> {
     ns.eval(expr, rt.clone(), false).map(|i| i.unwrap_value())
 }
 
@@ -195,8 +203,8 @@ pub(super) fn eval_resolved_func<W: Write + 'static>(
     expr: &XExpr<W>,
     ns: &RuntimeScope<W>,
     rt: RTCell<W>,
-    args: Vec<EvaluatedVariable<W>>,
-) -> Result<EvaluatedVariable<W>, RuntimeError> {
+    args: Vec<EvaluatedValue<W>>,
+) -> Result<EvaluatedValue<W>, RuntimeError> {
     let managed_func = forward_err!(ns.eval(expr, rt.clone(), false)?.unwrap_value());
     let func = to_primitive!(managed_func, Function);
     ns.eval_func_with_values(func, args, rt, false)

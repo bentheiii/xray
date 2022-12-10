@@ -1,4 +1,4 @@
-use crate::evaluation_scope::EvaluatedVariable;
+use crate::evaluation_scope::EvaluatedValue;
 use crate::runtime::RTCell;
 use crate::xtype::{Bind, XCompoundSpec, XType};
 use crate::xvalue::{ManagedXValue, NativeCallable, XFunction};
@@ -65,7 +65,7 @@ pub enum XExpr<W: Write + 'static> {
     Value(usize),
     // this dummy exists for calling native functions with arguments that were already
     // evaluated
-    Dummy(EvaluatedVariable<W>),
+    Dummy(EvaluatedValue<W>),
 }
 
 #[derive(Derivative)]
@@ -196,12 +196,12 @@ pub enum IdentItem<W: Write + 'static> {
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub enum TailedEvalResult<W: Write + 'static> {
-    Value(EvaluatedVariable<W>),
-    TailCall(Vec<EvaluatedVariable<W>>),
+    Value(EvaluatedValue<W>),
+    TailCall(Vec<EvaluatedValue<W>>),
 }
 
 impl<W: Write + 'static> TailedEvalResult<W> {
-    pub fn unwrap_value(self) -> EvaluatedVariable<W> {
+    pub fn unwrap_value(self) -> EvaluatedValue<W> {
         match self {
             Self::Value(v) => v,
             Self::TailCall(_) => {
@@ -217,8 +217,8 @@ impl<W: Write + 'static> From<Rc<ManagedXValue<W>>> for TailedEvalResult<W> {
     }
 }
 
-impl<W: Write + 'static> From<EvaluatedVariable<W>> for TailedEvalResult<W> {
-    fn from(v: EvaluatedVariable<W>) -> Self {
+impl<W: Write + 'static> From<EvaluatedValue<W>> for TailedEvalResult<W> {
+    fn from(v: EvaluatedValue<W>) -> Self {
         Self::Value(v)
     }
 }

@@ -1,4 +1,4 @@
-use crate::evaluation_scope::EvaluatedVariable;
+use crate::evaluation_scope::EvaluatedValue;
 use crate::native_types::XNativeValue;
 use crate::runtime::RTCell;
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
@@ -24,8 +24,8 @@ pub enum XValue<W: Write + 'static> {
     String(String),
     Bool(bool),
     Function(XFunction<W>),
-    StructInstance(Vec<EvaluatedVariable<W>>),
-    UnionInstance(usize, EvaluatedVariable<W>),
+    StructInstance(Vec<EvaluatedValue<W>>),
+    UnionInstance(usize, EvaluatedValue<W>),
     Native(Box<dyn XNativeValue>),
 }
 
@@ -45,7 +45,7 @@ pub type DynBind<W> = Rc<
         &mut CompilationScope<'_, W>,
         Option<&[Arc<XType>]>,
     ) -> Result<XFunctionFactoryOutput<W>, String>,
->; // todo make this a compilation error?
+>; // todo make this a different error?
 
 pub struct XFunctionFactoryOutput<W: Write + 'static> {
     pub(crate) spec: XFuncSpec,
@@ -98,7 +98,7 @@ impl<W: Write + 'static> Debug for XFunction<W> {
     }
 }
 
-pub(crate) fn size_of_value<W: Write + 'static>(v: &EvaluatedVariable<W>) -> usize {
+pub(crate) fn size_of_value<W: Write + 'static>(v: &EvaluatedValue<W>) -> usize {
     match v {
         Err(_e) => 0, // todo manage errors (and store their size)
         Ok(v) => v.size,
@@ -125,9 +125,9 @@ impl<W: Write + 'static> XValue<W> {
 
 pub struct ManagedXValue<W: Write + 'static> {
     runtime: RTCell<W>,
+    /// this will be zero if the runtime has no size limit
     size: usize,
-    // this will be zero if the runtime has no size limit
-    pub value: XValue<W>, // todo we need to manage errors too
+    pub value: XValue<W>,
 }
 
 impl<W: Write + 'static> Debug for ManagedXValue<W> {
@@ -165,12 +165,55 @@ impl<W: Write + 'static> ManagedXValue<W> {
     }
 
     pub(crate) fn from_result(
-        value: Result<XValue<W>, String>,
+        value: Result<XValue<W>, Rc<ManagedXError<W>>>,
         runtime: RTCell<W>,
-    ) -> Result<EvaluatedVariable<W>, RuntimeError> {
+    ) -> Result<EvaluatedValue<W>, RuntimeError> {
         match value {
             Ok(value) => Self::new(value, runtime).map(Ok),
             Err(e) => Ok(Err(e)),
         }
+    }
+}
+
+pub struct ManagedXError<W: Write + 'static> {
+    runtime: RTCell<W>,
+    /// this will be zero if the runtime has no size limit
+    size: usize,
+    pub error: String,
+}
+
+impl<W: Write + 'static> Debug for ManagedXError<W> {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
+        write!(f, "ManagedXError({:?})", self.error)
+    }
+}
+
+impl<W: Write + 'static> Drop for ManagedXError<W> {
+    fn drop(&mut self) {
+        self.runtime.borrow_mut().size -= self.size;
+    }
+}
+
+impl<W: Write + 'static> ManagedXError<W> {
+    pub(crate) fn new<T: Into<String>>(error: T, runtime: RTCell<W>) -> Result<Rc<Self>, RuntimeError> {
+        let size;
+        let error = error.into();
+        {
+            let size_limit = runtime.borrow().limits.size_limit;
+            if let Some(max_size) = size_limit {
+                size = error.len();
+                runtime.borrow_mut().size += size;
+                if runtime.borrow().size > max_size {
+                    return Err(RuntimeError::AllocationLimitReached);
+                }
+            } else {
+                size = 0;
+            }
+        }
+        Ok(Rc::new(Self {
+            runtime,
+            size,
+            error,
+        }))
     }
 }
