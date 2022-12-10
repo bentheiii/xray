@@ -20,8 +20,8 @@ pub enum XType {
     XFunc(XFuncSpec),
     XGeneric(Identifier),
     XNative(Box<dyn NativeType>, Vec<Arc<Self>>),
-    Tuple(Vec<Arc<XType>>),
     // the actual value of this type is a struct
+    Tuple(Vec<Arc<XType>>),
     XTail(Vec<Arc<XType>>),
     // this value must be resolved by turbofish
     Auto,
@@ -93,7 +93,6 @@ where
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct XCompoundSpec {
     pub(crate) name: Identifier,
-    // this is the full qualified name
     pub(crate) generic_names: Vec<Identifier>,
     pub(crate) fields: Vec<XCompoundFieldSpec>,
     pub(crate) indices: BTreeMap<String, usize>,

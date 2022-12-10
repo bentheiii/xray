@@ -1,7 +1,6 @@
-header = {SOI ~ top_level_execution ~ EOI}
+header = {SOI ~ execution ~ EOI}
 eval = {SOI ~ expression ~ EOI}
 
-top_level_execution = {import* ~ execution}
 execution = {declaration*}
 declaration = {value | function | compound_def}
 expression = {
@@ -75,17 +74,11 @@ BINARY_OP = _{BINARY_POW | BINARY_ADD | BINARY_SUB | BINARY_MUL | BINARY_DIV | B
  BINARY_BIT_OR = {"|"}
  BINARY_BIT_XOR = {"^"}
 
-pub_opt = {"public"?}
-
-import = {pub_opt ~ "import " ~ import_spec ~ ";"}
- import_spec = {CNAME ~ ("::" ~ CNAME)* ~ ("::" ~ import_group)?}
- import_group = {"{" ~ CNAME ~ (", " ~ CNAME)* ~ ","? ~ "}"| "{" ~ ("*"|"**") ~ ","? ~ "}" }
-
-value = {pub_opt ~ "let " ~ CNAME ~ explicit_type_opt ~ "=" ~ expression ~ ";"}
+value = { "let " ~ CNAME ~ explicit_type_opt ~ "=" ~ expression ~ ";"}
  explicit_type_opt = {explicit_type?}
  explicit_type = _{":" ~ complete_type}
 
-function = {pub_opt ~"fn " ~ CNAME ~ generic_signature_opt ~ "(" ~ function_parameters_opt ~ ","? ~ ")" ~ "->" ~ complete_type ~ function_body}
+function = { "fn " ~ CNAME ~ generic_signature_opt ~ "(" ~ function_parameters_opt ~ ","? ~ ")" ~ "->" ~ complete_type ~ function_body}
  generic_signature_opt = { generic_signature? }
  function_body = {"{"~execution~expression~"}" }
  generic_signature = {"<" ~ generic_parameter ~ ("," ~ generic_parameter)* ~ ">"}
@@ -97,7 +90,7 @@ function = {pub_opt ~"fn " ~ CNAME ~ generic_signature_opt ~ "(" ~ function_para
  parameter = {CNAME ~ ":" ~ complete_type ~ default_value?}
  default_value = {"?="~expression}
 
-compound_def = {pub_opt ~ compound_kind ~ CNAME ~ generic_signature_opt ~ "(" ~ compound_parameters ~ ")"}
+compound_def = { compound_kind ~ CNAME ~ generic_signature_opt ~ "(" ~ compound_parameters ~ ")"}
  compound_kind = {"struct" | "union"}
  compound_parameters = {(compound_parameter ~ ",")* ~ (compound_parameter ~ (",")?)?}
  compound_parameter = {CNAME ~ ":" ~ complete_type}

@@ -55,7 +55,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         interner: &mut StringInterner,
     ) -> Result<(), TracedCompilationError> {
         match input.as_rule() {
-            Rule::header | Rule::top_level_execution | Rule::execution | Rule::declaration => {
+            Rule::header | Rule::execution | Rule::declaration => {
                 for inner in input.into_inner() {
                     self.feed(inner, parent_gen_param_names, interner)?;
                 }
@@ -63,7 +63,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             }
             Rule::value => {
                 let mut inners = input.clone().into_inner();
-                let _pub_opt = inners.next().unwrap();
                 let var_name = inners.next().unwrap().as_str();
                 let explicit_type_opt = inners.next().unwrap();
                 let complete_type = explicit_type_opt
@@ -96,7 +95,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             }
             Rule::function => {
                 let mut inners = input.clone().into_inner();
-                let _pub_opt = inners.next().unwrap();
                 let fn_name = inners.next().unwrap().as_str();
                 let fn_symbol = interner.get_or_intern(fn_name);
                 let gen_params = inners.next().unwrap();
@@ -188,7 +186,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             }
             Rule::compound_def => {
                 let mut inners = input.clone().into_inner();
-                let _pub_opt = inners.next().unwrap();
                 let compound_kind_str = inners.next().unwrap().as_str();
                 let compound_kind = match compound_kind_str {
                     "struct" => CompoundKind::Struct,
