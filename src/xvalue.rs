@@ -8,8 +8,8 @@ use crate::util::lazy_bigint::LazyBigint;
 use derivative::Derivative;
 
 use crate::compilation_scope::CompilationScope;
-use crate::runtime_violation::RuntimeViolation;
 use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
+use crate::runtime_violation::RuntimeViolation;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
 use std::mem::size_of;

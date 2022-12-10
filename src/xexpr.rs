@@ -7,8 +7,8 @@ use crate::{Declaration, Identifier};
 use derivative::Derivative;
 
 use crate::compilation_scope::CellSpec;
-use crate::runtime_violation::RuntimeViolation;
 use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
+use crate::runtime_violation::RuntimeViolation;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
 use std::rc::Rc;
@@ -24,6 +24,9 @@ pub(crate) enum XStaticExpr {
     Array(Vec<XStaticExpr>),
     Tuple(Vec<XStaticExpr>),
     Call(Box<XStaticExpr>, Vec<XStaticExpr>),
+    // note that member names have to be strings because we need to identify "item" prefix
+    // todo we can overcome this limitation with middleware interner that treats "item" strings
+    //  differently
     Member(Box<XStaticExpr>, String),
     Ident(Identifier),
     // todo we always specialize with turbofish or bind, but never both, enforce with enum

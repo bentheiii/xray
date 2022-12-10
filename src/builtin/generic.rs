@@ -48,7 +48,8 @@ pub(crate) fn add_debug<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
             let b = to_primitive!(a1, String, "".to_string());
-            writeln!(rt.borrow_mut().stdout, "{b}{a0:?}").map_err(RuntimeViolation::OutputFailure)?;
+            writeln!(rt.borrow_mut().stdout, "{b}{a0:?}")
+                .map_err(RuntimeViolation::OutputFailure)?;
             Ok(a0.into())
         }),
     )

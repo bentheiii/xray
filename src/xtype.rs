@@ -104,10 +104,12 @@ impl XCompoundSpec {
         generic_names: Vec<Identifier>,
         fields: Vec<XCompoundFieldSpec>,
     ) -> Self {
-        let mut indices = BTreeMap::new();
-        for (i, field) in fields.iter().enumerate() {
-            indices.insert(field.name.clone(), i);
-        }
+        let indices = BTreeMap::from_iter(
+            fields
+                .iter()
+                .enumerate()
+                .map(|(i, field)| (field.name.clone(), i)),
+        );
         Self {
             name,
             generic_names,

@@ -7,8 +7,8 @@ use std::io::Write;
 use std::rc::Rc;
 
 use crate::compilation_scope::{CellSpec, Overload};
-use crate::runtime_violation::RuntimeViolation;
 use crate::runtime_scope::{EvaluationCell, RuntimeScope, RuntimeScopeTemplate};
+use crate::runtime_violation::RuntimeViolation;
 use crate::RootCompilationScope;
 
 pub type EvaluatedValue<W> = Result<Rc<ManagedXValue<W>>, Rc<ManagedXError<W>>>;

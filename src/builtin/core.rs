@@ -5,8 +5,8 @@ use std::io::Write;
 
 use crate::compilation_scope::CompilationScope;
 use crate::evaluation_scope::EvaluatedValue;
-use crate::runtime_violation::RuntimeViolation;
 use crate::runtime_scope::RuntimeScope;
+use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::{TailedEvalResult, XExpr};
 use crate::{forward_err, Identifier, RTCell, XStaticFunction, XType};
@@ -52,7 +52,8 @@ macro_rules! add_binfunc {
 
 pub fn ufunc_ref<W: Write + 'static, F>(func: F) -> XStaticFunction<W>
 where
-    F: Fn(Rc<ManagedXValue<W>>, RTCell<W>) -> Result<TailedEvalResult<W>, RuntimeViolation> + 'static,
+    F: Fn(Rc<ManagedXValue<W>>, RTCell<W>) -> Result<TailedEvalResult<W>, RuntimeViolation>
+        + 'static,
 {
     XStaticFunction::from_native(move |args, ns, _tca, rt| {
         let a0 = xraise!(eval(&args[0], ns, &rt)?);

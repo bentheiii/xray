@@ -377,9 +377,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     }
                 }
             }
-            _ => {
-                Err(CompilationError::PairNotType.trace(&input))
-            }
+            _ => Err(CompilationError::PairNotType.trace(&input)),
         }
     }
 
