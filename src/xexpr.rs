@@ -82,7 +82,7 @@ pub struct StaticUserFunction<W: Write + 'static> {
     pub(crate) defaults: Vec<XExpr<W>>,
     pub(crate) cell_specs: Vec<CellSpec<W>>,
     pub(crate) declarations: Vec<Declaration<W>>,
-    pub(crate) output: Box<XExpr<W>>, // todo does this have to be a box?
+    pub(crate) output: Box<XExpr<W>>,
     pub(crate) id: usize,
     pub(crate) parent_id: usize,
 }
@@ -144,51 +144,12 @@ impl<W: Write + 'static> Debug for XStaticFunction<W> {
     }
 }
 
-impl<W: Write + 'static> PartialEq for XStaticFunction<W> {
-    fn eq(&self, _: &Self) -> bool {
-        false
-    }
-}
-
-impl<W: Write + 'static> Eq for XStaticFunction<W> {}
-
-#[derive(Derivative)]
-#[derivative(Debug(bound = ""))]
-pub struct XExplicitStaticFuncSpec {
-    pub generic_params: Option<Vec<DefaultSymbol>>,
-    pub args: Vec<XExplicitStaticArgSpec>,
-    pub ret: Arc<XType>,
-}
-
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub struct XExplicitStaticArgSpec {
     pub(crate) name: DefaultSymbol,
     pub(crate) type_: Arc<XType>,
     pub(crate) default: Option<XStaticExpr>,
-}
-
-#[derive(Derivative)]
-#[derivative(Debug(bound = ""))]
-pub struct XExplicitFuncSpec<W: Write + 'static> {
-    pub generic_params: Option<Vec<DefaultSymbol>>,
-    pub args: Vec<XExplicitArgSpec<W>>,
-    pub ret: Arc<XType>,
-}
-
-#[derive(Derivative)]
-#[derivative(Debug(bound = ""))]
-pub struct XExplicitArgSpec<W: Write + 'static> {
-    pub(crate) name: DefaultSymbol,
-    pub(crate) type_: Arc<XType>,
-    pub(crate) default: Option<XExpr<W>>,
-}
-
-#[derive(Derivative)]
-#[derivative(Clone(bound = ""), Debug(bound = ""))]
-pub enum IdentItem<W: Write + 'static> {
-    Value(Arc<XType>),
-    Function(Rc<XStaticFunction<W>>),
 }
 
 #[derive(Derivative)]
