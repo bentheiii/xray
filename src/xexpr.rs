@@ -9,7 +9,6 @@ use derivative::Derivative;
 use crate::compilation_scope::CellSpec;
 use crate::runtime_err::RuntimeError;
 use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
-use crate::units::ScopeDepth;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
 use std::rc::Rc;
@@ -84,7 +83,6 @@ pub struct StaticUserFunction<W: Write + 'static> {
     pub(crate) cell_specs: Vec<CellSpec<W>>,
     pub(crate) declarations: Vec<Declaration<W>>,
     pub(crate) output: Box<XExpr<W>>, // todo does this have to be a box?
-    pub(crate) scope_depth: ScopeDepth, // todo is this used?
     pub(crate) id: usize,
     pub(crate) parent_id: usize,
 }

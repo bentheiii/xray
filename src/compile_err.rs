@@ -75,15 +75,6 @@ pub enum CompilationError {
         expected_types: Vec<Arc<XType>>,
         actual_types: Vec<Arc<XType>>,
     },
-    SpecializedFunctionTypeMismatch {
-        name: Identifier,
-        idx: usize,
-        expected_type: Arc<XType>,
-        actual_type: Arc<XType>,
-    },
-    FunctionNotFound {
-        name: Identifier,
-    },
     MemberNotFound {
         spec: Arc<XCompoundSpec>,
         name: String,
@@ -100,12 +91,6 @@ pub enum CompilationError {
         max: usize,
     },
     ValueNotFound {
-        name: Identifier,
-    },
-    TypeAsVariable {
-        name: Identifier,
-    },
-    GenericFunctionAsVariable {
         name: Identifier,
     },
     OverloadedFunctionAsVariable {
@@ -265,13 +250,6 @@ impl Resolve for CompilationError {
                 expected_types,
                 actual_types,
             },
-            SpecializedFunctionTypeMismatch {
-                name,
-                idx,
-                expected_type,
-                actual_type,
-            },
-            FunctionNotFound { name },
             MemberNotFound { spec, name },
             NonCompoundMemberAccess { xtype },
             NonItemTupleAccess { member },
@@ -281,8 +259,6 @@ impl Resolve for CompilationError {
                 max,
             },
             ValueNotFound { name },
-            TypeAsVariable { name },
-            GenericFunctionAsVariable { name },
             OverloadedFunctionAsVariable { name },
             IncompatibleTypes { type0, type1 },
             NotAFunction { type_ },
@@ -382,15 +358,6 @@ pub enum ResolvedCompilationError {
         expected_types: Vec<ResolvedType>,
         actual_types: Vec<ResolvedType>,
     },
-    SpecializedFunctionTypeMismatch {
-        name: String,
-        idx: usize,
-        expected_type: ResolvedType,
-        actual_type: ResolvedType,
-    },
-    FunctionNotFound {
-        name: String,
-    },
     MemberNotFound {
         spec: String,
         name: String,
@@ -407,12 +374,6 @@ pub enum ResolvedCompilationError {
         max: usize,
     },
     ValueNotFound {
-        name: String,
-    },
-    TypeAsVariable {
-        name: String,
-    },
-    GenericFunctionAsVariable {
         name: String,
     },
     OverloadedFunctionAsVariable {
@@ -563,20 +524,6 @@ impl Display for ResolvedCompilationError {
                     expected_types.iter().join(", ")
                 )
             }
-            Self::SpecializedFunctionTypeMismatch {
-                name,
-                idx,
-                expected_type,
-                actual_type,
-            } => {
-                write!(
-                    f,
-                    "Specialized argument at index {idx} of function {name} has type {actual_type}, but expected {expected_type}",
-                )
-            }
-            Self::FunctionNotFound { name } => {
-                write!(f, "Function {name} not found")
-            }
             Self::MemberNotFound { spec, name } => {
                 write!(f, "Member {name} not found in compound {spec}")
             }
@@ -601,12 +548,6 @@ impl Display for ResolvedCompilationError {
             }
             Self::ValueNotFound { name } => {
                 write!(f, "Value {name} not found")
-            }
-            Self::TypeAsVariable { name } => {
-                write!(f, "Cannot use type {name} as variable")
-            }
-            Self::GenericFunctionAsVariable { name } => {
-                write!(f, "Cannot use generic function {name} as variable")
             }
             Self::OverloadedFunctionAsVariable { name } => {
                 write!(f, "Cannot use overloaded function {name} as variable")

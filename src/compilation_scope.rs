@@ -17,14 +17,6 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-/*
-A Little about scopes:
-during compilation there is only one scope hierarchy: the scope hierarchy
-however during runtime there are actually two:
-    the scope hierarchy, which is where captures come from
-    and the stack hierarchy, which we should use for recursions
- */
-
 /// this is the information stored for a cell during compilation
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Debug(bound = ""))]
@@ -75,7 +67,6 @@ pub(crate) enum CellSpec<W: Write + 'static> {
         ancestor_depth: ScopeDepth,
         cell_idx: usize,
     },
-    // scope height,
     FactoryMadeFunction(#[derivative(Debug = "ignore")] NativeCallable<W>),
 }
 
@@ -101,9 +92,12 @@ pub struct CompilationScope<'p, W: Write + 'static> {
     pub(crate) cells: IPush<Cell<W>>,
     pub(crate) declarations: Vec<Declaration<W>>,
 
+    // todo make all these optional
     /// name to cell todo also add declaration line?
     variables: HashMap<Identifier, usize>,
+    /// name to overload
     functions: HashMap<Identifier, Vec<Overload<W>>>,
+    /// name to type
     types: HashMap<Identifier, Arc<XType>>,
 
     parent: Option<&'p CompilationScope<'p, W>>,
@@ -290,7 +284,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             cell_specs: self.cells.into_iter().map(CellSpec::from).collect(),
             declarations: self.declarations,
             output,
-            scope_depth: self.height,
             parent_id,
             id: self.id,
         }

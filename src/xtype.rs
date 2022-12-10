@@ -23,7 +23,7 @@ pub enum XType {
     Tuple(Vec<Arc<XType>>),
     // the actual value of this type is a struct
     XTail(Vec<Arc<XType>>),
-    // this value must be resolved by turbofish and the like
+    // this value must be resolved by turbofish
     Auto,
 }
 

@@ -100,7 +100,7 @@ impl<W: Write + 'static> Debug for XFunction<W> {
 
 pub(crate) fn size_of_value<W: Write + 'static>(v: &EvaluatedValue<W>) -> usize {
     match v {
-        Err(_e) => 0, // todo manage errors (and store their size)
+        Err(e) => e.size,
         Ok(v) => v.size,
     }
 }
