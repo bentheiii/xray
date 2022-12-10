@@ -1,6 +1,6 @@
 use crate::parser::Rule;
 use crate::xexpr::XExpr;
-use crate::xtype::CompoundKind;
+
 use crate::Identifier;
 use crate::{XCompoundSpec, XType};
 use derivative::Derivative;
@@ -126,7 +126,9 @@ pub enum CompilationError {
     },
     InvalidAutoLocation,
     AutoSpecializationWithoutCall,
-    BadEscapeSequence {sequence: String}
+    BadEscapeSequence {
+        sequence: String,
+    },
 }
 
 trait Resolve {
@@ -288,7 +290,7 @@ impl Resolve for CompilationError {
             DynamicFunctionAsVariable { name },
             InvalidAutoLocation {},
             AutoSpecializationWithoutCall {},
-            BadEscapeSequence {sequence}
+            BadEscapeSequence { sequence }
         )
     }
 }
@@ -431,7 +433,9 @@ pub enum ResolvedCompilationError {
     },
     InvalidAutoLocation,
     AutoSpecializationWithoutCall,
-    BadEscapeSequence {sequence: String}
+    BadEscapeSequence {
+        sequence: String,
+    },
 }
 
 impl Display for ResolvedCompilationError {
@@ -629,12 +633,18 @@ impl Display for ResolvedCompilationError {
                 )
             }
             Self::InvalidAutoLocation => {
-                write!(f, "the auto type \"$\" can only be placed inside turbofish specializations")
+                write!(
+                    f,
+                    "the auto type \"$\" can only be placed inside turbofish specializations"
+                )
             }
             Self::AutoSpecializationWithoutCall => {
-                write!(f, "overloads specialized with auto \"$\" mut be called immediately")
+                write!(
+                    f,
+                    "overloads specialized with auto \"$\" mut be called immediately"
+                )
             }
-            Self::BadEscapeSequence {sequence} => {
+            Self::BadEscapeSequence { sequence } => {
                 write!(f, "bad escape sequence: {sequence}")
             }
         }

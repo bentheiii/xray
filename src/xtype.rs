@@ -4,7 +4,6 @@ use crate::Identifier;
 use itertools::Itertools;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display, Formatter};
-use std::io::Write;
 use std::iter::FromIterator;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
@@ -559,7 +558,7 @@ impl XType {
             ),
             Self::XUnknown => "?".to_string(),
             Self::XTail(_) => "tail".to_string(), // todo make unreachable
-            Self::Auto => "$".to_string(), // todo make unreachable?
+            Self::Auto => "$".to_string(),        // todo make unreachable?
         }
     }
 }
@@ -609,9 +608,7 @@ lazy_static! {
     pub static ref X_UNKNOWN: Arc<XType> = Arc::new(XType::XUnknown);
 }
 
-pub(crate) fn common_type<
-    T: Iterator<Item = Result<Arc<XType>, CompilationError>>,
->(
+pub(crate) fn common_type<T: Iterator<Item = Result<Arc<XType>, CompilationError>>>(
     mut values: T,
 ) -> Result<Arc<XType>, CompilationError> {
     let mut ret = match values.next() {

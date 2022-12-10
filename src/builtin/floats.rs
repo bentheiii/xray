@@ -1,7 +1,10 @@
 use crate::builtin::core::{eval, xcmp};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
-use crate::{add_binfunc, to_primitive, xraise, xraise_opt, CompilationError, RootCompilationScope, XStaticFunction, ufunc};
+use crate::{
+    add_binfunc, to_primitive, ufunc, xraise, xraise_opt, CompilationError, RootCompilationScope,
+    XStaticFunction,
+};
 
 use crate::util::lazy_bigint::LazyBigint;
 use num_traits::{FromPrimitive, Zero};
@@ -60,7 +63,7 @@ pub(crate) fn add_float_div<W: Write + 'static>(
             if b.is_zero() {
                 xraise!(Err(ManagedXError::new("division by zero", rt)?))
             } else {
-                Ok(ManagedXValue::new(XValue::Float(a/b), rt)?.into())
+                Ok(ManagedXValue::new(XValue::Float(a / b), rt)?.into())
             }
         }),
     )
@@ -125,7 +128,9 @@ pub(crate) fn add_float_floor<W: Write + 'static>(
     scope.add_func(
         "floor",
         XFuncSpec::new(&[&X_FLOAT], X_INT.clone()),
-        ufunc!(Float, |a: &f64| Ok(XValue::Int(LazyBigint::from_f64(a.floor()).unwrap()))),
+        ufunc!(Float, |a: &f64| Ok(XValue::Int(
+            LazyBigint::from_f64(a.floor()).unwrap()
+        ))),
     )
 }
 
@@ -135,7 +140,9 @@ pub(crate) fn add_float_ceil<W: Write + 'static>(
     scope.add_func(
         "ceil",
         XFuncSpec::new(&[&X_FLOAT], X_INT.clone()),
-        ufunc!(Float, |a: &f64| Ok(XValue::Int(LazyBigint::from_f64(a.ceil()).unwrap()))),
+        ufunc!(Float, |a: &f64| Ok(XValue::Int(
+            LazyBigint::from_f64(a.ceil()).unwrap()
+        ))),
     )
 }
 
@@ -145,7 +152,9 @@ pub(crate) fn add_float_trunc<W: Write + 'static>(
     scope.add_func(
         "trunc",
         XFuncSpec::new(&[&X_FLOAT], X_INT.clone()),
-        ufunc!(Float, |a: &f64| Ok(XValue::Int(LazyBigint::from_f64(a.trunc()).unwrap()))),
+        ufunc!(Float, |a: &f64| Ok(XValue::Int(
+            LazyBigint::from_f64(a.trunc()).unwrap()
+        ))),
     )
 }
 
@@ -166,7 +175,7 @@ pub(crate) fn add_float_sqrt<W: Write + 'static>(
         "sqrt",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
         ufunc!(Float, |a: &f64| {
-            if *a < 0.0{
+            if *a < 0.0 {
                 Err("cannot find square root of negative number".to_string())
             } else {
                 Ok(XValue::Float(a.sqrt()))
@@ -182,11 +191,12 @@ pub(crate) fn add_float_to_str<W: Write + 'static>(
         "to_str",
         XFuncSpec::new(&[&X_FLOAT], X_STRING.clone()),
         ufunc!(Float, |a: &f64| {
-        Ok(XValue::String(format!(
-            "{:?}",
-            if *a == -0.0 { 0.0 } else { *a }
-        )))
-    }))
+            Ok(XValue::String(format!(
+                "{:?}",
+                if *a == -0.0 { 0.0 } else { *a }
+            )))
+        }),
+    )
 }
 
 add_binfunc!(add_float_cmp, cmp, X_FLOAT, Float, X_INT, |a, b| Ok(xcmp(

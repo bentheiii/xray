@@ -195,7 +195,10 @@ impl<W: Write + 'static> Drop for ManagedXError<W> {
 }
 
 impl<W: Write + 'static> ManagedXError<W> {
-    pub(crate) fn new<T: Into<String>>(error: T, runtime: RTCell<W>) -> Result<Rc<Self>, RuntimeError> {
+    pub(crate) fn new<T: Into<String>>(
+        error: T,
+        runtime: RTCell<W>,
+    ) -> Result<Rc<Self>, RuntimeError> {
         let size;
         let error = error.into();
         {

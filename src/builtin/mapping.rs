@@ -58,7 +58,10 @@ macro_rules! parse_hash {
     ($v: expr, $rt: expr) => {{
         xraise!(to_primitive!(xraise!($v.unwrap_value()), Int)
             .to_u64()
-            .ok_or($crate::xvalue::ManagedXError::new("hash is out of bounds", $rt)?))
+            .ok_or($crate::xvalue::ManagedXError::new(
+                "hash is out of bounds",
+                $rt
+            )?))
     }};
 }
 
@@ -85,12 +88,10 @@ impl<W: Write + 'static> XMapping<W> {
         let mut eq_func = None;
         let mut new_dict = self.inner.clone();
         for (k, v) in items {
-            let hash_key = parse_hash!(ns.eval_func_with_values(
-                hash_func,
-                vec![k.clone()],
-                rt.clone(),
-                false
-            )?, rt.clone());
+            let hash_key = parse_hash!(
+                ns.eval_func_with_values(hash_func, vec![k.clone()], rt.clone(), false)?,
+                rt.clone()
+            );
 
             let spot = new_dict.entry(hash_key);
             match spot {
@@ -244,12 +245,10 @@ pub(crate) fn add_mapping_lookup<W: Write + 'static>(
             let a1 = eval(&args[1], ns, &rt)?;
             let mapping = to_native!(a0, XMapping<W>);
             let hash_func = to_primitive!(mapping.hash_func, Function);
-            let hash_key = parse_hash!(ns.eval_func_with_values(
-                hash_func,
-                vec![a1.clone()],
-                rt.clone(),
-                false
-            )?, rt.clone());
+            let hash_key = parse_hash!(
+                ns.eval_func_with_values(hash_func, vec![a1.clone()], rt.clone(), false)?,
+                rt.clone()
+            );
             let spot = mapping.inner.get(&hash_key);
             match spot {
                 None => Ok(manage_native!(XOptional::<W> { value: None }, rt)),
@@ -296,12 +295,10 @@ pub(crate) fn add_mapping_get<W: Write + 'static>(
             let a1 = eval(&args[1], ns, &rt)?;
             let mapping = to_native!(a0, XMapping<W>);
             let hash_func = to_primitive!(mapping.hash_func, Function);
-            let hash_key = parse_hash!(ns.eval_func_with_values(
-                hash_func,
-                vec![a1.clone()],
-                rt.clone(),
-                false
-            )?, rt.clone());
+            let hash_key = parse_hash!(
+                ns.eval_func_with_values(hash_func, vec![a1.clone()], rt.clone(), false)?,
+                rt.clone()
+            );
             let spot = mapping.inner.get(&hash_key);
             match spot {
                 None => xraise!(Err(ManagedXError::new("key not found", rt)?)),
@@ -397,12 +394,10 @@ pub(crate) fn add_mapping_contains<W: Write + 'static>(
             let a1 = eval(&args[1], ns, &rt)?;
             let mapping = to_native!(a0, XMapping<W>);
             let hash_func = to_primitive!(mapping.hash_func, Function);
-            let hash_key = parse_hash!(ns.eval_func_with_values(
-                hash_func,
-                vec![a1.clone()],
-                rt.clone(),
-                false
-            )?, rt.clone());
+            let hash_key = parse_hash!(
+                ns.eval_func_with_values(hash_func, vec![a1.clone()], rt.clone(), false)?,
+                rt.clone()
+            );
             let spot = mapping.inner.get(&hash_key);
             let mut ret = false;
             if let Some(candidates) = spot {
@@ -443,12 +438,10 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
             let a1 = eval(&args[1], ns, &rt)?;
             let mapping = to_native!(a0, XMapping<W>);
             let hash_func = to_primitive!(mapping.hash_func, Function);
-            let hash_key = parse_hash!(ns.eval_func_with_values(
-                hash_func,
-                vec![a1.clone()],
-                rt.clone(),
-                false
-            )?, rt.clone());
+            let hash_key = parse_hash!(
+                ns.eval_func_with_values(hash_func, vec![a1.clone()], rt.clone(), false)?,
+                rt.clone()
+            );
             let spot = mapping.inner.get(&hash_key);
             let mut new_spot = None;
             if let Some(candidates) = spot {
@@ -509,12 +502,10 @@ pub(crate) fn add_mapping_discard<W: Write + 'static>(
             let a1 = eval(&args[1], ns, &rt)?;
             let mapping = to_native!(a0, XMapping<W>);
             let hash_func = to_primitive!(mapping.hash_func, Function);
-            let hash_key = parse_hash!(ns.eval_func_with_values(
-                hash_func,
-                vec![a1.clone()],
-                rt.clone(),
-                false
-            )?, rt.clone());
+            let hash_key = parse_hash!(
+                ns.eval_func_with_values(hash_func, vec![a1.clone()], rt.clone(), false)?,
+                rt.clone()
+            );
             let spot = mapping.inner.get(&hash_key);
             let mut new_spot = None;
             if let Some(candidates) = spot {

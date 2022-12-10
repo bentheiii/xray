@@ -22,7 +22,7 @@ pub(crate) fn add_unknown_eq<W: Write + 'static>(
 
         Ok(XFunctionFactoryOutput::from_native(
             XFuncSpec::new(&[&X_UNKNOWN, &X_UNKNOWN], X_BOOL.clone()),
-            move |_args, _ns, _tca, rt| xraise!(Err(ManagedXError::new("unknown eq applied",rt)?)),
+            move |_args, _ns, _tca, rt| xraise!(Err(ManagedXError::new("unknown eq applied", rt)?)),
         ))
     })
 }

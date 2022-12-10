@@ -1,7 +1,7 @@
 use crate::parser::Rule;
 use crate::xexpr::{XExpr, XStaticFunction};
-use crate::xtype::{CompoundKind, XCompoundSpec, XFuncSpec, XType};
-use crate::xvalue::{DynBind, XFunctionFactoryOutput};
+use crate::xtype::{XFuncSpec, XType};
+use crate::xvalue::XFunctionFactoryOutput;
 use crate::{CompilationError, Identifier, XRayParser};
 
 use std::collections::HashSet;
@@ -10,7 +10,7 @@ use std::convert::TryInto;
 use std::io::Write;
 
 use std::ops::Deref;
-use std::rc::Rc;
+
 use std::sync::Arc;
 use string_interner::StringInterner;
 

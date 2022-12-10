@@ -7,10 +7,10 @@ use std::io::Write;
 use std::mem;
 use std::rc::Rc;
 
+use crate::evaluation_scope::EvaluatedValue;
 use crate::runtime_err::RuntimeError;
 use crate::units::{ScopeDepth, StackDepth};
 use derivative::Derivative;
-use crate::evaluation_scope::EvaluatedValue;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]

@@ -2,16 +2,19 @@ use crate::builtin::core::{eval, ufunc_ref, xcmp};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
-use crate::{add_binfunc, manage_native, to_primitive, xraise, xraise_opt, CompilationError, XStaticFunction, ufunc};
+use crate::{
+    add_binfunc, manage_native, to_primitive, ufunc, xraise, xraise_opt, CompilationError,
+    XStaticFunction,
+};
 
 use num_traits::{Pow, Signed, ToPrimitive, Zero};
 
 use rc::Rc;
 
+use std::convert::TryFrom;
 use std::io::Write;
 use std::ops::Neg;
 use std::rc;
-use std::convert::TryFrom;
 
 use crate::root_compilation_scope::RootCompilationScope;
 use crate::util::lazy_bigint::LazyBigint;
@@ -171,8 +174,6 @@ pub(crate) fn add_int_hash<W: Write + 'static>(
 
 add_binfunc!(add_int_cmp, cmp, X_INT, Int, X_INT, |a, b| Ok(xcmp(a, b)));
 
-
-
 pub(crate) fn add_int_chr<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
@@ -180,7 +181,7 @@ pub(crate) fn add_int_chr<W: Write + 'static>(
         "chr",
         XFuncSpec::new(&[&X_INT], X_STRING.clone()),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
-            let a0 = xraise!(eval(&args[0], &ns, &rt)?);
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s = to_primitive!(a0, Int);
             let Some(ord) = s.to_u32() else {xraise!(Err(ManagedXError::new("number too large", rt)?))};
             let Ok(chr) = char::try_from(ord) else {xraise!(Err(ManagedXError::new("value is not a unicode char", rt)?))};

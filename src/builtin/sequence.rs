@@ -198,18 +198,22 @@ impl<W: Write + 'static> XNativeValue for XSequence<W> {
     }
 }
 
-fn value_to_idx<W: Write + 'static>(arr: &XSequence<W>, i: &LazyBigint, rt: RTCell<W>) -> Result<Result<usize, Rc<ManagedXError<W>>>, RuntimeError> {
+fn value_to_idx<W: Write + 'static>(
+    arr: &XSequence<W>,
+    i: &LazyBigint,
+    rt: RTCell<W>,
+) -> Result<Result<usize, Rc<ManagedXError<W>>>, RuntimeError> {
     // todo why is this not a method?
     let mut i = Cow::Borrowed(i);
     if i.is_negative() {
         i = Cow::Owned(i.into_owned() + LazyBigint::from(arr.len()));
         if i.is_negative() {
-            return Ok(Err(ManagedXError::new("index too low",rt)?));
+            return Ok(Err(ManagedXError::new("index too low", rt)?));
         }
     };
     let Some(idx) = i.to_usize() else { return Ok(Err(ManagedXError::new("index out of bounds",rt)?)) };
     if idx >= arr.len() {
-        return Ok(Err(ManagedXError::new("index out of bounds",rt)?));
+        return Ok(Err(ManagedXError::new("index out of bounds", rt)?));
     }
     Ok(Ok(idx))
 }
@@ -669,7 +673,7 @@ pub(crate) fn add_sequence_reduce2<W: Write + 'static>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let seq = to_native!(a0, XSequence<W>);
             if seq.is_empty() {
-                return xraise!(Err(ManagedXError::new("sequence is empty",rt)?));
+                return xraise!(Err(ManagedXError::new("sequence is empty", rt)?));
             }
             let f = to_primitive!(a1, Function);
             let mut ret = seq.get(0, ns, rt.clone())?;
@@ -808,7 +812,7 @@ pub(crate) fn add_sequence_nth<W: Write + 'static>(
             let original_arr = seq.slice(ns, rt.clone());
             let mut matches_left = to_primitive!(a1, Int).clone();
             if matches_left.is_zero() {
-                return xraise!(Err(ManagedXError::new("match_count must be non-zero",rt)?));
+                return xraise!(Err(ManagedXError::new("match_count must be non-zero", rt)?));
             }
             let arr = if matches_left.is_negative() {
                 matches_left = matches_left.neg();

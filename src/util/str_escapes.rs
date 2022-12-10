@@ -1,6 +1,5 @@
-use std::io::Write;
-use regex::{Regex};
 use crate::CompilationError;
+use regex::Regex;
 use std::convert::TryFrom;
 
 pub(crate) fn apply_escapes(origin: &str) -> Result<String, CompilationError> {
@@ -19,10 +18,14 @@ pub(crate) fn apply_escapes(origin: &str) -> Result<String, CompilationError> {
         ret.push({
             if let Some(bytecode) = caps[1].strip_prefix("u{").and_then(|s| s.strip_suffix('}')) {
                 if !BYTECODE.is_match_at(bytecode, 0) {
-                    return Err(CompilationError::BadEscapeSequence { sequence: caps[0].to_string() });
+                    return Err(CompilationError::BadEscapeSequence {
+                        sequence: caps[0].to_string(),
+                    });
                 }
                 char::try_from(u32::from_str_radix(bytecode, 16).unwrap()).map_err(|_| {
-                    CompilationError::BadEscapeSequence { sequence: caps[0].to_string() }
+                    CompilationError::BadEscapeSequence {
+                        sequence: caps[0].to_string(),
+                    }
                 })?
             } else {
                 match &caps[1] {
@@ -33,7 +36,11 @@ pub(crate) fn apply_escapes(origin: &str) -> Result<String, CompilationError> {
                     "\\" => '\\',
                     "\"" => '"',
                     "'" => '\'',
-                    _ => { return Err(CompilationError::BadEscapeSequence { sequence: caps[0].to_string() }); }
+                    _ => {
+                        return Err(CompilationError::BadEscapeSequence {
+                            sequence: caps[0].to_string(),
+                        });
+                    }
                 }
             }
         })
@@ -43,15 +50,15 @@ pub(crate) fn apply_escapes(origin: &str) -> Result<String, CompilationError> {
     Ok(ret)
 }
 
-pub(crate) fn apply_brace_escape(origin: &str)->String{
+pub(crate) fn apply_brace_escape(origin: &str) -> String {
     lazy_static! {
         static ref RE: Regex = Regex::new(r"(\{)\{|(\})\}").unwrap();
     }
-    RE.replace_all(&origin, r"$1$2").into_owned()
+    RE.replace_all(origin, r"$1$2").into_owned()
 }
 
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
 
     #[test]

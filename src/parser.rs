@@ -10,14 +10,14 @@ use std::collections::HashSet;
 use std::io::Write;
 use std::iter;
 use std::sync::Arc;
-use string_interner::{StringInterner, Symbol};
+use string_interner::StringInterner;
 
+use crate::util::str_escapes::{apply_brace_escape, apply_escapes};
 use crate::xtype::{CompoundKind, XFuncParamSpec};
 use pest::prec_climber::Assoc::{Left, Right};
 use pest::prec_climber::{Operator, PrecClimber};
 use std::iter::FromIterator;
 use std::rc::Rc;
-use crate::util::str_escapes::{apply_brace_escape, apply_escapes};
 
 #[derive(Parser)]
 #[grammar = "xray.pest"]
@@ -70,7 +70,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .clone()
                     .into_inner()
                     .next()
-                    .map(|et| self.get_complete_type(et, parent_gen_param_names, interner, None, false))
+                    .map(|et| {
+                        self.get_complete_type(et, parent_gen_param_names, interner, None, false)
+                    })
                     .transpose()?;
                 let expr = self.parse_expr(inners.next().unwrap(), interner)?;
                 let compiled = self.compile(expr).map_err(|e| e.trace(&input))?;
@@ -110,16 +112,19 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 });
                 let params = match inners.next().unwrap().into_inner().next() {
                     None => vec![],
-                    Some(param_pairs) => {
-                        self.parse_param_specs(param_pairs, &gen_param_names, interner, Some(fn_symbol))?
-                    }
+                    Some(param_pairs) => self.parse_param_specs(
+                        param_pairs,
+                        &gen_param_names,
+                        interner,
+                        Some(fn_symbol),
+                    )?,
                 };
                 let rtype = self.get_complete_type(
                     inners.next().unwrap(),
                     &gen_param_names,
                     interner,
                     None,
-                    false
+                    false,
                 )?;
                 let body = inners.next().unwrap();
                 let (param_names, param_specs, param_static_defaults): (Vec<_>, Vec<_>, Vec<_>) =
@@ -211,7 +216,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             &gen_param_names,
                             interner,
                             Some(var_name),
-                            false
+                            false,
                         )?;
                         Ok(XCompoundFieldSpec {
                             name: name.to_string(),
@@ -259,7 +264,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                             generic_param_names,
                                             interner,
                                             tail_name,
-                                            false
+                                            false,
                                         )
                                     })
                                     .collect::<Result<Vec<_>, _>>()
@@ -271,7 +276,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             generic_param_names,
                             interner,
                             tail_name,
-                            false
+                            false,
                         )?;
                         Ok(Arc::new(XType::XCallable(XCallableSpec {
                             param_types,
@@ -291,7 +296,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                             generic_param_names,
                                             interner,
                                             tail_name,
-                                            false
+                                            false,
                                         )
                                     })
                                     .collect::<Result<Vec<_>, _>>()?;
@@ -300,7 +305,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         }
                     }
                     Rule::auto_type => {
-                        if auto_allowed{
+                        if auto_allowed {
                             Ok(Arc::new(XType::Auto))
                         } else {
                             Err(CompilationError::InvalidAutoLocation.trace(&part1))
@@ -319,7 +324,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                             generic_param_names,
                                             interner,
                                             tail_name,
-                                            false
+                                            false,
                                         )
                                     })
                                     .collect::<Result<Vec<_>, _>>()
@@ -547,32 +552,30 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             Rule::CNAME => {
                 return Ok(XStaticExpr::Ident(interner.get_or_intern(input.as_str())));
             }
-            Rule::STRING => {
-                Ok(XStaticExpr::LiteralString(
-                    apply_escapes(input.clone().into_inner().next().unwrap().as_str()).map_err(|e| e.trace(&input))?,
-                ))
-            }
-            Rule::RAW_STRING => {
-                Ok(XStaticExpr::LiteralString(
-                    input.into_inner().next().unwrap().as_str().to_string(),
-                ))
-            }
+            Rule::STRING => Ok(XStaticExpr::LiteralString(
+                apply_escapes(input.clone().into_inner().next().unwrap().as_str())
+                    .map_err(|e| e.trace(&input))?,
+            )),
+            Rule::RAW_STRING => Ok(XStaticExpr::LiteralString(
+                input.into_inner().next().unwrap().as_str().to_string(),
+            )),
             Rule::FORMATTED_STRING => {
                 let add_sym = interner.get_or_intern_static("add");
                 let to_str_sym = interner.get_or_intern_static("to_str");
                 let mut ret = None;
-                for part in input.into_inner().next().unwrap().into_inner(){
+                for part in input.into_inner().next().unwrap().into_inner() {
                     let expr = match part.as_rule() {
-                        Rule::expression => XStaticExpr::new_call_sym(to_str_sym, vec![self.parse_expr(part,interner)?]),
-                        _ => XStaticExpr::LiteralString(
-                            apply_brace_escape(
-                                &apply_escapes(part.clone().as_str()).map_err(|e| e.trace(&part))?
-                            ),
-                        )
+                        Rule::expression => XStaticExpr::new_call_sym(
+                            to_str_sym,
+                            vec![self.parse_expr(part, interner)?],
+                        ),
+                        _ => XStaticExpr::LiteralString(apply_brace_escape(
+                            &apply_escapes(part.clone().as_str()).map_err(|e| e.trace(&part))?,
+                        )),
                     };
-                    ret = Some(match ret{
+                    ret = Some(match ret {
                         None => expr,
-                        Some(prev) => XStaticExpr::new_call_sym(add_sym, vec![prev, expr])
+                        Some(prev) => XStaticExpr::new_call_sym(add_sym, vec![prev, expr]),
                     });
                 }
                 Ok(ret.unwrap_or_else(|| XStaticExpr::LiteralString("".to_string())))
@@ -662,7 +665,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         param_pairs: Pair<Rule>,
         gen_param_names: &HashSet<String>,
         interner: &mut StringInterner,
-        function_name: Option<Identifier>
+        function_name: Option<Identifier>,
     ) -> Result<ParamSpecs, TracedCompilationError> {
         let ret = param_pairs
             .clone()
@@ -676,7 +679,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     gen_param_names,
                     interner,
                     None,
-                    false
+                    false,
                 )?;
                 let default = param_iter
                     .next()
@@ -689,16 +692,16 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             })
             .collect::<Result<Vec<_>, _>>()?;
         if let Some((out_of_order_param_name, ..)) = ret
-                    .iter()
-                    .skip_while(|(.., default)| default.is_none())
-                    .find(|(.., default)| default.is_none())
-                {
-                    return Err(CompilationError::RequiredParamsAfterOptionalParams {
-                        function_name: function_name,
-                        param_name: *out_of_order_param_name,
-                    }
-                    .trace(&param_pairs));
-                }
+            .iter()
+            .skip_while(|(.., default)| default.is_none())
+            .find(|(.., default)| default.is_none())
+        {
+            return Err(CompilationError::RequiredParamsAfterOptionalParams {
+                function_name,
+                param_name: *out_of_order_param_name,
+            }
+            .trace(&param_pairs));
+        }
         Ok(ret)
     }
 }

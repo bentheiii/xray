@@ -319,10 +319,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             .or_else(|| self.parent.and_then(|p| p.get_type(name)))
     }
 
-    pub(crate) fn compile(
-        &mut self,
-        stat_expr: XStaticExpr,
-    ) -> Result<XExpr<W>, CompilationError> {
+    pub(crate) fn compile(&mut self, stat_expr: XStaticExpr) -> Result<XExpr<W>, CompilationError> {
         match stat_expr {
             XStaticExpr::LiteralBool(v) => Ok(XExpr::LiteralBool(v)),
             XStaticExpr::LiteralInt(v) => Ok(XExpr::LiteralInt(v)),
@@ -538,8 +535,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     }
                     XStaticExpr::SpecializedIdent(name, turbofish, bind_types) => {
                         // special case, call to specialized function
-                        let overloads = self.get_overloads(&name);
-                        if !overloads.is_empty(){
+                        let overloads = self.get_overloads(name);
+                        if !overloads.is_empty() {
                             let overload = self.resolve_overload(
                                 overloads,
                                 Some(&args),
@@ -693,20 +690,18 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
         assert!(arg_types.is_some() || dynamic_bind_types.is_some());
         let arg_types = match arg_types {
-            None=> None,
-            Some(at)=>{
+            None => None,
+            Some(at) => {
                 let mut new_types = vec![];
-                for (i, t) in at.iter().enumerate(){
-                    new_types.push(
-                        if let XType::Auto = t.as_ref(){
-                            match args{
-                                None => return Err(CompilationError::AutoSpecializationWithoutCall),
-                                Some(args) => self.type_of(&args[i])?
-                            }
-                        } else {
-                            t.clone()
+                for (i, t) in at.iter().enumerate() {
+                    new_types.push(if let XType::Auto = t.as_ref() {
+                        match args {
+                            None => return Err(CompilationError::AutoSpecializationWithoutCall),
+                            Some(args) => self.type_of(&args[i])?,
                         }
-                    )
+                    } else {
+                        t.clone()
+                    })
                 }
                 Some(new_types)
             }
@@ -715,7 +710,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         let mut exact_matches = vec![];
         let mut generic_matches = vec![];
         let mut dynamic_failures = vec![];
-        let is_unknown = arg_types.as_ref().map_or(true, |t| t.iter().any(|t| t.is_unknown()));
+        let is_unknown = arg_types
+            .as_ref()
+            .map_or(true, |t| t.iter().any(|t| t.is_unknown()));
         // if the bindings are unknown, then we prefer generic solutions over exact solutions
         for (height, overload) in overloads {
             let (spec, considered, is_generic) = match &overload {
@@ -748,7 +745,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             };
             let b = arg_types.as_ref().map_or_else(
                 || Some(Default::default()),
-                |arg_types| spec.bind(&arg_types),
+                |arg_types| spec.bind(arg_types),
             );
             if let Some(_bind) = b {
                 if spec.short_circuit_overloads {

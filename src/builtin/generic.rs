@@ -1,7 +1,10 @@
 use crate::xexpr::XExpr;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
-use crate::{to_primitive, unpack_types, xraise, xraise_opt, CompilationError, RootCompilationScope, XStaticFunction, XType, ufunc};
+use crate::{
+    to_primitive, ufunc, unpack_types, xraise, xraise_opt, CompilationError, RootCompilationScope,
+    XStaticFunction, XType,
+};
 use rc::Rc;
 
 use crate::builtin::core::{eval, eval_resolved_func, get_func};

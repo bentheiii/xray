@@ -2,7 +2,10 @@ use crate::builtin::core::{eval, xcmp};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
-use crate::{add_binfunc, manage_native, to_primitive, xraise, CompilationError, RootCompilationScope, XStaticFunction, ufunc};
+use crate::{
+    add_binfunc, manage_native, to_primitive, ufunc, xraise, CompilationError,
+    RootCompilationScope, XStaticFunction,
+};
 use num_traits::{One, Zero};
 use rc::Rc;
 
@@ -43,7 +46,7 @@ pub(crate) fn add_bool_assert<W: Write + 'static>(
                     }
                     _ => "assertion is untrue".to_string(),
                 };
-                Ok(Err(ManagedXError::new(msg,rt)?).into())
+                Ok(Err(ManagedXError::new(msg, rt)?).into())
             }
         }),
     )
@@ -55,7 +58,7 @@ pub(crate) fn add_bool_not<W: Write + 'static>(
     scope.add_func(
         "not",
         XFuncSpec::new(&[&X_BOOL], X_BOOL.clone()),
-        ufunc!(Bool, |a: &bool| {Ok(XValue::Bool(!a))}),
+        ufunc!(Bool, |a: &bool| { Ok(XValue::Bool(!a)) }),
     )
 }
 
@@ -122,7 +125,9 @@ pub(crate) fn add_bool_hash<W: Write + 'static>(
     scope.add_func(
         "hash",
         XFuncSpec::new(&[&X_BOOL], X_INT.clone()),
-        ufunc!(Bool, |a: &bool| {Ok(XValue::Int(if *a { One::one() } else { Zero::zero() }))}),
+        ufunc!(Bool, |a: &bool| {
+            Ok(XValue::Int(if *a { One::one() } else { Zero::zero() }))
+        }),
     )
 }
 
@@ -132,9 +137,11 @@ pub(crate) fn add_bool_to_str<W: Write + 'static>(
     scope.add_func(
         "to_str",
         XFuncSpec::new(&[&X_BOOL], X_STRING.clone()),
-        ufunc!(Bool, |a: &bool| {Ok(XValue::String(
-            if *a { "true" } else { "false" }.to_string(),
-        ))}),
+        ufunc!(Bool, |a: &bool| {
+            Ok(XValue::String(
+                if *a { "true" } else { "false" }.to_string(),
+            ))
+        }),
     )
 }
 

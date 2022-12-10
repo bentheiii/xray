@@ -14,8 +14,6 @@ use std::ops::Neg;
 use std::rc::Rc;
 use std::sync::Arc;
 
-
-
 #[macro_export]
 macro_rules! xraise {
     ($e: expr) => {{
@@ -41,9 +39,9 @@ macro_rules! add_binfunc {
                     let v0 = to_primitive!(a0, $operand_variant);
                     let v1 = to_primitive!(a1, $operand_variant);
                     let result: Result<_, String> = $func(v0, v1);
-                    let result = match result{
+                    let result = match result {
                         Ok(v) => Ok(v),
-                        Err(s) => Err($crate::xvalue::ManagedXError::new(s, rt.clone())?)
+                        Err(s) => Err($crate::xvalue::ManagedXError::new(s, rt.clone())?),
                     };
                     Ok(ManagedXValue::from_result(result, rt)?.into())
                 }),
@@ -52,8 +50,10 @@ macro_rules! add_binfunc {
     };
 }
 
-pub fn ufunc_ref<W: Write + 'static, F>(func: F) ->XStaticFunction<W>
-    where F: Fn(Rc<ManagedXValue<W>>, RTCell<W>) -> Result<TailedEvalResult<W>, RuntimeError> + 'static {
+pub fn ufunc_ref<W: Write + 'static, F>(func: F) -> XStaticFunction<W>
+where
+    F: Fn(Rc<ManagedXValue<W>>, RTCell<W>) -> Result<TailedEvalResult<W>, RuntimeError> + 'static,
+{
     XStaticFunction::from_native(move |args, ns, _tca, rt| {
         let a0 = xraise!(eval(&args[0], ns, &rt)?);
         func(a0, rt)
@@ -63,14 +63,16 @@ pub fn ufunc_ref<W: Write + 'static, F>(func: F) ->XStaticFunction<W>
 #[macro_export]
 macro_rules! ufunc {
     ($operand_variant:ident, $func:expr) => {{
-        $crate::builtin::core::ufunc_ref(|a: Rc<ManagedXValue<W>>, rt: $crate::runtime::RTCell<W>| {
-            let result: Result<_, String> = $func(to_primitive!(a, $operand_variant));
-            let result = match result{
-                Ok(v) => Ok(v),
-                Err(s) => Err($crate::xvalue::ManagedXError::new(s, rt.clone())?)
-            };
-            Ok(ManagedXValue::from_result(result, rt)?.into())
-        })
+        $crate::builtin::core::ufunc_ref(
+            |a: Rc<ManagedXValue<W>>, rt: $crate::runtime::RTCell<W>| {
+                let result: Result<_, String> = $func(to_primitive!(a, $operand_variant));
+                let result = match result {
+                    Ok(v) => Ok(v),
+                    Err(s) => Err($crate::xvalue::ManagedXError::new(s, rt.clone())?),
+                };
+                Ok(ManagedXValue::from_result(result, rt)?.into())
+            },
+        )
     }};
 }
 
