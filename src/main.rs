@@ -10,7 +10,7 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    let z = f"a {1+10}";
+    let z = [1,2,3].zip("abcd".chars()) == [(1,"a"), (2,"b"), (3, "c")];
     "###;
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()
