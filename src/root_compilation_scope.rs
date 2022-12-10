@@ -21,36 +21,6 @@ use derivative::Derivative;
 
 use crate::compilation_scope::CompilationScope;
 
-#[derive(Derivative)]
-#[derivative(Debug(bound = ""))]
-pub enum XFunctionFactory<W: Write + 'static> {
-    Static(Rc<XStaticFunction<W>>),
-    // todo is this ever constructed?
-    Dynamic(#[derivative(Debug = "ignore")] DynBind<W>),
-}
-
-impl<W: Write + 'static> Clone for XFunctionFactory<W> {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Static(rc) => Self::Static(rc.clone()),
-            Self::Dynamic(rc) => Self::Dynamic(rc.clone()),
-        }
-    }
-}
-
-#[derive(Derivative, Clone)]
-#[derivative(Debug(bound = ""))]
-// todo check pub
-pub struct OverloadWithHeight<W: Write + 'static>(pub usize, pub XFunctionFactory<W>);
-
-#[derive(Derivative)]
-#[derivative(Debug(bound = ""))]
-pub enum XCompilationScopeItem {
-    Value(usize, Arc<XType>),
-    NativeType(Arc<XType>),
-    Compound(CompoundKind, Arc<XCompoundSpec>),
-}
-
 /// these will always point to variable cells
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Debug(bound = ""))]

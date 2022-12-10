@@ -1,5 +1,4 @@
 use crate::parser::Rule;
-use crate::root_compilation_scope::XCompilationScopeItem;
 use crate::xexpr::XExpr;
 use crate::xtype::CompoundKind;
 use crate::Identifier;
@@ -47,15 +46,7 @@ pub enum CompilationError {
         expected_count: usize,
         actual_count: usize,
     },
-    ValueIsNotType {
-        name: Identifier,
-        item: XCompilationScopeItem,
-    },
     PairNotType,
-    NameAlreadyDefined {
-        name: Identifier,
-        other: XCompilationScopeItem,
-    },
     AmbiguousOverload {
         name: Identifier,
         is_generic: bool,
@@ -83,10 +74,6 @@ pub enum CompilationError {
         struct_name: Identifier,
         expected_types: Vec<Arc<XType>>,
         actual_types: Vec<Arc<XType>>,
-    },
-    NonFunctionSpecialization {
-        name: Identifier,
-        item: XCompilationScopeItem,
     },
     SpecializedFunctionTypeMismatch {
         name: Identifier,
@@ -165,18 +152,6 @@ impl Resolve for XCompoundSpec {
     type Output = String;
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
         interner.resolve(self.name).unwrap().to_string()
-    }
-}
-
-impl Resolve for XCompilationScopeItem {
-    type Output = ResolvedCompilationScopeItem;
-
-    fn resolve(&self, interner: &StringInterner) -> Self::Output {
-        match self {
-            Self::Value(_, t) => ResolvedCompilationScopeItem::Value(t.resolve(interner)),
-            Self::NativeType(..) => ResolvedCompilationScopeItem::NativeType,
-            Self::Compound(k, ..) => ResolvedCompilationScopeItem::Compound(*k),
-        }
     }
 }
 
@@ -259,9 +234,7 @@ impl Resolve for CompilationError {
                 expected_count,
                 actual_count,
             },
-            ValueIsNotType { name, item },
             PairNotType {},
-            NameAlreadyDefined { name, other },
             AmbiguousOverload {
                 name,
                 is_generic,
@@ -290,7 +263,6 @@ impl Resolve for CompilationError {
                 expected_types,
                 actual_types,
             },
-            NonFunctionSpecialization { name, item },
             SpecializedFunctionTypeMismatch {
                 name,
                 idx,
@@ -355,25 +327,6 @@ impl Display for ResolvedType {
     }
 }
 
-pub enum ResolvedCompilationScopeItem {
-    Value(ResolvedType),
-    NativeType,
-    Compound(CompoundKind),
-    Overloads(usize),
-}
-
-impl Display for ResolvedCompilationScopeItem {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Value(t) => write!(f, "variable of type {t}"),
-            Self::NativeType => write!(f, "native type"),
-            Self::Compound(k) => write!(f, "{k}"),
-            Self::Overloads(1) => write!(f, "function"),
-            Self::Overloads(len) => write!(f, "{len} overloaded functions"),
-        }
-    }
-}
-
 #[derive(IntoStaticStr)]
 pub enum ResolvedCompilationError {
     VariableTypeMismatch {
@@ -398,15 +351,7 @@ pub enum ResolvedCompilationError {
         expected_count: usize,
         actual_count: usize,
     },
-    ValueIsNotType {
-        name: String,
-        item: ResolvedCompilationScopeItem,
-    },
     PairNotType,
-    NameAlreadyDefined {
-        name: String,
-        other: ResolvedCompilationScopeItem,
-    },
     AmbiguousOverload {
         name: String,
         is_generic: bool,
@@ -434,10 +379,6 @@ pub enum ResolvedCompilationError {
         struct_name: String,
         expected_types: Vec<ResolvedType>,
         actual_types: Vec<ResolvedType>,
-    },
-    NonFunctionSpecialization {
-        name: String,
-        item: ResolvedCompilationScopeItem,
     },
     SpecializedFunctionTypeMismatch {
         name: String,
@@ -540,14 +481,8 @@ impl Display for ResolvedCompilationError {
                     "Type {type_name} has {actual_count} generic parameters, but expected {expected_count}"
                 )
             }
-            Self::ValueIsNotType { name, item } => {
-                write!(f, "{name} is not of type (found {item})",)
-            }
             Self::PairNotType => {
                 write!(f, "Expression cannot be interpreted as a type",)
-            }
-            Self::NameAlreadyDefined { name, other } => {
-                write!(f, "Name {name} is already defined as {other}")
             }
             Self::AmbiguousOverload {
                 name,
@@ -623,9 +558,6 @@ impl Display for ResolvedCompilationError {
                     actual_types.iter().join(", "),
                     expected_types.iter().join(", ")
                 )
-            }
-            Self::NonFunctionSpecialization { name, item } => {
-                write!(f, "Cannot specialize non-function {name} (found {item})",)
             }
             Self::SpecializedFunctionTypeMismatch {
                 name,

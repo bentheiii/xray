@@ -52,27 +52,26 @@ pub(crate) fn apply_brace_escape(origin: &str)->String{
 
 #[cfg(test)]
 mod tests{
-    use std::io::Stdout;
     use super::*;
 
     #[test]
     fn test_simple() {
-        assert_eq!(apply_escapes::<Stdout>("abc").unwrap(), "abc")
+        assert_eq!(apply_escapes("abc").unwrap(), "abc")
     }
 
     #[test]
     fn test_complex() {
-        assert_eq!(apply_escapes::<Stdout>(r"a\nb\'c").unwrap(), "a\nb\'c")
+        assert_eq!(apply_escapes(r"a\nb\'c").unwrap(), "a\nb\'c")
     }
 
     #[test]
     fn test_slashes() {
-        assert_eq!(apply_escapes::<Stdout>(r"a\\b\\c").unwrap(), "a\\b\\c")
+        assert_eq!(apply_escapes(r"a\\b\\c").unwrap(), "a\\b\\c")
     }
 
     #[test]
     fn test_unicode() {
-        assert_eq!(apply_escapes::<Stdout>(r"a\u{1Ab}b\u{0}c").unwrap(), "a\u{1Ab}b\0c")
+        assert_eq!(apply_escapes(r"a\u{1Ab}b\u{0}c").unwrap(), "a\u{1Ab}b\0c")
     }
 
     #[test]
