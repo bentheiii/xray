@@ -181,7 +181,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         name: Identifier,
         spec: XFuncSpec,
         func: XStaticFunction<W>,
-    ) -> Result<(), CompilationError<W>> {
+    ) -> Result<(), CompilationError> {
         // todo assert that no values/types use the identifier
         let cell_idx = self.cells.ipush(Cell::Variable(spec.xtype()));
         self.functions
@@ -197,7 +197,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         &mut self,
         spec: XFuncSpec,
         func: XStaticFunction<W>,
-    ) -> Result<XExpr<W>, CompilationError<W>> {
+    ) -> Result<XExpr<W>, CompilationError> {
         let cell_idx = self.cells.ipush(Cell::Variable(spec.xtype()));
         self.declarations
             .push(Declaration::Function { cell_idx, func });
@@ -214,7 +214,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 Option<&[Arc<XType>]>,
             ) -> Result<XFunctionFactoryOutput<W>, String>
             + 'static,
-    ) -> Result<(), CompilationError<W>> {
+    ) -> Result<(), CompilationError> {
         // todo assert that no values/types use the identifier
         self.functions
             .entry(name)
@@ -228,7 +228,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         name: Identifier,
         expr: XExpr<W>,
         xtype: Arc<XType>,
-    ) -> Result<(), CompilationError<W>> {
+    ) -> Result<(), CompilationError> {
         // todo assert that no overloads/types use the identifier
         let cell_idx = self.cells.ipush(Cell::Variable(xtype));
         self.variables.insert(name, cell_idx);
@@ -251,7 +251,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         &mut self,
         name: Identifier,
         type_: Arc<XType>,
-    ) -> Result<(), CompilationError<W>> {
+    ) -> Result<(), CompilationError> {
         // todo assert that no overloads/variable use the identifier
         self.types.insert(name, type_);
         Ok(())
@@ -262,7 +262,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         name: Identifier,
         kind: CompoundKind,
         struct_spec: XCompoundSpec,
-    ) -> Result<(), CompilationError<W>> {
+    ) -> Result<(), CompilationError> {
         // todo assert that no overloads/variable use the identifier
         self.types.insert(
             name,
@@ -322,7 +322,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     pub(crate) fn compile(
         &mut self,
         stat_expr: XStaticExpr,
-    ) -> Result<XExpr<W>, CompilationError<W>> {
+    ) -> Result<XExpr<W>, CompilationError> {
         match stat_expr {
             XStaticExpr::LiteralBool(v) => Ok(XExpr::LiteralBool(v)),
             XStaticExpr::LiteralInt(v) => Ok(XExpr::LiteralInt(v)),
@@ -558,7 +558,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         }
     }
 
-    pub(crate) fn type_of(&self, expr: &XExpr<W>) -> Result<Arc<XType>, CompilationError<W>> {
+    pub(crate) fn type_of(&self, expr: &XExpr<W>) -> Result<Arc<XType>, CompilationError> {
         match expr {
             XExpr::LiteralBool(..) => Ok(X_BOOL.clone()),
             XExpr::LiteralInt(..) => Ok(X_INT.clone()),
@@ -648,7 +648,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         &mut self,
         name: &Identifier,
         arg_types: &[Arc<XType>],
-    ) -> Result<XExpr<W>, CompilationError<W>> {
+    ) -> Result<XExpr<W>, CompilationError> {
         let overloads = self.get_overloads(name);
         self.resolve_overload(overloads, None, Some(arg_types), None, *name)
     }
@@ -661,7 +661,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         arg_types: Option<&[Arc<XType>]>,
         dynamic_bind_types: Option<&[Arc<XType>]>,
         name: Identifier,
-    ) -> Result<XExpr<W>, CompilationError<W>> {
+    ) -> Result<XExpr<W>, CompilationError> {
         #[derive(Derivative)]
         #[derivative(Debug(bound = ""))]
         enum OverloadToConsider<W: Write + 'static> {

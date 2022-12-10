@@ -18,7 +18,7 @@ use crate::util::lazy_bigint::LazyBigint;
 
 pub(crate) fn add_int_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_native_type("int", X_INT.clone())
 }
 
@@ -101,7 +101,7 @@ add_binfunc!(add_int_ge, ge, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
 
 pub(crate) fn add_int_neg<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "neg",
         XFuncSpec::new(&[&X_INT], X_INT.clone()),
@@ -111,7 +111,7 @@ pub(crate) fn add_int_neg<W: Write + 'static>(
 
 pub(crate) fn add_int_to_str<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "to_str",
         XFuncSpec::new(&[&X_INT], X_STRING.clone()),
@@ -121,7 +121,7 @@ pub(crate) fn add_int_to_str<W: Write + 'static>(
 
 pub(crate) fn add_int_digits<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "digits",
         XFuncSpec::new_with_optional(&[&X_INT], &[&X_INT], XSequenceType::xtype(X_INT.clone())),
@@ -154,7 +154,7 @@ pub(crate) fn add_int_digits<W: Write + 'static>(
 
 pub(crate) fn add_int_hash<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "hash",
         XFuncSpec::new(&[&X_INT], X_INT.clone()),
@@ -175,7 +175,7 @@ add_binfunc!(add_int_cmp, cmp, X_INT, Int, X_INT, |a, b| Ok(xcmp(a, b)));
 
 pub(crate) fn add_int_chr<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "chr",
         XFuncSpec::new(&[&X_INT], X_STRING.clone()),

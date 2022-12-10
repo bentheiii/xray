@@ -10,7 +10,7 @@ use std::collections::HashSet;
 use std::io::Write;
 use std::iter;
 use std::sync::Arc;
-use string_interner::StringInterner;
+use string_interner::{StringInterner, Symbol};
 
 use crate::xtype::{CompoundKind, XFuncParamSpec};
 use pest::prec_climber::Assoc::{Left, Right};
@@ -53,7 +53,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         input: Pair<Rule>,
         parent_gen_param_names: &HashSet<String>,
         interner: &mut StringInterner,
-    ) -> Result<(), TracedCompilationError<W>> {
+    ) -> Result<(), TracedCompilationError> {
         match input.as_rule() {
             Rule::header | Rule::top_level_execution | Rule::execution | Rule::declaration => {
                 for inner in input.into_inner() {
@@ -111,27 +111,15 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let params = match inners.next().unwrap().into_inner().next() {
                     None => vec![],
                     Some(param_pairs) => {
-                        self.parse_param_specs(param_pairs, &gen_param_names, interner)?
+                        self.parse_param_specs(param_pairs, &gen_param_names, interner, Some(fn_symbol))?
                     }
                 };
-                // check that there are no required params after optional ones
-                if let Some((out_of_order_param_name, ..)) = params
-                    .iter()
-                    .skip_while(|(.., default)| default.is_none())
-                    .find(|(.., default)| default.is_none())
-                {
-                    return Err(CompilationError::RequiredParamsAfterOptionalParams {
-                        function_name: Some(fn_symbol),
-                        param_name: *out_of_order_param_name,
-                    }
-                    .trace(&input));
-                }
                 let rtype = self.get_complete_type(
                     inners.next().unwrap(),
                     &gen_param_names,
                     interner,
                     None,
-                    false // todo yes?
+                    false
                 )?;
                 let body = inners.next().unwrap();
                 let (param_names, param_specs, param_static_defaults): (Vec<_>, Vec<_>, Vec<_>) =
@@ -159,7 +147,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .filter_map(|s| s.map(|s| self.compile(s)))
                     .collect::<Result<_, _>>()
                     .map_err(|e| e.trace(&input))?;
-                let param_len = param_names.len(); // todo make it so we don't need this
+                let param_len = param_names.len();
                 let mut subscope =
                     CompilationScope::from_parent(self, param_names, fn_symbol, spec.clone());
                 let mut body_iter = body.clone().into_inner();
@@ -251,7 +239,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         interner: &mut StringInterner,
         tail_name: Option<&str>,
         auto_allowed: bool,
-    ) -> Result<Arc<XType>, TracedCompilationError<W>> {
+    ) -> Result<Arc<XType>, TracedCompilationError> {
         match input.as_rule() {
             Rule::complete_type => {
                 let mut inners = input.clone().into_inner();
@@ -398,7 +386,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         &mut self,
         input: Pair<Rule>,
         interner: &mut StringInterner,
-    ) -> Result<XStaticExpr, TracedCompilationError<W>> {
+    ) -> Result<XStaticExpr, TracedCompilationError> {
         match input.as_rule() {
             Rule::expression => {
                 let (
@@ -648,21 +636,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         c,
                         &HashSet::new(), // todo
                         interner,
+                        None,
                     )?,
                 };
-                // check that there are no required params after optional ones
-                // todo add this logic to parse_param_specs
-                if let Some((out_of_order_param_name, ..)) = params
-                    .iter()
-                    .skip_while(|(.., default)| default.is_none())
-                    .find(|(.., default)| default.is_none())
-                {
-                    return Err(CompilationError::RequiredParamsAfterOptionalParams {
-                        function_name: None,
-                        param_name: *out_of_order_param_name,
-                    }
-                    .trace(&input));
-                }
                 let body = iter.next().unwrap();
                 let ret = self.parse_expr(body.clone(), interner)?;
                 let params = params
@@ -686,10 +662,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         param_pairs: Pair<Rule>,
         gen_param_names: &HashSet<String>,
         interner: &mut StringInterner,
-    ) -> Result<ParamSpecs, TracedCompilationError<W>> {
-        param_pairs
+        function_name: Option<Identifier>
+    ) -> Result<ParamSpecs, TracedCompilationError> {
+        let ret = param_pairs
+            .clone()
             .into_inner()
-            .map(|p| -> Result<_, TracedCompilationError<W>> {
+            .map(|p| -> Result<_, TracedCompilationError> {
                 let mut param_iter = p.clone().into_inner();
                 let param_name = param_iter.next().unwrap().as_str();
                 let name = interner.get_or_intern(param_name);
@@ -709,6 +687,18 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .transpose()?;
                 Ok((name, type_, default))
             })
-            .collect::<Result<Vec<_>, _>>()
+            .collect::<Result<Vec<_>, _>>()?;
+        if let Some((out_of_order_param_name, ..)) = ret
+                    .iter()
+                    .skip_while(|(.., default)| default.is_none())
+                    .find(|(.., default)| default.is_none())
+                {
+                    return Err(CompilationError::RequiredParamsAfterOptionalParams {
+                        function_name: function_name,
+                        param_name: *out_of_order_param_name,
+                    }
+                    .trace(&param_pairs));
+                }
+        Ok(ret)
     }
 }

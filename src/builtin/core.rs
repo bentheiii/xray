@@ -31,7 +31,7 @@ macro_rules! add_binfunc {
     ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
         pub(crate) fn $fn_name<W: Write + 'static>(
             scope: &mut RootCompilationScope<W>,
-        ) -> Result<(), $crate::CompilationError<W>> {
+        ) -> Result<(), $crate::CompilationError> {
             scope.add_func(
                 stringify!($name),
                 XFuncSpec::new(&[&$operand_type, &$operand_type], $return_type.clone()),
@@ -186,7 +186,7 @@ pub(super) fn get_func<W: Write + 'static>(
 ) -> Result<XExpr<W>, String> {
     let ret = scope
         .get_func(&symbol, arguments)
-        .map_err(|e| format!("{e:?}"))?; // todo improve error here
+        .map_err(|e| format!("{e:?}"))?;
     let ret_xtype = scope.type_of(&ret).unwrap();
     let func_spec = if let XType::XFunc(spec) = ret_xtype.as_ref() {
         spec

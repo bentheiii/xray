@@ -45,11 +45,10 @@ pub struct OverloadWithHeight<W: Write + 'static>(pub usize, pub XFunctionFactor
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub enum XCompilationScopeItem<W: Write + 'static> {
+pub enum XCompilationScopeItem {
     Value(usize, Arc<XType>),
     NativeType(Arc<XType>),
     Compound(CompoundKind, Arc<XCompoundSpec>),
-    Overload(Vec<OverloadWithHeight<W>>),
 }
 
 /// these will always point to variable cells
@@ -87,7 +86,7 @@ impl<W: Write + 'static> RootCompilationScope<W> {
         &mut self,
         name: &'static str,
         type_: Arc<XType>,
-    ) -> Result<(), CompilationError<W>> {
+    ) -> Result<(), CompilationError> {
         self.scope
             .add_native_type(self.interner.get_or_intern_static(name), type_)
     }
@@ -97,7 +96,7 @@ impl<W: Write + 'static> RootCompilationScope<W> {
         name: &'static str,
         spec: XFuncSpec,
         func: XStaticFunction<W>,
-    ) -> Result<(), CompilationError<W>> {
+    ) -> Result<(), CompilationError> {
         self.scope
             .add_static_func(self.interner.get_or_intern_static(name), spec, func)
     }
@@ -112,7 +111,7 @@ impl<W: Write + 'static> RootCompilationScope<W> {
                 Option<&[Arc<XType>]>,
             ) -> Result<XFunctionFactoryOutput<W>, String>
             + 'static,
-    ) -> Result<(), CompilationError<W>> {
+    ) -> Result<(), CompilationError> {
         self.scope
             .add_dynamic_func(self.interner.get_or_intern_static(name), func)
             .map(|_| ())

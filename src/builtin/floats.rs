@@ -13,7 +13,7 @@ use std::rc;
 
 pub(crate) fn add_float_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_native_type("float", X_FLOAT.clone())
 }
 
@@ -28,7 +28,7 @@ add_float_binop!(add_float_sub, sub, |a, b| Ok(XValue::Float(a - b)));
 add_float_binop!(add_float_mul, mul, |a, b| Ok(XValue::Float(a * b)));
 pub(crate) fn add_float_mod<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "mod",
         XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_FLOAT.clone()),
@@ -48,7 +48,7 @@ pub(crate) fn add_float_mod<W: Write + 'static>(
 
 pub(crate) fn add_float_div<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "div",
         XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_FLOAT.clone()),
@@ -68,7 +68,7 @@ pub(crate) fn add_float_div<W: Write + 'static>(
 
 pub(crate) fn add_float_pow<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "pow",
         XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_FLOAT.clone()),
@@ -95,7 +95,7 @@ add_binfunc!(
 );
 pub(crate) fn add_float_is_close<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "is_close",
         XFuncSpec::new_with_optional(&[&X_FLOAT, &X_FLOAT], &[&X_FLOAT, &X_FLOAT], X_BOOL.clone()),
@@ -121,7 +121,7 @@ pub(crate) fn add_float_is_close<W: Write + 'static>(
 
 pub(crate) fn add_float_floor<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "floor",
         XFuncSpec::new(&[&X_FLOAT], X_INT.clone()),
@@ -131,7 +131,7 @@ pub(crate) fn add_float_floor<W: Write + 'static>(
 
 pub(crate) fn add_float_ceil<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "ceil",
         XFuncSpec::new(&[&X_FLOAT], X_INT.clone()),
@@ -141,7 +141,7 @@ pub(crate) fn add_float_ceil<W: Write + 'static>(
 
 pub(crate) fn add_float_trunc<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "trunc",
         XFuncSpec::new(&[&X_FLOAT], X_INT.clone()),
@@ -151,7 +151,7 @@ pub(crate) fn add_float_trunc<W: Write + 'static>(
 
 pub(crate) fn add_float_neg<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "neg",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
@@ -161,7 +161,7 @@ pub(crate) fn add_float_neg<W: Write + 'static>(
 
 pub(crate) fn add_float_sqrt<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "sqrt",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
@@ -177,7 +177,7 @@ pub(crate) fn add_float_sqrt<W: Write + 'static>(
 
 pub(crate) fn add_float_to_str<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "to_str",
         XFuncSpec::new(&[&X_FLOAT], X_STRING.clone()),

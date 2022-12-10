@@ -12,7 +12,7 @@ use std::rc;
 
 pub(crate) fn add_bool_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_native_type("bool", X_BOOL.clone())
 }
 
@@ -22,7 +22,7 @@ add_binfunc!(add_bool_eq, eq, X_BOOL, Bool, X_BOOL, |a, b| Ok(
 
 pub(crate) fn add_bool_assert<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "assert",
         XFuncSpec::new(&[&X_BOOL], X_BOOL.clone()),
@@ -51,7 +51,7 @@ pub(crate) fn add_bool_assert<W: Write + 'static>(
 
 pub(crate) fn add_bool_not<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "not",
         XFuncSpec::new(&[&X_BOOL], X_BOOL.clone()),
@@ -61,7 +61,7 @@ pub(crate) fn add_bool_not<W: Write + 'static>(
 
 pub(crate) fn add_bool_and<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "and",
         XFuncSpec::new(&[&X_BOOL, &X_BOOL], X_BOOL.clone()),
@@ -77,7 +77,7 @@ pub(crate) fn add_bool_and<W: Write + 'static>(
 
 pub(crate) fn add_bool_or<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "or",
         XFuncSpec::new(&[&X_BOOL, &X_BOOL], X_BOOL.clone()),
@@ -93,7 +93,7 @@ pub(crate) fn add_bool_or<W: Write + 'static>(
 
 pub(crate) fn add_bool_then<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
     scope.add_func(
@@ -118,7 +118,7 @@ pub(crate) fn add_bool_then<W: Write + 'static>(
 
 pub(crate) fn add_bool_hash<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "hash",
         XFuncSpec::new(&[&X_BOOL], X_INT.clone()),
@@ -128,7 +128,7 @@ pub(crate) fn add_bool_hash<W: Write + 'static>(
 
 pub(crate) fn add_bool_to_str<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "to_str",
         XFuncSpec::new(&[&X_BOOL], X_STRING.clone()),

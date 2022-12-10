@@ -16,15 +16,15 @@ use strum::IntoStaticStr;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub struct TracedCompilationError<W: Write + 'static>(
-    CompilationError<W>,
+pub struct TracedCompilationError(
+    CompilationError,
     ((usize, usize), usize),
     ((usize, usize), usize),
 );
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub enum CompilationError<W: Write + 'static> {
+pub enum CompilationError {
     VariableTypeMismatch {
         variable_name: Identifier,
         expected_type: Arc<XType>,
@@ -33,12 +33,6 @@ pub enum CompilationError<W: Write + 'static> {
     RequiredParamsAfterOptionalParams {
         function_name: Option<Identifier>,
         param_name: Identifier,
-    },
-    DefaultEvaluationError {
-        function_name: Option<Identifier>,
-        // None for lambda function
-        param_name: Identifier,
-        error: String, // todo fix when we have proper eval error handling
     },
     FunctionOutputTypeMismatch {
         function_name: Identifier,
@@ -55,12 +49,12 @@ pub enum CompilationError<W: Write + 'static> {
     },
     ValueIsNotType {
         name: Identifier,
-        item: XCompilationScopeItem<W>,
+        item: XCompilationScopeItem,
     },
     PairNotType,
     NameAlreadyDefined {
         name: Identifier,
-        other: XCompilationScopeItem<W>,
+        other: XCompilationScopeItem,
     },
     AmbiguousOverload {
         name: Identifier,
@@ -92,7 +86,7 @@ pub enum CompilationError<W: Write + 'static> {
     },
     NonFunctionSpecialization {
         name: Identifier,
-        item: XCompilationScopeItem<W>,
+        item: XCompilationScopeItem,
     },
     SpecializedFunctionTypeMismatch {
         name: Identifier,
@@ -174,7 +168,7 @@ impl Resolve for XCompoundSpec {
     }
 }
 
-impl<W: Write + 'static> Resolve for XCompilationScopeItem<W> {
+impl Resolve for XCompilationScopeItem {
     type Output = ResolvedCompilationScopeItem;
 
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
@@ -182,7 +176,6 @@ impl<W: Write + 'static> Resolve for XCompilationScopeItem<W> {
             Self::Value(_, t) => ResolvedCompilationScopeItem::Value(t.resolve(interner)),
             Self::NativeType(..) => ResolvedCompilationScopeItem::NativeType,
             Self::Compound(k, ..) => ResolvedCompilationScopeItem::Compound(*k),
-            Self::Overload(overloads) => ResolvedCompilationScopeItem::Overloads(overloads.len()),
         }
     }
 }
@@ -240,7 +233,7 @@ macro_rules! resolve_variants {
     }}
 }
 
-impl<W: Write + 'static> Resolve for CompilationError<W> {
+impl Resolve for CompilationError {
     type Output = ResolvedCompilationError;
     fn resolve(&self, interner: &StringInterner) -> Self::Output {
         resolve_variants!(
@@ -254,11 +247,6 @@ impl<W: Write + 'static> Resolve for CompilationError<W> {
             RequiredParamsAfterOptionalParams {
                 function_name,
                 param_name
-            },
-            DefaultEvaluationError {
-                function_name,
-                param_name,
-                error,
             },
             FunctionOutputTypeMismatch {
                 function_name,
@@ -333,8 +321,8 @@ impl<W: Write + 'static> Resolve for CompilationError<W> {
     }
 }
 
-impl<W: Write + 'static> CompilationError<W> {
-    pub(crate) fn trace(self, input: &Pair<Rule>) -> TracedCompilationError<W> {
+impl CompilationError {
+    pub(crate) fn trace(self, input: &Pair<Rule>) -> TracedCompilationError {
         fn pos_to_coors(pos: &Position) -> ((usize, usize), usize) {
             (pos.line_col(), pos.pos())
         }
@@ -344,7 +332,7 @@ impl<W: Write + 'static> CompilationError<W> {
     }
 }
 
-impl<W: Write + 'static> TracedCompilationError<W> {
+impl TracedCompilationError {
     pub(crate) fn resolve_with_input(
         self,
         interner: &StringInterner,
@@ -396,12 +384,6 @@ pub enum ResolvedCompilationError {
     RequiredParamsAfterOptionalParams {
         function_name: Option<String>,
         param_name: String,
-    },
-    DefaultEvaluationError {
-        function_name: Option<String>,
-        // None for lambda function
-        param_name: String,
-        error: String, // todo fix when we have proper eval error handling
     },
     FunctionOutputTypeMismatch {
         function_name: String,
@@ -533,19 +515,6 @@ impl Display for ResolvedCompilationError {
                     "Required parameter {} after optional parameter in function {}",
                     param_name,
                     function_name.as_deref().unwrap_or("<lambda>")
-                )
-            }
-            Self::DefaultEvaluationError {
-                function_name,
-                param_name,
-                error,
-            } => {
-                write!(
-                    f,
-                    "Error evaluating default value for parameter {} in function {}: {}",
-                    param_name,
-                    function_name.as_deref().unwrap_or("<lambda>"),
-                    error
                 )
             }
             Self::FunctionOutputTypeMismatch {

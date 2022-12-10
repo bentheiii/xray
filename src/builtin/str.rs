@@ -16,7 +16,7 @@ use num_traits::{Signed, ToPrimitive, FromPrimitive};
 
 pub(crate) fn add_str_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_native_type("str", X_STRING.clone())
 }
 
@@ -33,7 +33,7 @@ add_binfunc!(add_str_add, add, X_STRING, String, X_STRING, |a, b| {
 
 pub(crate) fn add_str_hash<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "hash",
         XFuncSpec::new(&[&X_STRING], X_INT.clone()),
@@ -50,7 +50,7 @@ pub(crate) fn add_str_hash<W: Write + 'static>(
 
 pub(crate) fn add_str_to_str<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "to_str",
         XFuncSpec::new(&[&X_STRING], X_STRING.clone()),
@@ -60,7 +60,7 @@ pub(crate) fn add_str_to_str<W: Write + 'static>(
 
 pub(crate) fn add_str_chars<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "chars",
         XFuncSpec::new(&[&X_STRING], XSequenceType::xtype(X_STRING.clone())),
@@ -82,7 +82,7 @@ pub(crate) fn add_str_chars<W: Write + 'static>(
 
 pub(crate) fn add_str_get<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "get",
         XFuncSpec::new(&[&X_STRING, &X_INT], X_STRING.clone()),
@@ -105,7 +105,7 @@ pub(crate) fn add_str_get<W: Write + 'static>(
 
 pub(crate) fn add_str_ord<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "ord",
         XFuncSpec::new(&[&X_STRING], X_INT.clone()),

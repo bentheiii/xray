@@ -12,7 +12,7 @@ use std::rc;
 
 pub(crate) fn add_if<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if",
@@ -26,7 +26,7 @@ pub(crate) fn add_if<W: Write + 'static>(
 
 pub(crate) fn add_error<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_func(
         "error",
         XFuncSpec::new(&[&X_STRING], X_UNKNOWN.clone()),
@@ -36,7 +36,7 @@ pub(crate) fn add_error<W: Write + 'static>(
 
 pub(crate) fn add_debug<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "debug",
@@ -53,7 +53,7 @@ pub(crate) fn add_debug<W: Write + 'static>(
 
 pub(crate) fn add_is_error<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "is_error",
@@ -67,7 +67,7 @@ pub(crate) fn add_is_error<W: Write + 'static>(
 
 pub(crate) fn add_if_error<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if_error",
@@ -85,7 +85,7 @@ pub(crate) fn add_if_error<W: Write + 'static>(
 
 pub(crate) fn add_ne<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
 
     scope.add_dyn_func("ne", move |_params, types, ns, bind| {
@@ -111,7 +111,7 @@ pub(crate) fn add_ne<W: Write + 'static>(
 
 pub(crate) fn add_display<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let to_str_symbol = scope.identifier("to_str");
 
     scope.add_dyn_func("display", move |_params, types, ns, bind| {
@@ -152,7 +152,7 @@ pub(crate) fn add_display<W: Write + 'static>(
 
 pub(crate) fn add_cmp_lt<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
 
     scope.add_dyn_func("lt", move |_params, types, ns, bind| {
@@ -185,7 +185,7 @@ pub(crate) fn add_cmp_lt<W: Write + 'static>(
 
 pub(crate) fn add_cmp_gt<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
 
     scope.add_dyn_func("gt", move |_params, types, ns, bind| {
@@ -219,7 +219,7 @@ pub(crate) fn add_cmp_gt<W: Write + 'static>(
 
 pub(crate) fn add_cmp_ge<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
 
     scope.add_dyn_func("ge", move |_params, types, ns, bind| {
@@ -252,7 +252,7 @@ pub(crate) fn add_cmp_ge<W: Write + 'static>(
 
 pub(crate) fn add_cmp_le<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
 
     scope.add_dyn_func("le", move |_params, types, ns, bind| {
@@ -286,7 +286,7 @@ pub(crate) fn add_cmp_le<W: Write + 'static>(
 
 pub(crate) fn add_cast<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     scope.add_dyn_func("cast", move |_params, _types, _ns, bind| {
         let bind_len = bind.map_or(0, |a| a.len());
         if bind_len != 1 {

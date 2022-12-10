@@ -141,14 +141,14 @@ impl<W: Write + 'static> XNativeValue for XMapping<W> {
 
 pub(crate) fn add_mapping_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([k, v], _) = scope.generics_from_names(["K", "V"]);
     scope.add_native_type("Mapping", XMappingType::xtype(k, v))
 }
 
 pub(crate) fn add_mapping_new<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([k], params) = scope.generics_from_names(["K"]);
 
     scope.add_func(
@@ -180,7 +180,7 @@ pub(crate) fn add_mapping_new<W: Write + 'static>(
 
 pub(crate) fn add_mapping_set<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -199,7 +199,7 @@ pub(crate) fn add_mapping_set<W: Write + 'static>(
 
 pub(crate) fn add_mapping_update<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -232,7 +232,7 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(
 
 pub(crate) fn add_mapping_lookup<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -284,7 +284,7 @@ pub(crate) fn add_mapping_lookup<W: Write + 'static>(
 
 pub(crate) fn add_mapping_get<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -331,7 +331,7 @@ pub(crate) fn add_mapping_get<W: Write + 'static>(
 
 pub(crate) fn add_mapping_len<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k, v);
 
@@ -349,7 +349,7 @@ pub(crate) fn add_mapping_len<W: Write + 'static>(
 
 pub(crate) fn add_mapping_entries<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
 
@@ -385,7 +385,7 @@ pub(crate) fn add_mapping_entries<W: Write + 'static>(
 
 pub(crate) fn add_mapping_contains<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 
@@ -431,7 +431,7 @@ pub(crate) fn add_mapping_contains<W: Write + 'static>(
 
 pub(crate) fn add_mapping_pop<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 
@@ -497,7 +497,7 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
 
 pub(crate) fn add_mapping_discard<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
 
@@ -563,7 +563,7 @@ pub(crate) fn add_mapping_discard<W: Write + 'static>(
 
 pub(crate) fn add_mapping_new_dyn<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError<W>> {
+) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
     let hash_symbol = scope.identifier("hash");
 

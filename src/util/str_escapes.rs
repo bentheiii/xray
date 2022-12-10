@@ -3,7 +3,7 @@ use regex::{Regex};
 use crate::CompilationError;
 use std::convert::TryFrom;
 
-pub(crate) fn apply_escapes<W: Write + 'static>(origin: &str) -> Result<String, CompilationError<W>> {
+pub(crate) fn apply_escapes(origin: &str) -> Result<String, CompilationError> {
     lazy_static! {
         static ref RE: Regex = Regex::new(r"\\(u\{.+?\}|.)").unwrap();
         static ref BYTECODE: Regex = Regex::new("[a-fA-F0-9]{1,6}$").unwrap();

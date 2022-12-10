@@ -610,11 +610,10 @@ lazy_static! {
 }
 
 pub(crate) fn common_type<
-    W: Write + 'static,
-    T: Iterator<Item = Result<Arc<XType>, CompilationError<W>>>,
+    T: Iterator<Item = Result<Arc<XType>, CompilationError>>,
 >(
     mut values: T,
-) -> Result<Arc<XType>, CompilationError<W>> {
+) -> Result<Arc<XType>, CompilationError> {
     let mut ret = match values.next() {
         None => return Ok(X_UNKNOWN.clone()),
         Some(v) => v?,
