@@ -563,7 +563,6 @@ impl XType {
         }
     }
 }
-
 impl PartialEq<Self> for XType {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {

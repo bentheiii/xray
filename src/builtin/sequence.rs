@@ -27,6 +27,7 @@ use std::rc;
 use std::sync::Arc;
 
 use crate::util::lazy_bigint::LazyBigint;
+use crate::util::try_extend::TryExtend;
 
 #[derive(Debug, Clone)]
 pub(crate) struct XSequenceType;
@@ -280,10 +281,7 @@ pub(crate) fn add_sequence_add<W: Write + 'static>(
                 return Ok(a0.clone().into());
             }
             let mut arr = seq0.slice(ns, rt.clone()).collect::<Result<Vec<_>, _>>()?;
-            arr.extend(
-                // todo ideally we shouldn't collect here
-                seq1.slice(ns, rt.clone()).collect::<Result<Vec<_>, _>>()?,
-            );
+            arr.try_extend(seq1.slice(ns, rt.clone()))?;
             Ok(manage_native!(XSequence::array(arr), rt))
         }),
     )
@@ -381,10 +379,9 @@ pub(crate) fn add_sequence_rpush<W: Write + 'static>(
             let a1 = eval(&args[1], ns, &rt)?;
             let seq0 = to_native!(a0, XSequence<W>);
             let mut arr = vec![a1];
-            arr.extend(
-                // todo ideally we shouldn't collect here
-                seq0.slice(ns, rt.clone()).collect::<Result<Vec<_>, _>>()?,
-            );
+            arr.try_extend(
+                seq0.slice(ns, rt.clone())
+            )?;
             Ok(manage_native!(XSequence::array(arr), rt))
         }),
     )
@@ -411,12 +408,10 @@ pub(crate) fn add_sequence_insert<W: Write + 'static>(
                 .take(idx)
                 .collect::<Result<Vec<_>, _>>()?;
             ret.push(a2);
-            ret.extend(
-                // todo remove collect
+            ret.try_extend(
                 seq.slice(ns, rt.clone())
-                    .skip(idx)
-                    .collect::<Result<Vec<_>, _>>()?,
-            );
+                    .skip(idx),
+            )?;
             Ok(manage_native!(XSequence::array(ret), rt))
         }),
     )
@@ -444,12 +439,10 @@ pub(crate) fn add_sequence_pop<W: Write + 'static>(
                 .slice(ns, rt.clone())
                 .take(idx)
                 .collect::<Result<Vec<_>, _>>()?;
-            ret.extend(
-                // todo avoid collecting
+            ret.try_extend(
                 seq.slice(ns, rt.clone())
-                    .skip(idx + 1)
-                    .collect::<Result<Vec<_>, _>>()?,
-            );
+                    .skip(idx + 1),
+            )?;
             Ok(manage_native!(XSequence::array(ret), rt))
         }),
     )
@@ -476,12 +469,11 @@ pub(crate) fn add_sequence_set<W: Write + 'static>(
                 .take(idx)
                 .collect::<Result<_, _>>()?;
             ret.push(a2);
-            ret.extend(
+            ret.try_extend(
                 // todo avoid collecting
                 seq.slice(ns, rt.clone())
-                    .skip(idx + 1)
-                    .collect::<Result<Vec<_>, _>>()?,
-            );
+                    .skip(idx + 1),
+            )?;
             Ok(manage_native!(XSequence::array(ret), rt))
         }),
     )
@@ -516,20 +508,16 @@ pub(crate) fn add_sequence_swap<W: Write + 'static>(
                 .take(idx1)
                 .collect::<Result<Vec<_>, _>>()?;
             ret.push(seq.get(idx2, ns, rt.clone())?);
-            ret.extend(
-                // todo avoid collecting
+            ret.try_extend(
                 seq.slice(ns, rt.clone())
                     .take(idx2)
-                    .skip(idx1 + 1)
-                    .collect::<Result<Vec<_>, _>>()?,
-            );
+                    .skip(idx1 + 1),
+            )?;
             ret.push(seq.get(idx1, ns, rt.clone())?);
-            ret.extend(
-                // todo avoid collecting
+            ret.try_extend(
                 seq.slice(ns, rt.clone())
-                    .skip(idx2 + 1)
-                    .collect::<Result<Vec<_>, _>>()?,
-            );
+                    .skip(idx2 + 1),
+            )?;
             Ok(manage_native!(XSequence::array(ret), rt))
         }),
     )
@@ -932,10 +920,9 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
             if start_idx == 0 {
                 Ok(a0.clone().into())
             } else {
-                ret.extend(
-                    // todo avoid collecting
-                    arr.collect::<Result<Vec<_>, _>>()?,
-                );
+                ret.try_extend(
+                    arr,
+                )?;
                 Ok(manage_native!(XSequence::array(ret), rt))
             }
         }),

@@ -29,23 +29,22 @@ pub enum XValue<W: Write + 'static> {
     Native(Box<dyn XNativeValue>),
 }
 
-// todo do these still have to be RCs? and pub? and dyn?
-pub type NativeCallable<W> = Rc<
-    dyn Fn(
-        &[XExpr<W>],
-        &RuntimeScope<'_, W>,
-        bool,
-        RTCell<W>,
-    ) -> Result<TailedEvalResult<W>, RuntimeViolation>,
->;
-pub type DynBind<W> = Rc<
-    dyn Fn(
-        Option<&[XExpr<W>]>,
-        Option<&[Arc<XType>]>,
-        &mut CompilationScope<'_, W>,
-        Option<&[Arc<XType>]>,
-    ) -> Result<XFunctionFactoryOutput<W>, String>,
->; // todo make this a different error?
+pub(crate) type NativeCallback<W> = dyn Fn(
+    &[XExpr<W>],
+    &RuntimeScope<'_, W>,
+    bool,
+    RTCell<W>,
+) -> Result<TailedEvalResult<W>, RuntimeViolation>;
+type DynCallback<W> = dyn Fn(
+    Option<&[XExpr<W>]>,
+    Option<&[Arc<XType>]>,
+    &mut CompilationScope<'_, W>,
+    Option<&[Arc<XType>]>,
+) -> Result<XFunctionFactoryOutput<W>, String>; // todo different error?
+
+
+pub type NativeCallable<W> = Rc<NativeCallback<W>>;
+pub type DynBind<W> = Rc<DynCallback<W>>;
 
 pub struct XFunctionFactoryOutput<W: Write + 'static> {
     pub(crate) spec: XFuncSpec,
@@ -56,12 +55,12 @@ impl<W: Write + 'static> XFunctionFactoryOutput<W> {
     pub(crate) fn from_native(
         spec: XFuncSpec,
         callable: impl Fn(
-                &[XExpr<W>],
-                &RuntimeScope<'_, W>,
-                bool,
-                RTCell<W>,
-            ) -> Result<TailedEvalResult<W>, RuntimeViolation>
-            + 'static,
+            &[XExpr<W>],
+            &RuntimeScope<'_, W>,
+            bool,
+            RTCell<W>,
+        ) -> Result<TailedEvalResult<W>, RuntimeViolation>
+        + 'static,
     ) -> Self {
         Self {
             spec,
@@ -98,13 +97,6 @@ impl<W: Write + 'static> Debug for XFunction<W> {
     }
 }
 
-pub(crate) fn size_of_value<W: Write + 'static>(v: &EvaluatedValue<W>) -> usize {
-    match v {
-        Err(e) => e.size,
-        Ok(v) => v.size,
-    }
-}
-
 impl<W: Write + 'static> XValue<W> {
     pub(crate) fn size(&self) -> usize {
         match self {
@@ -117,7 +109,7 @@ impl<W: Write + 'static> XValue<W> {
                 size_of::<usize>() + template.cells.len() * size_of::<usize>()
             }
             Self::StructInstance(items) => items.len() * size_of::<usize>(),
-            Self::UnionInstance(_, item) => size_of_value(item) + size_of::<usize>(),
+            Self::UnionInstance(..) => 2 * size_of::<usize>(),
             Self::Native(n) => size_of::<usize>() + n.size(),
         }
     }
