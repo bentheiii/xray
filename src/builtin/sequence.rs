@@ -125,7 +125,7 @@ impl<W: Write + 'static> XSequence<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> impl DoubleEndedIterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
+    ) -> impl DoubleEndedIterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
         (0..self.len()).map(move |idx| self.get(idx, ns, rt.clone()))
     }
 
@@ -178,7 +178,7 @@ impl<W: Write + 'static> XSequence<W> {
                 },
                 Int
             )
-                .is_positive()
+            .is_positive()
             {
                 is_sorted = false;
                 break;
@@ -567,7 +567,7 @@ pub(crate) fn add_sequence_map<W: Write + 'static>(
             ],
             XSequenceType::xtype(output_t),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -594,7 +594,7 @@ pub(crate) fn add_sequence_sort<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -625,7 +625,7 @@ pub(crate) fn add_sequence_reduce3<W: Write + 'static>(
             ],
             s.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
@@ -662,7 +662,7 @@ pub(crate) fn add_sequence_reduce2<W: Write + 'static>(
             ],
             t,
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -739,7 +739,7 @@ pub(crate) fn add_sequence_filter<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -798,7 +798,7 @@ pub(crate) fn add_sequence_nth<W: Write + 'static>(
             ],
             XOptionalType::xtype(t),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -853,7 +853,7 @@ pub(crate) fn add_sequence_take_while<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -899,7 +899,7 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -977,17 +977,27 @@ pub(crate) fn add_sequence_zip2<W: Write + 'static>(
 
     scope.add_func(
         "zip",
-        XFuncSpec::new(&[&XSequenceType::xtype(t0.clone()), &XSequenceType::xtype(t1.clone())], XSequenceType::xtype(Arc::new(XType::Tuple(vec![t0, t1])))).generic(params),
+        XFuncSpec::new(
+            &[
+                &XSequenceType::xtype(t0.clone()),
+                &XSequenceType::xtype(t1.clone()),
+            ],
+            XSequenceType::xtype(Arc::new(XType::Tuple(vec![t0, t1]))),
+        )
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let seq0 = to_native!(a0, XSequence<W>);
             let seq1 = to_native!(a1, XSequence<W>);
-            Ok(manage_native!(if seq0.is_empty() || seq1.is_empty(){
-                XSequence::<W>::Empty
-            } else {
-                XSequence::<W>::Zip(vec![a0, a1])
-            }, rt))
+            Ok(manage_native!(
+                if seq0.is_empty() || seq1.is_empty() {
+                    XSequence::<W>::Empty
+                } else {
+                    XSequence::<W>::Zip(vec![a0, a1])
+                },
+                rt
+            ))
         }),
     )
 }
@@ -1057,7 +1067,7 @@ pub(crate) fn add_sequence_dyn_sort<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0, ) = unpack_types!(types, 0);
+        let (a0,) = unpack_types!(types, 0);
         let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
 
         let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t0.clone()], &X_INT)?;

@@ -1,9 +1,6 @@
 use crate::xtype::{XFuncSpec, X_BOOL};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
-use crate::{
-    to_primitive, unpack_types, xraise, CompilationError, RootCompilationScope,
-    XType,
-};
+use crate::{to_primitive, unpack_types, xraise, CompilationError, RootCompilationScope, XType};
 
 use crate::builtin::core::{eval, eval_resolved_func, get_func};
 use std::io::Write;
