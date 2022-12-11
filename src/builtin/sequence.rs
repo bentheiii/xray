@@ -50,12 +50,10 @@ impl NativeType for XSequenceType {
 #[derivative(Debug(bound = ""))]
 pub enum XSequence<W: Write + 'static> {
     Empty,
-    // never empty
     Array(Vec<EvaluatedValue<W>>),
     Range(i64, i64, i64),
     Map(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
     Zip(Vec<Rc<ManagedXValue<W>>>),
-    // never empty //todo shortcut zip creation so that if any of the items are empty, Empty is returned instead
     // end is always at most the length of the sequence, start is always lower than end
     Slice(Rc<ManagedXValue<W>>, usize, usize),
 }
@@ -485,7 +483,6 @@ pub(crate) fn add_sequence_set<W: Write + 'static>(
                 .collect::<Result<_, _>>()?;
             ret.push(a2);
             ret.try_extend(
-                // todo avoid collecting
                 seq.iter(ns, rt.clone()).skip(idx + 1),
             )?;
             Ok(manage_native!(XSequence::array(ret), rt))
