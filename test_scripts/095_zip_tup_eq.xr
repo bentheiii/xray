@@ -1,0 +1,4 @@
+fn main()->bool{
+    assert([1,2,3].zip("abcd".chars()) == [(1,"a"), (2,"b"), (3, "c")])
+    && assert("abcd".chars().zip([]) == [])
+}

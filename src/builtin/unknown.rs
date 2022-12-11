@@ -13,11 +13,9 @@ pub(crate) fn add_unknown_eq<W: Write + 'static>(
         }
 
         let (a0, a1) = unpack_types!(types, 0, 1);
-        if a0 != &X_UNKNOWN.clone() {
-            return Err(format!("expected exactly unknown, got {a0:?}"));
-        }
-        if a1 != &X_UNKNOWN.clone() {
-            return Err(format!("expected exactly unknown, got {a1:?}"));
+
+        if a0 != &X_UNKNOWN.clone() && a1 != &X_UNKNOWN.clone() {
+            return Err(format!("expected at least one unknown unknown, got {a0:?} and {a1:?}"));
         }
 
         Ok(XFunctionFactoryOutput::from_native(

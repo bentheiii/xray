@@ -1031,7 +1031,7 @@ pub(crate) fn add_sequence_eq<W: Write + 'static>(
                     xraise!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
                 let inner_eq_func = to_primitive!(inner_equal_value, Function);
 
-                for (x, y) in arr0.into_iter().zip(arr1.into_iter()) {
+                for (x, y) in arr0.zip(arr1) {
                     let eq = xraise!(ns
                         .eval_func_with_values(inner_eq_func, vec![x?, y?], rt.clone(), false)?
                         .unwrap_value());

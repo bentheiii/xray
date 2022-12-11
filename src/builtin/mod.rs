@@ -9,3 +9,4 @@ pub mod sequence;
 pub mod stack;
 pub mod str;
 pub mod unknown;
+pub mod tuple;
