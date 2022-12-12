@@ -33,7 +33,7 @@ pub(crate) fn add_error<W: Write + 'static>(
     scope.add_func(
         "error",
         XFuncSpec::new(&[&X_STRING], X_UNKNOWN.clone()),
-        ufunc!(String, |a: &String| Err(a.clone())),
+        ufunc!(String, |a: &String, _rt| Ok(Err(a.clone()))),
     )
 }
 

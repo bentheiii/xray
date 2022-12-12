@@ -19,8 +19,8 @@ pub(crate) fn add_bool_type<W: Write + 'static>(
     scope.add_native_type("bool", X_BOOL.clone())
 }
 
-add_binfunc!(add_bool_eq, eq, X_BOOL, Bool, X_BOOL, |a, b| Ok(
-    XValue::Bool(a == b)
+add_binfunc!(add_bool_eq, eq, X_BOOL, Bool, X_BOOL, |a, b, _| Ok(
+    Ok(XValue::Bool(a == b))
 ));
 
 pub(crate) fn add_bool_assert<W: Write + 'static>(
@@ -58,7 +58,7 @@ pub(crate) fn add_bool_not<W: Write + 'static>(
     scope.add_func(
         "not",
         XFuncSpec::new(&[&X_BOOL], X_BOOL.clone()),
-        ufunc!(Bool, |a: &bool| { Ok(XValue::Bool(!a)) }),
+        ufunc!(Bool, |a: &bool, _rt| { Ok(Ok(XValue::Bool(!a))) }),
     )
 }
 
@@ -125,8 +125,8 @@ pub(crate) fn add_bool_hash<W: Write + 'static>(
     scope.add_func(
         "hash",
         XFuncSpec::new(&[&X_BOOL], X_INT.clone()),
-        ufunc!(Bool, |a: &bool| {
-            Ok(XValue::Int(if *a { One::one() } else { Zero::zero() }))
+        ufunc!(Bool, |a: &bool, _rt| {
+            Ok(Ok(XValue::Int(if *a { One::one() } else { Zero::zero() })))
         }),
     )
 }
@@ -137,14 +137,14 @@ pub(crate) fn add_bool_to_str<W: Write + 'static>(
     scope.add_func(
         "to_str",
         XFuncSpec::new(&[&X_BOOL], X_STRING.clone()),
-        ufunc!(Bool, |a: &bool| {
-            Ok(XValue::String(
+        ufunc!(Bool, |a: &bool, _rt| {
+            Ok(Ok(XValue::String(
                 if *a { "true" } else { "false" }.to_string(),
-            ))
+            )))
         }),
     )
 }
 
-add_binfunc!(add_bool_cmp, cmp, X_BOOL, Bool, X_INT, |a, b| Ok(xcmp(
+add_binfunc!(add_bool_cmp, cmp, X_BOOL, Bool, X_INT, |a, b, _| Ok(Ok(xcmp(
     a, b
-)));
+))));

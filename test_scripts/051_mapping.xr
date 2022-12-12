@@ -1,5 +1,5 @@
 fn main() -> bool {
-    let m = mapping((a: int)->{a%10}, eq::<int, int>).update([(1,2),(3,4),(4,5)]);
+    let m = mapping((a: int)->{a%10}, eq{int, int}).update([(1,2),(3,4),(4,5)]);
 
     assert(m.pop(3).lookup(3) == null())
     && assert(m.pop(4).lookup(3) == some(4))

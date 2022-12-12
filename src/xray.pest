@@ -45,7 +45,7 @@ expression3 = _{
    "(" ~ container_elements? ~ ","? ~ ")"
  }
  bool = @{"true"|"false"}
- turbofish_cname = {CNAME ~ "::<" ~ complete_type ~ (","~complete_type)* ~ ">"}
+ turbofish_cname = {CNAME ~ "{" ~ complete_type ~ (","~complete_type)* ~ "}"}
  dyn_bind_cname = {CNAME ~ "<" ~ complete_type ~ (","~complete_type)* ~ ">"}
  lambda_func = { "(" ~ function_parameters_opt ~ ")" ~ "->" ~ "{" ~ expression ~ "}" }
 

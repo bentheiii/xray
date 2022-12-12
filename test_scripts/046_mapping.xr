@@ -1,5 +1,5 @@
 fn main()->bool{
-    let m = mapping((x: int) -> {x % 10}, eq::<int, int>);
+    let m = mapping((x: int) -> {x % 10}, eq{int, int});
     let m1 = m.set(5, 'hii').set(15, 'ho').set(5, 'hi');
     let m2 = m1.update([(1,'one'), (2, 'two')]);
 

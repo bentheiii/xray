@@ -16,6 +16,7 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::ops::Neg;
 use std::rc;
+use crate::runtime::RTCell;
 
 pub(crate) fn add_str_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -23,15 +24,16 @@ pub(crate) fn add_str_type<W: Write + 'static>(
     scope.add_native_type("str", X_STRING.clone())
 }
 
-add_binfunc!(add_str_eq, eq, X_STRING, String, X_BOOL, |a, b| Ok(
-    XValue::Bool(a == b)
+add_binfunc!(add_str_eq, eq, X_STRING, String, X_BOOL, |a, b, _rt| Ok(
+    Ok(XValue::Bool(a == b))
 ));
 
-add_binfunc!(add_str_add, add, X_STRING, String, X_STRING, |a, b| {
-    let mut ret = String::new();
+add_binfunc!(add_str_add, add, X_STRING, String, X_STRING, |a: &String, b: &String, rt: &RTCell<W>| {
+    rt.borrow().can_allocate(a.len() + b.len())?;
+    let mut ret = String::with_capacity(a.len() + b.len());
     ret.push_str(a);
     ret.push_str(b);
-    Ok(XValue::String(ret))
+    Ok(Ok(XValue::String(ret)))
 });
 
 pub(crate) fn add_str_hash<W: Write + 'static>(
@@ -40,13 +42,13 @@ pub(crate) fn add_str_hash<W: Write + 'static>(
     scope.add_func(
         "hash",
         XFuncSpec::new(&[&X_STRING], X_INT.clone()),
-        ufunc!(String, |a: &String| {
-            Ok(XValue::Int({
+        ufunc!(String, |a: &String, _rt| {
+            Ok(Ok(XValue::Int({
                 let mut s = DefaultHasher::new();
                 a.hash(&mut s);
                 let hash = s.finish();
                 LazyBigint::from(hash)
-            }))
+            })))
         }),
     )
 }
@@ -70,8 +72,15 @@ pub(crate) fn add_str_chars<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s = to_primitive!(a0, String);
-            let chars = s
-                .chars()
+            rt.borrow().can_allocate_by(|| {
+                Some(if s.len() < 128{
+                    // as a shortcut, we won't check the lengths of all strings under a certain bound
+                    0
+                } else {
+                    s.chars().count()
+                })
+            })?;
+            let chars = s.chars()
                 .map(|c| ManagedXValue::new(XValue::String(c.to_string()), rt.clone()))
                 .collect::<Result<Vec<_>, _>>()?
                 .into_iter()
@@ -120,6 +129,6 @@ pub(crate) fn add_str_ord<W: Write + 'static>(
     )
 }
 
-add_binfunc!(add_str_cmp, cmp, X_STRING, String, X_INT, |a, b| Ok(xcmp(
+add_binfunc!(add_str_cmp, cmp, X_STRING, String, X_INT, |a, b, _rt| Ok(Ok(xcmp(
     a, b
-)));
+))));

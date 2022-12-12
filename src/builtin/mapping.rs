@@ -15,6 +15,7 @@ use crate::{
 use derivative::Derivative;
 use num_traits::ToPrimitive;
 use rc::Rc;
+use std::cmp::max;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -50,6 +51,7 @@ type MappingBucket<W> = Vec<(EvaluatedValue<W>, EvaluatedValue<W>)>;
 #[derivative(Debug(bound = ""))]
 struct XMapping<W: Write + 'static> {
     inner: HashMap<u64, MappingBucket<W>>,
+    len: usize,
     hash_func: Rc<ManagedXValue<W>>,
     eq_func: Rc<ManagedXValue<W>>,
 }
@@ -70,9 +72,11 @@ impl<W: Write + 'static> XMapping<W> {
         hash_func: Rc<ManagedXValue<W>>,
         eq_func: Rc<ManagedXValue<W>>,
         dict: HashMap<u64, MappingBucket<W>>,
+        len: usize
     ) -> Self {
         Self {
             inner: dict,
+            len,
             hash_func,
             eq_func,
         }
@@ -87,6 +91,7 @@ impl<W: Write + 'static> XMapping<W> {
         let hash_func = to_primitive!(self.hash_func, Function);
         let mut eq_func = None;
         let mut new_dict = self.inner.clone();
+        let mut new_len = self.len;
         for (k, v) in items {
             let hash_key = parse_hash!(
                 ns.eval_func_with_values(hash_func, vec![k.clone()], rt.clone(), false)?,
@@ -96,6 +101,7 @@ impl<W: Write + 'static> XMapping<W> {
             let spot = new_dict.entry(hash_key);
             match spot {
                 Entry::Vacant(spot) => {
+                    new_len += 1;
                     spot.insert(vec![(k, v)]);
                 }
                 Entry::Occupied(mut spot) => {
@@ -121,6 +127,7 @@ impl<W: Write + 'static> XMapping<W> {
                         }
                     }
                     if !found {
+                        new_len += 1;
                         spot.get_mut().push((k, v));
                     }
                 }
@@ -128,7 +135,7 @@ impl<W: Write + 'static> XMapping<W> {
         }
 
         Ok(manage_native!(
-            Self::new(self.hash_func.clone(), self.eq_func.clone(), new_dict),
+            Self::new(self.hash_func.clone(), self.eq_func.clone(), new_dict, new_len),
             rt
         ))
     }
@@ -136,7 +143,7 @@ impl<W: Write + 'static> XMapping<W> {
 
 impl<W: Write + 'static> XNativeValue for XMapping<W> {
     fn size(&self) -> usize {
-        (self.inner.values().map(|b| b.len() * 2 + 1).sum::<usize>() + 2) * size_of::<usize>()
+        (self.len*2 + self.inner.len() + 2) * size_of::<usize>()
     }
 }
 
@@ -172,7 +179,7 @@ pub(crate) fn add_mapping_new<W: Write + 'static>(
             let hash_func = xraise!(eval(&args[0], ns, &rt)?);
             let eq_func = xraise!(eval(&args[1], ns, &rt)?);
             Ok(manage_native!(
-                XMapping::new(hash_func, eq_func, Default::default()),
+                XMapping::new(hash_func, eq_func, Default::default(), 0),
                 rt
             ))
         }),
@@ -193,6 +200,7 @@ pub(crate) fn add_mapping_set<W: Write + 'static>(
             let a1 = eval(&args[1], ns, &rt)?;
             let a2 = eval(&args[2], ns, &rt)?;
             let mapping = to_native!(a0, XMapping<W>);
+            rt.borrow().can_allocate(mapping.len*2)?;
             mapping.with_update(once((a1, a2)), ns, rt)
         }),
     )
@@ -219,6 +227,7 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let mapping = to_native!(a0, XMapping<W>);
             let seq = to_native!(a1, XSequence<W>);
+            rt.borrow().can_allocate(max(mapping.len*2, seq.len()*2))?;
             let arr = xraise!(seq
                 .iter(ns, rt.clone())
                 .collect::<Result<Result<Vec<_>, _>, _>>()?);
@@ -338,8 +347,7 @@ pub(crate) fn add_mapping_len<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let mapping = to_native!(a0, XMapping<W>);
-            let len: usize = mapping.inner.values().map(|v| v.len()).sum();
-            Ok(ManagedXValue::new(XValue::Int(len.into()), rt)?.into())
+            Ok(ManagedXValue::new(XValue::Int(mapping.len.into()), rt)?.into())
         }),
     )
 }
@@ -360,6 +368,7 @@ pub(crate) fn add_mapping_entries<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let mapping = to_native!(a0, XMapping<W>);
+            rt.borrow().can_allocate(mapping.len*2)?;
             let entries = mapping
                 .inner
                 .values()
@@ -437,6 +446,7 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = eval(&args[1], ns, &rt)?;
             let mapping = to_native!(a0, XMapping<W>);
+            rt.borrow().can_allocate((mapping.len-1)*2)?;
             let hash_func = to_primitive!(mapping.hash_func, Function);
             let hash_key = parse_hash!(
                 ns.eval_func_with_values(hash_func, vec![a1.clone()], rt.clone(), false)?,
@@ -455,7 +465,7 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
                         }
                     }
                     Ok(manage_native!(
-                        XMapping::new(mapping.hash_func.clone(), mapping.eq_func.clone(), new_dict),
+                        XMapping::new(mapping.hash_func.clone(), mapping.eq_func.clone(), new_dict, mapping.len-1),
                         rt
                     ))
                 }
@@ -504,6 +514,7 @@ pub(crate) fn add_mapping_discard<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = eval(&args[1], ns, &rt)?;
             let mapping = to_native!(a0, XMapping<W>);
+            rt.borrow().can_allocate((mapping.len-1)*2)?;
             let hash_func = to_primitive!(mapping.hash_func, Function);
             let hash_key = parse_hash!(
                 ns.eval_func_with_values(hash_func, vec![a1.clone()], rt.clone(), false)?,
@@ -522,7 +533,7 @@ pub(crate) fn add_mapping_discard<W: Write + 'static>(
                         }
                     }
                     Ok(manage_native!(
-                        XMapping::new(mapping.hash_func.clone(), mapping.eq_func.clone(), new_dict),
+                        XMapping::new(mapping.hash_func.clone(), mapping.eq_func.clone(), new_dict, mapping.len-1),
                         rt
                     ))
                 }
@@ -551,7 +562,7 @@ pub(crate) fn add_mapping_new_dyn<W: Write + 'static>(
                 let inner_hash_value =
                     xraise!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
                 Ok(manage_native!(
-                    XMapping::new(inner_hash_value, inner_equal_value, Default::default()),
+                    XMapping::new(inner_hash_value, inner_equal_value, Default::default(), 0),
                     rt
                 ))
             },

@@ -37,7 +37,7 @@ impl LazyBigint {
 
     pub(crate) fn bits(&self) -> u64 {
         match self {
-            Self::Short(_s) => 0,
+            Self::Short(_) => 64,
             Self::Long(b) => b.bits(),
         }
     }

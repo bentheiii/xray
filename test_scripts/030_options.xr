@@ -1,10 +1,10 @@
 fn main()->bool{
-    assert(some(15).map(neg::<int>) == some(-15))
+    assert(some(15).map(neg{int}) == some(-15))
 
-    && assert(null().map(neg::<int>) == null())
-    && assert(some(15).map_or(neg::<int>, 16) == -15)
-    && assert(null().map_or(neg::<int>, 16) == 16)
-    && assert(some(15).map_or(neg::<int>, error('')) == -15)
+    && assert(null().map(neg{int}) == null())
+    && assert(some(15).map_or(neg{int}, 16) == -15)
+    && assert(null().map_or(neg{int}, 16) == 16)
+    && assert(some(15).map_or(neg{int}, error('')) == -15)
 
     && assert((some(15) || 16) == 15)
     && assert((some(15) || cast<int>(error(''))) == 15)

@@ -181,6 +181,7 @@ pub(crate) fn add_stack_to_array<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let stk0 = to_native!(a0, XStack<W>);
+            rt.borrow().can_allocate(stk0.length)?;
             Ok(manage_native!(XSequence::array(stk0.to_vec::<false>()), rt))
         }),
     )
@@ -198,6 +199,7 @@ pub(crate) fn add_stack_to_array_reversed<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let stk0 = to_native!(a0, XStack<W>);
+            rt.borrow().can_allocate(stk0.length)?;
             Ok(manage_native!(XSequence::array(stk0.to_vec::<true>()), rt))
         }),
     )

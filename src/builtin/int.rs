@@ -10,6 +10,7 @@ use crate::{
 use num_traits::{Pow, Signed, ToPrimitive, Zero};
 
 use rc::Rc;
+use std::cmp::max;
 
 use std::convert::TryFrom;
 use std::io::Write;
@@ -17,6 +18,7 @@ use std::ops::Neg;
 use std::rc;
 
 use crate::root_compilation_scope::RootCompilationScope;
+use crate::runtime::{ProspectiveSize, RTCell};
 use crate::util::lazy_bigint::LazyBigint;
 
 pub(crate) fn add_int_type<W: Write + 'static>(
@@ -31,29 +33,37 @@ macro_rules! add_int_binop {
     };
 }
 
-add_int_binop!(add_int_add, add, |a: &LazyBigint, b: &LazyBigint| Ok(
-    XValue::Int(a.clone() + b.clone())
-));
-add_int_binop!(add_int_sub, sub, |a: &LazyBigint, b: &LazyBigint| Ok(
-    XValue::Int(a.clone() - b.clone())
-));
-add_int_binop!(add_int_mul, mul, |a: &LazyBigint, b: &LazyBigint| Ok(
-    XValue::Int(a.clone() * b.clone())
-));
-add_int_binop!(add_int_mod, mod, |a: &LazyBigint, b: &LazyBigint| {
-    if b.is_zero() {
+add_int_binop!(add_int_add, add, |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W>| {
+    rt.borrow().can_allocate(max(a.prospective_size(), b.prospective_size()))?;
+    Ok(Ok(XValue::Int(a.clone() + b.clone())))
+});
+add_int_binop!(add_int_sub, sub, |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W>| {
+    rt.borrow().can_allocate(max(a.prospective_size(), b.prospective_size()))?;
+    Ok(Ok(XValue::Int(a.clone() - b.clone())))
+});
+add_int_binop!(add_int_mul, mul, |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W>| {
+    rt.borrow().can_allocate(a.prospective_size() + b.prospective_size())?;
+    Ok(Ok(XValue::Int(a.clone() * b.clone())))
+});
+add_int_binop!(add_int_mod, mod, |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W>| {
+    Ok(if b.is_zero() {
         Err(String::from("Modulo by zero"))
     } else {
+        rt.borrow().can_afford(b)?;
         Ok(XValue::Int(a.clone() % b.clone()))
-    }
+    })
 });
-add_int_binop!(add_int_bit_or, bit_or, |a: &LazyBigint, b: &LazyBigint| Ok(
-    XValue::Int(a.clone() | b.clone())
-));
+add_int_binop!(add_int_bit_or, bit_or, |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W>| {
+    rt.borrow().can_allocate(max(a.prospective_size(), b.prospective_size()))?;
+    Ok(Ok(XValue::Int(a.clone() | b.clone())))
+});
 add_int_binop!(
     add_int_bit_and,
     bit_and,
-    |a: &LazyBigint, b: &LazyBigint| Ok(XValue::Int(a.clone() & b.clone()))
+    |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W>| {
+        rt.borrow().can_allocate(max(a.prospective_size(), b.prospective_size()))?;
+        Ok(Ok(XValue::Int(a.clone() & b.clone())))
+    }
 );
 add_binfunc!(
     add_int_div,
@@ -61,12 +71,13 @@ add_binfunc!(
     X_INT,
     Int,
     X_FLOAT,
-    |a: &LazyBigint, b: &LazyBigint| {
-        if b.is_zero() {
+    |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W>| {
+        Ok(if b.is_zero() {
             Err(String::from("Division by zero"))
         } else {
+            rt.borrow().can_allocate(a.prospective_size() - b.prospective_size())?;
             Ok(XValue::Float(a.clone().true_div(b.clone())))
-        }
+        })
     }
 );
 add_binfunc!(
@@ -75,32 +86,35 @@ add_binfunc!(
     X_INT,
     Int,
     X_INT,
-    |a: &LazyBigint, b: &LazyBigint| if b.is_negative() {
+    |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W>| Ok(if b.is_negative() {
         Err(String::from("cannot raise integer to a negative power"))
     } else if b.is_zero() && a.is_zero() {
         Err(String::from("cannot raise zero to a zero power"))
     } else {
+        rt.borrow().can_allocate_by(|| {
+            b.to_usize().zip(a.bits().to_usize()).map(|(b, a_bits)| (a_bits / 8) * b)
+        })?;
         Ok(XValue::Int(a.clone().pow(b.clone())))
-    }
+    })
 );
-add_binfunc!(add_int_lt, lt, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
+add_binfunc!(add_int_lt, lt, X_INT, Int, X_BOOL, |a, b, _rt| Ok(Ok(XValue::Bool(
     a < b
-)));
-add_binfunc!(add_int_gt, gt, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
+))));
+add_binfunc!(add_int_gt, gt, X_INT, Int, X_BOOL, |a, b, _rt| Ok(Ok(XValue::Bool(
     a > b
-)));
-add_binfunc!(add_int_eq, eq, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
+))));
+add_binfunc!(add_int_eq, eq, X_INT, Int, X_BOOL, |a, b, _rt| Ok(Ok(XValue::Bool(
     a == b
-)));
-add_binfunc!(add_int_ne, ne, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
+))));
+add_binfunc!(add_int_ne, ne, X_INT, Int, X_BOOL, |a, b, _rt| Ok(Ok(XValue::Bool(
     a != b
-)));
-add_binfunc!(add_int_le, le, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
+))));
+add_binfunc!(add_int_le, le, X_INT, Int, X_BOOL, |a, b, _rt| Ok(Ok(XValue::Bool(
     a <= b
-)));
-add_binfunc!(add_int_ge, ge, X_INT, Int, X_BOOL, |a, b| Ok(XValue::Bool(
+))));
+add_binfunc!(add_int_ge, ge, X_INT, Int, X_BOOL, |a, b, _rt| Ok(Ok(XValue::Bool(
     a >= b
-)));
+))));
 
 pub(crate) fn add_int_neg<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -108,7 +122,10 @@ pub(crate) fn add_int_neg<W: Write + 'static>(
     scope.add_func(
         "neg",
         XFuncSpec::new(&[&X_INT], X_INT.clone()),
-        ufunc!(Int, |a: &LazyBigint| Ok(XValue::Int(a.clone().neg()))),
+        ufunc!(Int, |a: &LazyBigint, rt: RTCell<W>| {
+            rt.borrow().can_afford(a)?;
+            Ok(Ok(XValue::Int(a.clone().neg())))
+        }),
     )
 }
 
@@ -118,7 +135,10 @@ pub(crate) fn add_int_to_str<W: Write + 'static>(
     scope.add_func(
         "to_str",
         XFuncSpec::new(&[&X_INT], X_STRING.clone()),
-        ufunc!(Int, |a: &LazyBigint| Ok(XValue::String(a.to_string()))),
+        ufunc!(Int, |a: &LazyBigint, rt: RTCell<W>| {
+            rt.borrow().can_allocate_by(|| ((a.bits()/8) as f64 * 0.30103).ceil().to_usize())?;
+            Ok(Ok(XValue::String(a.to_string())))
+        }),
     )
 }
 
@@ -134,9 +154,13 @@ pub(crate) fn add_int_digits<W: Write + 'static>(
             let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
             let b = to_primitive!(a1, Int, LazyBigint::from(10));
             let mut digits = Vec::new();
+            let mut total_bits = 0;
             let mut n = n.clone();
             while !n.is_zero() {
-                digits.push(n.clone() % b.clone().into_owned());
+                let next_digit = n.clone() % b.clone().into_owned();
+                total_bits += next_digit.bits();
+                rt.borrow().can_allocate_by(|| (total_bits/8).to_usize())?;
+                digits.push(next_digit);
                 n = n / b.clone().into_owned();
             }
             Ok(manage_native!(
@@ -172,7 +196,7 @@ pub(crate) fn add_int_hash<W: Write + 'static>(
     )
 }
 
-add_binfunc!(add_int_cmp, cmp, X_INT, Int, X_INT, |a, b| Ok(xcmp(a, b)));
+add_binfunc!(add_int_cmp, cmp, X_INT, Int, X_INT, |a, b, _rt| Ok(Ok(xcmp(a, b))));
 
 pub(crate) fn add_int_chr<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
