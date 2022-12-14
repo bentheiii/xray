@@ -1,0 +1,10 @@
+struct A(x: int, y: str)
+union U(x: int, y: str)
+
+fn main()->bool{
+    let e = error("");
+    assert(is_error(A(1, e)))
+    && assert(is_error(U::x(e)))
+    && assert(is_error([e]))
+    && assert(is_error([].push(e)))
+}
