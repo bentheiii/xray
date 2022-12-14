@@ -170,7 +170,6 @@ pub(crate) fn add_int_digits<W: Write + 'static>(
                         .map(|v| ManagedXValue::new(XValue::Int(v), rt.clone()))
                         .collect::<Result<Vec<_>, _>>()?
                         .into_iter()
-                        .map(Ok)
                         .collect()
                 ),
                 rt

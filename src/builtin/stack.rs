@@ -1,6 +1,5 @@
 use crate::builtin::core::eval;
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::evaluation_scope::EvaluatedValue;
 use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncSpec, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
@@ -38,15 +37,15 @@ impl NativeType for XStackType {
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 struct StackNode<W: Write + 'static> {
-    value: EvaluatedValue<W>,
+    value: Rc<ManagedXValue<W>>,
     next: Option<Rc<StackNode<W>>>,
 }
 
 impl<W: Write + 'static> StackNode<W> {
-    fn first(value: EvaluatedValue<W>) -> Rc<Self> {
+    fn first(value: Rc<ManagedXValue<W>>) -> Rc<Self> {
         Rc::new(Self { value, next: None })
     }
-    fn new(value: EvaluatedValue<W>, next: Rc<Self>) -> Rc<Self> {
+    fn new(value: Rc<ManagedXValue<W>>, next: Rc<Self>) -> Rc<Self> {
         Rc::new(Self {
             value,
             next: Some(next),
@@ -75,7 +74,7 @@ impl<W: Write + 'static> XStack<W> {
         Self::default()
     }
 
-    pub(super) fn push(&self, value: EvaluatedValue<W>) -> Self {
+    pub(super) fn push(&self, value: Rc<ManagedXValue<W>>) -> Self {
         let node = match self.head {
             None => StackNode::first(value),
             Some(ref head) => StackNode::new(value, head.clone()),
@@ -86,7 +85,7 @@ impl<W: Write + 'static> XStack<W> {
         }
     }
 
-    fn to_vec<const REV: bool>(&self) -> Vec<EvaluatedValue<W>> {
+    fn to_vec<const REV: bool>(&self) -> Vec<Rc<ManagedXValue<W>>> {
         let mut vec = Vec::with_capacity(self.length);
         let mut node = &self.head;
         while let Some(ref n) = node {
@@ -99,7 +98,7 @@ impl<W: Write + 'static> XStack<W> {
         vec
     }
 
-    pub(super) fn iter(&self) -> impl Iterator<Item = EvaluatedValue<W>> + '_ {
+    pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue<W>>> + '_ {
         let mut node = &self.head;
         from_fn(move || match &node {
             None => None,
@@ -162,7 +161,7 @@ pub(crate) fn add_stack_push<W: Write + 'static>(
         XFuncSpec::new(&[&t_stk, &t], t_stk.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let a1 = eval(&args[1], ns, &rt)?;
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let stk0 = to_native!(a0, XStack<W>);
             Ok(manage_native!(stk0.push(a1), rt))
         }),

@@ -1,5 +1,4 @@
 use crate::builtin::core::{eval, eval_resolved_func, get_func, unpack_native};
-use crate::evaluation_scope::EvaluatedValue;
 use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncSpec, X_BOOL, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
@@ -11,6 +10,7 @@ use crate::{
 use derivative::Derivative;
 use std::fmt::Debug;
 use std::io::Write;
+use std::rc::Rc;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -34,7 +34,7 @@ impl NativeType for XOptionalType {
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub(crate) struct XOptional<W: Write + 'static> {
-    pub(crate) value: Option<EvaluatedValue<W>>,
+    pub(crate) value: Option<Rc<ManagedXValue<W>>>,
 }
 
 impl<W: Write + 'static> XNativeValue for XOptional<W> {
@@ -70,7 +70,7 @@ pub(crate) fn add_optional_some<W: Write + 'static>(
         "some",
         XFuncSpec::new(&[&t], XOptionalType::xtype(t.clone())).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
-            let a0 = eval(&args[0], ns, &rt)?;
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
             Ok(manage_native!(XOptional { value: Some(a0) }, rt))
         }),
     )
@@ -104,8 +104,8 @@ pub(crate) fn add_optional_map<W: Write + 'static>(
                     manage_native!(
                         XOptional {
                             value: Some(
-                                ns.eval_func_with_values(f1, vec![v.clone()], rt.clone(), false)?
-                                    .unwrap_value()
+                                xraise!(ns.eval_func_with_values(f1, vec![Ok(v.clone())], rt.clone(), false)?
+                                    .unwrap_value())
                             )
                         },
                         rt
@@ -142,7 +142,7 @@ pub(crate) fn add_optional_map_or<W: Write + 'static>(
                 Some(v) => {
                     let a1 = xraise!(eval(&args[1], ns, &rt)?);
                     let f1 = to_primitive!(a1, Function);
-                    Ok(ns.eval_func_with_values(f1, vec![v.clone()], rt, false)?)
+                    Ok(xraise!(ns.eval_func_with_values(f1, vec![Ok(v.clone())], rt, false)?.unwrap_value()).into())
                 }
             }
         }),
@@ -269,7 +269,7 @@ pub(crate) fn add_optional_eq<W: Write + 'static>(
                 if opt0.is_some() && opt1.is_some() {
                     let v0 = opt0.clone().unwrap();
                     let v1 = opt1.clone().unwrap();
-                    let eq = eval_resolved_func(&inner_eq, ns, rt, vec![v0, v1])?;
+                    let eq = eval_resolved_func(&inner_eq, ns, rt, vec![Ok(v0), Ok(v1)])?;
                     Ok(eq.into())
                 } else {
                     Ok(

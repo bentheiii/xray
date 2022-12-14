@@ -24,8 +24,8 @@ pub enum XValue<W: Write + 'static> {
     String(String),
     Bool(bool),
     Function(XFunction<W>),
-    StructInstance(Vec<EvaluatedValue<W>>),
-    UnionInstance(usize, EvaluatedValue<W>),
+    StructInstance(Vec<Rc<ManagedXValue<W>>>),
+    UnionInstance(usize, Rc<ManagedXValue<W>>),
     Native(Box<dyn XNativeValue>),
 }
 

@@ -84,7 +84,6 @@ pub(crate) fn add_str_chars<W: Write + 'static>(
                 .map(|c| ManagedXValue::new(XValue::String(c.to_string()), rt.clone()))
                 .collect::<Result<Vec<_>, _>>()?
                 .into_iter()
-                .map(Ok)
                 .collect();
             Ok(manage_native!(XSequence::array(chars), rt))
         }),

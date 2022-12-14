@@ -33,7 +33,7 @@ pub(crate) fn add_tuple_eq<W: Write + 'static>(
                 let t1 = to_primitive!(a1, StructInstance);
                 let mut ret = true;
                 for ((i0, i1), func) in t0.iter().zip(t1.iter()).zip(inner_funcs.iter()) {
-                    let eq = xraise!(eval_resolved_func(func, ns, rt.clone(), vec![i0.clone(), i1.clone()])?);
+                    let eq = xraise!(eval_resolved_func(func, ns, rt.clone(), vec![Ok(i0.clone()), Ok(i1.clone())])?);
                     let is_eq = to_primitive!(eq, Bool);
                     if !*is_eq {
                         ret = false;

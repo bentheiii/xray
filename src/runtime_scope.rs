@@ -253,19 +253,23 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                     XSequence::Empty
                 } else {
                     XSequence::array(
-                        items
+                        xraise!(
+                            items
                             .iter()
                             .map(|x| self.eval(x, rt.clone(), false).map(|r| r.unwrap_value()))
-                            .collect::<Result<_, _>>()?,
+                            .collect::<Result<Result<_,_>, _>>()?
+                        ),
                     )
                 };
                 Ok(ManagedXValue::new(XValue::Native(Box::new(seq)), rt)?.into())
             }
             XExpr::Construct(_, _, items) | XExpr::Tuple(items) => {
-                let items = items
+                let items = xraise!(
+                    items
                     .iter()
                     .map(|x| self.eval(x, rt.clone(), false).map(|r| r.unwrap_value()))
-                    .collect::<Result<_, _>>()?;
+                    .collect::<Result<Result<_, _>, _>>()?
+                );
                 Ok(ManagedXValue::new(XValue::StructInstance(items), rt)?.into())
             }
             XExpr::Member(obj, idx) => {
@@ -303,7 +307,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 }
             }
             XExpr::Variant(.., idx, expr) => {
-                let obj = self.eval(expr, rt.clone(), false)?.unwrap_value();
+                let obj = xraise!(self.eval(expr, rt.clone(), false)?.unwrap_value());
                 Ok(ManagedXValue::new(XValue::UnionInstance(*idx, obj), rt)?.into())
             }
             XExpr::Call(callee, args) => {

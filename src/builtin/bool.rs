@@ -107,7 +107,7 @@ pub(crate) fn add_bool_then<W: Write + 'static>(
             Ok(manage_native!(
                 XOptional {
                     value: if *to_primitive!(a0, Bool) {
-                        let a1 = eval(&args[1], ns, &rt)?;
+                        let a1 = xraise!(eval(&args[1], ns, &rt)?);
                         Some(a1)
                     } else {
                         None
