@@ -10,7 +10,10 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    let z = [1,2,3].zip("abcd".chars()) == [(1,"a"), (2,"b"), (3, "c")];
+    fn foo(x: Optional<int>)->int{1}
+    fn foo(x: Optional<bool>)->int{2}
+    let x: Optional<int> = null();
+    let z = foo(x);
     "###;
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()
