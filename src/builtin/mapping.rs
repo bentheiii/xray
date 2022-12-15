@@ -1,7 +1,6 @@
 use crate::builtin::core::{eval, get_func};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::evaluation_scope::EvaluatedValue;
 use crate::native_types::{NativeType, XNativeValue};
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
@@ -72,7 +71,7 @@ impl<W: Write + 'static> XMapping<W> {
         hash_func: Rc<ManagedXValue<W>>,
         eq_func: Rc<ManagedXValue<W>>,
         dict: HashMap<u64, MappingBucket<W>>,
-        len: usize
+        len: usize,
     ) -> Self {
         Self {
             inner: dict,
@@ -135,7 +134,12 @@ impl<W: Write + 'static> XMapping<W> {
         }
 
         Ok(manage_native!(
-            Self::new(self.hash_func.clone(), self.eq_func.clone(), new_dict, new_len),
+            Self::new(
+                self.hash_func.clone(),
+                self.eq_func.clone(),
+                new_dict,
+                new_len
+            ),
             rt
         ))
     }
@@ -143,7 +147,7 @@ impl<W: Write + 'static> XMapping<W> {
 
 impl<W: Write + 'static> XNativeValue for XMapping<W> {
     fn size(&self) -> usize {
-        (self.len*2 + self.inner.len() + 2) * size_of::<usize>()
+        (self.len * 2 + self.inner.len() + 2) * size_of::<usize>()
     }
 }
 
@@ -200,7 +204,7 @@ pub(crate) fn add_mapping_set<W: Write + 'static>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let mapping = to_native!(a0, XMapping<W>);
-            rt.borrow().can_allocate(mapping.len*2)?;
+            rt.borrow().can_allocate(mapping.len * 2)?;
             mapping.with_update(once((a1, a2)), ns, rt)
         }),
     )
@@ -227,7 +231,8 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let mapping = to_native!(a0, XMapping<W>);
             let seq = to_native!(a1, XSequence<W>);
-            rt.borrow().can_allocate(max(mapping.len*2, seq.len()*2))?;
+            rt.borrow()
+                .can_allocate(max(mapping.len * 2, seq.len() * 2))?;
             let arr = xraise!(seq
                 .iter(ns, rt.clone())
                 .collect::<Result<Result<Vec<_>, _>, _>>()?);
@@ -277,7 +282,7 @@ pub(crate) fn add_mapping_lookup<W: Write + 'static>(
                         ) {
                             return Ok(manage_native!(
                                 XOptional {
-                                    value: Some(v.clone().into())
+                                    value: Some(v.clone())
                                 },
                                 rt
                             ));
@@ -368,7 +373,7 @@ pub(crate) fn add_mapping_entries<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let mapping = to_native!(a0, XMapping<W>);
-            rt.borrow().can_allocate(mapping.len*2)?;
+            rt.borrow().can_allocate(mapping.len * 2)?;
             let entries = mapping
                 .inner
                 .values()
@@ -485,7 +490,12 @@ fn bucket_without<W: Write + 'static>(
     for (i, (k, _)) in old_bucket.iter().enumerate() {
         if *to_primitive!(
             forward_err!(ns
-                .eval_func_with_values(eq_func, vec![Ok(key.clone()), Ok(k.clone())], rt.clone(), false)?
+                .eval_func_with_values(
+                    eq_func,
+                    vec![Ok(key.clone()), Ok(k.clone())],
+                    rt.clone(),
+                    false
+                )?
                 .unwrap_value()),
             Bool
         ) {

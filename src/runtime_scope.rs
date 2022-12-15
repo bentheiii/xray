@@ -252,24 +252,18 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 let seq = if items.is_empty() {
                     XSequence::Empty
                 } else {
-                    XSequence::array(
-                        xraise!(
-                            items
-                            .iter()
-                            .map(|x| self.eval(x, rt.clone(), false).map(|r| r.unwrap_value()))
-                            .collect::<Result<Result<_,_>, _>>()?
-                        ),
-                    )
+                    XSequence::array(xraise!(items
+                        .iter()
+                        .map(|x| self.eval(x, rt.clone(), false).map(|r| r.unwrap_value()))
+                        .collect::<Result<Result<_, _>, _>>()?))
                 };
                 Ok(ManagedXValue::new(XValue::Native(Box::new(seq)), rt)?.into())
             }
             XExpr::Construct(_, _, items) | XExpr::Tuple(items) => {
-                let items = xraise!(
-                    items
+                let items = xraise!(items
                     .iter()
                     .map(|x| self.eval(x, rt.clone(), false).map(|r| r.unwrap_value()))
-                    .collect::<Result<Result<_, _>, _>>()?
-                );
+                    .collect::<Result<Result<_, _>, _>>()?);
                 Ok(ManagedXValue::new(XValue::StructInstance(items), rt)?.into())
             }
             XExpr::Member(obj, idx) => {

@@ -19,9 +19,9 @@ pub(crate) fn add_bool_type<W: Write + 'static>(
     scope.add_native_type("bool", X_BOOL.clone())
 }
 
-add_binfunc!(add_bool_eq, eq, X_BOOL, Bool, X_BOOL, |a, b, _| Ok(
-    Ok(XValue::Bool(a == b))
-));
+add_binfunc!(add_bool_eq, eq, X_BOOL, Bool, X_BOOL, |a, b, _| Ok(Ok(
+    XValue::Bool(a == b)
+)));
 
 pub(crate) fn add_bool_assert<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -145,6 +145,6 @@ pub(crate) fn add_bool_to_str<W: Write + 'static>(
     )
 }
 
-add_binfunc!(add_bool_cmp, cmp, X_BOOL, Bool, X_INT, |a, b, _| Ok(Ok(xcmp(
-    a, b
-))));
+add_binfunc!(add_bool_cmp, cmp, X_BOOL, Bool, X_INT, |a, b, _| Ok(Ok(
+    xcmp(a, b)
+)));

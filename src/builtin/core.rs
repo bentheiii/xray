@@ -66,7 +66,8 @@ macro_rules! ufunc {
     ($operand_variant:ident, $func:expr) => {{
         $crate::builtin::core::ufunc_ref(
             |a: Rc<ManagedXValue<W>>, rt: $crate::runtime::RTCell<W>| {
-                let result: Result<_, String> = $func(to_primitive!(a, $operand_variant), rt.clone())?;
+                let result: Result<_, String> =
+                    $func(to_primitive!(a, $operand_variant), rt.clone())?;
                 let result = match result {
                     Ok(v) => Ok(v),
                     Err(s) => Err($crate::xvalue::ManagedXError::new(s, rt.clone())?),

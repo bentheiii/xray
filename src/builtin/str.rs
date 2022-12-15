@@ -10,13 +10,13 @@ use crate::util::lazy_bigint::LazyBigint;
 use rc::Rc;
 use std::collections::hash_map::DefaultHasher;
 
+use crate::runtime::RTCell;
 use itertools::Itertools;
 use num_traits::{FromPrimitive, Signed, ToPrimitive};
 use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::ops::Neg;
 use std::rc;
-use crate::runtime::RTCell;
 
 pub(crate) fn add_str_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -28,13 +28,20 @@ add_binfunc!(add_str_eq, eq, X_STRING, String, X_BOOL, |a, b, _rt| Ok(
     Ok(XValue::Bool(a == b))
 ));
 
-add_binfunc!(add_str_add, add, X_STRING, String, X_STRING, |a: &String, b: &String, rt: &RTCell<W>| {
-    rt.borrow().can_allocate(a.len() + b.len())?;
-    let mut ret = String::with_capacity(a.len() + b.len());
-    ret.push_str(a);
-    ret.push_str(b);
-    Ok(Ok(XValue::String(ret)))
-});
+add_binfunc!(
+    add_str_add,
+    add,
+    X_STRING,
+    String,
+    X_STRING,
+    |a: &String, b: &String, rt: &RTCell<W>| {
+        rt.borrow().can_allocate(a.len() + b.len())?;
+        let mut ret = String::with_capacity(a.len() + b.len());
+        ret.push_str(a);
+        ret.push_str(b);
+        Ok(Ok(XValue::String(ret)))
+    }
+);
 
 pub(crate) fn add_str_hash<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -73,14 +80,15 @@ pub(crate) fn add_str_chars<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s = to_primitive!(a0, String);
             rt.borrow().can_allocate_by(|| {
-                Some(if s.len() < 128{
+                Some(if s.len() < 128 {
                     // as a shortcut, we won't check the lengths of all strings under a certain bound
                     0
                 } else {
                     s.chars().count()
                 })
             })?;
-            let chars = s.chars()
+            let chars = s
+                .chars()
                 .map(|c| ManagedXValue::new(XValue::String(c.to_string()), rt.clone()))
                 .collect::<Result<Vec<_>, _>>()?
                 .into_iter()
@@ -128,6 +136,6 @@ pub(crate) fn add_str_ord<W: Write + 'static>(
     )
 }
 
-add_binfunc!(add_str_cmp, cmp, X_STRING, String, X_INT, |a, b, _rt| Ok(Ok(xcmp(
-    a, b
-))));
+add_binfunc!(add_str_cmp, cmp, X_STRING, String, X_INT, |a, b, _rt| Ok(
+    Ok(xcmp(a, b))
+));

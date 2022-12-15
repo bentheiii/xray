@@ -86,7 +86,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             expected_type: complete_type,
                             actual_type: comp_xtype,
                         }
-                            .trace(&input));
+                        .trace(&input));
                     }
                     complete_type
                 } else {
@@ -170,7 +170,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         expected_type: spec.ret,
                         actual_type: out_type,
                     }
-                        .trace(&input));
+                    .trace(&input));
                 }
                 let func = subscope.into_static_ud(
                     Some(fn_name.to_string()),
@@ -184,7 +184,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     spec,
                     XStaticFunction::UserFunction(Rc::new(func)),
                 )
-                    .map_err(|e| e.trace(&input))?;
+                .map_err(|e| e.trace(&input))?;
                 Ok(())
             }
             Rule::compound_def => {
@@ -346,7 +346,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                 Err(CompilationError::TypeNotFound {
                                     name: name.to_string(),
                                 }
-                                    .trace(&input))
+                                .trace(&input))
                             }
                             Some(t) => match t.as_ref() {
                                 XType::XNative(t, ..) => {
@@ -356,7 +356,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                             expected_count: t.generic_names().len(),
                                             actual_count: gen_params.len(),
                                         }
-                                            .trace(&input));
+                                        .trace(&input));
                                     }
                                     Ok(Arc::new(XType::XNative(t.clone(), gen_params)))
                                 }
@@ -367,7 +367,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                             expected_count: t.generic_names.len(),
                                             actual_count: gen_params.len(),
                                         }
-                                            .trace(&input));
+                                        .trace(&input));
                                     }
                                     let bind = Bind::from_iter(
                                         t.generic_names.iter().cloned().zip(gen_params.into_iter()),
@@ -697,7 +697,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 function_name,
                 param_name: *out_of_order_param_name,
             }
-                .trace(&param_pairs));
+            .trace(&param_pairs));
         }
         Ok(ret)
     }

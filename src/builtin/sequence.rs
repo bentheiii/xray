@@ -109,12 +109,10 @@ impl<W: Write + 'static> XSequence<W> {
                     .map(|e| Ok(e.unwrap_value()))?
             }
             Self::Zip(sequences) => {
-                let items = forward_err!(
-                    sequences
+                let items = forward_err!(sequences
                     .iter()
                     .map(|seq| to_native!(seq, Self).get(idx, ns, rt.clone()))
-                    .collect::<Result<Result<Vec<_>, _>, _>>()?
-                );
+                    .collect::<Result<Result<Vec<_>, _>, _>>()?);
                 ManagedXValue::new(XValue::StructInstance(items), rt).map(Ok)
             }
             Self::Slice(seq, start, ..) => to_native!(seq, Self).get(idx + start, ns, rt),
@@ -159,7 +157,9 @@ impl<W: Write + 'static> XSequence<W> {
         ns: &RuntimeScope<W>,
         rt: RTCell<W>,
     ) -> Result<Result<Option<Self>, Rc<ManagedXError<W>>>, RuntimeViolation> {
-        let arr = forward_err!(self.iter(ns, rt.clone()).collect::<Result<Result<Vec<_>,_>, _>>()?);
+        let arr = forward_err!(self
+            .iter(ns, rt.clone())
+            .collect::<Result<Result<Vec<_>, _>, _>>()?);
         // first we check if the seq is already sorted
         let mut is_sorted = true;
         for w in arr.windows(2) {
@@ -306,7 +306,9 @@ pub(crate) fn add_sequence_add<W: Write + 'static>(
                 return Ok(a0.clone().into());
             }
             rt.borrow().can_allocate(seq0.len() + seq1.len())?;
-            let mut arr = xraise!(seq0.iter(ns, rt.clone()).collect::<Result<Result<Vec<_>,_>, _>>()?);
+            let mut arr = xraise!(seq0
+                .iter(ns, rt.clone())
+                .collect::<Result<Result<Vec<_>, _>, _>>()?);
             xraise!(arr.try_extend(seq1.iter(ns, rt.clone()))?);
             Ok(manage_native!(XSequence::array(arr), rt))
         }),
@@ -332,7 +334,9 @@ pub(crate) fn add_sequence_add_stack<W: Write + 'static>(
                 Ok(a0.clone().into())
             } else {
                 rt.borrow().can_allocate(seq0.len() + stk1.length)?;
-                let mut arr = xraise!(seq0.iter(ns, rt.clone()).collect::<Result<Result<Vec<_>,_>, _>>()?);
+                let mut arr = xraise!(seq0
+                    .iter(ns, rt.clone())
+                    .collect::<Result<Result<Vec<_>, _>, _>>()?);
                 arr.reserve_exact(stk1.length);
                 for v in stk1.iter() {
                     arr.push(v.clone());
@@ -362,7 +366,9 @@ pub(crate) fn add_sequence_addrev_stack<W: Write + 'static>(
                 Ok(a0.clone().into())
             } else {
                 rt.borrow().can_allocate(seq0.len() + stk1.length)?;
-                let mut arr = xraise!(seq0.iter(ns, rt.clone()).collect::<Result<Result<Vec<_>, _>, _>>()?);
+                let mut arr = xraise!(seq0
+                    .iter(ns, rt.clone())
+                    .collect::<Result<Result<Vec<_>, _>, _>>()?);
                 let original_len = arr.len();
                 arr.reserve_exact(stk1.length);
                 for v in stk1.iter() {
@@ -389,7 +395,9 @@ pub(crate) fn add_sequence_push<W: Write + 'static>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let seq0 = to_native!(a0, XSequence<W>);
             rt.borrow().can_allocate(seq0.len() + 1)?;
-            let mut arr = xraise!(seq0.iter(ns, rt.clone()).collect::<Result<Result<Vec<_>, _>, _>>()?);
+            let mut arr = xraise!(seq0
+                .iter(ns, rt.clone())
+                .collect::<Result<Result<Vec<_>, _>, _>>()?);
             arr.push(a1);
             Ok(manage_native!(XSequence::array(arr), rt))
         }),
@@ -496,9 +504,7 @@ pub(crate) fn add_sequence_set<W: Write + 'static>(
                 .take(idx)
                 .collect::<Result<Result<Vec<_>, _>, _>>()?);
             ret.push(a2);
-            xraise!(ret.try_extend(
-                seq.iter(ns, rt.clone()).skip(idx + 1),
-            )?);
+            xraise!(ret.try_extend(seq.iter(ns, rt.clone()).skip(idx + 1),)?);
             Ok(manage_native!(XSequence::array(ret), rt))
         }),
     )

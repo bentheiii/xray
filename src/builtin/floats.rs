@@ -174,13 +174,11 @@ pub(crate) fn add_float_sqrt<W: Write + 'static>(
     scope.add_func(
         "sqrt",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(
-            if *a < 0.0 {
-                Err("cannot find square root of negative number".to_string())
-            } else {
-                Ok(XValue::Float(a.sqrt()))
-            }
-        )),
+        ufunc!(Float, |a: &f64, _rt| Ok(if *a < 0.0 {
+            Err("cannot find square root of negative number".to_string())
+        } else {
+            Ok(XValue::Float(a.sqrt()))
+        })),
     )
 }
 
@@ -199,6 +197,6 @@ pub(crate) fn add_float_to_str<W: Write + 'static>(
     )
 }
 
-add_binfunc!(add_float_cmp, cmp, X_FLOAT, Float, X_INT, |a, b, _| Ok(Ok(xcmp(
-    a, b
-))));
+add_binfunc!(add_float_cmp, cmp, X_FLOAT, Float, X_INT, |a, b, _| Ok(Ok(
+    xcmp(a, b)
+)));

@@ -103,10 +103,9 @@ pub(crate) fn add_optional_map<W: Write + 'static>(
                     let f1 = to_primitive!(a1, Function);
                     manage_native!(
                         XOptional {
-                            value: Some(
-                                xraise!(ns.eval_func_with_values(f1, vec![Ok(v.clone())], rt.clone(), false)?
-                                    .unwrap_value())
-                            )
+                            value: Some(xraise!(ns
+                                .eval_func_with_values(f1, vec![Ok(v.clone())], rt.clone(), false)?
+                                .unwrap_value()))
                         },
                         rt
                     )
@@ -142,7 +141,10 @@ pub(crate) fn add_optional_map_or<W: Write + 'static>(
                 Some(v) => {
                     let a1 = xraise!(eval(&args[1], ns, &rt)?);
                     let f1 = to_primitive!(a1, Function);
-                    Ok(xraise!(ns.eval_func_with_values(f1, vec![Ok(v.clone())], rt, false)?.unwrap_value()).into())
+                    Ok(xraise!(ns
+                        .eval_func_with_values(f1, vec![Ok(v.clone())], rt, false)?
+                        .unwrap_value())
+                    .into())
                 }
             }
         }),

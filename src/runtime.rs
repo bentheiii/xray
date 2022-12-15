@@ -1,10 +1,10 @@
+use crate::runtime_violation::RuntimeViolation;
+use crate::util::lazy_bigint::LazyBigint;
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::io::Write;
 use std::mem::size_of;
 use std::rc::Rc;
-use crate::runtime_violation::RuntimeViolation;
-use crate::util::lazy_bigint::LazyBigint;
 
 #[derive(Debug, Default)]
 pub struct RuntimeLimits {
@@ -31,40 +31,43 @@ pub struct Runtime<W: Write + 'static> {
 
 pub type RTCell<W> = Rc<RefCell<Runtime<W>>>;
 
-impl<W: Write + 'static> Runtime<W>{
-    pub fn can_allocate(&self, new_size: usize)->Result<(),RuntimeViolation>{
+impl<W: Write + 'static> Runtime<W> {
+    pub fn can_allocate(&self, new_size: usize) -> Result<(), RuntimeViolation> {
         self.can_allocate_by(|| Some(new_size))
     }
 
-    pub fn can_allocate_by(&self, f: impl Fn()->Option<usize>) ->Result<(), RuntimeViolation>{
-        if let Some(size_limit) = self.limits.size_limit{
-            if f().map_or(true, |size| self.size + size*size_of::<usize>() >= size_limit){
-                return Err(RuntimeViolation::AllocationLimitReached)
+    pub fn can_allocate_by(&self, f: impl Fn() -> Option<usize>) -> Result<(), RuntimeViolation> {
+        if let Some(size_limit) = self.limits.size_limit {
+            if f().map_or(true, |size| {
+                self.size + size * size_of::<usize>() >= size_limit
+            }) {
+                return Err(RuntimeViolation::AllocationLimitReached);
             }
         }
-        return Ok(())
+        Ok(())
     }
 
-    pub fn can_afford(&self, x: &impl ProspectiveSize)->Result<(),RuntimeViolation>{
+    pub fn can_afford(&self, x: &impl ProspectiveSize) -> Result<(), RuntimeViolation> {
         self.can_allocate_by(|| Some(x.prospective_size()))
     }
 
-    pub fn vec<T>(&self, capacity: usize)->Result<Vec<T>,RuntimeViolation>{
-        self.can_allocate(capacity).map(|_| Vec::with_capacity(capacity))
+    pub fn vec<T>(&self, capacity: usize) -> Result<Vec<T>, RuntimeViolation> {
+        self.can_allocate(capacity)
+            .map(|_| Vec::with_capacity(capacity))
     }
 }
 
-pub trait ProspectiveSize{
-    fn prospective_size(&self)->usize;
+pub trait ProspectiveSize {
+    fn prospective_size(&self) -> usize;
 }
 
-impl<T> ProspectiveSize for Vec<T>{
+impl<T> ProspectiveSize for Vec<T> {
     fn prospective_size(&self) -> usize {
         self.len()
     }
 }
 
-impl ProspectiveSize for LazyBigint{
+impl ProspectiveSize for LazyBigint {
     fn prospective_size(&self) -> usize {
         (self.bits() / 8) as usize
     }
