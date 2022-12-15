@@ -74,6 +74,7 @@ impl<W: Write + 'static> RootCompilationScope<W> {
     pub fn add_dyn_func(
         &mut self,
         name: &'static str,
+        desc: &'static str,
         func: impl Fn(
                 Option<&[XExpr<W>]>,
                 Option<&[Arc<XType>]>,
@@ -83,7 +84,7 @@ impl<W: Write + 'static> RootCompilationScope<W> {
             + 'static,
     ) -> Result<(), CompilationError> {
         self.scope
-            .add_dynamic_func(self.interner.get_or_intern_static(name), func)
+            .add_dynamic_func(self.interner.get_or_intern_static(name), desc, func)
             .map(|_| ())
     }
 

@@ -7,7 +7,7 @@ use std::io::Write;
 pub(crate) fn add_unknown_eq<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
-    scope.add_dyn_func("eq", move |_params, types, _ns, bind| {
+    scope.add_dyn_func("eq", "unknown", move |_params, types, _ns, bind| {
         if bind.is_some() {
             return Err("this dyn func has no bind".to_string());
         }

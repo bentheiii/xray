@@ -81,7 +81,7 @@ pub(crate) enum Overload<W: Write + 'static> {
         spec: XFuncSpec,
     },
     // todo also add declaration line?
-    Factory(DynBind<W>),
+    Factory(&'static str, DynBind<W>),
 }
 
 pub struct CompilationScope<'p, W: Write + 'static> {
@@ -201,6 +201,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     pub(crate) fn add_dynamic_func(
         &mut self,
         name: Identifier,
+        description: &'static str,
         func: impl Fn(
                 Option<&[XExpr<W>]>,
                 Option<&[Arc<XType>]>,
@@ -213,7 +214,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         self.functions
             .entry(name)
             .or_default()
-            .push(Overload::Factory(Rc::new(func)));
+            .push(Overload::Factory(description, Rc::new(func)));
         Ok(())
     }
 
@@ -757,7 +758,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         spec.is_generic(),
                     )
                 }
-                Overload::Factory(dyn_func) => {
+                Overload::Factory(desc, dyn_func) => {
                     match dyn_func(args, arg_types.as_deref(), self, dynamic_bind_types) {
                         Ok(overload) => {
                             let xtype = overload.spec.xtype();
@@ -768,7 +769,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             )
                         }
                         Err(err) => {
-                            dynamic_failures.push(err);
+                            dynamic_failures.push(format!("{desc}- {err}"));
                             continue;
                         }
                     }

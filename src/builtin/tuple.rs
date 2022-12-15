@@ -10,7 +10,7 @@ pub(crate) fn add_tuple_eq<W: Write + 'static>(
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
 
-    scope.add_dyn_func("eq", move |_params, types, ns, bind| {
+    scope.add_dyn_func("eq", "tuples", move |_params, types, ns, bind| {
         if bind.is_some() {
             return Err("this dyn func has no bind".to_string());
         }

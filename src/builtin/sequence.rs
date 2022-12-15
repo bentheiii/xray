@@ -1029,7 +1029,7 @@ pub(crate) fn add_sequence_eq<W: Write + 'static>(
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
 
-    scope.add_dyn_func("eq", move |_params, types, ns, bind| {
+    scope.add_dyn_func("eq", "sequences", move |_params, types, ns, bind| {
         if bind.is_some() {
             return Err("this dyn func has no bind".to_string());
         }
@@ -1084,7 +1084,7 @@ pub(crate) fn add_sequence_dyn_sort<W: Write + 'static>(
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("cmp");
 
-    scope.add_dyn_func("sort", move |_params, types, ns, bind| {
+    scope.add_dyn_func("sort", "sequences", move |_params, types, ns, bind| {
         if bind.is_some() {
             return Err("this dyn func has no bind".to_string());
         }
