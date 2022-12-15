@@ -359,6 +359,27 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 };
                 Ok(XExpr::Member(Box::new(obj), member_idx))
             }
+            XStaticExpr::MemberValue(obj, member_name) => {
+                let obj = self.compile(*obj)?;
+                let obj_type = self.type_of(&obj)?;
+                let member_idx = match obj_type.as_ref() {
+                    XType::Compound(CompoundKind::Struct, spec, _) => {
+                        if let Some(&index) = spec.indices.get(&member_name) {
+                            index
+                        } else {
+                            return Err(CompilationError::MemberNotFound {
+                                spec: spec.clone(),
+                                name: member_name.clone(),
+                            });
+                        }
+                    }
+                    XType::Tuple(..) | XType::Compound(..) => {
+                        return Err(CompilationError::NonUnionExclamationAccess { xtype: obj_type })
+                    }
+                    _ => return Err(CompilationError::NonCompoundMemberAccess { xtype: obj_type }),
+                };
+                Ok(XExpr::MemberValue(Box::new(obj), member_idx))
+            }
             XStaticExpr::Tuple(items) => Ok(XExpr::Tuple(
                 items
                     .into_iter()
@@ -600,6 +621,23 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         Ok(XOptionalType::xtype(t))
                     }
                     XType::Tuple(fields) => Ok(fields[*idx].clone()),
+                    _ => Err(CompilationError::NotACompound {
+                        type_: obj_type.clone(),
+                    }),
+                }
+            }
+            XExpr::MemberValue(obj, idx) => {
+                let obj_type = self.type_of(obj)?;
+                match obj_type.as_ref() {
+                    XType::Compound(CompoundKind::Union, spec, bind) => Ok(spec.fields[*idx]
+                        .type_
+                        .clone()
+                        .resolve_bind(bind, Some(&obj_type))),
+                    XType::Compound(CompoundKind::Struct, ..) | XType::Tuple(..) => {
+                        Err(CompilationError::NonUnionExclamationAccess {
+                            xtype: obj_type.clone(),
+                        })
+                    }
                     _ => Err(CompilationError::NotACompound {
                         type_: obj_type.clone(),
                     }),

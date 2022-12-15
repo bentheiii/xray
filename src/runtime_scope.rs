@@ -285,6 +285,18 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                     _ => panic!("Expected struct, got {:?}", obj),
                 }
             }
+            XExpr::MemberValue(obj, idx) => {
+                let obj = xraise!(self.eval(obj, rt.clone(), false)?.unwrap_value());
+                match &obj.as_ref().value {
+                    XValue::UnionInstance(variant, item) => Ok(if variant == idx {
+                        Ok(item.clone())
+                    } else {
+                        Err(ManagedXError::new("value is of incorrent variant", rt)?)
+                    }
+                    .into()),
+                    _ => panic!("Expected union, got {:?}", obj),
+                }
+            }
             XExpr::Value(cell_idx) => {
                 let raw_value = self.get_cell_value(*cell_idx);
                 match raw_value {

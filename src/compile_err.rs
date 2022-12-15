@@ -82,6 +82,9 @@ pub enum CompilationError {
     NonCompoundMemberAccess {
         xtype: Arc<XType>,
     },
+    NonUnionExclamationAccess {
+        xtype: Arc<XType>,
+    },
     NonItemTupleAccess {
         member: String,
     },
@@ -252,6 +255,7 @@ impl Resolve for CompilationError {
             },
             MemberNotFound { spec, name },
             NonCompoundMemberAccess { xtype },
+            NonUnionExclamationAccess { xtype },
             NonItemTupleAccess { member },
             TupleIndexOutOfBounds {
                 tuple_type,
@@ -363,6 +367,9 @@ pub enum ResolvedCompilationError {
         name: String,
     },
     NonCompoundMemberAccess {
+        xtype: ResolvedType,
+    },
+    NonUnionExclamationAccess {
         xtype: ResolvedType,
     },
     NonItemTupleAccess {
@@ -529,6 +536,9 @@ impl Display for ResolvedCompilationError {
             }
             Self::NonCompoundMemberAccess { xtype } => {
                 write!(f, "Cannot access member of non-compound type {xtype}")
+            }
+            Self::NonUnionExclamationAccess { xtype } => {
+                write!(f, "exclamation member access syntax (!:) can only be used on unions (got {xtype})")
             }
             Self::NonItemTupleAccess { member } => {
                 write!(

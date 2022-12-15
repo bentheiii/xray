@@ -28,6 +28,7 @@ pub(crate) enum XStaticExpr {
     // todo we can overcome this limitation with middleware interner that treats "item" strings
     //  differently
     Member(Box<XStaticExpr>, String),
+    MemberValue(Box<XStaticExpr>, String),
     Ident(Identifier),
     // todo we always specialize with turbofish or bind, but never both, enforce with enum
     SpecializedIdent(Identifier, Option<Vec<Arc<XType>>>, Option<Vec<Arc<XType>>>),
@@ -64,6 +65,7 @@ pub enum XExpr<W: Write + 'static> {
     Construct(Arc<XCompoundSpec>, Bind, Vec<XExpr<W>>),
     Variant(Arc<XCompoundSpec>, Bind, usize, Box<XExpr<W>>),
     Member(Box<XExpr<W>>, usize),
+    MemberValue(Box<XExpr<W>>, usize),
     Value(usize),
     // this dummy exists for calling native functions with arguments that were already
     // evaluated

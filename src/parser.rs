@@ -495,6 +495,13 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             let member = accessor.into_inner().next().unwrap();
                             ret = XStaticExpr::Member(Box::new(ret), member.as_str().to_string());
                         }
+                        Rule::member_value => {
+                            let member = accessor.into_inner().next().unwrap();
+                            ret = XStaticExpr::MemberValue(
+                                Box::new(ret),
+                                member.as_str().to_string(),
+                            );
+                        }
                         Rule::call => {
                             let mut iter = accessor.into_inner();
                             let raw_args = iter.next().unwrap();
