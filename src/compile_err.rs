@@ -10,9 +10,9 @@ use pest::Position;
 use std::fmt::{Debug, Display, Formatter};
 use std::io::Write;
 use std::sync::Arc;
-use string_interner::StringInterner;
-use strum::IntoStaticStr;
+
 use crate::root_compilation_scope::Interner;
+use strum::IntoStaticStr;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]

@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::FromIterator;
 use std::sync::Arc;
-use string_interner::{StringInterner};
+
 use crate::root_compilation_scope::Interner;
 
 #[derive(Debug, Eq)]

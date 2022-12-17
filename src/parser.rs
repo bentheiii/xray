@@ -11,6 +11,7 @@ use std::io::Write;
 use std::iter;
 use std::sync::Arc;
 
+use crate::root_compilation_scope::Interner;
 use crate::util::str_escapes::{apply_brace_escape, apply_escapes};
 use crate::xexpr::OverloadSpecialization;
 use crate::xtype::{CompoundKind, XFuncParamSpec};
@@ -18,7 +19,6 @@ use pest::prec_climber::Assoc::{Left, Right};
 use pest::prec_climber::{Operator, PrecClimber};
 use std::iter::FromIterator;
 use std::rc::Rc;
-use crate::root_compilation_scope::Interner;
 
 #[derive(Parser)]
 #[grammar = "xray.pest"]

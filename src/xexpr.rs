@@ -14,7 +14,7 @@ use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
-use string_interner::{StringInterner};
+
 use crate::root_compilation_scope::Interner;
 
 #[derive(Debug)]
@@ -59,11 +59,7 @@ pub(crate) enum XStaticExpr {
 }
 
 impl XStaticExpr {
-    pub(crate) fn new_call(
-        name: &'static str,
-        args: Vec<Self>,
-        interner: &mut Interner,
-    ) -> Self {
+    pub(crate) fn new_call(name: &'static str, args: Vec<Self>, interner: &mut Interner) -> Self {
         Self::Call(
             Box::new(Self::Ident(interner.get_or_intern_static(name))),
             args,

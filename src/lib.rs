@@ -48,8 +48,8 @@ use crate::runtime::RTCell;
 
 use crate::builtin::include::INCLUDE;
 use crate::builtin::tuple::add_tuple_eq;
-use string_interner::{DefaultBackend, DefaultSymbol};
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
+use string_interner::{DefaultBackend, DefaultSymbol};
 
 use crate::xexpr::{XExplicitStaticArgSpec, XStaticExpr, XStaticFunction};
 use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType};
