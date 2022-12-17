@@ -2,7 +2,6 @@ use crate::runtime::RTCell;
 use crate::xexpr::TailedEvalResult;
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XValue};
 
-use std::fmt::{Debug, Formatter};
 use std::io::Write;
 use std::rc::Rc;
 
@@ -13,12 +12,18 @@ use crate::RootCompilationScope;
 
 pub type EvaluatedValue<W> = Result<Rc<ManagedXValue<W>>, Rc<ManagedXError<W>>>;
 
-pub struct MultipleUD; // for trying to access an ambiguous user-defined
+#[derive(Debug)]
+pub enum GetValueError{
+    NotFound,
+    NonValueCell
+}
 
-impl Debug for MultipleUD {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Multiple user-defined functions with the queried name")
-    }
+#[derive(Debug)]
+pub enum GetUniqueFunctionError{
+    NotFound,
+    OverloadedFunction,
+    NonValueCell,
+    FactoryFunction
 }
 
 pub struct RootEvaluationScope<'c, W: Write + 'static> {
@@ -59,45 +64,42 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
         Ok(ret)
     }
 
-    pub fn get_value(&self, name: &str) -> Option<&EvaluatedValue<W>> {
+    pub fn get_value(&self, name: &str) -> Result<&EvaluatedValue<W>, GetValueError> {
         let id = self.compilation_scope.get_identifer(name);
         if let Some(id) = id {
-            let cell_idx = self.compilation_scope.scope.get_variable_cell(&id)?;
+            let cell_idx = self.compilation_scope.scope.get_variable_cell(&id).ok_or(GetValueError::NotFound)?;
             let v = self.scope.get_cell_value(*cell_idx);
             if let EvaluationCell::Value(v) = v {
-                Some(v)
+                Ok(v)
             } else {
-                todo!("handle better")
+                Err(GetValueError::NonValueCell)
             }
         } else {
-            None
+            Err(GetValueError::NotFound)
         }
     }
 
     pub fn get_user_defined_function(
         &self,
         name: &str,
-    ) -> Result<Option<&XFunction<W>>, MultipleUD> {
+    ) -> Result<Option<&XFunction<W>>, GetUniqueFunctionError> {
         let id = self.compilation_scope.get_identifer(name);
         if let Some(id) = id {
-            let overload = self.compilation_scope.scope.get_unique_function(&id)?;
-            overload.map_or(Ok(None), |ov| match ov {
-                Overload::Factory(..) => Err(MultipleUD), // todo improve this error,
+            let overload = self.compilation_scope.scope.get_unique_function(&id).map_err(|_| GetUniqueFunctionError::OverloadedFunction)?.ok_or(GetUniqueFunctionError::NotFound)?;
+            match overload{
+                Overload::Factory(..) => Err(GetUniqueFunctionError::FactoryFunction),
                 Overload::Static { cell_idx, .. } => {
                     let v = self.scope.get_cell_value(*cell_idx);
                     if let EvaluationCell::Value(v) = v {
-                        if let XValue::Function(func) = &v.as_ref().unwrap().value {
-                            Ok(Some(func))
-                        } else {
-                            todo!("handle better")
-                        }
+                        let XValue::Function(func) = &v.as_ref().unwrap().value else {unreachable!()};
+                        Ok(Some(func))
                     } else {
-                        todo!("handle better")
+                        Err(GetUniqueFunctionError::NonValueCell)
                     }
                 }
-            })
+            }
         } else {
-            Ok(None)
+            Err(GetUniqueFunctionError::NotFound)
         }
     }
 

@@ -51,7 +51,7 @@ pub enum CompilationError {
     AmbiguousOverload {
         name: Identifier,
         is_generic: bool,
-        items: usize, // todo improve
+        items: usize,
         param_types: Option<Vec<Arc<XType>>>,
     },
     NoOverload {
@@ -120,6 +120,16 @@ pub enum CompilationError {
     AutoSpecializationWithoutCall,
     BadEscapeSequence {
         sequence: String,
+    },
+    SpecializationOfType {
+        name: Identifier,
+        type_: Arc<XType>,
+    },
+    SpecializationOfVariable {
+        name: Identifier,
+    },
+    TypeAsVariable {
+        type_: Arc<XType>,
     },
 }
 
@@ -283,7 +293,10 @@ impl Resolve for CompilationError {
             DynamicFunctionAsVariable { name },
             InvalidAutoLocation {},
             AutoSpecializationWithoutCall {},
-            BadEscapeSequence { sequence }
+            BadEscapeSequence { sequence },
+            SpecializationOfType { name, type_ },
+            SpecializationOfVariable { name },
+            TypeAsVariable { type_ }
         )
     }
 }
@@ -356,7 +369,7 @@ pub enum ResolvedCompilationError {
     NoOverload {
         name: String,
         param_types: Option<Vec<ResolvedType>>,
-        dynamic_failures: Vec<(&'static str, String)>, // todo change to real errors
+        dynamic_failures: Vec<(&'static str, String)>,
     },
     VariantConstructorOneArg,
     VariantConstructorTypeArgMismatch {
@@ -419,6 +432,16 @@ pub enum ResolvedCompilationError {
     AutoSpecializationWithoutCall,
     BadEscapeSequence {
         sequence: String,
+    },
+    SpecializationOfType {
+        name: String,
+        type_: ResolvedType,
+    },
+    SpecializationOfVariable {
+        name: String,
+    },
+    TypeAsVariable {
+        type_: ResolvedType,
     },
 }
 
@@ -626,6 +649,15 @@ impl Display for ResolvedCompilationError {
             }
             Self::BadEscapeSequence { sequence } => {
                 write!(f, "bad escape sequence: {sequence}")
+            }
+            Self::SpecializationOfType { type_, .. } => {
+                write!(f, "cannot specialize type {type_}")
+            }
+            Self::SpecializationOfVariable { name } => {
+                write!(f, "cannot specialize variable {name}")
+            }
+            Self::TypeAsVariable { type_ } => {
+                write!(f, "cannot use type {type_} as a variable")
             }
         }
     }

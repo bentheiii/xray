@@ -1,0 +1,11 @@
+let t = 10;
+
+fn foo(x: int)->int{
+    let x = x*t;
+    let t = t*x; // t^2*x
+    x*t // t^3*x^2
+}
+
+fn main()->bool{
+    assert(foo(2) == 4000)
+}

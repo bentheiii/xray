@@ -9,8 +9,13 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    let f = -3.6;
-    let z = f.abs();
+    fn foo(t: int)->int{
+        let t = t*5;
+        let t = (t/2).floor();
+        t
+    }
+
+    let z = foo(10);
     "###;
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()

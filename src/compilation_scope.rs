@@ -2,7 +2,6 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::io::Write;
 
-use crate::evaluation_scope::MultipleUD;
 use crate::units::ScopeDepth;
 use crate::util::ipush::IPush;
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
@@ -14,7 +13,7 @@ use crate::{
     XSequenceType, XStaticExpr, XStaticFunction, XType,
 };
 use derivative::Derivative;
-use itertools::Itertools;
+use itertools::{ExactlyOneError, Itertools};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -106,7 +105,9 @@ pub struct CompilationScope<'p, W: Write + 'static> {
     height: ScopeDepth,
     pub(crate) id: usize,
 }
+
 static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
+
 fn next_id() -> usize {
     NEXT_ID.fetch_add(1, Ordering::SeqCst)
 }
@@ -161,7 +162,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     }
 
     fn add_recourse(&mut self, name: Identifier, spec: XFuncSpec) {
-        // todo assert that no values/types use the identifier
         let cell_idx = self.cells.ipush(Cell::Recourse);
         self.recourse_xtype = Some(spec.xtype());
         self.functions
@@ -176,7 +176,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         spec: XFuncSpec,
         func: XStaticFunction<W>,
     ) -> Result<(), CompilationError> {
-        // todo assert that no values/types use the identifier
         let cell_idx = self.cells.ipush(Cell::Variable(spec.xtype()));
         self.functions
             .entry(name)
@@ -210,7 +209,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             ) -> Result<XFunctionFactoryOutput<W>, String>
             + 'static,
     ) -> Result<(), CompilationError> {
-        // todo assert that no values/types use the identifier
         self.functions
             .entry(name)
             .or_default()
@@ -224,7 +222,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         expr: XExpr<W>,
         xtype: Arc<XType>,
     ) -> Result<(), CompilationError> {
-        // todo assert that no overloads/types use the identifier
         let cell_idx = self.cells.ipush(Cell::Variable(xtype));
         self.variables.insert(name, cell_idx);
         self.declarations
@@ -233,7 +230,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     }
 
     fn add_parameter(&mut self, name: Identifier, arg_idx: usize, xtype: Arc<XType>) {
-        // todo assert that no overloads/types use the identifier
         let cell_idx = self.cells.ipush(Cell::Variable(xtype));
         self.variables.insert(name, cell_idx);
         self.declarations.push(Declaration::Parameter {
@@ -247,7 +243,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         name: Identifier,
         type_: Arc<XType>,
     ) -> Result<(), CompilationError> {
-        // todo assert that no overloads/variable use the identifier
         self.types.insert(name, type_);
         Ok(())
     }
@@ -258,7 +253,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         kind: CompoundKind,
         struct_spec: XCompoundSpec,
     ) -> Result<(), CompilationError> {
-        // todo assert that no overloads/variable use the identifier
         self.types.insert(
             name,
             Arc::new(XType::Compound(
@@ -340,13 +334,13 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         }
                     }
                     XType::Compound(..) => {
-                        return Err(CompilationError::NonVariantMemberAccess { xtype: obj_type })
+                        return Err(CompilationError::NonVariantMemberAccess { xtype: obj_type });
                     }
                     XType::Tuple(types) => {
                         let SpecialPrefixSymbol::Item(idx) = member_name else {
                             return Err(CompilationError::NonItemTupleAccess {
                                 member: member_name,
-                            })
+                            });
                         };
                         if idx > types.len() {
                             return Err(CompilationError::TupleIndexOutOfBounds {
@@ -377,7 +371,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         }
                     }
                     XType::Tuple(..) | XType::Compound(..) => {
-                        return Err(CompilationError::NonUnionVariantAccess { xtype: obj_type })
+                        return Err(CompilationError::NonUnionVariantAccess { xtype: obj_type });
                     }
                     _ => return Err(CompilationError::NonCompoundMemberAccess { xtype: obj_type }),
                 };
@@ -398,7 +392,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         }
                     }
                     XType::Tuple(..) | XType::Compound(..) => {
-                        return Err(CompilationError::NonUnionVariantAccess { xtype: obj_type })
+                        return Err(CompilationError::NonUnionVariantAccess { xtype: obj_type });
                     }
                     _ => return Err(CompilationError::NonCompoundMemberAccess { xtype: obj_type }),
                 };
@@ -431,8 +425,13 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             XStaticExpr::SpecializedIdent(name, specialization) => {
                 let overloads = self.get_overloads(&name);
                 if overloads.is_empty() {
-                    // todo check if a type/varaible exists and maybe raise that?
-                    return Err(CompilationError::ValueNotFound { name });
+                    return Err(if let Some(t) = self.get_type(&name) {
+                        CompilationError::SpecializationOfType { name, type_: t }
+                    } else if let Some(..) = self.get_variable(&name) {
+                        CompilationError::SpecializationOfVariable { name }
+                    } else {
+                        CompilationError::ValueNotFound { name }
+                    });
                 }
                 self.resolve_overload(overloads, None, specialization.borrow(), name)
             }
@@ -443,8 +442,11 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 } else {
                     let mut overloads = self.get_overloads(&name);
                     if overloads.is_empty() {
-                        // todo check if a type exists and maybe raise that?
-                        return Err(CompilationError::ValueNotFound { name });
+                        return Err(if let Some(t) = self.get_type(&name) {
+                            CompilationError::TypeAsVariable { type_: t }
+                        } else {
+                            CompilationError::ValueNotFound { name }
+                        });
                     }
                     if overloads.len() > 1 {
                         return Err(CompilationError::OverloadedFunctionAsVariable { name });
@@ -858,12 +860,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         })
     }
 
-    pub(crate) fn get_unique_function(
-        &self,
+    pub(crate) fn get_unique_function<'a>(
+        &'a self,
         name: &Identifier,
-    ) -> Result<Option<&Overload<W>>, MultipleUD> {
+    ) -> Result<Option<&Overload<W>>, ExactlyOneError<impl Iterator + 'a>> {
         self.functions.get(name).map_or(Ok(None), |lst| {
-            lst.iter().exactly_one().map(Some).map_err(|_| MultipleUD)
+            lst.iter().exactly_one().map(Some)
         })
     }
 
