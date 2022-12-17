@@ -13,8 +13,8 @@ fn sum(x: Sequence<int>) -> int {
 }
 
 fn do(m: msg) -> int {
-    m::x.map(sum)
-    || m::y.map(floor).value()
+    m?:x.map(sum)
+    || m?:y.map(floor).value()
 }
 
 fn main()->bool {

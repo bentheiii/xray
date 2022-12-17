@@ -15,7 +15,7 @@ fn foo(x: unn, y: strct)->float {
         v*(y::a/1) + y::b
     }
 
-    (x::a.map(handle_a) || x::b.map(handle_b)).value()
+    (x?:a.map(handle_a) || x?:b.map(handle_b)).value()
 }
 
 fn main()->bool {

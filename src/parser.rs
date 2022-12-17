@@ -502,6 +502,13 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                 member.as_str().to_string(),
                             );
                         }
+                        Rule::member_opt_value => {
+                            let member = accessor.into_inner().next().unwrap();
+                            ret = XStaticExpr::MemberOptValue(
+                                Box::new(ret),
+                                member.as_str().to_string(),
+                            );
+                        }
                         Rule::call => {
                             let mut iter = accessor.into_inner();
                             let raw_args = iter.next().unwrap();

@@ -93,7 +93,8 @@ pub struct RuntimeScopeTemplate<W: Write + 'static> {
     pub(crate) name: Option<String>,
     pub(crate) cells: Vec<EvaluationCell<W>>,
     pub(crate) declarations: Vec<Declaration<W>>,
-    pub(crate) scope_parent_height: Option<StackDepth>, // todo just use parent id?
+    pub(crate) scope_parent_height: Option<StackDepth>,
+    // todo just use parent id?
     pub(crate) param_count: usize,
     defaults: Vec<EvaluatedValue<W>>,
     output: Option<Box<XExpr<W>>>,
@@ -268,22 +269,8 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             }
             XExpr::Member(obj, idx) => {
                 let obj = xraise!(self.eval(obj, rt.clone(), false)?.unwrap_value());
-                match &obj.as_ref().value {
-                    XValue::StructInstance(items) => {
-                        Ok(TailedEvalResult::from(items[*idx].clone()))
-                    }
-                    XValue::UnionInstance(variant, item) => Ok(if variant == idx {
-                        manage_native!(
-                            XOptional {
-                                value: Some(item.clone())
-                            },
-                            rt
-                        )
-                    } else {
-                        manage_native!(XOptional::<W> { value: None }, rt)
-                    }),
-                    _ => panic!("Expected struct, got {:?}", obj),
-                }
+                let XValue::StructInstance(items) = &obj.as_ref().value else { panic!("Expected struct, got {:?}", obj) };
+                Ok(TailedEvalResult::from(items[*idx].clone()))
             }
             XExpr::MemberValue(obj, idx) => {
                 let obj = xraise!(self.eval(obj, rt.clone(), false)?.unwrap_value());
@@ -293,9 +280,23 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                     } else {
                         Err(ManagedXError::new("value is of incorrent variant", rt)?)
                     }
-                    .into()),
+                        .into()),
                     _ => panic!("Expected union, got {:?}", obj),
                 }
+            }
+            XExpr::MemberOptValue(obj, idx) => {
+                let obj = xraise!(self.eval(obj, rt.clone(), false)?.unwrap_value());
+                let XValue::UnionInstance(variant, item) = &obj.as_ref().value else { panic!("Expected union, got {:?}", obj) };
+                Ok(if variant == idx {
+                    manage_native!(
+                            XOptional {
+                                value: Some(item.clone())
+                            },
+                            rt
+                        )
+                } else {
+                    manage_native!(XOptional::<W> { value: None }, rt)
+                })
             }
             XExpr::Value(cell_idx) => {
                 let raw_value = self.get_cell_value(*cell_idx);
@@ -309,7 +310,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                         XValue::Function(self.template.clone().to_function()),
                         rt,
                     )
-                    .map(|v| v.into()),
+                        .map(|v| v.into()),
                 }
             }
             XExpr::Variant(.., idx, expr) => {
@@ -334,7 +335,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 let callee = xraise!(self
                     .eval(callee.as_ref(), rt.clone(), false)?
                     .unwrap_value());
-                let XValue::Function(func) = &callee.value else {panic!("expected a function")};
+                let XValue::Function(func) = &callee.value else { panic!("expected a function") };
                 self.eval_func_with_expressions(func, args, rt, tail_available)
             }
             XExpr::Dummy(v) => Ok(TailedEvalResult::from(v.clone())),

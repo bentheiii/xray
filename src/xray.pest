@@ -16,6 +16,7 @@ expression2 = {
     method
     | call
     | member
+    | member_opt_value
     | member_value
     | index
  }
@@ -25,6 +26,7 @@ expression2 = {
      }
   member = {"::" ~ CNAME}
   member_value = {"!:" ~ CNAME}
+  member_opt_value = {"?:" ~ CNAME}
   call = {call_args}
   index = {"[" ~ expression ~ "]"}
 expression3 = _{

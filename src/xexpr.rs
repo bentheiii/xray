@@ -29,6 +29,7 @@ pub(crate) enum XStaticExpr {
     //  differently
     Member(Box<XStaticExpr>, String),
     MemberValue(Box<XStaticExpr>, String),
+    MemberOptValue(Box<XStaticExpr>, String),
     Ident(Identifier),
     // todo we always specialize with turbofish or bind, but never both, enforce with enum
     SpecializedIdent(Identifier, Option<Vec<Arc<XType>>>, Option<Vec<Arc<XType>>>),
@@ -66,6 +67,7 @@ pub enum XExpr<W: Write + 'static> {
     Variant(Arc<XCompoundSpec>, Bind, usize, Box<XExpr<W>>),
     Member(Box<XExpr<W>>, usize),
     MemberValue(Box<XExpr<W>>, usize),
+    MemberOptValue(Box<XExpr<W>>, usize),
     Value(usize),
     // this dummy exists for calling native functions with arguments that were already
     // evaluated

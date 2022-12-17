@@ -5,9 +5,9 @@ union Chain(
 
 fn foo(x: Chain)->int {
     fn helper(x0: Chain, ret: int)->int {
-        if(x0::last.has_value(),
-            ret+x0::last.value(),
-            helper(x0::next.value(), ret+100)
+        if(x0?:last.has_value(),
+            ret+x0?:last.value(),
+            helper(x0?:next.value(), ret+100)
         )
     }
     helper(x, 0)
@@ -24,10 +24,10 @@ fn chain(x: int)->Chain{
 }
 
 fn eq(x: Chain, y: Chain)->bool {
-          (x::last.has_value() && y::last.has_value())
-            .then(x::last.value() == y::last.value())
-        || (x::next.has_value() && y::next.has_value())
-            .then(eq(x::next.value(), y::next.value()))
+          (x?:last.has_value() && y?:last.has_value())
+            .then(x!:last == y!:last)
+        || (x?:next.has_value() && y?:next.has_value())
+            .then(eq(x!:next, y!:next))
         || false
     }
 

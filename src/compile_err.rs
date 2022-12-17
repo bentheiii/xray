@@ -82,7 +82,10 @@ pub enum CompilationError {
     NonCompoundMemberAccess {
         xtype: Arc<XType>,
     },
-    NonUnionExclamationAccess {
+    NonUnionVariantAccess {
+        xtype: Arc<XType>,
+    },
+    NonVariantMemberAccess {
         xtype: Arc<XType>,
     },
     NonItemTupleAccess {
@@ -255,7 +258,8 @@ impl Resolve for CompilationError {
             },
             MemberNotFound { spec, name },
             NonCompoundMemberAccess { xtype },
-            NonUnionExclamationAccess { xtype },
+            NonUnionVariantAccess { xtype },
+            NonVariantMemberAccess { xtype },
             NonItemTupleAccess { member },
             TupleIndexOutOfBounds {
                 tuple_type,
@@ -369,7 +373,10 @@ pub enum ResolvedCompilationError {
     NonCompoundMemberAccess {
         xtype: ResolvedType,
     },
-    NonUnionExclamationAccess {
+    NonUnionVariantAccess {
+        xtype: ResolvedType,
+    },
+    NonVariantMemberAccess {
         xtype: ResolvedType,
     },
     NonItemTupleAccess {
@@ -537,8 +544,11 @@ impl Display for ResolvedCompilationError {
             Self::NonCompoundMemberAccess { xtype } => {
                 write!(f, "Cannot access member of non-compound type {xtype}")
             }
-            Self::NonUnionExclamationAccess { xtype } => {
-                write!(f, "exclamation member access syntax (!:) can only be used on unions (got {xtype})")
+            Self::NonUnionVariantAccess { xtype } => {
+                write!(f, "variant member access syntax (!:/?:) can only be used on unions (got {xtype})")
+            }
+            Self::NonVariantMemberAccess { xtype } => {
+                write!(f, "access to union {xtype} variants must be with the \"?:\" or \"!:\" accessors")
             }
             Self::NonItemTupleAccess { member } => {
                 write!(

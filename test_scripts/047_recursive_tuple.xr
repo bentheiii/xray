@@ -5,5 +5,5 @@ union Tree(
 
 fn main() -> bool{
     let t = Tree::branch((Tree::leaf(1),Tree::leaf(10)));
-    assert(t::branch.value()::item0::leaf.value() == 1)
+    assert(t!:branch::item0!:leaf == 1)
 }

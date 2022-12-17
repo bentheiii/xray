@@ -10,9 +10,9 @@ fn flatten<T>(nested: Nested<T>) -> Sequence<T> {
                 ret0,
                 arr_helper(y, idx + 1, helper(y.get(idx), ret0)))
         }
-        if(n::x.has_value(),
-            ret.push(n::x.value()),
-            arr_helper(n::y.value(), 0, ret))
+        if(n?:x.has_value(),
+            ret.push(n!:x),
+            arr_helper(n!:y, 0, ret))
     }
 
     helper(nested, stack()).to_array()
