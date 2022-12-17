@@ -2,7 +2,7 @@ use crate::native_types::NativeType;
 use crate::CompilationError;
 use crate::Identifier;
 use itertools::Itertools;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::FromIterator;
 use std::sync::Arc;
@@ -96,7 +96,7 @@ pub struct XCompoundSpec {
     pub(crate) name: Identifier,
     pub(crate) generic_names: Vec<Identifier>,
     pub(crate) fields: Vec<XCompoundFieldSpec>,
-    pub(crate) indices: BTreeMap<String, usize>,
+    pub(crate) indices: HashMap<Identifier, usize>,
 }
 
 impl XCompoundSpec {
@@ -105,11 +105,11 @@ impl XCompoundSpec {
         generic_names: Vec<Identifier>,
         fields: Vec<XCompoundFieldSpec>,
     ) -> Self {
-        let indices = BTreeMap::from_iter(
+        let indices = HashMap::from_iter(
             fields
                 .iter()
                 .enumerate()
-                .map(|(i, field)| (field.name.clone(), i)),
+                .map(|(i, field)| (field.name, i)),
         );
         Self {
             name,
@@ -145,7 +145,7 @@ impl XCompoundSpec {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct XCompoundFieldSpec {
-    pub name: String,
+    pub name: Identifier,
     pub type_: Arc<XType>,
 }
 

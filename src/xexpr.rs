@@ -47,12 +47,9 @@ pub(crate) enum XStaticExpr {
     Array(Vec<XStaticExpr>),
     Tuple(Vec<XStaticExpr>),
     Call(Box<XStaticExpr>, Vec<XStaticExpr>),
-    // note that member names have to be strings because we need to identify "item" prefix
-    // todo we can overcome this limitation with middleware interner that treats "item" strings
-    //  differently
-    Member(Box<XStaticExpr>, String),
-    MemberValue(Box<XStaticExpr>, String),
-    MemberOptValue(Box<XStaticExpr>, String),
+    Member(Box<XStaticExpr>, Identifier),
+    MemberValue(Box<XStaticExpr>, Identifier),
+    MemberOptValue(Box<XStaticExpr>, Identifier),
     Ident(Identifier),
     SpecializedIdent(Identifier, OverloadSpecialization),
     Lambda(Vec<XExplicitStaticArgSpec>, Box<XStaticExpr>),

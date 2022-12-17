@@ -5,6 +5,7 @@ use std::io::Write;
 use crate::evaluation_scope::MultipleUD;
 use crate::units::ScopeDepth;
 use crate::util::ipush::IPush;
+use crate::util::special_prefix_interner::SpecialPrefixSymbol;
 use crate::xexpr::{OverloadSpecializationBorrowed, StaticUserFunction, XExpr};
 use crate::xtype::{common_type, CompoundKind, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{DynBind, NativeCallable, XFunctionFactoryOutput};
@@ -334,7 +335,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         } else {
                             return Err(CompilationError::MemberNotFound {
                                 spec: spec.clone(),
-                                name: member_name.clone(),
+                                name: member_name,
                             });
                         }
                     }
@@ -342,12 +343,11 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         return Err(CompilationError::NonVariantMemberAccess { xtype: obj_type })
                     }
                     XType::Tuple(types) => {
-                        let idx = member_name
-                            .strip_prefix("item")
-                            .map(|s| s.parse::<usize>().unwrap())
-                            .ok_or_else(|| CompilationError::NonItemTupleAccess {
-                                member: member_name.clone(),
-                            })?;
+                        let SpecialPrefixSymbol::Item(idx) = member_name else {
+                            return Err(CompilationError::NonItemTupleAccess {
+                                member: member_name,
+                            })
+                        };
                         if idx > types.len() {
                             return Err(CompilationError::TupleIndexOutOfBounds {
                                 tuple_type: obj_type.clone(),
@@ -372,7 +372,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         } else {
                             return Err(CompilationError::MemberNotFound {
                                 spec: spec.clone(),
-                                name: member_name.clone(),
+                                name: member_name,
                             });
                         }
                     }
@@ -393,7 +393,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         } else {
                             return Err(CompilationError::MemberNotFound {
                                 spec: spec.clone(),
-                                name: member_name.clone(),
+                                name: member_name,
                             });
                         }
                     }
@@ -504,7 +504,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                     } else {
                                         Err(CompilationError::VariantConstructorTypeArgMismatch {
                                             union_name: spec.name,
-                                            variant_name: member_name.clone(),
+                                            variant_name: *member_name,
                                             expected_type: spec.fields[index].type_.clone(),
                                             actual_type: self.type_of(&compiled_arg)?,
                                         })
@@ -512,7 +512,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                 } else {
                                     Err(CompilationError::MemberNotFound {
                                         spec: spec.clone(),
-                                        name: member_name.clone(),
+                                        name: *member_name,
                                     })
                                 };
                             }

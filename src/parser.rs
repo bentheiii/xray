@@ -220,7 +220,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             false,
                         )?;
                         Ok(XCompoundFieldSpec {
-                            name: name.to_string(),
+                            name: interner.get_or_intern(name),
                             type_,
                         })
                     })
@@ -494,20 +494,23 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         }
                         Rule::member => {
                             let member = accessor.into_inner().next().unwrap();
-                            ret = XStaticExpr::Member(Box::new(ret), member.as_str().to_string());
+                            ret = XStaticExpr::Member(
+                                Box::new(ret),
+                                interner.get_or_intern(member.as_str()),
+                            );
                         }
                         Rule::member_value => {
                             let member = accessor.into_inner().next().unwrap();
                             ret = XStaticExpr::MemberValue(
                                 Box::new(ret),
-                                member.as_str().to_string(),
+                                interner.get_or_intern(member.as_str()),
                             );
                         }
                         Rule::member_opt_value => {
                             let member = accessor.into_inner().next().unwrap();
                             ret = XStaticExpr::MemberOptValue(
                                 Box::new(ret),
-                                member.as_str().to_string(),
+                                interner.get_or_intern(member.as_str()),
                             );
                         }
                         Rule::call => {

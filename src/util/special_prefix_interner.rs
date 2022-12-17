@@ -55,10 +55,12 @@ impl<B: Backend> Backend for SpecialPrefixBackend<B> {
     fn intern(&mut self, string: &str) -> Self::Symbol {
         if let Some(m) = RE.captures(string) {
             let idx: usize = m[1].parse().unwrap();
-            if self.items.len() <= idx || self.items[idx].is_none() {
+            if self.items.len() <= idx {
                 self.items
-                    .extend(iter::repeat(None).take(idx - self.items.len() - 1));
+                    .extend(iter::repeat(None).take(idx - self.items.len()));
                 self.items.push(Some(Cow::Owned(format!("item{idx}"))));
+            } else if self.items[idx].is_none() {
+                self.items[idx] = Some(Cow::Owned(format!("item{idx}")));
             }
             SpecialPrefixSymbol::Item(idx)
         } else {

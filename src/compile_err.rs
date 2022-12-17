@@ -62,7 +62,7 @@ pub enum CompilationError {
     VariantConstructorOneArg,
     VariantConstructorTypeArgMismatch {
         union_name: Identifier,
-        variant_name: String,
+        variant_name: Identifier,
         expected_type: Arc<XType>,
         actual_type: Arc<XType>,
     },
@@ -78,7 +78,7 @@ pub enum CompilationError {
     },
     MemberNotFound {
         spec: Arc<XCompoundSpec>,
-        name: String,
+        name: Identifier,
     },
     NonCompoundMemberAccess {
         xtype: Arc<XType>,
@@ -90,7 +90,7 @@ pub enum CompilationError {
         xtype: Arc<XType>,
     },
     NonItemTupleAccess {
-        member: String,
+        member: Identifier,
     },
     TupleIndexOutOfBounds {
         tuple_type: Arc<XType>,
