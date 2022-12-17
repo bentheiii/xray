@@ -57,7 +57,7 @@ pub enum CompilationError {
     NoOverload {
         name: Identifier,
         param_types: Option<Vec<Arc<XType>>>,
-        dynamic_failures: Vec<String>, // todo change to real errors
+        dynamic_failures: Vec<(&'static str, String)>,
     },
     VariantConstructorOneArg,
     VariantConstructorTypeArgMismatch {
@@ -163,7 +163,14 @@ impl<T: Resolve + Clone> Resolve for Option<T> {
     }
 }
 
-impl<T: Resolve + Clone> Resolve for Vec<T> {
+impl<T0: Resolve, T1: Resolve> Resolve for (T0, T1) {
+    type Output = (T0::Output, T1::Output);
+    fn resolve(&self, interner: &Interner) -> Self::Output {
+        (self.0.resolve(interner), self.1.resolve(interner))
+    }
+}
+
+impl<T: Resolve> Resolve for Vec<T> {
     type Output = Vec<T::Output>;
     fn resolve(&self, interner: &Interner) -> Self::Output {
         self.iter().map(|i| i.resolve(interner)).collect()
@@ -189,6 +196,7 @@ macro_rules! trivial_resolve {
 }
 
 trivial_resolve!(String);
+trivial_resolve!(&'static str);
 trivial_resolve!(bool);
 trivial_resolve!(usize);
 
@@ -348,7 +356,7 @@ pub enum ResolvedCompilationError {
     NoOverload {
         name: String,
         param_types: Option<Vec<ResolvedType>>,
-        dynamic_failures: Vec<String>, // todo change to real errors
+        dynamic_failures: Vec<(&'static str, String)>, // todo change to real errors
     },
     VariantConstructorOneArg,
     VariantConstructorTypeArgMismatch {
@@ -498,7 +506,11 @@ impl Display for ResolvedCompilationError {
                     if dynamic_failures.is_empty() {
                         "".to_string()
                     } else {
-                        " dynamic failures: ".to_owned() + &dynamic_failures.join(", ")
+                        " dynamic failures: ".to_owned()
+                            + &dynamic_failures
+                                .iter()
+                                .map(|(a, b)| format!("{a}: {b}"))
+                                .join(", ")
                     },
                 )
             }

@@ -105,12 +105,8 @@ impl XCompoundSpec {
         generic_names: Vec<Identifier>,
         fields: Vec<XCompoundFieldSpec>,
     ) -> Self {
-        let indices = HashMap::from_iter(
-            fields
-                .iter()
-                .enumerate()
-                .map(|(i, field)| (field.name, i)),
-        );
+        let indices =
+            HashMap::from_iter(fields.iter().enumerate().map(|(i, field)| (field.name, i)));
         Self {
             name,
             generic_names,

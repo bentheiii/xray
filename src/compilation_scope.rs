@@ -807,7 +807,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             )
                         }
                         Err(err) => {
-                            dynamic_failures.push(format!("{desc}- {err}"));
+                            dynamic_failures.push((*desc, err));
                             continue;
                         }
                     }
