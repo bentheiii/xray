@@ -13,17 +13,17 @@ use crate::RootCompilationScope;
 pub type EvaluatedValue<W> = Result<Rc<ManagedXValue<W>>, Rc<ManagedXError<W>>>;
 
 #[derive(Debug)]
-pub enum GetValueError{
+pub enum GetValueError {
     NotFound,
-    NonValueCell
+    NonValueCell,
 }
 
 #[derive(Debug)]
-pub enum GetUniqueFunctionError{
+pub enum GetUniqueFunctionError {
     NotFound,
     OverloadedFunction,
     NonValueCell,
-    FactoryFunction
+    FactoryFunction,
 }
 
 pub struct RootEvaluationScope<'c, W: Write + 'static> {
@@ -67,7 +67,11 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
     pub fn get_value(&self, name: &str) -> Result<&EvaluatedValue<W>, GetValueError> {
         let id = self.compilation_scope.get_identifer(name);
         if let Some(id) = id {
-            let cell_idx = self.compilation_scope.scope.get_variable_cell(&id).ok_or(GetValueError::NotFound)?;
+            let cell_idx = self
+                .compilation_scope
+                .scope
+                .get_variable_cell(&id)
+                .ok_or(GetValueError::NotFound)?;
             let v = self.scope.get_cell_value(*cell_idx);
             if let EvaluationCell::Value(v) = v {
                 Ok(v)
@@ -85,8 +89,13 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
     ) -> Result<Option<&XFunction<W>>, GetUniqueFunctionError> {
         let id = self.compilation_scope.get_identifer(name);
         if let Some(id) = id {
-            let overload = self.compilation_scope.scope.get_unique_function(&id).map_err(|_| GetUniqueFunctionError::OverloadedFunction)?.ok_or(GetUniqueFunctionError::NotFound)?;
-            match overload{
+            let overload = self
+                .compilation_scope
+                .scope
+                .get_unique_function(&id)
+                .map_err(|_| GetUniqueFunctionError::OverloadedFunction)?
+                .ok_or(GetUniqueFunctionError::NotFound)?;
+            match overload {
                 Overload::Factory(..) => Err(GetUniqueFunctionError::FactoryFunction),
                 Overload::Static { cell_idx, .. } => {
                     let v = self.scope.get_cell_value(*cell_idx);

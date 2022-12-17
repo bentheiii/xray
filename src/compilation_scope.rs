@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::io::Write;
 
+use crate::compile_err::CompilationItemCategory;
 use crate::units::ScopeDepth;
 use crate::util::ipush::IPush;
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
@@ -17,7 +18,6 @@ use itertools::{ExactlyOneError, Itertools};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use crate::compile_err::CompilationItemCategory;
 
 /// this is the information stored for a cell during compilation
 #[derive(Derivative)]
@@ -162,12 +162,20 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         Ok(ret)
     }
 
-    fn add_recourse(&mut self, name: Identifier, spec: XFuncSpec)->Result<(), CompilationError> {
-        if self.variables.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Value, new_category: CompilationItemCategory::Overload})
+    fn add_recourse(&mut self, name: Identifier, spec: XFuncSpec) -> Result<(), CompilationError> {
+        if self.variables.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Value,
+                new_category: CompilationItemCategory::Overload,
+            });
         }
-        if self.types.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Overload})
+        if self.types.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Type,
+                new_category: CompilationItemCategory::Overload,
+            });
         }
         let cell_idx = self.cells.ipush(Cell::Recourse);
         self.recourse_xtype = Some(spec.xtype());
@@ -184,11 +192,19 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         spec: XFuncSpec,
         func: XStaticFunction<W>,
     ) -> Result<(), CompilationError> {
-        if self.variables.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Value, new_category: CompilationItemCategory::Overload})
+        if self.variables.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Value,
+                new_category: CompilationItemCategory::Overload,
+            });
         }
-        if self.types.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Overload})
+        if self.types.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Type,
+                new_category: CompilationItemCategory::Overload,
+            });
         }
         let cell_idx = self.cells.ipush(Cell::Variable(spec.xtype()));
         self.functions
@@ -223,11 +239,19 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             ) -> Result<XFunctionFactoryOutput<W>, String>
             + 'static,
     ) -> Result<(), CompilationError> {
-        if self.variables.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Value, new_category: CompilationItemCategory::Overload})
+        if self.variables.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Value,
+                new_category: CompilationItemCategory::Overload,
+            });
         }
-        if self.types.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Overload})
+        if self.types.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Type,
+                new_category: CompilationItemCategory::Overload,
+            });
         }
         self.functions
             .entry(name)
@@ -242,11 +266,19 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         expr: XExpr<W>,
         xtype: Arc<XType>,
     ) -> Result<(), CompilationError> {
-        if self.functions.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Overload, new_category: CompilationItemCategory::Value})
+        if self.functions.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Overload,
+                new_category: CompilationItemCategory::Value,
+            });
         }
-        if self.types.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Value})
+        if self.types.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Type,
+                new_category: CompilationItemCategory::Value,
+            });
         }
         let cell_idx = self.cells.ipush(Cell::Variable(xtype));
         self.variables.insert(name, cell_idx);
@@ -255,12 +287,25 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         Ok(())
     }
 
-    fn add_parameter(&mut self, name: Identifier, arg_idx: usize, xtype: Arc<XType>)->Result<(), CompilationError> {
-        if self.functions.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Overload, new_category: CompilationItemCategory::Value})
+    fn add_parameter(
+        &mut self,
+        name: Identifier,
+        arg_idx: usize,
+        xtype: Arc<XType>,
+    ) -> Result<(), CompilationError> {
+        if self.functions.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Overload,
+                new_category: CompilationItemCategory::Value,
+            });
         }
-        if self.types.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Value})
+        if self.types.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Type,
+                new_category: CompilationItemCategory::Value,
+            });
         }
         let cell_idx = self.cells.ipush(Cell::Variable(xtype));
         self.variables.insert(name, cell_idx);
@@ -276,11 +321,19 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         name: Identifier,
         type_: Arc<XType>,
     ) -> Result<(), CompilationError> {
-        if self.functions.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Overload, new_category: CompilationItemCategory::Type})
+        if self.functions.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Overload,
+                new_category: CompilationItemCategory::Type,
+            });
         }
-        if self.variables.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Type})
+        if self.variables.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Type,
+                new_category: CompilationItemCategory::Type,
+            });
         }
         self.types.insert(name, type_);
         Ok(())
@@ -292,11 +345,19 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         kind: CompoundKind,
         struct_spec: XCompoundSpec,
     ) -> Result<(), CompilationError> {
-        if self.functions.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Overload, new_category: CompilationItemCategory::Type})
+        if self.functions.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Overload,
+                new_category: CompilationItemCategory::Type,
+            });
         }
-        if self.variables.get(&name).is_some(){
-            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Type})
+        if self.variables.get(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Type,
+                new_category: CompilationItemCategory::Type,
+            });
         }
         self.types.insert(
             name,
@@ -909,9 +970,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         &'a self,
         name: &Identifier,
     ) -> Result<Option<&Overload<W>>, ExactlyOneError<impl Iterator + 'a>> {
-        self.functions.get(name).map_or(Ok(None), |lst| {
-            lst.iter().exactly_one().map(Some)
-        })
+        self.functions
+            .get(name)
+            .map_or(Ok(None), |lst| lst.iter().exactly_one().map(Some))
     }
 
     pub(crate) fn get_variable_cell(&self, name: &Identifier) -> Option<&usize> {

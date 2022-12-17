@@ -157,7 +157,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .map_err(|e| e.trace(&input))?;
                 let param_len = param_names.len();
                 let mut subscope =
-                    CompilationScope::from_parent(self, param_names, fn_symbol, spec.clone()).map_err(|e| e.trace(&params_pair))?;
+                    CompilationScope::from_parent(self, param_names, fn_symbol, spec.clone())
+                        .map_err(|e| e.trace(&params_pair))?;
                 let mut body_iter = body.clone().into_inner();
                 subscope.feed(body_iter.next().unwrap(), &gen_param_names, interner)?;
                 let out_static_expr = subscope.parse_expr(body_iter.next().unwrap(), interner)?;

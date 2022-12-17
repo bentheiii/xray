@@ -15,19 +15,23 @@ use crate::root_compilation_scope::Interner;
 use strum::IntoStaticStr;
 
 #[derive(Copy, Clone, Debug)]
-pub enum CompilationItemCategory{
+pub enum CompilationItemCategory {
     Type,
     Overload,
-    Value
+    Value,
 }
 
-impl Display for CompilationItemCategory{
+impl Display for CompilationItemCategory {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            Self::Overload => "overload",
-            Self::Type => "type",
-            Self::Value => "value",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Overload => "overload",
+                Self::Type => "type",
+                Self::Value => "value",
+            }
+        )
     }
 }
 
@@ -320,7 +324,11 @@ impl Resolve for CompilationError {
             SpecializationOfType { name, type_ },
             SpecializationOfVariable { name },
             TypeAsVariable { type_ },
-            IllegalShadowing { name, current_category, new_category, },
+            IllegalShadowing {
+                name,
+                current_category,
+                new_category,
+            },
         )
     }
 }
@@ -688,8 +696,15 @@ impl Display for ResolvedCompilationError {
             Self::TypeAsVariable { type_ } => {
                 write!(f, "cannot use type {type_} as a variable")
             }
-            Self::IllegalShadowing {name, current_category, new_category} => {
-                write!(f, "cannot shadow {current_category} {name} with a {new_category}")
+            Self::IllegalShadowing {
+                name,
+                current_category,
+                new_category,
+            } => {
+                write!(
+                    f,
+                    "cannot shadow {current_category} {name} with a {new_category}"
+                )
             }
         }
     }
