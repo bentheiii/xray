@@ -104,13 +104,13 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let gen_params = inners.next().unwrap();
                 let mut gen_param_names = parent_gen_param_names.clone();
                 let specific_gen_params = gen_params.into_inner().next().map(|gen_params| {
-                    let mut _names = vec![];
+                    let mut names = vec![];
                     for param in gen_params.into_inner() {
-                        _names.push(interner.get_or_intern(param.as_str()));
+                        names.push(interner.get_or_intern(param.as_str()));
                         // todo why do we need to do this? can't we just add them as types to the scope?
                         gen_param_names.insert(param.as_str().to_string());
                     }
-                    _names
+                    names
                 });
                 let params_pair = inners.next().unwrap();
                 let params = match params_pair.clone().into_inner().next() {

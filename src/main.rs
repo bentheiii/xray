@@ -9,13 +9,12 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    fn foo(t: int)->int{
-        let t = t*5;
-        let t = (t/2).floor();
-        t
+    fn foo<T>(t: T)->T{
+        fn bar(t1: T)->T{
+            t1
+        }
+        bar(t)
     }
-
-    let foo = 10;
 
     let z = foo(10);
     "###;
