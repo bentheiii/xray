@@ -1,10 +1,11 @@
+use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::io::Write;
 
 use crate::evaluation_scope::MultipleUD;
 use crate::units::ScopeDepth;
 use crate::util::ipush::IPush;
-use crate::xexpr::{StaticUserFunction, XExpr};
+use crate::xexpr::{OverloadSpecializationBorrowed, StaticUserFunction, XExpr};
 use crate::xtype::{common_type, CompoundKind, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{DynBind, NativeCallable, XFunctionFactoryOutput};
 use crate::{
@@ -80,7 +81,6 @@ pub(crate) enum Overload<W: Write + 'static> {
         cell_idx: usize,
         spec: XFuncSpec,
     },
-    // todo also add declaration line?
     Factory(&'static str, DynBind<W>),
 }
 
@@ -92,7 +92,7 @@ pub struct CompilationScope<'p, W: Write + 'static> {
     pub(crate) cells: IPush<Cell<W>>,
     pub(crate) declarations: Vec<Declaration<W>>,
 
-    /// name to cell todo also add declaration line?
+    /// name to cell
     variables: HashMap<Identifier, usize>,
     /// name to overload
     functions: HashMap<Identifier, Vec<Overload<W>>>,
@@ -428,19 +428,13 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     subscope.into_static_ud(None, defaults, param_len, Box::new(output), self.id);
                 self.add_anonymous_func(spec, XStaticFunction::UserFunction(Rc::new(ud_func)))
             }
-            XStaticExpr::SpecializedIdent(name, turbofish, bind_types) => {
+            XStaticExpr::SpecializedIdent(name, specialization) => {
                 let overloads = self.get_overloads(&name);
                 if overloads.is_empty() {
                     // todo check if a type/varaible exists and maybe raise that?
                     return Err(CompilationError::ValueNotFound { name });
                 }
-                self.resolve_overload(
-                    overloads,
-                    None,
-                    turbofish.as_deref(),
-                    bind_types.as_deref(),
-                    name,
-                )
+                self.resolve_overload(overloads, None, specialization.borrow(), name)
             }
             XStaticExpr::Ident(name) => {
                 let (height, cell_idx) = if let Some((height, cell_idx)) = self.get_variable(&name)
@@ -535,8 +529,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             let overload = self.resolve_overload(
                                 overloads,
                                 Some(&args),
-                                Some(&arg_types[..]),
-                                None,
+                                OverloadSpecializationBorrowed::ParamTypes(arg_types.borrow()),
                                 *name,
                             )?;
                             return Ok(XExpr::Call(Box::new(overload), args));
@@ -571,15 +564,14 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             };
                         }
                     }
-                    XStaticExpr::SpecializedIdent(name, turbofish, bind_types) => {
+                    XStaticExpr::SpecializedIdent(name, specialization) => {
                         // special case, call to specialized function
                         let overloads = self.get_overloads(name);
                         if !overloads.is_empty() {
                             let overload = self.resolve_overload(
                                 overloads,
                                 Some(&args),
-                                turbofish.as_deref(),
-                                bind_types.as_deref(),
+                                specialization.borrow(),
                                 *name,
                             )?;
                             return Ok(XExpr::Call(Box::new(overload), args));
@@ -718,16 +710,19 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         arg_types: &[Arc<XType>],
     ) -> Result<XExpr<W>, CompilationError> {
         let overloads = self.get_overloads(name);
-        self.resolve_overload(overloads, None, Some(arg_types), None, *name)
+        self.resolve_overload(
+            overloads,
+            None,
+            OverloadSpecializationBorrowed::ParamTypes(arg_types),
+            *name,
+        )
     }
 
     pub(crate) fn resolve_overload(
         &mut self,
         overloads: impl IntoIterator<Item = TracedOverload<W>>,
         args: Option<&[XExpr<W>]>,
-        // promise, at least arg_types is Some, or dynamic_bind_types is Some
-        arg_types: Option<&[Arc<XType>]>,
-        dynamic_bind_types: Option<&[Arc<XType>]>,
+        specialization: OverloadSpecializationBorrowed<'_>,
         name: Identifier,
     ) -> Result<XExpr<W>, CompilationError> {
         #[derive(Derivative)]
@@ -758,11 +753,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             };
             XExpr::Value(new_cell)
         }
-
-        assert!(arg_types.is_some() || dynamic_bind_types.is_some());
-        let arg_types = match arg_types {
-            None => None,
-            Some(at) => {
+        let arg_types = match specialization {
+            OverloadSpecializationBorrowed::Binding(..) => None,
+            OverloadSpecializationBorrowed::ParamTypes(at) => {
                 let mut new_types = vec![];
                 for (i, t) in at.iter().enumerate() {
                     new_types.push(if let XType::Auto = t.as_ref() {
@@ -776,6 +769,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 }
                 Some(new_types)
             }
+        };
+        let dynamic_bind_types = if let OverloadSpecializationBorrowed::Binding(b) = specialization
+        {
+            Some(b)
+        } else {
+            None
         };
 
         let mut exact_matches = vec![];

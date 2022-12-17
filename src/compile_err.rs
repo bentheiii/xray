@@ -654,4 +654,3 @@ impl Debug for ResolvedTracedCompilationError {
         }
     }
 }
-

@@ -3,6 +3,7 @@ use crate::runtime::RTCell;
 use crate::xtype::{Bind, XCompoundSpec, XType};
 use crate::xvalue::{ManagedXValue, NativeCallable, XFunction};
 use crate::{Declaration, Identifier};
+use std::borrow::Borrow;
 
 use derivative::Derivative;
 
@@ -14,6 +15,27 @@ use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
 use string_interner::{DefaultSymbol, StringInterner};
+
+#[derive(Debug)]
+pub(crate) enum OverloadSpecialization {
+    ParamTypes(Vec<Arc<XType>>),
+    Binding(Vec<Arc<XType>>),
+}
+
+#[derive(Debug)]
+pub(crate) enum OverloadSpecializationBorrowed<'a> {
+    ParamTypes(&'a [Arc<XType>]),
+    Binding(&'a [Arc<XType>]),
+}
+
+impl<'a> OverloadSpecialization {
+    pub(crate) fn borrow(&'a self) -> OverloadSpecializationBorrowed<'a> {
+        match self {
+            Self::ParamTypes(v) => OverloadSpecializationBorrowed::ParamTypes(v.borrow()),
+            Self::Binding(v) => OverloadSpecializationBorrowed::Binding(v.borrow()),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub(crate) enum XStaticExpr {
@@ -32,7 +54,7 @@ pub(crate) enum XStaticExpr {
     MemberOptValue(Box<XStaticExpr>, String),
     Ident(Identifier),
     // todo we always specialize with turbofish or bind, but never both, enforce with enum
-    SpecializedIdent(Identifier, Option<Vec<Arc<XType>>>, Option<Vec<Arc<XType>>>),
+    SpecializedIdent(Identifier, OverloadSpecialization),
     Lambda(Vec<XExplicitStaticArgSpec>, Box<XStaticExpr>),
 }
 

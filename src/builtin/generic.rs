@@ -8,11 +8,11 @@ use crate::{
 use rc::Rc;
 
 use crate::builtin::core::{eval, eval_resolved_func, get_func};
+use crate::runtime::RTCell;
 use crate::runtime_violation::RuntimeViolation;
 use num_traits::Signed;
 use std::io::Write;
 use std::rc;
-use crate::runtime::RTCell;
 
 pub(crate) fn add_if<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,

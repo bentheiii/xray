@@ -13,6 +13,7 @@ use std::sync::Arc;
 use string_interner::StringInterner;
 
 use crate::util::str_escapes::{apply_brace_escape, apply_escapes};
+use crate::xexpr::OverloadSpecialization;
 use crate::xtype::{CompoundKind, XFuncParamSpec};
 use pest::prec_climber::Assoc::{Left, Right};
 use pest::prec_climber::{Operator, PrecClimber};
@@ -626,8 +627,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(XStaticExpr::SpecializedIdent(
                     interner.get_or_intern(cname),
-                    Some(args),
-                    None,
+                    OverloadSpecialization::ParamTypes(args),
                 ))
             }
             Rule::dyn_bind_cname => {
@@ -638,8 +638,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(XStaticExpr::SpecializedIdent(
                     interner.get_or_intern(cname),
-                    None,
-                    Some(args),
+                    OverloadSpecialization::Binding(args),
                 ))
             }
             Rule::lambda_func => {
