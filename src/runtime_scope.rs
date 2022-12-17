@@ -107,7 +107,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
         }
     }
 
-    #[allow(clippy::too_many_arguments)] // todo
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn from_specs(
         id: usize,
         name: Option<String>,
@@ -342,7 +342,6 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                                 .collect::<Result<_, _>>()?;
                             return Ok(TailedEvalResult::TailCall(args));
                         }
-                        // todo can we recurse a parent call?
                     }
                 }
                 let callee = xraise!(self
