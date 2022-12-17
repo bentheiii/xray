@@ -14,7 +14,8 @@ use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
-use string_interner::{DefaultSymbol, StringInterner};
+use string_interner::{StringInterner};
+use crate::root_compilation_scope::Interner;
 
 #[derive(Debug)]
 pub(crate) enum OverloadSpecialization {
@@ -53,7 +54,6 @@ pub(crate) enum XStaticExpr {
     MemberValue(Box<XStaticExpr>, String),
     MemberOptValue(Box<XStaticExpr>, String),
     Ident(Identifier),
-    // todo we always specialize with turbofish or bind, but never both, enforce with enum
     SpecializedIdent(Identifier, OverloadSpecialization),
     Lambda(Vec<XExplicitStaticArgSpec>, Box<XStaticExpr>),
 }
@@ -62,7 +62,7 @@ impl XStaticExpr {
     pub(crate) fn new_call(
         name: &'static str,
         args: Vec<Self>,
-        interner: &mut StringInterner,
+        interner: &mut Interner,
     ) -> Self {
         Self::Call(
             Box::new(Self::Ident(interner.get_or_intern_static(name))),
@@ -176,7 +176,7 @@ impl<W: Write + 'static> Debug for XStaticFunction<W> {
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub struct XExplicitStaticArgSpec {
-    pub(crate) name: DefaultSymbol,
+    pub(crate) name: Identifier,
     pub(crate) type_: Arc<XType>,
     pub(crate) default: Option<XStaticExpr>,
 }

@@ -6,7 +6,8 @@ use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Debug, Display, Formatter};
 use std::iter::FromIterator;
 use std::sync::Arc;
-use string_interner::{DefaultSymbol, StringInterner};
+use string_interner::{StringInterner};
+use crate::root_compilation_scope::Interner;
 
 #[derive(Debug, Eq)]
 pub enum XType {
@@ -156,7 +157,7 @@ pub struct XCallableSpec {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct XFuncSpec {
-    pub generic_params: Option<Vec<DefaultSymbol>>,
+    pub generic_params: Option<Vec<Identifier>>,
     pub(crate) params: Vec<XFuncParamSpec>,
     pub ret: Arc<XType>,
     pub(crate) short_circuit_overloads: bool,
@@ -497,7 +498,7 @@ impl XType {
         }
     }
 
-    pub(crate) fn to_string_with_interner(&self, interner: &StringInterner) -> String {
+    pub(crate) fn to_string_with_interner(&self, interner: &Interner) -> String {
         match self {
             Self::Bool => "bool".to_string(),
             Self::Int => "int".to_string(),

@@ -10,7 +10,6 @@ use std::collections::HashSet;
 use std::io::Write;
 use std::iter;
 use std::sync::Arc;
-use string_interner::StringInterner;
 
 use crate::util::str_escapes::{apply_brace_escape, apply_escapes};
 use crate::xexpr::OverloadSpecialization;
@@ -19,6 +18,7 @@ use pest::prec_climber::Assoc::{Left, Right};
 use pest::prec_climber::{Operator, PrecClimber};
 use std::iter::FromIterator;
 use std::rc::Rc;
+use crate::root_compilation_scope::Interner;
 
 #[derive(Parser)]
 #[grammar = "xray.pest"]
@@ -53,7 +53,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         &mut self,
         input: Pair<Rule>,
         parent_gen_param_names: &HashSet<String>,
-        interner: &mut StringInterner,
+        interner: &mut Interner,
     ) -> Result<(), TracedCompilationError> {
         match input.as_rule() {
             Rule::header | Rule::execution | Rule::declaration => {
@@ -242,7 +242,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         &self,
         input: Pair<Rule>,
         generic_param_names: &HashSet<String>,
-        interner: &mut StringInterner,
+        interner: &mut Interner,
         tail_name: Option<&str>,
         auto_allowed: bool,
     ) -> Result<Arc<XType>, TracedCompilationError> {
@@ -388,7 +388,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     fn parse_expr(
         &mut self,
         input: Pair<Rule>,
-        interner: &mut StringInterner,
+        interner: &mut Interner,
     ) -> Result<XStaticExpr, TracedCompilationError> {
         match input.as_rule() {
             Rule::expression => {
@@ -674,7 +674,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         &mut self,
         param_pairs: Pair<Rule>,
         gen_param_names: &HashSet<String>,
-        interner: &mut StringInterner,
+        interner: &mut Interner,
         function_name: Option<Identifier>,
     ) -> Result<ParamSpecs, TracedCompilationError> {
         let ret = param_pairs

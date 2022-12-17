@@ -12,7 +12,7 @@ use std::io::Write;
 use std::ops::Deref;
 
 use std::sync::Arc;
-use string_interner::StringInterner;
+use string_interner::{DefaultBackend, DefaultSymbol, StringInterner};
 
 use crate::compile_err::ResolvedTracedCompilationError;
 use crate::pest::Parser;
@@ -20,6 +20,7 @@ use crate::pest::Parser;
 use derivative::Derivative;
 
 use crate::compilation_scope::CompilationScope;
+use crate::util::special_prefix_interner::SpecialPrefixBackend;
 
 /// these will always point to variable cells
 #[derive(Derivative)]
@@ -39,16 +40,18 @@ pub enum Declaration<W: Write + 'static> {
     },
 }
 
+pub(crate) type Interner = StringInterner<SpecialPrefixBackend<DefaultBackend<DefaultSymbol>>>;
+
 pub struct RootCompilationScope<W: Write + 'static> {
     pub(crate) scope: CompilationScope<'static, W>,
-    interner: StringInterner,
+    interner: Interner,
 }
 
 impl<W: Write + 'static> RootCompilationScope<W> {
     pub fn new() -> Self {
         Self {
             scope: CompilationScope::root(),
-            interner: StringInterner::default(),
+            interner: Interner::new(),
         }
     }
 

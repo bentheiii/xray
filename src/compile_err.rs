@@ -12,6 +12,7 @@ use std::io::Write;
 use std::sync::Arc;
 use string_interner::StringInterner;
 use strum::IntoStaticStr;
+use crate::root_compilation_scope::Interner;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
@@ -124,54 +125,54 @@ pub enum CompilationError {
 
 trait Resolve {
     type Output;
-    fn resolve(&self, interner: &StringInterner) -> Self::Output;
+    fn resolve(&self, interner: &Interner) -> Self::Output;
 }
 
 impl Resolve for Arc<XType> {
     type Output = ResolvedType;
-    fn resolve(&self, interner: &StringInterner) -> Self::Output {
+    fn resolve(&self, interner: &Interner) -> Self::Output {
         ResolvedType(self.to_string_with_interner(interner))
     }
 }
 
 impl Resolve for Identifier {
     type Output = String;
-    fn resolve(&self, interner: &StringInterner) -> Self::Output {
+    fn resolve(&self, interner: &Interner) -> Self::Output {
         interner.resolve(*self).unwrap().to_string()
     }
 }
 
 impl Resolve for XCompoundSpec {
     type Output = String;
-    fn resolve(&self, interner: &StringInterner) -> Self::Output {
+    fn resolve(&self, interner: &Interner) -> Self::Output {
         interner.resolve(self.name).unwrap().to_string()
     }
 }
 
 impl<T: Resolve> Resolve for Arc<T> {
     type Output = T::Output;
-    fn resolve(&self, interner: &StringInterner) -> Self::Output {
+    fn resolve(&self, interner: &Interner) -> Self::Output {
         self.as_ref().resolve(interner)
     }
 }
 
 impl<T: Resolve + Clone> Resolve for Option<T> {
     type Output = Option<T::Output>;
-    fn resolve(&self, interner: &StringInterner) -> Self::Output {
+    fn resolve(&self, interner: &Interner) -> Self::Output {
         self.clone().map(|i| i.resolve(interner))
     }
 }
 
 impl<T: Resolve + Clone> Resolve for Vec<T> {
     type Output = Vec<T::Output>;
-    fn resolve(&self, interner: &StringInterner) -> Self::Output {
+    fn resolve(&self, interner: &Interner) -> Self::Output {
         self.iter().map(|i| i.resolve(interner)).collect()
     }
 }
 
 impl<W: Write + 'static> Resolve for Vec<XExpr<W>> {
     type Output = Self;
-    fn resolve(&self, _interner: &StringInterner) -> Self::Output {
+    fn resolve(&self, _interner: &Interner) -> Self::Output {
         self.clone()
     }
 }
@@ -180,7 +181,7 @@ macro_rules! trivial_resolve {
     ($type_: ty) => {
         impl Resolve for $type_ {
             type Output = Self;
-            fn resolve(&self, _interner: &StringInterner) -> Self::Output {
+            fn resolve(&self, _interner: &Interner) -> Self::Output {
                 self.clone()
             }
         }
@@ -203,7 +204,7 @@ macro_rules! resolve_variants {
 
 impl Resolve for CompilationError {
     type Output = ResolvedCompilationError;
-    fn resolve(&self, interner: &StringInterner) -> Self::Output {
+    fn resolve(&self, interner: &Interner) -> Self::Output {
         resolve_variants!(
             self,
             interner,
@@ -293,7 +294,7 @@ impl CompilationError {
 impl TracedCompilationError {
     pub(crate) fn resolve_with_input(
         self,
-        interner: &StringInterner,
+        interner: &Interner,
         input: &str,
     ) -> ResolvedTracedCompilationError {
         let Self(err, ((start_line, _), start_pos), (_, end_pos)) = self;
