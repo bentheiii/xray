@@ -112,7 +112,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     }
                     _names
                 });
-                let params = match inners.next().unwrap().into_inner().next() {
+                let params_pair = inners.next().unwrap();
+                let params = match params_pair.clone().into_inner().next() {
                     None => vec![],
                     Some(param_pairs) => self.parse_param_specs(
                         param_pairs,
@@ -156,7 +157,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .map_err(|e| e.trace(&input))?;
                 let param_len = param_names.len();
                 let mut subscope =
-                    CompilationScope::from_parent(self, param_names, fn_symbol, spec.clone());
+                    CompilationScope::from_parent(self, param_names, fn_symbol, spec.clone()).map_err(|e| e.trace(&params_pair))?;
                 let mut body_iter = body.clone().into_inner();
                 subscope.feed(body_iter.next().unwrap(), &gen_param_names, interner)?;
                 let out_static_expr = subscope.parse_expr(body_iter.next().unwrap(), interner)?;

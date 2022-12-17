@@ -17,6 +17,7 @@ use itertools::{ExactlyOneError, Itertools};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use crate::compile_err::CompilationItemCategory;
 
 /// this is the information stored for a cell during compilation
 #[derive(Derivative)]
@@ -132,7 +133,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     pub(crate) fn from_parent_lambda(
         parent: &'p CompilationScope<'p, W>,
         parameters: impl IntoIterator<Item = (Identifier, Arc<XType>)>,
-    ) -> Self {
+    ) -> Result<Self, CompilationError> {
         let mut ret = Self {
             parent: Some(parent),
             height: parent.height + 1,
@@ -140,9 +141,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             ..Self::root()
         };
         for (arg_idx, (param_name, param_type)) in parameters.into_iter().enumerate() {
-            ret.add_parameter(param_name, arg_idx, param_type);
+            ret.add_parameter(param_name, arg_idx, param_type)?;
         }
-        ret
+        Ok(ret)
     }
 
     pub(crate) fn from_parent(
@@ -150,24 +151,31 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         parameter_names: impl IntoIterator<Item = Identifier>,
         recourse_name: Identifier,
         recourse_spec: XFuncSpec,
-    ) -> Self {
+    ) -> Result<Self, CompilationError> {
         let mut ret = Self::from_parent_lambda(
             parent,
             parameter_names
                 .into_iter()
                 .zip(recourse_spec.params.iter().map(|p| p.type_.clone())),
-        );
-        ret.add_recourse(recourse_name, recourse_spec);
-        ret
+        )?;
+        ret.add_recourse(recourse_name, recourse_spec)?;
+        Ok(ret)
     }
 
-    fn add_recourse(&mut self, name: Identifier, spec: XFuncSpec) {
+    fn add_recourse(&mut self, name: Identifier, spec: XFuncSpec)->Result<(), CompilationError> {
+        if self.variables.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Value, new_category: CompilationItemCategory::Overload})
+        }
+        if self.types.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Overload})
+        }
         let cell_idx = self.cells.ipush(Cell::Recourse);
         self.recourse_xtype = Some(spec.xtype());
         self.functions
             .entry(name)
             .or_default()
             .push(Overload::Static { cell_idx, spec });
+        Ok(())
     }
 
     pub(crate) fn add_static_func(
@@ -176,6 +184,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         spec: XFuncSpec,
         func: XStaticFunction<W>,
     ) -> Result<(), CompilationError> {
+        if self.variables.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Value, new_category: CompilationItemCategory::Overload})
+        }
+        if self.types.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Overload})
+        }
         let cell_idx = self.cells.ipush(Cell::Variable(spec.xtype()));
         self.functions
             .entry(name)
@@ -209,6 +223,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             ) -> Result<XFunctionFactoryOutput<W>, String>
             + 'static,
     ) -> Result<(), CompilationError> {
+        if self.variables.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Value, new_category: CompilationItemCategory::Overload})
+        }
+        if self.types.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Overload})
+        }
         self.functions
             .entry(name)
             .or_default()
@@ -222,6 +242,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         expr: XExpr<W>,
         xtype: Arc<XType>,
     ) -> Result<(), CompilationError> {
+        if self.functions.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Overload, new_category: CompilationItemCategory::Value})
+        }
+        if self.types.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Value})
+        }
         let cell_idx = self.cells.ipush(Cell::Variable(xtype));
         self.variables.insert(name, cell_idx);
         self.declarations
@@ -229,13 +255,20 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         Ok(())
     }
 
-    fn add_parameter(&mut self, name: Identifier, arg_idx: usize, xtype: Arc<XType>) {
+    fn add_parameter(&mut self, name: Identifier, arg_idx: usize, xtype: Arc<XType>)->Result<(), CompilationError> {
+        if self.functions.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Overload, new_category: CompilationItemCategory::Value})
+        }
+        if self.types.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Value})
+        }
         let cell_idx = self.cells.ipush(Cell::Variable(xtype));
         self.variables.insert(name, cell_idx);
         self.declarations.push(Declaration::Parameter {
             cell_idx,
             argument_idx: arg_idx,
-        })
+        });
+        Ok(())
     }
 
     pub(crate) fn add_native_type(
@@ -243,6 +276,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         name: Identifier,
         type_: Arc<XType>,
     ) -> Result<(), CompilationError> {
+        if self.functions.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Overload, new_category: CompilationItemCategory::Type})
+        }
+        if self.variables.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Type})
+        }
         self.types.insert(name, type_);
         Ok(())
     }
@@ -253,6 +292,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         kind: CompoundKind,
         struct_spec: XCompoundSpec,
     ) -> Result<(), CompilationError> {
+        if self.functions.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Overload, new_category: CompilationItemCategory::Type})
+        }
+        if self.variables.get(&name).is_some(){
+            return Err(CompilationError::IllegalShadowing {name, current_category: CompilationItemCategory::Type, new_category: CompilationItemCategory::Type})
+        }
         self.types.insert(
             name,
             Arc::new(XType::Compound(
@@ -408,7 +453,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let mut subscope = CompilationScope::from_parent_lambda(
                     self,
                     args.iter().map(|arg| (arg.name, arg.type_.clone())),
-                );
+                )?;
                 let output = subscope.compile(*output)?;
                 let output_type = subscope.type_of(&output)?;
                 let param_len = args.len();

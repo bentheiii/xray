@@ -14,6 +14,23 @@ use std::sync::Arc;
 use crate::root_compilation_scope::Interner;
 use strum::IntoStaticStr;
 
+#[derive(Copy, Clone, Debug)]
+pub enum CompilationItemCategory{
+    Type,
+    Overload,
+    Value
+}
+
+impl Display for CompilationItemCategory{
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            Self::Overload => "overload",
+            Self::Type => "type",
+            Self::Value => "value",
+        })
+    }
+}
+
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub struct TracedCompilationError(
@@ -131,6 +148,11 @@ pub enum CompilationError {
     TypeAsVariable {
         type_: Arc<XType>,
     },
+    IllegalShadowing {
+        name: Identifier,
+        current_category: CompilationItemCategory,
+        new_category: CompilationItemCategory,
+    },
 }
 
 trait Resolve {
@@ -209,6 +231,7 @@ trivial_resolve!(String);
 trivial_resolve!(&'static str);
 trivial_resolve!(bool);
 trivial_resolve!(usize);
+trivial_resolve!(CompilationItemCategory);
 
 macro_rules! resolve_variants {
     ($self: ident, $interner: expr, $($variant:ident {$($part:ident),*  $(,)?}),+ $(,)?) => {{
@@ -296,7 +319,8 @@ impl Resolve for CompilationError {
             BadEscapeSequence { sequence },
             SpecializationOfType { name, type_ },
             SpecializationOfVariable { name },
-            TypeAsVariable { type_ }
+            TypeAsVariable { type_ },
+            IllegalShadowing { name, current_category, new_category, },
         )
     }
 }
@@ -442,6 +466,11 @@ pub enum ResolvedCompilationError {
     },
     TypeAsVariable {
         type_: ResolvedType,
+    },
+    IllegalShadowing {
+        name: String,
+        current_category: CompilationItemCategory,
+        new_category: CompilationItemCategory,
     },
 }
 
@@ -658,6 +687,9 @@ impl Display for ResolvedCompilationError {
             }
             Self::TypeAsVariable { type_ } => {
                 write!(f, "cannot use type {type_} as a variable")
+            }
+            Self::IllegalShadowing {name, current_category, new_category} => {
+                write!(f, "cannot shadow {current_category} {name} with a {new_category}")
             }
         }
     }

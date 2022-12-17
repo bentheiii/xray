@@ -15,6 +15,8 @@ fn main() {
         t
     }
 
+    let foo = 10;
+
     let z = foo(10);
     "###;
     let limits = RuntimeLimits {
