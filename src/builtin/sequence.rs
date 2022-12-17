@@ -167,7 +167,6 @@ impl<W: Write + 'static> XSequence<W> {
                 match ns
                     .eval_func_with_values(
                         cmp_func,
-                        // todo make oks unnecessary here
                         vec![Ok(w[0].clone()), Ok(w[1].clone())],
                         rt.clone(),
                         false
@@ -196,7 +195,6 @@ impl<W: Write + 'static> XSequence<W> {
                         forward_err!(ns
                             .eval_func_with_values(
                                 cmp_func,
-                                // todo make oks unnecessary here
                                 vec![Ok(a.clone()), Ok(b.clone())],
                                 rt.clone(),
                                 false

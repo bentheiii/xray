@@ -8,7 +8,6 @@ use crate::utils::capture_writer::CaptureWriter;
 use crate::utils::memory_writer::MemoryWriter;
 use either::Either;
 use serde::Deserialize;
-use xray::compile_err::ResolvedTracedCompilationError;
 use xray::evaluation_scope::RootEvaluationScope;
 use xray::runtime::RuntimeLimits;
 use xray::std_compilation_scope;
@@ -30,13 +29,7 @@ impl ScriptConfig {
         };
         let mut comp_scope = std_compilation_scope();
 
-        match comp_scope.feed_file(input) {
-            Ok(v) => v,
-            Err(b) => match b.as_ref() {
-                e @ ResolvedTracedCompilationError::Compilation(..) => panic!("{}", e),
-                ResolvedTracedCompilationError::Syntax(s) => panic!("{}", s),
-            },
-        };
+        comp_scope.feed_file(input).unwrap();
 
         let runtime = limits.to_runtime(output);
         let eval_scope =
@@ -580,4 +573,9 @@ fn test_script_096() {
 #[test]
 fn test_script_097() {
     test_script(97);
+}
+
+#[test]
+fn test_script_098() {
+    test_script(98);
 }

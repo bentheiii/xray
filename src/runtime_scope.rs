@@ -278,7 +278,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                     XValue::UnionInstance(variant, item) => Ok(if variant == idx {
                         Ok(item.clone())
                     } else {
-                        Err(ManagedXError::new("value is of incorrent variant", rt)?)
+                        Err(ManagedXError::new("value is of incorrect variant", rt)?)
                     }
                     .into()),
                     _ => panic!("Expected union, got {:?}", obj),

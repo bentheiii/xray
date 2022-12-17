@@ -12,6 +12,7 @@ use crate::runtime_violation::RuntimeViolation;
 use num_traits::Signed;
 use std::io::Write;
 use std::rc;
+use crate::runtime::RTCell;
 
 pub(crate) fn add_if<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -33,7 +34,10 @@ pub(crate) fn add_error<W: Write + 'static>(
     scope.add_func(
         "error",
         XFuncSpec::new(&[&X_STRING], X_UNKNOWN.clone()),
-        ufunc!(String, |a: &String, _rt| Ok(Err(a.clone()))),
+        ufunc!(String, |a: &String, rt: RTCell<W>| {
+            rt.borrow().can_allocate(a.len())?;
+            Ok(Err(a.clone()))
+        }),
     )
 }
 

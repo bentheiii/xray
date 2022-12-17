@@ -7,7 +7,7 @@ use derivative::Derivative;
 use itertools::Itertools;
 use pest::iterators::Pair;
 use pest::Position;
-use std::fmt::{Display, Formatter};
+use std::fmt::{Debug, Display, Formatter};
 use std::io::Write;
 use std::sync::Arc;
 use string_interner::StringInterner;
@@ -638,3 +638,20 @@ impl Display for ResolvedTracedCompilationError {
         }
     }
 }
+
+impl Debug for ResolvedTracedCompilationError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Syntax(e) => Debug::fmt(e, f),
+            Self::Compilation(r, start_line, errant_area) => write!(
+                f,
+                "{} {{{}| {}}} [{}]",
+                r,
+                start_line,
+                errant_area,
+                <&ResolvedCompilationError as Into<&'static str>>::into(r)
+            ),
+        }
+    }
+}
+

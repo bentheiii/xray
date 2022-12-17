@@ -1,0 +1,6 @@
+fn main()->bool{
+    assert(abs(-3.6) == 3.6)
+    && assert(abs(3.6) == 3.6)
+    && assert(abs(-15) == 15)
+    && assert(abs(15) == 15)
+}

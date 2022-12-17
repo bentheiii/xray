@@ -92,7 +92,6 @@ pub struct CompilationScope<'p, W: Write + 'static> {
     pub(crate) cells: IPush<Cell<W>>,
     pub(crate) declarations: Vec<Declaration<W>>,
 
-    // todo make all these optional
     /// name to cell todo also add declaration line?
     variables: HashMap<Identifier, usize>,
     /// name to overload

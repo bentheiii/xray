@@ -48,6 +48,7 @@ use crate::runtime::RTCell;
 
 use crate::builtin::tuple::add_tuple_eq;
 use string_interner::DefaultSymbol;
+use crate::builtin::include::INCLUDE;
 
 use crate::xexpr::{XExplicitStaticArgSpec, XStaticExpr, XStaticFunction};
 use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType};
@@ -193,6 +194,8 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_mapping_new_dyn(&mut ret).unwrap();
 
     add_tuple_eq(&mut ret).unwrap();
+
+    ret.feed_file(INCLUDE).unwrap();
 
     ret
 }
