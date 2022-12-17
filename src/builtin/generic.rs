@@ -118,40 +118,44 @@ pub(crate) fn add_display<W: Write + 'static>(
 ) -> Result<(), CompilationError> {
     let to_str_symbol = scope.identifier("to_str");
 
-    scope.add_dyn_func("display", "print-to_str", move |_params, types, ns, bind| {
-        if bind.is_some() {
-            return Err("this dyn func has no bind".to_string());
-        }
-
-        let (t, t1) = unpack_types!(types, 0 | 1);
-        if let Some(t1) = t1 {
-            if let XType::String = t1.as_ref() {
-            } else {
-                return Err(format!("argument 2 must be a string, got {t1:?}"));
+    scope.add_dyn_func(
+        "display",
+        "print-to_str",
+        move |_params, types, ns, bind| {
+            if bind.is_some() {
+                return Err("this dyn func has no bind".to_string());
             }
-        }
 
-        let inner_to_str = get_func(ns, to_str_symbol, &[t.clone()], &X_STRING)?;
+            let (t, t1) = unpack_types!(types, 0 | 1);
+            if let Some(t1) = t1 {
+                if let XType::String = t1.as_ref() {
+                } else {
+                    return Err(format!("argument 2 must be a string, got {t1:?}"));
+                }
+            }
 
-        Ok(XFunctionFactoryOutput::from_native(
-            XFuncSpec::new_with_optional(&[&t.clone()], &[&X_STRING], t.clone()),
-            move |args, ns, _tca, rt| {
-                let a0 = eval(&args[0], ns, &rt)?;
-                let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
-                let b = to_primitive!(a1, String, "".to_string());
-                let string = xraise!(eval_resolved_func(
-                    &inner_to_str,
-                    ns,
-                    rt.clone(),
-                    vec![a0.clone()]
-                )?);
-                let str_slice = to_primitive!(string, String);
-                writeln!(rt.borrow_mut().stdout, "{b}{str_slice}")
-                    .map_err(RuntimeViolation::OutputFailure)?;
-                Ok(a0.into())
-            },
-        ))
-    })
+            let inner_to_str = get_func(ns, to_str_symbol, &[t.clone()], &X_STRING)?;
+
+            Ok(XFunctionFactoryOutput::from_native(
+                XFuncSpec::new_with_optional(&[&t.clone()], &[&X_STRING], t.clone()),
+                move |args, ns, _tca, rt| {
+                    let a0 = eval(&args[0], ns, &rt)?;
+                    let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
+                    let b = to_primitive!(a1, String, "".to_string());
+                    let string = xraise!(eval_resolved_func(
+                        &inner_to_str,
+                        ns,
+                        rt.clone(),
+                        vec![a0.clone()]
+                    )?);
+                    let str_slice = to_primitive!(string, String);
+                    writeln!(rt.borrow_mut().stdout, "{b}{str_slice}")
+                        .map_err(RuntimeViolation::OutputFailure)?;
+                    Ok(a0.into())
+                },
+            ))
+        },
+    )
 }
 
 pub(crate) fn add_cmp_lt<W: Write + 'static>(

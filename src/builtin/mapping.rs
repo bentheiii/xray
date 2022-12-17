@@ -558,24 +558,28 @@ pub(crate) fn add_mapping_new_dyn<W: Write + 'static>(
     let eq_symbol = scope.identifier("eq");
     let hash_symbol = scope.identifier("hash");
 
-    scope.add_dyn_func("mapping", "default-funcs", move |_params, _types, ns, bind| {
-        let (a0,) = unpack_types!(bind, 0);
+    scope.add_dyn_func(
+        "mapping",
+        "default-funcs",
+        move |_params, _types, ns, bind| {
+            let (a0,) = unpack_types!(bind, 0);
 
-        let inner_eq = get_func(ns, eq_symbol, &[a0.clone(), a0.clone()], &X_BOOL)?;
-        let inner_hash = get_func(ns, hash_symbol, &[a0.clone()], &X_INT)?;
+            let inner_eq = get_func(ns, eq_symbol, &[a0.clone(), a0.clone()], &X_BOOL)?;
+            let inner_hash = get_func(ns, hash_symbol, &[a0.clone()], &X_INT)?;
 
-        Ok(XFunctionFactoryOutput::from_native(
-            XFuncSpec::new(&[], XMappingType::xtype(a0.clone(), X_UNKNOWN.clone())),
-            move |_args, ns, _tca, rt| {
-                let inner_equal_value =
-                    xraise!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
-                let inner_hash_value =
-                    xraise!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
-                Ok(manage_native!(
-                    XMapping::new(inner_hash_value, inner_equal_value, Default::default(), 0),
-                    rt
-                ))
-            },
-        ))
-    })
+            Ok(XFunctionFactoryOutput::from_native(
+                XFuncSpec::new(&[], XMappingType::xtype(a0.clone(), X_UNKNOWN.clone())),
+                move |_args, ns, _tca, rt| {
+                    let inner_equal_value =
+                        xraise!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
+                    let inner_hash_value =
+                        xraise!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
+                    Ok(manage_native!(
+                        XMapping::new(inner_hash_value, inner_equal_value, Default::default(), 0),
+                        rt
+                    ))
+                },
+            ))
+        },
+    )
 }

@@ -268,7 +268,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 Ok(ManagedXValue::new(XValue::StructInstance(items), rt)?.into())
             }
             XExpr::Member(obj, idx) => {
-                let obj = xraise!(self.eval(obj, rt.clone(), false)?.unwrap_value());
+                let obj = xraise!(self.eval(obj, rt, false)?.unwrap_value());
                 let XValue::StructInstance(items) = &obj.as_ref().value else { panic!("Expected struct, got {:?}", obj) };
                 Ok(TailedEvalResult::from(items[*idx].clone()))
             }
@@ -280,7 +280,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                     } else {
                         Err(ManagedXError::new("value is of incorrent variant", rt)?)
                     }
-                        .into()),
+                    .into()),
                     _ => panic!("Expected union, got {:?}", obj),
                 }
             }
@@ -289,11 +289,11 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 let XValue::UnionInstance(variant, item) = &obj.as_ref().value else { panic!("Expected union, got {:?}", obj) };
                 Ok(if variant == idx {
                     manage_native!(
-                            XOptional {
-                                value: Some(item.clone())
-                            },
-                            rt
-                        )
+                        XOptional {
+                            value: Some(item.clone())
+                        },
+                        rt
+                    )
                 } else {
                     manage_native!(XOptional::<W> { value: None }, rt)
                 })
@@ -310,7 +310,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                         XValue::Function(self.template.clone().to_function()),
                         rt,
                     )
-                        .map(|v| v.into()),
+                    .map(|v| v.into()),
                 }
             }
             XExpr::Variant(.., idx, expr) => {

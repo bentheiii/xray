@@ -545,10 +545,16 @@ impl Display for ResolvedCompilationError {
                 write!(f, "Cannot access member of non-compound type {xtype}")
             }
             Self::NonUnionVariantAccess { xtype } => {
-                write!(f, "variant member access syntax (!:/?:) can only be used on unions (got {xtype})")
+                write!(
+                    f,
+                    "variant member access syntax (!:/?:) can only be used on unions (got {xtype})"
+                )
             }
             Self::NonVariantMemberAccess { xtype } => {
-                write!(f, "access to union {xtype} variants must be with the \"?:\" or \"!:\" accessors")
+                write!(
+                    f,
+                    "access to union {xtype} variants must be with the \"?:\" or \"!:\" accessors"
+                )
             }
             Self::NonItemTupleAccess { member } => {
                 write!(

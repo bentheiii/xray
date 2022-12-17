@@ -340,7 +340,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         }
                     }
                     XType::Compound(..) => {
-                        return Err(CompilationError::NonVariantMemberAccess {xtype: obj_type })
+                        return Err(CompilationError::NonVariantMemberAccess { xtype: obj_type })
                     }
                     XType::Tuple(types) => {
                         let idx = member_name
@@ -637,9 +637,10 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     XType::Compound(ck, spec, bind) => {
                         assert_eq!(*ck, CompoundKind::Struct);
                         Ok(spec.fields[*idx]
-                        .type_
-                        .clone()
-                        .resolve_bind(bind, Some(&obj_type)))}
+                            .type_
+                            .clone()
+                            .resolve_bind(bind, Some(&obj_type)))
+                    }
                     XType::Tuple(fields) => Ok(fields[*idx].clone()),
                     _ => Err(CompilationError::NotACompound {
                         type_: obj_type.clone(),
@@ -672,7 +673,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             .clone()
                             .resolve_bind(bind, Some(&obj_type));
                         Ok(XOptionalType::xtype(t))
-                    },
+                    }
                     XType::Compound(CompoundKind::Struct, ..) | XType::Tuple(..) => {
                         Err(CompilationError::NonUnionVariantAccess {
                             xtype: obj_type.clone(),
