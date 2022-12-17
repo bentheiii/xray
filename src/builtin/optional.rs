@@ -54,7 +54,7 @@ pub(crate) fn add_optional_null<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
-        "null",
+        "none",
         XFuncSpec::new(&[], XOptionalType::xtype(X_UNKNOWN.clone())),
         XStaticFunction::from_native(|_args, _ns, _tca, rt| {
             Ok(manage_native!(XOptional::<W> { value: None }, rt))

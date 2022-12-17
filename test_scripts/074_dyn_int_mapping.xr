@@ -1,6 +1,6 @@
 fn main()->bool{
     let m = mapping<int>().set(1, "one").set(2, "two").set(1+2**100, "inf");
     assert(m[1] == "one")
-    && assert(m.lookup(3) == null())
+    && assert(m.lookup(3) == none())
     && assert(m[1+2**100] == "inf")
 }

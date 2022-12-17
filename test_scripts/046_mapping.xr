@@ -6,7 +6,7 @@ fn main()->bool{
     assert(m2.lookup(5) == some('hi'))
     && assert(m2.lookup(15) == some('ho'))
     && assert(m2.lookup(2) == some('two'))
-    && assert(m2.lookup(3) == null())
+    && assert(m2.lookup(3) == none())
     && assert(m2.len() == 4)
     && assert(m1.len() == 2)
     && assert(m.len() == 0)

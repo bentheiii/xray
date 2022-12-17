@@ -107,7 +107,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     let mut names = vec![];
                     for param in gen_params.into_inner() {
                         names.push(interner.get_or_intern(param.as_str()));
-                        // todo why do we need to do this? can't we just add them as types to the scope?
+                        // todo this is necessary because the subscope is built all-at once, but maybe we can change that?
                         gen_param_names.insert(param.as_str().to_string());
                     }
                     names
@@ -145,7 +145,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         })
                         .multiunzip();
                 let spec = XFuncSpec {
-                    generic_params: specific_gen_params,
+                    generic_params: specific_gen_params.clone(),
                     params: param_specs,
                     ret: rtype,
                     short_circuit_overloads: false,
@@ -159,13 +159,19 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let mut subscope =
                     CompilationScope::from_parent(self, param_names, fn_symbol, spec.clone())
                         .map_err(|e| e.trace(&params_pair))?;
+                for gen_param in specific_gen_params.unwrap_or_default() {
+                    subscope
+                        .add_native_type(gen_param, Arc::new(XType::XGeneric(gen_param)))
+                        .map_err(|e| e.trace(&params_pair))?;
+                }
                 let mut body_iter = body.clone().into_inner();
                 subscope.feed(body_iter.next().unwrap(), &gen_param_names, interner)?;
-                let out_static_expr = subscope.parse_expr(body_iter.next().unwrap(), interner)?;
+                let out_pair = body_iter.next().unwrap();
+                let out_static_expr = subscope.parse_expr(out_pair.clone(), interner)?;
                 let out = subscope
                     .compile(out_static_expr)
                     .map_err(|e| e.trace(&input))?;
-                let out_type = subscope.type_of(&out).map_err(|e| e.trace(&body))?; // todo improve trace?
+                let out_type = subscope.type_of(&out).map_err(|e| e.trace(&out_pair))?;
                 let output = Box::new(out);
                 if spec.ret.bind_in_assignment(&out_type).is_none() {
                     return Err(CompilationError::FunctionOutputTypeMismatch {
@@ -289,7 +295,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     Rule::tup_type => {
                         let mut tup_inners = part1.into_inner();
                         match tup_inners.next() {
-                            None => Ok(Arc::new(XType::Tuple(vec![]))), // todo make this a singleton?
+                            None => Ok(Arc::new(XType::Tuple(vec![]))),
                             Some(inner) => {
                                 let tup_types = inner
                                     .into_inner()
@@ -345,7 +351,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                 if generic_param_names.contains(name) {
                                     return Ok(Arc::new(XType::XGeneric(symbol)));
                                 }
-                                // todo check if the name is a value/overload
                                 Err(CompilationError::TypeNotFound {
                                     name: name.to_string(),
                                 }
@@ -650,12 +655,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let mut iter = input.clone().into_inner();
                 let params = match iter.next().unwrap().into_inner().next() {
                     None => vec![],
-                    Some(c) => self.parse_param_specs(
-                        c,
-                        &HashSet::new(), // todo
-                        interner,
-                        None,
-                    )?,
+                    Some(c) => self.parse_param_specs(c, &HashSet::new(), interner, None)?,
                 };
                 let body = iter.next().unwrap();
                 let ret = self.parse_expr(body.clone(), interner)?;

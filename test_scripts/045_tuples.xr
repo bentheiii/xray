@@ -5,7 +5,7 @@ fn foo(t: (Sequence<int>, int)) -> Optional<int>{
                 some(i),
                 helper(i + 1)
             ),
-            null()
+            none()
         )
     }
 
@@ -14,6 +14,6 @@ fn foo(t: (Sequence<int>, int)) -> Optional<int>{
 
 fn main() -> bool {
     assert(foo(([1, 2, 3], 2)) == some(1))
-    && assert(foo(([1, 2, 3], 4)) == null())
+    && assert(foo(([1, 2, 3], 4)) == none())
     && assert(foo(([1, 2, 3], 3)) == some(2))
 }

@@ -2,8 +2,8 @@ fn foo(x: Optional<int>)->int{1}
 fn foo(x: Optional<bool>)->int{2}
 
 fn main()->bool{
-    let i: Optional<int> = null();
-    let b: Optional<bool> = null();
+    let i: Optional<int> = none();
+    let b: Optional<bool> = none();
     assert(foo(i) == 1)
     && assert(foo(b) == 2)
 }

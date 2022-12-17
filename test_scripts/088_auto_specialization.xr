@@ -3,7 +3,7 @@ fn foo(x: int, y: Optional<str>)->int{2}
 fn foo(x: float, y: Optional<int>)->int{3}
 
 fn main()->bool{
-    assert(foo{$, Optional<int>}(1, null()) == 1)
-    && assert(foo{$, Optional<str>}(1, null()) == 2)
-    && assert(foo{$, Optional<int>}(1.0, null()) == 3)
+    assert(foo{$, Optional<int>}(1, none()) == 1)
+    && assert(foo{$, Optional<str>}(1, none()) == 2)
+    && assert(foo{$, Optional<int>}(1.0, none()) == 3)
 }

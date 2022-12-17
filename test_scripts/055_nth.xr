@@ -2,5 +2,5 @@ fn main() -> bool{
     let a = [1,-2,3,-4];
     assert(a.nth(1, (x: int) -> {x < -2}) == some(-4))
     && assert(a.nth(-1,((x: int) -> {x < 0})) == some(-4))
-    && assert(a.nth(1, (x: int) -> {x < -4}) == null())
+    && assert(a.nth(1, (x: int) -> {x < -4}) == none())
 }

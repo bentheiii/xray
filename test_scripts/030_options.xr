@@ -1,25 +1,25 @@
 fn main()->bool{
     assert(some(15).map(neg{int}) == some(-15))
 
-    && assert(null().map(neg{int}) == null())
+    && assert(none().map(neg{int}) == none())
     && assert(some(15).map_or(neg{int}, 16) == -15)
-    && assert(null().map_or(neg{int}, 16) == 16)
+    && assert(none().map_or(neg{int}, 16) == 16)
     && assert(some(15).map_or(neg{int}, error('')) == -15)
 
     && assert((some(15) || 16) == 15)
     && assert((some(15) || cast<int>(error(''))) == 15)
-    && assert((null() || 16) == 16)
+    && assert((none() || 16) == 16)
 
     && assert((some(15) || some(16)) == some(15))
     && assert((some(15) || cast<Optional<int>>(error(''))) == some(15))
-    && assert((some(15) || null()) == some(15))
-    && assert((cast<Optional<int>>(null()) || some(16)) == some(16))
+    && assert((some(15) || none()) == some(15))
+    && assert((cast<Optional<int>>(none()) || some(16)) == some(16))
 
     && assert((some(15) && some(16)) == some(16))
-    && assert((some(15) && null()) == null())
-    && assert((null() && error('')) == null())
+    && assert((some(15) && none()) == none())
+    && assert((none() && error('')) == none())
 
     && assert(some(15).has_value())
-    && assert(!null().has_value())
+    && assert(!none().has_value())
     && assert(some(15).value() == 15)
 }

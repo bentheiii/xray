@@ -10,9 +10,7 @@ use xray::std_compilation_scope;
 fn main() {
     let input = r###"
     fn foo<T>(t: T)->T{
-        fn bar(t1: T)->T{
-            t1
-        }
+        let bar = (t1: T) -> {t1};
         bar(t)
     }
 
