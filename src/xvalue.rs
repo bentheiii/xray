@@ -40,7 +40,7 @@ type DynCallback<W> = dyn Fn(
     Option<&[Arc<XType>]>,
     &mut CompilationScope<'_, W>,
     Option<&[Arc<XType>]>,
-) -> Result<XFunctionFactoryOutput<W>, String>; // todo different error?
+) -> Result<XFunctionFactoryOutput<W>, String>;
 
 pub type NativeCallable<W> = Rc<NativeCallback<W>>;
 pub type DynBind<W> = Rc<DynCallback<W>>;
@@ -79,7 +79,6 @@ pub enum XFunction<W: Write + 'static> {
 }
 
 impl<W: Write + 'static> Debug for XFunction<W> {
-    // todo is this needed?
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             Self::Native(..) => {

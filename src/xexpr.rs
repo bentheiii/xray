@@ -149,7 +149,6 @@ impl<W: Write + 'static> XStaticFunction<W> {
 }
 
 impl<W: Write + 'static> Debug for XStaticFunction<W> {
-    // todo is this needed?
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             Self::Native(..) => {

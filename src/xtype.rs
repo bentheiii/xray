@@ -555,8 +555,8 @@ impl XType {
                     .join(", ")
             ),
             Self::XUnknown => "?".to_string(),
-            Self::XTail(_) => "tail".to_string(), // todo make unreachable
-            Self::Auto => "$".to_string(),        // todo make unreachable?
+            Self::XTail(_) => unreachable!(),
+            Self::Auto => unreachable!(),
         }
     }
 }

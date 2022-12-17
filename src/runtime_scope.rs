@@ -46,7 +46,7 @@ pub(crate) enum EvaluationCell<W: Write + 'static> {
     Recourse {
         depth: ScopeDepth,
         scope: XFunction<W>,
-    }, // todo
+    },
 }
 
 impl<W: Write + 'static> EvaluationCell<W> {
@@ -93,8 +93,7 @@ pub struct RuntimeScopeTemplate<W: Write + 'static> {
     pub(crate) name: Option<String>,
     pub(crate) cells: Vec<EvaluationCell<W>>,
     pub(crate) declarations: Vec<Declaration<W>>,
-    pub(crate) scope_parent_height: Option<StackDepth>,
-    // todo just use parent id?
+    pub(crate) scope_parent_id: Option<usize>,
     pub(crate) param_count: usize,
     defaults: Vec<EvaluatedValue<W>>,
     output: Option<Box<XExpr<W>>>,
@@ -129,7 +128,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
                     match ancestor {
                         None => break ancestor,
                         Some(p) if p.template.id == parent_id => break ancestor,
-                        Some(p) => ancestor = p.stack_parent,
+                        Some(p) => ancestor = p.scope_parent,
                     }
                 }
             }
@@ -158,7 +157,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
             output,
             id,
             param_count,
-            scope_parent_height: scope_parent.map(|p| p.height),
+            scope_parent_id: parent_id,
         }))
     }
 }
@@ -166,7 +165,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
 pub struct RuntimeScope<'a, W: Write + 'static> {
     pub(crate) cells: Vec<TemplatedEvaluationCell<W>>,
     height: StackDepth,
-    stack_parent: Option<&'a Self>,
+    scope_parent: Option<&'a Self>,
     template: Rc<RuntimeScopeTemplate<W>>,
 }
 
@@ -177,6 +176,20 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
         rt: RTCell<W>,
         mut args: Vec<EvaluatedValue<W>>,
     ) -> Result<Rc<Self>, RuntimeViolation> {
+        let scope_parent = if let Some(parent_id) = template.scope_parent_id {
+            {
+                let mut ancestor = stack_parent;
+                loop {
+                    match ancestor {
+                        None => break ancestor,
+                        Some(p) if p.template.id == parent_id => break ancestor,
+                        Some(p) => ancestor = p.scope_parent,
+                    }
+                }
+            }
+        } else {
+            None
+        };
         let mut ret = Self {
             cells: template
                 .cells
@@ -191,7 +204,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 })
                 .collect(),
             height: stack_parent.map_or(StackDepth(0), |p| p.height + 1),
-            stack_parent,
+            scope_parent,
             template: template.clone(),
         };
         if rt
@@ -397,21 +410,11 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
         }
     }
 
-    fn stack_ancestor_at_depth(&self, depth: StackDepth) -> &Self {
-        let mut current = self;
-        for _ in 0..depth.0 {
-            current = current
-                .stack_parent
-                .expect("ran out of stack parents at runtime");
-        }
-        current
-    }
-
     fn scope_ancestor_at_depth(&self, depth: ScopeDepth) -> &Self {
         let mut current = self;
         for _ in 0..depth.0 {
             current = current
-                .scope_parent()
+                .scope_parent
                 .expect("ran out of scope parents at runtime");
         }
         current
@@ -428,12 +431,5 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
 
     pub(crate) fn get_cell_value(&self, idx: usize) -> &EvaluationCell<W> {
         self.cells[idx].as_ref(self.template.as_ref())
-    }
-
-    // todo just make this a field?
-    fn scope_parent(&self) -> Option<&Self> {
-        self.template
-            .scope_parent_height
-            .map(|d| self.stack_ancestor_at_depth(self.height - d))
     }
 }
