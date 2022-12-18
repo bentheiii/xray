@@ -1,0 +1,1 @@
+expected_compilation_error='^cannot use type int as a variable \{2\| .*\} \[TypeAsVariable\]$'

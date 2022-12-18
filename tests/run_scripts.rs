@@ -758,3 +758,53 @@ fn test_script_130() {
 fn test_script_131() {
     test_script(131);
 }
+
+#[test]
+fn test_script_132() {
+    test_script(132);
+}
+
+#[test]
+fn test_script_133() {
+    test_script(133);
+}
+
+#[test]
+fn test_script_134() {
+    test_script(134);
+}
+
+#[test]
+fn test_script_135() {
+    test_script(135);
+}
+
+#[test]
+fn test_script_136() {
+    test_script(136);
+}
+
+#[test]
+fn test_script_137() {
+    test_script(137);
+}
+
+#[test]
+fn test_script_138() {
+    test_script(138);
+}
+
+#[test]
+fn test_script_139() {
+    test_script(139);
+}
+
+#[test]
+fn test_script_140() {
+    test_script(140);
+}
+
+#[test]
+fn test_script_141() {
+    test_script(141);
+}

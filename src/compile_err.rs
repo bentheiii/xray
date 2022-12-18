@@ -130,9 +130,6 @@ pub enum CompilationError {
     NotAFunction {
         type_: Arc<XType>,
     },
-    NotACompound {
-        type_: Arc<XType>,
-    },
     InvalidAutoLocation,
     AutoSpecializationWithoutCall,
     BadEscapeSequence {
@@ -311,7 +308,6 @@ impl Resolve for CompilationError {
             OverloadedFunctionAsVariable { name },
             IncompatibleTypes { type0, type1 },
             NotAFunction { type_ },
-            NotACompound { type_ },
             InvalidAutoLocation {},
             AutoSpecializationWithoutCall {},
             BadEscapeSequence { sequence },
@@ -445,9 +441,6 @@ pub enum ResolvedCompilationError {
         type1: ResolvedType,
     },
     NotAFunction {
-        type_: ResolvedType,
-    },
-    NotACompound {
         type_: ResolvedType,
     },
     InvalidAutoLocation,
@@ -645,12 +638,6 @@ impl Display for ResolvedCompilationError {
                 write!(
                     f,
                     "expression does not evaluate to a function (got {type_})"
-                )
-            }
-            Self::NotACompound { type_ } => {
-                write!(
-                    f,
-                    "expression does not evaluate to a compound (got {type_})"
                 )
             }
             Self::InvalidAutoLocation => {

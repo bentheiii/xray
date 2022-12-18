@@ -1,0 +1,1 @@
+expected_compilation_error='^bad escape sequence: \\a \{2\| .*\} \[BadEscapeSequence\]$'

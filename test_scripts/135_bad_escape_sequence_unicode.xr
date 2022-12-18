@@ -1,0 +1,4 @@
+fn main()->bool{
+    let a = "bc\u{-7}a";
+    true
+}

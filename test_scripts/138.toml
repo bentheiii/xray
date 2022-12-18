@@ -1,0 +1,1 @@
+expected_compilation_error='^cannot specialize variable x \{3\| .*\} \[SpecializationOfVariable\]$'

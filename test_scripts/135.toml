@@ -1,0 +1,1 @@
+expected_compilation_error='^bad escape sequence: \\u\{-7\} \{2\| .*\} \[BadEscapeSequence\]$'

@@ -266,7 +266,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         expr: XExpr<W>,
         xtype: Arc<XType>,
     ) -> Result<(), CompilationError> {
-        if self.functions.get(&name).is_some() {
+        if !self.get_overloads(&name).is_empty() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Overload,
@@ -293,7 +293,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         arg_idx: usize,
         xtype: Arc<XType>,
     ) -> Result<(), CompilationError> {
-        if self.functions.get(&name).is_some() {
+        if !self.get_overloads(&name).is_empty() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Overload,
@@ -321,7 +321,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         name: Identifier,
         type_: Arc<XType>,
     ) -> Result<(), CompilationError> {
-        if self.functions.get(&name).is_some() {
+        if !self.get_overloads(&name).is_empty() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Overload,
@@ -345,7 +345,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         kind: CompoundKind,
         struct_spec: XCompoundSpec,
     ) -> Result<(), CompilationError> {
-        if self.functions.get(&name).is_some() {
+        if !self.get_overloads(&name).is_empty() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Overload,
@@ -720,8 +720,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             .resolve_bind(bind, Some(&obj_type)))
                     }
                     XType::Tuple(fields) => Ok(fields[*idx].clone()),
-                    _ => Err(CompilationError::NotACompound {
-                        type_: obj_type.clone(),
+                    _ => Err(CompilationError::NonCompoundMemberAccess {
+                        xtype: obj_type.clone(),
                     }),
                 }
             }
@@ -737,8 +737,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             xtype: obj_type.clone(),
                         })
                     }
-                    _ => Err(CompilationError::NotACompound {
-                        type_: obj_type.clone(),
+                    _ => Err(CompilationError::NonCompoundMemberAccess {
+                        xtype: obj_type.clone(),
                     }),
                 }
             }
@@ -757,8 +757,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             xtype: obj_type.clone(),
                         })
                     }
-                    _ => Err(CompilationError::NotACompound {
-                        type_: obj_type.clone(),
+                    _ => Err(CompilationError::NonCompoundMemberAccess {
+                        xtype: obj_type.clone(),
                     }),
                 }
             }
