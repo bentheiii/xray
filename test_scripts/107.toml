@@ -1,0 +1,1 @@
+expected_compilation_error='^Type Mapping has 0 generic parameters, but expected 2 \{1\| .*\} \[GenericParamCountMismatch\]$'

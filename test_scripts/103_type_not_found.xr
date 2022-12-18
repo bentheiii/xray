@@ -1,0 +1,4 @@
+fn main()->bool{
+    let z: inte = 0;
+    true
+}

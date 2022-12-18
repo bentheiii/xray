@@ -1,0 +1,7 @@
+fn foo(f: Mapping<int>)->int{
+    0
+}
+
+fn main()->bool{
+    true
+}

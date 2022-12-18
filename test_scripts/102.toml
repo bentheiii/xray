@@ -1,0 +1,1 @@
+expected_compilation_error='^Function foo has output type float, but expected int \{2\| .*\} \[FunctionOutputTypeMismatch\]$'

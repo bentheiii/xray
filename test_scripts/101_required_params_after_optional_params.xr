@@ -1,0 +1,7 @@
+fn foo(a:int?=0, b:int)->int{
+    a+b
+}
+
+fn main()->bool{
+    true
+}

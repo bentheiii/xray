@@ -41,7 +41,7 @@ impl ScriptConfig {
                 if pat.is_match(&format!("{e}")){
                     return;
                 }
-                panic!("expected error that matches {pat:?}, got {e}")
+                panic!("expected error that matches {pat:?}, got \"{e}\"")
             }
         }
 
@@ -602,4 +602,39 @@ fn test_script_099() {
 #[test]
 fn test_script_100() {
     test_script(100);
+}
+
+#[test]
+fn test_script_101() {
+    test_script(101);
+}
+
+#[test]
+fn test_script_102() {
+    test_script(102);
+}
+
+#[test]
+fn test_script_103() {
+    test_script(103);
+}
+
+#[test]
+fn test_script_104() {
+    test_script(104);
+}
+
+#[test]
+fn test_script_105() {
+    test_script(105);
+}
+
+#[test]
+fn test_script_106() {
+    test_script(106);
+}
+
+#[test]
+fn test_script_107() {
+    test_script(107);
 }

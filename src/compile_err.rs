@@ -724,7 +724,7 @@ impl Display for ResolvedTracedCompilationError {
                 "{} {{{}| {}}} [{}]",
                 r,
                 start_line,
-                errant_area,
+                errant_area.trim(),
                 <&ResolvedCompilationError as Into<&'static str>>::into(r)
             ),
         }
@@ -733,16 +733,6 @@ impl Display for ResolvedTracedCompilationError {
 
 impl Debug for ResolvedTracedCompilationError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Syntax(e) => Debug::fmt(e, f),
-            Self::Compilation(r, start_line, errant_area) => write!(
-                f,
-                "{} {{{}| {}}} [{}]",
-                r,
-                start_line,
-                errant_area,
-                <&ResolvedCompilationError as Into<&'static str>>::into(r)
-            ),
-        }
+        write!(f, "{self}")
     }
 }

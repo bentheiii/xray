@@ -179,7 +179,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         expected_type: spec.ret,
                         actual_type: out_type,
                     }
-                    .trace(&input));
+                    .trace(&out_pair));
                 }
                 let func = subscope.into_static_ud(
                     Some(fn_name.to_string()),

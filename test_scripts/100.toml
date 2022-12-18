@@ -1,1 +1,1 @@
-expected_compilation_error='^Variable z has type int, but expected bool \{2| .*\} \[VariableTypeMismatch\]$'
+expected_compilation_error='^Variable z has type int, but expected bool \{2\| .*\} \[VariableTypeMismatch\]$'

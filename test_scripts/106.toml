@@ -1,0 +1,1 @@
+expected_compilation_error='^Type Foo has 0 generic parameters, but expected 1 \{3\| .*\} \[GenericParamCountMismatch\]$'

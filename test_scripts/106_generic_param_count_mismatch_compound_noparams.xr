@@ -1,0 +1,9 @@
+struct Foo<T>(a: T)
+
+fn foo(f: Foo)->int{
+    0
+}
+
+fn main()->bool{
+    true
+}

@@ -1,0 +1,7 @@
+fn foo(a:int, b:int)->int{
+    (a+b)/3
+}
+
+fn main()->bool{
+    true
+}
