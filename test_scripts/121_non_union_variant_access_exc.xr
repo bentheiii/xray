@@ -1,0 +1,7 @@
+struct A(x: int)
+
+fn main()->bool{
+    let a = A(1);
+    let x = a!:x;
+    true
+}

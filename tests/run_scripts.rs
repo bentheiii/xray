@@ -673,3 +673,38 @@ fn test_script_113() {
 fn test_script_114() {
     test_script(114);
 }
+
+#[test]
+fn test_script_115() {
+    test_script(115);
+}
+
+#[test]
+fn test_script_116() {
+    test_script(116);
+}
+
+#[test]
+fn test_script_117() {
+    test_script(117);
+}
+
+#[test]
+fn test_script_118() {
+    test_script(118);
+}
+
+#[test]
+fn test_script_119() {
+    test_script(119);
+}
+
+#[test]
+fn test_script_120() {
+    test_script(120);
+}
+
+#[test]
+fn test_script_121() {
+    test_script(121);
+}

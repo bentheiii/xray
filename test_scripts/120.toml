@@ -1,0 +1,1 @@
+expected_compilation_error='^variant member access syntax \(!:/\?:\) can only be used on unions \(got A\) \{5\| .*\} \[NonUnionVariantAccess\]$'

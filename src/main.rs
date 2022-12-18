@@ -9,12 +9,9 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    fn foo<T>(t: T)->T{
-        let bar = (t1: T) -> {t1};
-        bar(t)
-    }
-
-    let z = foo(10);
+    union Foo(A: (), B: ())
+    let f = Foo::A(());
+    let z = f?:B;
     "###;
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()

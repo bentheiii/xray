@@ -1,0 +1,8 @@
+union Foo(A: (), B: ())
+
+fn main() -> bool {
+    let x = Foo::A(());
+    assert(x?:B == none())
+    && assert(x?:A == some(()))
+    && assert(x!:A == ())
+}
