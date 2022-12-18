@@ -599,7 +599,7 @@ impl Display for ResolvedCompilationError {
             } => {
                 write!(
                     f,
-                    "Struct {} has parameters of types [{:?}], but expected [{:?}]",
+                    "Struct {} has parameters of types ({}), but expected ({})",
                     struct_name,
                     actual_types.iter().join(", "),
                     expected_types.iter().join(", ")

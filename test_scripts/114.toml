@@ -1,0 +1,1 @@
+expected_compilation_error='^Struct A has parameters of types \(float, int\), but expected \(int, int\) \{4\| .*\} \[StructFieldTypeMismatch\]$'
