@@ -15,16 +15,35 @@ use xray::std_compilation_scope;
 use xray::xvalue::XValue;
 
 #[derive(Deserialize, Default)]
+#[serde(default)]
+pub struct RuntimeLimitsConfig {
+    size_limit: Option<usize>,
+    depth_limit: Option<usize>,
+    recursion_limit: Option<usize>,
+}
+
+impl RuntimeLimitsConfig {
+    fn to_runtime_limits(&self) -> RuntimeLimits {
+        RuntimeLimits {
+            size_limit: self.size_limit,
+            depth_limit: self.depth_limit,
+            recursion_limit: self.recursion_limit,
+        }
+    }
+}
+
+#[derive(Deserialize, Default)]
+#[serde(default)]
 pub struct ScriptConfig {
-    #[serde(default)]
     expected_stdout: Option<String>,
-    #[serde(default)]
     expected_compilation_error: Option<String>,
+    expected_violation: Option<String>,
+    limits: RuntimeLimitsConfig,
 }
 
 impl ScriptConfig {
-    pub fn run(&self, input: &str) {
-        let limits = RuntimeLimits::default();
+    fn run(&self, input: &str) {
+        let limits = self.limits.to_runtime_limits();
         let output = if self.expected_stdout.is_some() {
             Either::Left(MemoryWriter::new(CaptureWriter))
         } else {
@@ -32,13 +51,16 @@ impl ScriptConfig {
         };
         let mut comp_scope = std_compilation_scope();
 
-        match (comp_scope.feed_file(input), &self.expected_compilation_error){
-            (Ok(_), None)=>{},
-            (Err(e), None) => panic!("{e}"),
+        match (
+            comp_scope.feed_file(input),
+            &self.expected_compilation_error,
+        ) {
+            (Ok(_), None) => {}
+            (Err(e), None) => panic!("{e:?}"),
             (Ok(_), Some(_)) => panic!("expected compilation error"),
-            (Err(e), Some(pat))=>{
+            (Err(e), Some(pat)) => {
                 let pat = Regex::new(pat).unwrap();
-                if pat.is_match(&format!("{e}")){
+                if pat.is_match(&format!("{e}")) {
                     return;
                 }
                 panic!("expected error that matches {pat:?}, got \"{e}\"")
@@ -46,8 +68,22 @@ impl ScriptConfig {
         }
 
         let runtime = limits.to_runtime(output);
-        let eval_scope =
-            RootEvaluationScope::from_compilation_scope(&comp_scope, runtime.clone()).unwrap();
+
+        let eval_scope_results =
+            RootEvaluationScope::from_compilation_scope(&comp_scope, runtime.clone());
+
+        let eval_scope = match (eval_scope_results, &self.expected_violation) {
+            (Ok(s), None) => s,
+            (Ok(..), Some(v)) => panic!("expected violation error {v}"),
+            (Err(e), None) => panic!("{e:?}"),
+            (Err(e), Some(expected)) => {
+                let description = format!("{e:?}");
+                if &description == expected {
+                    return;
+                }
+                panic!("expected runtime violation {expected}, got {e:?}")
+            }
+        };
 
         let main_fn = eval_scope
             .get_user_defined_function("main")
@@ -836,5 +872,15 @@ fn test_script_146() {
 
 #[test]
 fn test_script_147() {
-    test_script(146);
+    test_script(147);
+}
+
+#[test]
+fn test_script_148() {
+    test_script(148);
+}
+
+#[test]
+fn test_script_149() {
+    test_script(149);
 }

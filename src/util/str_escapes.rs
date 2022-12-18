@@ -22,13 +22,12 @@ pub(crate) fn apply_escapes(origin: &str) -> Result<String, CompilationError> {
                         sequence: caps[0].to_string(),
                     });
                 }
-                u32::from_str_radix(bytecode, 16).ok().and_then(
-                    |u| char::try_from(u).ok()
-                ).ok_or_else(|| {
-                    CompilationError::BadEscapeSequence {
+                u32::from_str_radix(bytecode, 16)
+                    .ok()
+                    .and_then(|u| char::try_from(u).ok())
+                    .ok_or_else(|| CompilationError::BadEscapeSequence {
                         sequence: caps[0].to_string(),
-                    }
-                })?
+                    })?
             } else {
                 match &caps[1] {
                     "n" => '\n',

@@ -153,6 +153,7 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_sequence_skip_until(&mut ret).unwrap();
     add_sequence_take(&mut ret).unwrap();
     add_sequence_skip(&mut ret).unwrap();
+    add_sequence_to_array(&mut ret).unwrap();
     add_sequence_rpush(&mut ret).unwrap();
     add_sequence_insert(&mut ret).unwrap();
     add_sequence_set(&mut ret).unwrap();

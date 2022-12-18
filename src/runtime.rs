@@ -50,11 +50,6 @@ impl<W: Write + 'static> Runtime<W> {
     pub fn can_afford(&self, x: &impl ProspectiveSize) -> Result<(), RuntimeViolation> {
         self.can_allocate_by(|| Some(x.prospective_size()))
     }
-
-    pub fn vec<T>(&self, capacity: usize) -> Result<Vec<T>, RuntimeViolation> {
-        self.can_allocate(capacity)
-            .map(|_| Vec::with_capacity(capacity))
-    }
 }
 
 pub trait ProspectiveSize {

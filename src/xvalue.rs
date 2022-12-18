@@ -98,7 +98,13 @@ impl<W: Write + 'static> Debug for XFunction<W> {
 impl<W: Write + 'static> XValue<W> {
     pub(crate) fn size(&self) -> usize {
         match self {
-            Self::Int(i) => size_of::<LazyBigint>() + (i.bits() / 8_u64) as usize,
+            Self::Int(i) => {
+                size_of::<LazyBigint>()
+                    + match i {
+                        LazyBigint::Short(..) => 0,
+                        LazyBigint::Long(i) => (i.bits() / 8_u64) as usize,
+                    }
+            }
             Self::Float(_) => 64 / 8,
             Self::String(s) => s.len(),
             Self::Bool(_) => 1,

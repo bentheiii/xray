@@ -1,0 +1,4 @@
+expected_violation="AllocationLimitReached"
+
+[limits]
+size_limit=30000

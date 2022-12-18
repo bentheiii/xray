@@ -138,7 +138,10 @@ impl XCompoundSpec {
         ret
     }
 
-    pub(crate) fn find(self: &Arc<Self>, member_name: Identifier)->Result<usize, CompilationError>{
+    pub(crate) fn find(
+        self: &Arc<Self>,
+        member_name: Identifier,
+    ) -> Result<usize, CompilationError> {
         if let Some(&index) = self.indices.get(&member_name) {
             Ok(index)
         } else {

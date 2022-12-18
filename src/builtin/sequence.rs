@@ -593,6 +593,30 @@ pub(crate) fn add_sequence_map<W: Write + 'static>(
     )
 }
 
+pub(crate) fn add_sequence_to_array<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+
+    scope.add_func(
+        "to_array",
+        XFuncSpec::new(&[&XSequenceType::xtype(t.clone())], XSequenceType::xtype(t))
+            .generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let seq = to_native!(a0, XSequence<W>);
+            if let XSequence::Array(..) = seq {
+                return Ok(a0.into());
+            }
+            rt.borrow().can_allocate(seq.len())?;
+            let ret = xraise!(seq
+                .iter(ns, rt.clone())
+                .collect::<Result<Result<Vec<_>, _>, _>>()?);
+            Ok(manage_native!(XSequence::array(ret), rt))
+        }),
+    )
+}
+
 pub(crate) fn add_sequence_sort<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {

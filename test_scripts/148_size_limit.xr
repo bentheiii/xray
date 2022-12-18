@@ -1,0 +1,9 @@
+// every 300-array is (32 bytes for the number + 8 bytes for the pointer) * 300 = 12_000
+let a = range(1,300).to_array();
+let b = range(1,300).to_array();
+let c = range(1,300).to_array();
+let d = range(1,300).to_array();
+
+fn main()->bool{
+    true
+}

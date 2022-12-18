@@ -78,9 +78,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let expr = self.parse_expr(expr_pair.clone(), interner)?;
                 let compiled = self.compile(expr).map_err(|e| e.trace(&input))?;
                 let symbol = interner.get_or_intern(var_name);
-                let comp_xtype = self
-                    .type_of(&compiled)
-                    .map_err(|e| e.trace(&expr_pair))?;
+                let comp_xtype = self.type_of(&compiled).map_err(|e| e.trace(&expr_pair))?;
                 let declared_type = if let Some(complete_type) = complete_type {
                     if comp_xtype.bind_in_assignment(&complete_type).is_none() {
                         return Err(CompilationError::VariableTypeMismatch {

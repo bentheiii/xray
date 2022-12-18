@@ -443,9 +443,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let obj = self.compile(*obj)?;
                 let obj_type = self.type_of(&obj)?;
                 let member_idx = match obj_type.as_ref() {
-                    XType::Compound(CompoundKind::Struct, spec, _) => {
-                        spec.find(member_name)?
-                    }
+                    XType::Compound(CompoundKind::Struct, spec, _) => spec.find(member_name)?,
                     XType::Compound(..) => {
                         return Err(CompilationError::NonVariantMemberAccess { xtype: obj_type });
                     }
@@ -473,9 +471,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let obj = self.compile(*obj)?;
                 let obj_type = self.type_of(&obj)?;
                 let member_idx = match obj_type.as_ref() {
-                    XType::Compound(CompoundKind::Union, spec, _) => {
-                        spec.find(member_name)?
-                    }
+                    XType::Compound(CompoundKind::Union, spec, _) => spec.find(member_name)?,
                     XType::Tuple(..) | XType::Compound(..) => {
                         return Err(CompilationError::NonUnionVariantAccess { xtype: obj_type });
                     }
@@ -487,9 +483,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let obj = self.compile(*obj)?;
                 let obj_type = self.type_of(&obj)?;
                 let member_idx = match obj_type.as_ref() {
-                    XType::Compound(CompoundKind::Union, spec, _) => {
-                        spec.find(member_name)?
-                    }
+                    XType::Compound(CompoundKind::Union, spec, _) => spec.find(member_name)?,
                     XType::Tuple(..) | XType::Compound(..) => {
                         return Err(CompilationError::NonUnionVariantAccess { xtype: obj_type });
                     }
