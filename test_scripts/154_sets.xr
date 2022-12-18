@@ -3,4 +3,13 @@ fn main()->bool{
 
     assert(s.contains(13))
     && assert(!s.contains(14))
+    && assert(s.len() == 6)
+    && assert(s.to_array().sort() == [2,3,5,8,13,21])
+    && assert(s.remove(5).to_array().sort() == [2,3,8,13,21])
+    && assert(s.discard(5).to_array().sort() == [2,3,8,13,21])
+    && assert(s.add(14).contains(14))
+    && assert(is_error(s.remove(15)))
+    && assert(s.discard(15).to_array().sort() == [2,3,5,8,13,21])
+    && assert((s & set<int>().update([1,17, 5])).to_array().sort() == [5])
+    && assert((s | set<int>().update([1,17, 5])).to_array().sort() == [1,2,3,5,8,13,17,21])
 }
