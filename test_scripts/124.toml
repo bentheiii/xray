@@ -1,0 +1,1 @@
+expected_compilation_error='^Tuple index 0 out of bounds for tuple \(\) of size 0 \{3\| .*\} \[TupleIndexOutOfBounds\]$'

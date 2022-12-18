@@ -1,0 +1,5 @@
+fn main()->bool{
+    let a = (1,);
+    let x = a::x;
+    true
+}

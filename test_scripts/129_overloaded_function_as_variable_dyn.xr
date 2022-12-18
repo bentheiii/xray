@@ -1,0 +1,4 @@
+fn main()->bool{
+    let a = cast;
+    true
+}

@@ -1,0 +1,1 @@
+expected_compilation_error='^Member access to tuples must be "item<positive number>", got "x" \{3\| .*\} \[NonItemTupleAccess\]$'

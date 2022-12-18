@@ -1,0 +1,1 @@
+expected_compilation_error='^expression does not evaluate to a function \(got int\) \{2\| .*\} \[NotAFunction\]$'

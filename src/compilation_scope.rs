@@ -441,7 +441,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                 member: member_name,
                             });
                         };
-                        if idx > types.len() {
+                        if idx >= types.len() {
                             return Err(CompilationError::TupleIndexOutOfBounds {
                                 tuple_type: obj_type.clone(),
                                 index: idx,
@@ -539,7 +539,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     if let (height, Overload::Static { cell_idx, .. }) = overloads.swap_remove(0) {
                         (height, cell_idx)
                     } else {
-                        return Err(CompilationError::DynamicFunctionAsVariable { name });
+                        return Err(CompilationError::OverloadedFunctionAsVariable { name });
                     }
                 };
                 let new_cell_idx = if height == self.height {

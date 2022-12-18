@@ -1,0 +1,1 @@
+expected_compilation_error='^Cannot use overloaded function cast as variable \{2\| .*\} \[OverloadedFunctionAsVariable\]$'

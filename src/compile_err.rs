@@ -123,9 +123,6 @@ pub enum CompilationError {
     OverloadedFunctionAsVariable {
         name: Identifier,
     },
-    DynamicFunctionAsVariable {
-        name: Identifier,
-    },
     IncompatibleTypes {
         type0: Arc<XType>,
         type1: Arc<XType>,
@@ -315,7 +312,6 @@ impl Resolve for CompilationError {
             IncompatibleTypes { type0, type1 },
             NotAFunction { type_ },
             NotACompound { type_ },
-            DynamicFunctionAsVariable { name },
             InvalidAutoLocation {},
             AutoSpecializationWithoutCall {},
             BadEscapeSequence { sequence },
@@ -453,9 +449,6 @@ pub enum ResolvedCompilationError {
     },
     NotACompound {
         type_: ResolvedType,
-    },
-    DynamicFunctionAsVariable {
-        name: String,
     },
     InvalidAutoLocation,
     AutoSpecializationWithoutCall,
@@ -626,7 +619,7 @@ impl Display for ResolvedCompilationError {
             Self::NonItemTupleAccess { member } => {
                 write!(
                     f,
-                    "Member access to tuple must be of the for \"item<positive number>\", got {member:?}"
+                    "Member access to tuples must be \"item<positive number>\", got {member:?}"
                 )
             }
             Self::TupleIndexOutOfBounds {
@@ -658,12 +651,6 @@ impl Display for ResolvedCompilationError {
                 write!(
                     f,
                     "expression does not evaluate to a compound (got {type_})"
-                )
-            }
-            Self::DynamicFunctionAsVariable { name } => {
-                write!(
-                    f,
-                    "Cannot use unspecialized dynamic function {name} as variable"
                 )
             }
             Self::InvalidAutoLocation => {

@@ -1,0 +1,7 @@
+union A(x: int)
+
+fn main()->bool{
+    let a = A::x(1);
+    let x = a::x;
+    true
+}
