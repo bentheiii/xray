@@ -65,7 +65,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
     }
 
     pub fn get_value(&self, name: &str) -> Result<&EvaluatedValue<W>, GetValueError> {
-        let id = self.compilation_scope.get_identifer(name);
+        let id = self.compilation_scope.get_identifier(name);
         if let Some(id) = id {
             let cell_idx = self
                 .compilation_scope
@@ -87,7 +87,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
         &self,
         name: &str,
     ) -> Result<Option<&XFunction<W>>, GetUniqueFunctionError> {
-        let id = self.compilation_scope.get_identifer(name);
+        let id = self.compilation_scope.get_identifier(name);
         if let Some(id) = id {
             let overload = self
                 .compilation_scope

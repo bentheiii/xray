@@ -109,7 +109,7 @@ impl<W: Write + 'static> RootCompilationScope<W> {
         self.interner.get_or_intern_static(name)
     }
 
-    pub fn get_identifer(&self, name: &str) -> Option<Identifier> {
+    pub fn get_identifier(&self, name: &str) -> Option<Identifier> {
         self.interner.get(name)
     }
 

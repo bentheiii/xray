@@ -430,14 +430,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let obj_type = self.type_of(&obj)?;
                 let member_idx = match obj_type.as_ref() {
                     XType::Compound(CompoundKind::Struct, spec, _) => {
-                        if let Some(&index) = spec.indices.get(&member_name) {
-                            index
-                        } else {
-                            return Err(CompilationError::MemberNotFound {
-                                spec: spec.clone(),
-                                name: member_name,
-                            });
-                        }
+                        spec.find(member_name)?
                     }
                     XType::Compound(..) => {
                         return Err(CompilationError::NonVariantMemberAccess { xtype: obj_type });
@@ -467,14 +460,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let obj_type = self.type_of(&obj)?;
                 let member_idx = match obj_type.as_ref() {
                     XType::Compound(CompoundKind::Union, spec, _) => {
-                        if let Some(&index) = spec.indices.get(&member_name) {
-                            index
-                        } else {
-                            return Err(CompilationError::MemberNotFound {
-                                spec: spec.clone(),
-                                name: member_name,
-                            });
-                        }
+                        spec.find(member_name)?
                     }
                     XType::Tuple(..) | XType::Compound(..) => {
                         return Err(CompilationError::NonUnionVariantAccess { xtype: obj_type });
@@ -488,14 +474,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let obj_type = self.type_of(&obj)?;
                 let member_idx = match obj_type.as_ref() {
                     XType::Compound(CompoundKind::Union, spec, _) => {
-                        if let Some(&index) = spec.indices.get(&member_name) {
-                            index
-                        } else {
-                            return Err(CompilationError::MemberNotFound {
-                                spec: spec.clone(),
-                                name: member_name,
-                            });
-                        }
+                        spec.find(member_name)?
                     }
                     XType::Tuple(..) | XType::Compound(..) => {
                         return Err(CompilationError::NonUnionVariantAccess { xtype: obj_type });
