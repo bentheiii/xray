@@ -1,0 +1,6 @@
+struct A(x: int, y: int)
+
+fn main()->bool{
+    let a = A();
+    true
+}

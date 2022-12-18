@@ -1,0 +1,1 @@
+expected_compilation_error='^Struct A has 3 parameters, but expected 2 \{4\| .*\} \[StructParamsLengthMismatch\]$'

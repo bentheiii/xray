@@ -867,10 +867,10 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         let mut exact_matches = vec![];
         let mut generic_matches = vec![];
         let mut dynamic_failures = vec![];
+        // if the bindings are unknown, then we prefer generic solutions over exact solutions
         let is_unknown = arg_types
             .as_ref()
             .map_or(true, |t| t.iter().any(|t| t.is_unknown()));
-        // if the bindings are unknown, then we prefer generic solutions over exact solutions
         for (height, overload) in overloads {
             let (spec, considered, is_generic) = match &overload {
                 Overload::Static { spec, cell_idx } => {
@@ -922,7 +922,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         if exact_matches.len() > 1 {
             return Err(CompilationError::AmbiguousOverload {
                 name,
-                is_generic: false,
+                is_generic: is_unknown,
                 items: exact_matches.len(),
                 param_types: arg_types.map(|at| at.to_vec()),
             });
@@ -933,7 +933,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         if generic_matches.len() > 1 {
             return Err(CompilationError::AmbiguousOverload {
                 name,
-                is_generic: true,
+                is_generic: !is_unknown,
                 items: generic_matches.len(),
                 param_types: arg_types.map(|at| at.to_vec()),
             });

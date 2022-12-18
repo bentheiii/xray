@@ -1,0 +1,12 @@
+fn foo(x: int, y: str)->int{
+    0
+}
+
+fn foo(x: int, y: float)->int{
+    0
+}
+
+fn main()->bool{
+    let z = foo(0.1, 1.1);
+    true
+}

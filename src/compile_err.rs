@@ -68,7 +68,6 @@ pub enum CompilationError {
         expected_count: usize,
         actual_count: usize,
     },
-    PairNotType,
     AmbiguousOverload {
         name: Identifier,
         is_generic: bool,
@@ -273,7 +272,6 @@ impl Resolve for CompilationError {
                 expected_count,
                 actual_count,
             },
-            PairNotType {},
             AmbiguousOverload {
                 name,
                 is_generic,
@@ -391,7 +389,6 @@ pub enum ResolvedCompilationError {
         expected_count: usize,
         actual_count: usize,
     },
-    PairNotType,
     AmbiguousOverload {
         name: String,
         is_generic: bool,
@@ -529,9 +526,6 @@ impl Display for ResolvedCompilationError {
                     "Type {type_name} has {actual_count} generic parameters, but expected {expected_count}"
                 )
             }
-            Self::PairNotType => {
-                write!(f, "Expression cannot be interpreted as a type",)
-            }
             Self::AmbiguousOverload {
                 name,
                 is_generic,
@@ -540,12 +534,12 @@ impl Display for ResolvedCompilationError {
             } => {
                 write!(
                     f,
-                    "Overload{} for {} is ambiguous{}: {:?}",
+                    "Overload{} for {} is ambiguous{}, {:?} possible overloads",
                     if *is_generic { " (generic)" } else { "" },
                     name,
                     param_types.as_ref().map_or_else(
                         || "".to_string(),
-                        |types| format!(" for param types {}", types.iter().format(","))
+                        |types| format!(" for param types ({})", types.iter().format(","))
                     ),
                     items
                 )
@@ -557,16 +551,16 @@ impl Display for ResolvedCompilationError {
             } => {
                 write!(
                     f,
-                    "No overload for {} found{}: {}",
+                    "No overload for {} found{}{}",
                     name,
                     param_types.as_ref().map_or_else(
                         || "".to_string(),
-                        |types| format!(" for param types {}", types.iter().format(","))
+                        |types| format!(" for param types ({})", types.iter().format(","))
                     ),
                     if dynamic_failures.is_empty() {
                         "".to_string()
                     } else {
-                        " dynamic failures: ".to_owned()
+                        ": dynamic failures: ".to_owned()
                             + &dynamic_failures
                                 .iter()
                                 .map(|(a, b)| format!("{a}: {b}"))

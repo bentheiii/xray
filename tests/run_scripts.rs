@@ -638,3 +638,33 @@ fn test_script_106() {
 fn test_script_107() {
     test_script(107);
 }
+
+#[test]
+fn test_script_108() {
+    test_script(108);
+}
+
+#[test]
+fn test_script_109() {
+    test_script(109);
+}
+
+#[test]
+fn test_script_110() {
+    test_script(110);
+}
+
+#[test]
+fn test_script_111() {
+    test_script(111);
+}
+
+#[test]
+fn test_script_112() {
+    test_script(112);
+}
+
+#[test]
+fn test_script_113() {
+    test_script(113);
+}
