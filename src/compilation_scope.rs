@@ -163,14 +163,14 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     }
 
     fn add_recourse(&mut self, name: Identifier, spec: XFuncSpec) -> Result<(), CompilationError> {
-        if self.variables.get(&name).is_some() {
+        if self.get_variable(&name).is_some() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Value,
                 new_category: CompilationItemCategory::Overload,
             });
         }
-        if self.types.get(&name).is_some() {
+        if self.get_type(&name).is_some() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
@@ -192,14 +192,14 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         spec: XFuncSpec,
         func: XStaticFunction<W>,
     ) -> Result<(), CompilationError> {
-        if self.variables.get(&name).is_some() {
+        if self.get_variable(&name).is_some() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Value,
                 new_category: CompilationItemCategory::Overload,
             });
         }
-        if self.types.get(&name).is_some() {
+        if self.get_type(&name).is_some() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
@@ -239,14 +239,14 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             ) -> Result<XFunctionFactoryOutput<W>, String>
             + 'static,
     ) -> Result<(), CompilationError> {
-        if self.variables.get(&name).is_some() {
+        if self.get_variable(&name).is_some() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Value,
                 new_category: CompilationItemCategory::Overload,
             });
         }
-        if self.types.get(&name).is_some() {
+        if self.get_type(&name).is_some() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
@@ -273,7 +273,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 new_category: CompilationItemCategory::Value,
             });
         }
-        if self.types.get(&name).is_some() {
+        if self.get_type(&name).is_some() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
@@ -300,7 +300,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 new_category: CompilationItemCategory::Value,
             });
         }
-        if self.types.get(&name).is_some() {
+        if self.get_type(&name).is_some() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
@@ -328,7 +328,14 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 new_category: CompilationItemCategory::Type,
             });
         }
-        if self.variables.get(&name).is_some() {
+        if self.get_variable(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Type,
+                new_category: CompilationItemCategory::Value,
+            });
+        }
+        if self.get_type(&name).is_some() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
@@ -352,7 +359,14 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 new_category: CompilationItemCategory::Type,
             });
         }
-        if self.variables.get(&name).is_some() {
+        if self.get_variable(&name).is_some() {
+            return Err(CompilationError::IllegalShadowing {
+                name,
+                current_category: CompilationItemCategory::Type,
+                new_category: CompilationItemCategory::Value,
+            });
+        }
+        if self.get_type(&name).is_some() {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,

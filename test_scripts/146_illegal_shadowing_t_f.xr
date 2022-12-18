@@ -1,0 +1,6 @@
+struct foo(x: int)
+
+fn main()->bool{
+    fn foo()->int{1}
+    true
+}

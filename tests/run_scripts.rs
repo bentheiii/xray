@@ -808,3 +808,33 @@ fn test_script_140() {
 fn test_script_141() {
     test_script(141);
 }
+
+#[test]
+fn test_script_142() {
+    test_script(142);
+}
+
+#[test]
+fn test_script_143() {
+    test_script(143);
+}
+
+#[test]
+fn test_script_144() {
+    test_script(144);
+}
+
+#[test]
+fn test_script_145() {
+    test_script(145);
+}
+
+#[test]
+fn test_script_146() {
+    test_script(146);
+}
+
+#[test]
+fn test_script_147() {
+    test_script(146);
+}
