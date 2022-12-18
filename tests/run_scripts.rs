@@ -884,3 +884,24 @@ fn test_script_148() {
 fn test_script_149() {
     test_script(149);
 }
+
+
+#[test]
+fn test_script_150() {
+    test_script(150);
+}
+
+#[test]
+fn test_script_151() {
+    test_script(151);
+}
+
+#[test]
+fn test_script_152() {
+    test_script(152);
+}
+
+#[test]
+fn test_script_153() {
+    test_script(153);
+}

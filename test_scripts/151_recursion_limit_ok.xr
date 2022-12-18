@@ -1,0 +1,12 @@
+fn fib(n: int)->int{
+    fn helper(n: int, a: int, b: int)->int{
+        if(n==1, b, helper(n-1, b, a+b))
+    }
+    if(n==0, 0, helper(n,0,1))
+}
+
+let f = fib(1000);
+
+fn main()->bool{
+    true
+}

@@ -1,0 +1,4 @@
+expected_violation="MaximumRecursion"
+
+[limits]
+recursion_limit=900
