@@ -1,4 +1,4 @@
-use crate::builtin::core::eval;
+use crate::builtin::core::{eval, xerr};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncSpec, X_INT, X_UNKNOWN};
@@ -261,7 +261,7 @@ pub(crate) fn add_stack_tail<W: Write + 'static>(
                     },
                     rt
                 )),
-                None => xraise!(Err(ManagedXError::new("stack is empty", rt)?)),
+                None => xerr(ManagedXError::new("stack is empty", rt)?),
             }
         }),
     )

@@ -1,4 +1,4 @@
-use crate::builtin::core::{eval, get_func, unpack_native};
+use crate::builtin::core::{eval, get_func, unpack_native, xerr};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::stack::{XStack, XStackType};
 use crate::evaluation_scope::EvaluatedValue;
@@ -710,7 +710,7 @@ pub(crate) fn add_sequence_reduce2<W: Write + 'static>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let seq = to_native!(a0, XSequence<W>);
             if seq.is_empty() {
-                return xraise!(Err(ManagedXError::new("sequence is empty", rt)?));
+                return xerr(ManagedXError::new("sequence is empty", rt)?);
             }
             let f = to_primitive!(a1, Function);
             let mut ret = seq.get(0, ns, rt.clone())?;
@@ -737,7 +737,7 @@ pub(crate) fn add_sequence_range<W: Write + 'static>(
             let (start, end, step);
             if args.len() == 1 {
                 let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let Some(end0) = to_primitive!(a0, Int).to_i64() else { xraise!(Err(ManagedXError::new("end out of bounds", rt)?)) };
+                let Some(end0) = to_primitive!(a0, Int).to_i64() else { return xerr(ManagedXError::new("end out of bounds", rt)?) };
                 end = end0;
                 start = 0i64;
                 step = 1i64;
@@ -745,15 +745,15 @@ pub(crate) fn add_sequence_range<W: Write + 'static>(
                 let a0 = xraise!(eval(&args[0], ns, &rt)?);
                 let a1 = xraise!(eval(&args[1], ns, &rt)?);
                 let a2 = xraise_opt!(args.get(2).map(|e| eval(e, ns, &rt)).transpose()?);
-                let Some(start0) = to_primitive!(a0, Int).to_i64() else { xraise!(Err(ManagedXError::new("start out of bounds", rt)?)) };
-                let Some(end0) = to_primitive!(a1, Int).to_i64() else { xraise!(Err(ManagedXError::new("end out of bounds", rt)?)) };
-                let Some(step0) = a2.map_or(Some(1i64), |a2| { to_primitive!(a2, Int).to_i64() }) else { xraise!(Err(ManagedXError::new("step out of bounds", rt)?)) };
+                let Some(start0) = to_primitive!(a0, Int).to_i64() else { return xerr(ManagedXError::new("start out of bounds", rt)?) };
+                let Some(end0) = to_primitive!(a1, Int).to_i64() else { return xerr(ManagedXError::new("end out of bounds", rt)?) };
+                let Some(step0) = a2.map_or(Some(1i64), |a2| { to_primitive!(a2, Int).to_i64() }) else { return xerr(ManagedXError::new("step out of bounds", rt)?) };
                 start = start0;
                 end = end0;
                 step = step0;
             }
             if step.is_zero() {
-                xraise!(Err(ManagedXError::new("invalid range, step size cannot be zero", rt)?))
+                xerr(ManagedXError::new("invalid range, step size cannot be zero", rt)?)
             } else if (step.is_positive() && start >= end) || (step.is_negative() && start <= end) {
                 Ok(manage_native!(XSequence::<W>::Empty, rt))
             } else {
@@ -851,7 +851,7 @@ pub(crate) fn add_sequence_nth<W: Write + 'static>(
             let original_arr = seq.iter(ns, rt.clone());
             let mut matches_left = to_primitive!(a1, Int).clone();
             if matches_left.is_zero() {
-                return xraise!(Err(ManagedXError::new("match_count must be non-zero", rt)?));
+                return xerr(ManagedXError::new("match_count must be non-zero", rt)?);
             }
             let arr = if matches_left.is_negative() {
                 matches_left = matches_left.neg();
@@ -984,7 +984,7 @@ pub(crate) fn add_sequence_take<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let Some(end_idx) = to_primitive!(a1, Int).to_usize() else { xraise!(Err(ManagedXError::new("index too large", rt)?)) };
+            let Some(end_idx) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("index too large", rt)?) };
             Ok(match XSequence::slice(&a0, 0, end_idx) {
                 None => a0.into(),
                 Some(ret) => manage_native!(ret, rt)
@@ -1005,7 +1005,7 @@ pub(crate) fn add_sequence_skip<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let Some(start_idx) = to_primitive!(a1, Int).to_usize() else { xraise!(Err(ManagedXError::new("index too large", rt)?)) };
+            let Some(start_idx) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("index too large", rt)?) };
             Ok(match XSequence::slice(&a0, start_idx, usize::MAX) {
                 None => a0.into(),
                 Some(ret) => manage_native!(ret, rt)

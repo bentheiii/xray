@@ -50,6 +50,7 @@ use crate::builtin::include::INCLUDE;
 use crate::builtin::tuple::add_tuple_eq;
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
 use string_interner::{DefaultBackend, DefaultSymbol};
+use crate::builtin::set::{add_set_add, add_set_bit_and, add_set_contains, add_set_discard, add_set_len, add_set_new, add_set_new_dyn, add_set_remove, add_set_to_array, add_set_type, add_set_update};
 
 use crate::xexpr::{XExplicitStaticArgSpec, XStaticExpr, XStaticFunction};
 use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType};
@@ -194,6 +195,18 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_mapping_discard(&mut ret).unwrap();
     add_mapping_lookup(&mut ret).unwrap();
     add_mapping_new_dyn(&mut ret).unwrap();
+
+    add_set_type(&mut ret).unwrap();
+    add_set_new(&mut ret).unwrap();
+    add_set_update(&mut ret).unwrap();
+    add_set_add(&mut ret).unwrap();
+    add_set_contains(&mut ret).unwrap();
+    add_set_len(&mut ret).unwrap();
+    add_set_to_array(&mut ret).unwrap();
+    add_set_remove(&mut ret).unwrap();
+    add_set_discard(&mut ret).unwrap();
+    add_set_bit_and(&mut ret).unwrap();
+    add_set_new_dyn(&mut ret).unwrap();
 
     add_tuple_eq(&mut ret).unwrap();
 

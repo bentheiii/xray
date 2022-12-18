@@ -1,4 +1,4 @@
-use crate::builtin::core::{eval, xcmp};
+use crate::builtin::core::{eval, xcmp, xerr};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use crate::{
@@ -41,7 +41,7 @@ pub(crate) fn add_float_mod<W: Write + 'static>(
             let a = to_primitive!(a0, Float);
             let b = to_primitive!(a1, Float);
             if b.is_zero() {
-                xraise!(Err(ManagedXError::new("modulo by zero", rt)?))
+                xerr(ManagedXError::new("modulo by zero", rt)?)
             } else {
                 Ok(ManagedXValue::new(XValue::Float(((a % b) + b) % b), rt)?.into())
             }
@@ -61,7 +61,7 @@ pub(crate) fn add_float_div<W: Write + 'static>(
             let a = to_primitive!(a0, Float);
             let b = to_primitive!(a1, Float);
             if b.is_zero() {
-                xraise!(Err(ManagedXError::new("division by zero", rt)?))
+                xerr(ManagedXError::new("division by zero", rt)?)
             } else {
                 Ok(ManagedXValue::new(XValue::Float(a / b), rt)?.into())
             }
@@ -81,7 +81,7 @@ pub(crate) fn add_float_pow<W: Write + 'static>(
             let a = to_primitive!(a0, Float);
             let b = to_primitive!(a1, Float);
             if (*a <= 0.0 && *b <= 0.0) || (*a < 0.0 && *b < 1.0) {
-                xraise!(Err(ManagedXError::new("undefined exponenitial", rt)?))
+                xerr(ManagedXError::new("undefined exponenitial", rt)?)
             } else {
                 Ok(ManagedXValue::new(XValue::Float(a.powf(*b)), rt)?.into())
             }

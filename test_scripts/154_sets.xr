@@ -1,0 +1,6 @@
+fn main()->bool{
+    let s = set(hash{int}, eq{int,int}).update([2,3,5,8,13,21]);
+
+    assert(s.contains(13))
+    && assert(!s.contains(14))
+}

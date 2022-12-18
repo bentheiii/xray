@@ -6,4 +6,8 @@ fn abs(f: float)->float{
 fn abs(i: int)->int{
     if(i < 0, -i, i)
 }
+
+fn bit_or<T>(a: Set<T>, b: Set<T>)->Set<T>{
+    a.update(b.to_array())
+}
 "#;

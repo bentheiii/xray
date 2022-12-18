@@ -1,4 +1,4 @@
-use crate::xvalue::{ManagedXValue, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use num_traits::{One, Zero};
 
 use std::io::Write;
@@ -22,6 +22,10 @@ macro_rules! xraise {
             Err(__e) => return Ok($crate::xexpr::TailedEvalResult::Value(Err(__e.into()))),
         }
     }};
+}
+
+pub fn xerr<W: Write + 'static>(err:Rc<ManagedXError<W>>)->Result<TailedEvalResult<W>, RuntimeViolation>{
+    Ok(TailedEvalResult::Value(Err(err)))
 }
 
 #[macro_export]
@@ -206,4 +210,16 @@ pub(super) fn eval_resolved_func<W: Write + 'static>(
     let func = to_primitive!(managed_func, Function);
     ns.eval_func_with_values(func, args, rt, false)
         .map(|v| v.unwrap_value())
+}
+
+#[macro_export]
+macro_rules! parse_hash {
+    ($v: expr, $rt: expr) => {{
+        xraise!(to_primitive!(xraise!($v.unwrap_value()), Int)
+            .to_u64()
+            .ok_or($crate::xvalue::ManagedXError::new(
+                "hash is out of bounds",
+                $rt
+            )?))
+    }};
 }

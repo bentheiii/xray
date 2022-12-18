@@ -1,4 +1,4 @@
-use crate::builtin::core::{eval, get_func};
+use crate::builtin::core::{eval, get_func, xerr};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::native_types::{NativeType, XNativeValue};
@@ -7,10 +7,7 @@ use crate::runtime_violation::RuntimeViolation;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
-use crate::{
-    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError,
-    RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
-};
+use crate::{forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType, parse_hash};
 use derivative::Derivative;
 use num_traits::ToPrimitive;
 use rc::Rc;
@@ -53,17 +50,6 @@ struct XMapping<W: Write + 'static> {
     len: usize,
     hash_func: Rc<ManagedXValue<W>>,
     eq_func: Rc<ManagedXValue<W>>,
-}
-
-macro_rules! parse_hash {
-    ($v: expr, $rt: expr) => {{
-        xraise!(to_primitive!(xraise!($v.unwrap_value()), Int)
-            .to_u64()
-            .ok_or($crate::xvalue::ManagedXError::new(
-                "hash is out of bounds",
-                $rt
-            )?))
-    }};
 }
 
 impl<W: Write + 'static> XMapping<W> {
@@ -315,7 +301,7 @@ pub(crate) fn add_mapping_get<W: Write + 'static>(
             );
             let spot = mapping.inner.get(&hash_key);
             match spot {
-                None => xraise!(Err(ManagedXError::new("key not found", rt)?)),
+                None => xerr(ManagedXError::new("key not found", rt)?),
                 Some(candidates) => {
                     let eq_func = to_primitive!(mapping.eq_func, Function);
                     for (k, v) in candidates.iter() {
@@ -333,7 +319,7 @@ pub(crate) fn add_mapping_get<W: Write + 'static>(
                             return Ok(v.clone().into());
                         }
                     }
-                    xraise!(Err(ManagedXError::new("key not found", rt)?))
+                    xerr(ManagedXError::new("key not found", rt)?)
                 }
             }
         }),
@@ -438,46 +424,6 @@ pub(crate) fn add_mapping_contains<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_mapping_pop<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError> {
-    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
-    let mp = XMappingType::xtype(k.clone(), v);
-
-    scope.add_func(
-        "pop",
-        XFuncSpec::new(&[&mp, &k], mp.clone()).generic(params),
-        XStaticFunction::from_native(|args, ns, _tca, rt| {
-            let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let mapping = to_native!(a0, XMapping<W>);
-            rt.borrow().can_allocate((mapping.len-1)*2)?;
-            let hash_func = to_primitive!(mapping.hash_func, Function);
-            let hash_key = parse_hash!(
-                ns.eval_func_with_values(hash_func, vec![Ok(a1.clone())], rt.clone(), false)?,
-                rt.clone()
-            );
-            let spot = mapping.inner.get(&hash_key);
-            match spot {
-                None => xraise!(Err(ManagedXError::new("key not found", rt)?)),
-                Some(candidates) => {
-                    let eq_func = to_primitive!(mapping.eq_func, Function);
-                    let Some(new_spot) = xraise!(bucket_without(candidates, eq_func, &a1, ns, &rt)?) else { xraise!(Err(ManagedXError::new("key not found", rt)?)) };
-                    let mut new_dict = HashMap::from([(hash_key, new_spot)]);
-                    for (k, v) in &mapping.inner {
-                        if *k != hash_key {
-                            new_dict.insert(*k, v.clone());
-                        }
-                    }
-                    Ok(manage_native!(
-                        XMapping::new(mapping.hash_func.clone(), mapping.eq_func.clone(), new_dict, mapping.len-1),
-                        rt
-                    ))
-                }
-            }
-        }),
-    )
-}
 
 #[allow(clippy::type_complexity)]
 fn bucket_without<W: Write + 'static>(
@@ -509,6 +455,50 @@ fn bucket_without<W: Write + 'static>(
         }
     }
     Ok(Ok(None))
+}
+
+pub(crate) fn add_mapping_pop<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
+    let mp = XMappingType::xtype(k.clone(), v);
+
+    scope.add_func(
+        "pop",
+        XFuncSpec::new(&[&mp, &k], mp.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let mapping = to_native!(a0, XMapping<W>);
+            if mapping.len == 0{
+                return xerr(ManagedXError::new("key not found", rt)?)
+            }
+            rt.borrow().can_allocate((mapping.len-1)*2)?;
+            let hash_func = to_primitive!(mapping.hash_func, Function);
+            let hash_key = parse_hash!(
+                ns.eval_func_with_values(hash_func, vec![Ok(a1.clone())], rt.clone(), false)?,
+                rt.clone()
+            );
+            let spot = mapping.inner.get(&hash_key);
+            match spot {
+                None => xerr(ManagedXError::new("key not found", rt)?),
+                Some(candidates) => {
+                    let eq_func = to_primitive!(mapping.eq_func, Function);
+                    let Some(new_spot) = xraise!(bucket_without(candidates, eq_func, &a1, ns, &rt)?) else { return xerr(ManagedXError::new("key not found", rt)?) };
+                    let mut new_dict = HashMap::from([(hash_key, new_spot)]);
+                    for (k, v) in &mapping.inner {
+                        if *k != hash_key {
+                            new_dict.insert(*k, v.clone());
+                        }
+                    }
+                    Ok(manage_native!(
+                        XMapping::new(mapping.hash_func.clone(), mapping.eq_func.clone(), new_dict, mapping.len-1),
+                        rt
+                    ))
+                }
+            }
+        }),
+    )
 }
 
 pub(crate) fn add_mapping_discard<W: Write + 'static>(
