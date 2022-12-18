@@ -7,6 +7,7 @@ use std::fs;
 use crate::utils::capture_writer::CaptureWriter;
 use crate::utils::memory_writer::MemoryWriter;
 use either::Either;
+use regex::Regex;
 use serde::Deserialize;
 use xray::evaluation_scope::RootEvaluationScope;
 use xray::runtime::RuntimeLimits;
@@ -17,6 +18,8 @@ use xray::xvalue::XValue;
 pub struct ScriptConfig {
     #[serde(default)]
     expected_stdout: Option<String>,
+    #[serde(default)]
+    expected_compilation_error: Option<String>,
 }
 
 impl ScriptConfig {
@@ -29,7 +32,18 @@ impl ScriptConfig {
         };
         let mut comp_scope = std_compilation_scope();
 
-        comp_scope.feed_file(input).unwrap();
+        match (comp_scope.feed_file(input), &self.expected_compilation_error){
+            (Ok(_), None)=>{},
+            (Err(e), None) => panic!("{e}"),
+            (Ok(_), Some(_)) => panic!("expected compilation error"),
+            (Err(e), Some(pat))=>{
+                let pat = Regex::new(pat).unwrap();
+                if pat.is_match(&format!("{e}")){
+                    return;
+                }
+                panic!("expected error that matches {pat:?}, got {e}")
+            }
+        }
 
         let runtime = limits.to_runtime(output);
         let eval_scope =
@@ -583,4 +597,9 @@ fn test_script_098() {
 #[test]
 fn test_script_099() {
     test_script(99);
+}
+
+#[test]
+fn test_script_100() {
+    test_script(100);
 }
