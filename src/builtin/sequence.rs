@@ -850,11 +850,8 @@ pub(crate) fn add_sequence_nth<W: Write + 'static>(
             let seq = to_native!(a0, XSequence<W>);
             let original_arr = seq.iter(ns, rt.clone());
             let mut matches_left = to_primitive!(a1, Int).clone();
-            if matches_left.is_zero() {
-                return xerr(ManagedXError::new("match_count must be non-zero", rt)?);
-            }
             let arr = if matches_left.is_negative() {
-                matches_left = matches_left.neg();
+                matches_left = matches_left.neg() - One::one();
                 Either::Left(original_arr.rev())
             } else {
                 Either::Right(original_arr)
@@ -868,10 +865,10 @@ pub(crate) fn add_sequence_nth<W: Write + 'static>(
                         .unwrap_value()),
                     Bool
                 ) {
-                    matches_left = matches_left - One::one();
                     if matches_left.is_zero() {
                         return Ok(manage_native!(XOptional { value: Some(item) }, rt));
                     }
+                    matches_left = matches_left - One::one();
                 }
             }
             Ok(manage_native!(XOptional::<W> { value: None }, rt))

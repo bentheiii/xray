@@ -910,3 +910,8 @@ fn test_script_153() {
 fn test_script_154() {
     test_script(154);
 }
+
+#[test]
+fn test_script_155() {
+    test_script(155);
+}

@@ -1,0 +1,8 @@
+fn main()->bool{
+    let seq = [1, 2, 3, 6, 9, 15];
+
+    assert(seq.any((x: int) -> {x%4 == 3}))
+    && assert(!seq.any((x: int) -> {x%4 == 0}))
+    && assert(seq.all((x: int) -> {x < 20}))
+    && assert(!seq.all((x: int) -> {x < 12}))
+}

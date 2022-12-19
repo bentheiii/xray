@@ -10,4 +10,12 @@ fn abs(i: int)->int{
 fn bit_or<T>(a: Set<T>, b: Set<T>)->Set<T>{
     a.update(b.to_array())
 }
+
+fn any<T>(a: Sequence<T>, f: (T)->(bool))->bool{
+    a.nth(0, f).has_value()
+}
+
+fn all<T>(a: Sequence<T>, f: (T)->(bool))->bool{
+    !a.nth(0, (t: T) -> {!f(t)}).has_value()
+}
 "#;
