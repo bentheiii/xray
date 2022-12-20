@@ -1,0 +1,8 @@
+fn main()->bool{
+    let seq0 = [1, 2, 3, 6, 9, 15];
+    let seq1 = [9, 7, 5, 3, 1];
+    let seq2 = ["sulfur", "potassium", "nitrate"];
+
+    assert(zip(seq0, seq1, seq2) == [(1,9,"sulfur"), (2,7,"potassium"), (3,5, "nitrate")])
+    && assert(zip(seq0, seq1, [], seq2) == [])
+}

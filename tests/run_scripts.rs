@@ -915,3 +915,13 @@ fn test_script_154() {
 fn test_script_155() {
     test_script(155);
 }
+
+#[test]
+fn test_script_156() {
+    test_script(156);
+}
+
+#[test]
+fn test_script_157() {
+    test_script(157);
+}
