@@ -1,0 +1,8 @@
+fn main()->bool{
+    let s = count();
+
+    assert(s[5] == 5)
+    && assert(is_error(s.len()))
+    && assert(s.map((x: int) -> {x*x})[5] == 25)
+    && assert(is_error(s.map((x: int) -> {x*x}).len()))
+}

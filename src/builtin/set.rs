@@ -194,10 +194,11 @@ pub(crate) fn add_set_update<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let set = to_native!(a0, XSet<W>);
-            let seq = to_native!(a1, XSequence<W>);
+            let seq0 = to_native!(a1, XSequence<W>);
+            let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             rt.borrow()
-                .can_allocate(max(set.len, seq.len()))?;
-            let arr = xraise!(seq
+                .can_allocate(max(set.len, len0))?;
+            let arr = xraise!(seq0
                 .iter(ns, rt.clone())
                 .collect::<Result<Result<Vec<_>, _>, _>>()?);
             set.with_update(arr.into_iter(), ns, rt)

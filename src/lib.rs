@@ -143,7 +143,7 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_sequence_to_stack(&mut ret).unwrap();
     add_sequence_map(&mut ret).unwrap();
     add_sequence_push(&mut ret).unwrap();
-    add_sequence_eq(&mut ret).unwrap();
+    add_sequence_dyn_eq(&mut ret).unwrap();
     add_sequence_sort(&mut ret).unwrap();
     add_sequence_reduce2(&mut ret).unwrap();
     add_sequence_reduce3(&mut ret).unwrap();
@@ -158,9 +158,10 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_sequence_rpush(&mut ret).unwrap();
     add_sequence_insert(&mut ret).unwrap();
     add_sequence_set(&mut ret).unwrap();
+    add_sequence_swap(&mut ret).unwrap();
+    add_sequence_count(&mut ret).unwrap();
     add_sequence_dyn_zip(&mut ret).unwrap();
     add_sequence_dyn_unzip(&mut ret).unwrap();
-    add_sequence_swap(&mut ret).unwrap();
     add_sequence_dyn_sort(&mut ret).unwrap();
 
     add_stack_type(&mut ret).unwrap();
