@@ -7,7 +7,10 @@ use crate::runtime_violation::RuntimeViolation;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
-use crate::{forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType, parse_hash};
+use crate::{
+    forward_err, manage_native, parse_hash, to_native, to_primitive, unpack_types, xraise,
+    CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
+};
 use derivative::Derivative;
 use num_traits::ToPrimitive;
 use rc::Rc;
@@ -424,7 +427,6 @@ pub(crate) fn add_mapping_contains<W: Write + 'static>(
         }),
     )
 }
-
 
 #[allow(clippy::type_complexity)]
 fn bucket_without<W: Write + 'static>(

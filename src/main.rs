@@ -9,9 +9,8 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    union Foo(A: (), B: ())
-    let f = Foo::A(());
-    let z = f?:B;
+    let s = set((x:int)->{0}, eq{int, int}).update([1,2,3,4,5]);
+    let z = s.remove(4);
     "###;
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()

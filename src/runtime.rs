@@ -1,12 +1,12 @@
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
+use either::Either;
 use std::cell::RefCell;
 use std::fmt::Debug;
-use std::io::{Write};
+use std::io::Write;
 use std::iter;
 use std::mem::size_of;
 use std::rc::Rc;
-use either::Either;
 
 #[derive(Debug, Default)]
 pub struct RuntimeLimits {
@@ -27,13 +27,16 @@ impl RuntimeLimits {
         }))
     }
 
-    pub fn search_iter(&self) -> impl Iterator<Item=Result<(), RuntimeViolation>> + 'static{
+    pub fn search_iter(&self) -> impl Iterator<Item = Result<(), RuntimeViolation>> + 'static {
         self.maximum_search.map_or_else(
             || Either::Left(iter::repeat_with(|| Ok(()))),
-            |maximum_search|{
-                Either::Right(iter::repeat_with(|| Ok(())).take(maximum_search).chain(
-                    iter::once(Err(RuntimeViolation::MaximumSearch))
-                ))}
+            |maximum_search| {
+                Either::Right(
+                    iter::repeat_with(|| Ok(()))
+                        .take(maximum_search)
+                        .chain(iter::once(Err(RuntimeViolation::MaximumSearch))),
+                )
+            },
         )
     }
 }

@@ -6,11 +6,14 @@ use crate::runtime_violation::RuntimeViolation;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
-use crate::{forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType, parse_hash};
+use crate::{
+    forward_err, manage_native, parse_hash, to_native, to_primitive, unpack_types, xraise,
+    CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
+};
 use derivative::Derivative;
 use num_traits::ToPrimitive;
 use rc::Rc;
-use std::cmp::{max};
+use std::cmp::max;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -68,7 +71,7 @@ impl<W: Write + 'static> XSet<W> {
 
     fn with_update(
         &self,
-        items: impl Iterator<Item=Rc<ManagedXValue<W>>>,
+        items: impl Iterator<Item = Rc<ManagedXValue<W>>>,
         ns: &RuntimeScope<W>,
         rt: RTCell<W>,
     ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
@@ -162,7 +165,7 @@ pub(crate) fn add_set_new<W: Write + 'static>(
             ],
             XSetType::xtype(t),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let hash_func = xraise!(eval(&args[0], ns, &rt)?);
             let eq_func = xraise!(eval(&args[1], ns, &rt)?);
@@ -233,14 +236,7 @@ pub(crate) fn add_set_contains<W: Write + 'static>(
 
     scope.add_func(
         "contains",
-        XFuncSpec::new(
-            &[
-                &st,
-                &t,
-            ],
-            X_BOOL.clone(),
-        )
-            .generic(params),
+        XFuncSpec::new(&[&st, &t], X_BOOL.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -284,17 +280,11 @@ pub(crate) fn add_set_len<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
-    let st = XSetType::xtype(t.clone());
+    let st = XSetType::xtype(t);
 
     scope.add_func(
         "len",
-        XFuncSpec::new(
-            &[
-                &st,
-            ],
-            X_INT.clone(),
-        )
-            .generic(params),
+        XFuncSpec::new(&[&st], X_INT.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let set = to_native!(a0, XSet<W>);
@@ -311,24 +301,17 @@ pub(crate) fn add_set_to_array<W: Write + 'static>(
 
     scope.add_func(
         "to_array",
-        XFuncSpec::new(
-            &[
-                &st,
-            ],
-            XSequenceType::xtype(t),
-        )
-            .generic(params),
+        XFuncSpec::new(&[&st], XSequenceType::xtype(t)).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let set = to_native!(a0, XSet<W>);
             rt.borrow().can_allocate(set.len)?;
-            let items = set.inner.values().flat_map(
-                |lst| lst.clone()
-            ).collect::<Vec<_>>();
-            Ok(manage_native!(
-                XSequence::array(items),
-                rt
-            ))
+            let items = set
+                .inner
+                .values()
+                .flat_map(|lst| lst.clone())
+                .collect::<Vec<_>>();
+            Ok(manage_native!(XSequence::array(items), rt))
         }),
     )
 }
@@ -457,18 +440,11 @@ pub(crate) fn add_set_bit_and<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
-    let st = XSetType::xtype(t.clone());
+    let st = XSetType::xtype(t);
 
     scope.add_func(
         "bit_and",
-        XFuncSpec::new(
-            &[
-                &st,
-                &st
-            ],
-            st.clone(),
-        )
-            .generic(params),
+        XFuncSpec::new(&[&st, &st], st.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -478,14 +454,13 @@ pub(crate) fn add_set_bit_and<W: Write + 'static>(
             let hash_func = to_primitive!(set0.hash_func, Function);
             let eq_func = to_primitive!(set0.eq_func, Function);
 
-
             let mut new_values = Vec::new();
 
             for k1 in set1.inner.values().flat_map(|lst| lst.clone()) {
                 let hash_key = parse_hash!(
-                ns.eval_func_with_values(hash_func, vec![Ok(k1.clone())], rt.clone(), false)?,
-                rt.clone()
-            );
+                    ns.eval_func_with_values(hash_func, vec![Ok(k1.clone())], rt.clone(), false)?,
+                    rt.clone()
+                );
                 let spot = set0.inner.get(&hash_key);
                 let found_in_set0 = match spot {
                     None => false,
@@ -493,16 +468,16 @@ pub(crate) fn add_set_bit_and<W: Write + 'static>(
                         let mut found = false;
                         for k0 in candidates.iter() {
                             if *to_primitive!(
-                            xraise!(ns
-                                .eval_func_with_values(
-                                    eq_func,
-                                    vec![Ok(k0.clone()), Ok(k1.clone())],
-                                    rt.clone(),
-                                    false
-                                )?
-                                .unwrap_value()),
-                            Bool
-                        ) {
+                                xraise!(ns
+                                    .eval_func_with_values(
+                                        eq_func,
+                                        vec![Ok(k0.clone()), Ok(k1.clone())],
+                                        rt.clone(),
+                                        false
+                                    )?
+                                    .unwrap_value()),
+                                Bool
+                            ) {
                                 found = true;
                             }
                         }
@@ -511,12 +486,17 @@ pub(crate) fn add_set_bit_and<W: Write + 'static>(
                 };
                 if found_in_set0 {
                     new_values.push(k1);
-                    rt.borrow()
-                        .can_afford(&new_values)?;
+                    rt.borrow().can_afford(&new_values)?;
                 }
             }
 
-            Ok(XSet::new(set0.hash_func.clone(), set0.eq_func.clone(), Default::default(), 0).with_update(new_values.into_iter(), &ns, rt)?)
+            XSet::new(
+                set0.hash_func.clone(),
+                set0.eq_func.clone(),
+                Default::default(),
+                0,
+            )
+            .with_update(new_values.into_iter(), ns, rt)
         }),
     )
 }
@@ -527,28 +507,24 @@ pub(crate) fn add_set_new_dyn<W: Write + 'static>(
     let eq_symbol = scope.identifier("eq");
     let hash_symbol = scope.identifier("hash");
 
-    scope.add_dyn_func(
-        "set",
-        "default-funcs",
-        move |_params, _types, ns, bind| {
-            let (a0, ) = unpack_types!(bind, 0);
+    scope.add_dyn_func("set", "default-funcs", move |_params, _types, ns, bind| {
+        let (a0,) = unpack_types!(bind, 0);
 
-            let inner_eq = get_func(ns, eq_symbol, &[a0.clone(), a0.clone()], &X_BOOL)?;
-            let inner_hash = get_func(ns, hash_symbol, &[a0.clone()], &X_INT)?;
+        let inner_eq = get_func(ns, eq_symbol, &[a0.clone(), a0.clone()], &X_BOOL)?;
+        let inner_hash = get_func(ns, hash_symbol, &[a0.clone()], &X_INT)?;
 
-            Ok(XFunctionFactoryOutput::from_native(
-                XFuncSpec::new(&[], XSetType::xtype(a0.clone())),
-                move |_args, ns, _tca, rt| {
-                    let inner_equal_value =
-                        xraise!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
-                    let inner_hash_value =
-                        xraise!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
-                    Ok(manage_native!(
-                        XSet::new(inner_hash_value, inner_equal_value, Default::default(), 0),
-                        rt
-                    ))
-                },
-            ))
-        },
-    )
+        Ok(XFunctionFactoryOutput::from_native(
+            XFuncSpec::new(&[], XSetType::xtype(a0.clone())),
+            move |_args, ns, _tca, rt| {
+                let inner_equal_value =
+                    xraise!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
+                let inner_hash_value =
+                    xraise!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
+                Ok(manage_native!(
+                    XSet::new(inner_hash_value, inner_equal_value, Default::default(), 0),
+                    rt
+                ))
+            },
+        ))
+    })
 }

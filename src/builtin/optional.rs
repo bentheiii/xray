@@ -234,7 +234,7 @@ pub(crate) fn add_optional_value<W: Write + 'static>(
         XFuncSpec::new(&[&opt_t], t).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let Some(opt0) = to_native!(a0, XOptional<W>).value.clone() else { return xerr(ManagedXError::new("optional has no value", rt)?.into())};
+            let Some(opt0) = to_native!(a0, XOptional<W>).value.clone() else { return xerr(ManagedXError::new("optional has no value", rt)?)};
             Ok(opt0.into())
         }),
     )

@@ -24,7 +24,9 @@ macro_rules! xraise {
     }};
 }
 
-pub fn xerr<W: Write + 'static>(err:Rc<ManagedXError<W>>)->Result<TailedEvalResult<W>, RuntimeViolation>{
+pub fn xerr<W: Write + 'static>(
+    err: Rc<ManagedXError<W>>,
+) -> Result<TailedEvalResult<W>, RuntimeViolation> {
     Ok(TailedEvalResult::Value(Err(err)))
 }
 
@@ -224,7 +226,10 @@ macro_rules! parse_hash {
     }};
 }
 
-pub(crate) fn search<W: Write+'static, I: IntoIterator>(other: I, rt: RTCell<W>) -> impl Iterator<Item=(I::Item, Result<(), RuntimeViolation>)>{
+pub(crate) fn search<W: Write + 'static, I: IntoIterator>(
+    other: I,
+    rt: RTCell<W>,
+) -> impl Iterator<Item = (I::Item, Result<(), RuntimeViolation>)> {
     let s = rt.borrow().limits.search_iter();
     other.into_iter().zip(s)
 }

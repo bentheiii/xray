@@ -10,10 +10,10 @@ pub mod builtin;
 //pub mod __compilation_scope;
 mod compilation_scope;
 pub mod compile_err;
-pub mod root_runtime_scope;
 pub mod native_types;
 pub mod parser;
 pub mod root_compilation_scope;
+pub mod root_runtime_scope;
 pub mod runtime;
 mod runtime_scope;
 mod runtime_violation;
@@ -47,10 +47,13 @@ use std::io::Write;
 use crate::runtime::RTCell;
 
 use crate::builtin::include::INCLUDE;
+use crate::builtin::set::{
+    add_set_add, add_set_bit_and, add_set_contains, add_set_discard, add_set_len, add_set_new,
+    add_set_new_dyn, add_set_remove, add_set_to_array, add_set_type, add_set_update,
+};
 use crate::builtin::tuple::add_tuple_eq;
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
 use string_interner::{DefaultBackend, DefaultSymbol};
-use crate::builtin::set::{add_set_add, add_set_bit_and, add_set_contains, add_set_discard, add_set_len, add_set_new, add_set_new_dyn, add_set_remove, add_set_to_array, add_set_type, add_set_update};
 
 use crate::xexpr::{XExplicitStaticArgSpec, XStaticExpr, XStaticFunction};
 use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType};

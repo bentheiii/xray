@@ -1,8 +1,8 @@
 use crate::builtin::core::{eval, get_func, search, unpack_native, xerr};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::stack::{XStack, XStackType};
-use crate::root_runtime_scope::EvaluatedValue;
 use crate::native_types::{NativeType, XNativeValue};
+use crate::root_runtime_scope::EvaluatedValue;
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::trysort::try_sort;
@@ -17,7 +17,7 @@ use derivative::Derivative;
 use either::Either;
 use num_traits::{One, Signed, ToPrimitive, Zero};
 use rc::Rc;
-use std::borrow::{Cow};
+use std::borrow::Cow;
 use std::fmt::Debug;
 use std::io::Write;
 use std::mem::size_of;
@@ -88,7 +88,7 @@ impl<W: Write + 'static> XSequence<W> {
                 .filter_map(|seq| seq.len())
                 .min()?,
             Self::Slice(_, start, end) => (*end)? - start,
-            Self::Count => None?
+            Self::Count => None?,
         })
     }
 
@@ -119,7 +119,7 @@ impl<W: Write + 'static> XSequence<W> {
                 ManagedXValue::new(XValue::StructInstance(items), rt).map(Ok)
             }
             Self::Slice(seq, start, ..) => to_native!(seq, Self).get(idx + start, ns, rt),
-            Self::Count => ManagedXValue::new(XValue::Int(idx.into()), rt).map(Ok)
+            Self::Count => ManagedXValue::new(XValue::Int(idx.into()), rt).map(Ok),
         }
     }
 
@@ -127,7 +127,8 @@ impl<W: Write + 'static> XSequence<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> Option<impl DoubleEndedIterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a> {
+    ) -> Option<impl DoubleEndedIterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a>
+    {
         Some((0..self.len()?).map(move |idx| self.get(idx, ns, rt.clone())))
     }
 
@@ -135,14 +136,18 @@ impl<W: Write + 'static> XSequence<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> impl Iterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
+    ) -> impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
         self.diter(ns, rt.clone()).map_or_else(
             || Either::Left((0..).map(move |idx| self.get(idx, ns, rt.clone()))),
             Either::Right,
         )
     }
 
-    pub(crate) fn slice(base: &Rc<ManagedXValue<W>>, start: usize, mut end: Option<usize>) -> Option<Self> {
+    pub(crate) fn slice(
+        base: &Rc<ManagedXValue<W>>,
+        start: usize,
+        mut end: Option<usize>,
+    ) -> Option<Self> {
         let self_ = to_native!(base, XSequence<W>);
         let len = self_.len();
         if end.map_or(true, |end| len.map_or(false, |len| end >= len)) {
@@ -155,9 +160,11 @@ impl<W: Write + 'static> XSequence<W> {
             return Some(Self::Empty);
         }
         Some(match self_ {
-            Self::Slice(origin, old_start, ..) => {
-                Self::Slice(origin.clone(), old_start + start, end.map(|end| old_start + end))
-            }
+            Self::Slice(origin, old_start, ..) => Self::Slice(
+                origin.clone(),
+                old_start + start,
+                end.map(|end| old_start + end),
+            ),
             _ => Self::Slice(base.clone(), start, end),
         })
     }
@@ -193,7 +200,7 @@ impl<W: Write + 'static> XSequence<W> {
                 },
                 Int
             )
-                .is_positive()
+            .is_positive()
             {
                 is_sorted = false;
                 break;
@@ -616,7 +623,7 @@ pub(crate) fn add_sequence_map<W: Write + 'static>(
             ],
             XSequenceType::xtype(output_t),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -701,7 +708,7 @@ pub(crate) fn add_sequence_reduce3<W: Write + 'static>(
             ],
             s.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
@@ -741,7 +748,7 @@ pub(crate) fn add_sequence_reduce2<W: Write + 'static>(
             ],
             t,
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -821,7 +828,7 @@ pub(crate) fn add_sequence_filter<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -938,7 +945,7 @@ pub(crate) fn add_sequence_take_while<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -985,7 +992,7 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -1173,9 +1180,11 @@ pub(crate) fn add_sequence_dyn_zip<W: Write + 'static>(
 
         let arg_types = types.unwrap().iter().collect::<Vec<_>>();
 
-
         Ok(XFunctionFactoryOutput::from_native(
-            XFuncSpec::new(&arg_types, XSequenceType::xtype(Arc::new(XType::Tuple(inner_types)))),
+            XFuncSpec::new(
+                &arg_types,
+                XSequenceType::xtype(Arc::new(XType::Tuple(inner_types))),
+            ),
             move |args, ns, _tca, rt| {
                 let mut seqs = vec![];
                 for a in args {
@@ -1187,10 +1196,7 @@ pub(crate) fn add_sequence_dyn_zip<W: Write + 'static>(
                     seqs.push(a);
                     rt.as_ref().borrow().can_afford(&seqs)?
                 }
-                Ok(manage_native!(
-                    XSequence::<W>::Zip(seqs),
-                rt
-            ))
+                Ok(manage_native!(XSequence::<W>::Zip(seqs), rt))
             },
         ))
     })
@@ -1213,7 +1219,7 @@ pub(crate) fn add_sequence_dyn_unzip<W: Write + 'static>(
 
 
         Ok(XFunctionFactoryOutput::from_native(
-            XFuncSpec::new(&vec![t0], ret_type),
+            XFuncSpec::new(&[t0], ret_type),
             move |args, ns, _tca, rt| {
                 let a = xraise!(eval(&args[0], ns, &rt)?);
 

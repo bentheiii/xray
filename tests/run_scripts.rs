@@ -31,7 +31,7 @@ impl RuntimeLimitsConfig {
             depth_limit: self.depth_limit,
             recursion_limit: self.recursion_limit,
             ud_call_limit: self.ud_call_limit,
-            maximum_search: self.maximum_search
+            maximum_search: self.maximum_search,
         }
     }
 }
@@ -89,8 +89,7 @@ impl ScriptConfig {
             }
         };
 
-        let main_fn = eval_scope
-            .get_user_defined_function("main").unwrap();
+        let main_fn = eval_scope.get_user_defined_function("main").unwrap();
         let main_output = &eval_scope
             .run_function(main_fn, vec![])
             .unwrap()
@@ -886,7 +885,6 @@ fn test_script_148() {
 fn test_script_149() {
     test_script(149);
 }
-
 
 #[test]
 fn test_script_150() {

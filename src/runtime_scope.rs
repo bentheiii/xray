@@ -388,10 +388,10 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             XFunction::UserFunction { template, output } => {
                 {
                     let mut rt = rt.borrow_mut();
-                    if let Some(ud_limit) = rt.limits.ud_call_limit{
+                    if let Some(ud_limit) = rt.limits.ud_call_limit {
                         rt.ud_calls += 1;
-                        if rt.ud_calls >= ud_limit{
-                            return Err(RuntimeViolation::MaximumUDCall)
+                        if rt.ud_calls >= ud_limit {
+                            return Err(RuntimeViolation::MaximumUDCall);
                         }
                     }
                 }
