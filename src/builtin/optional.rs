@@ -1,7 +1,7 @@
-use crate::builtin::core::{eval, eval_resolved_func, get_func, unpack_native};
+use crate::builtin::core::{eval, eval_resolved_func, get_func, unpack_native, xerr};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncSpec, X_BOOL, X_UNKNOWN};
-use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
     manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError,
@@ -234,8 +234,8 @@ pub(crate) fn add_optional_value<W: Write + 'static>(
         XFuncSpec::new(&[&opt_t], t).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let opt0 = to_native!(a0, XOptional<W>).value.clone();
-            Ok(opt0.unwrap().into())
+            let Some(opt0) = to_native!(a0, XOptional<W>).value.clone() else { return xerr(ManagedXError::new("optional has no value", rt)?.into())};
+            Ok(opt0.into())
         }),
     )
 }

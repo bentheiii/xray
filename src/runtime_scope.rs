@@ -7,7 +7,7 @@ use std::io::Write;
 use std::mem;
 use std::rc::Rc;
 
-use crate::evaluation_scope::EvaluatedValue;
+use crate::root_runtime_scope::EvaluatedValue;
 use crate::runtime_violation::RuntimeViolation;
 use crate::units::{ScopeDepth, StackDepth};
 use derivative::Derivative;
@@ -386,6 +386,15 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 self.eval_func_with_expressions(func, &args, rt, tail_available)
             }
             XFunction::UserFunction { template, output } => {
+                {
+                    let mut rt = rt.borrow_mut();
+                    if let Some(ud_limit) = rt.limits.ud_call_limit{
+                        rt.ud_calls += 1;
+                        if rt.ud_calls >= ud_limit{
+                            return Err(RuntimeViolation::MaximumUDCall)
+                        }
+                    }
+                }
                 let mut args = args;
                 let mut recursion_depth = 0_usize;
                 loop {

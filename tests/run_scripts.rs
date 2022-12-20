@@ -9,7 +9,7 @@ use crate::utils::memory_writer::MemoryWriter;
 use either::Either;
 use regex::Regex;
 use serde::Deserialize;
-use xray::evaluation_scope::RootEvaluationScope;
+use xray::root_runtime_scope::RootEvaluationScope;
 use xray::runtime::RuntimeLimits;
 use xray::std_compilation_scope;
 use xray::xvalue::XValue;
@@ -20,6 +20,8 @@ pub struct RuntimeLimitsConfig {
     size_limit: Option<usize>,
     depth_limit: Option<usize>,
     recursion_limit: Option<usize>,
+    ud_call_limit: Option<usize>,
+    maximum_search: Option<usize>,
 }
 
 impl RuntimeLimitsConfig {
@@ -28,6 +30,8 @@ impl RuntimeLimitsConfig {
             size_limit: self.size_limit,
             depth_limit: self.depth_limit,
             recursion_limit: self.recursion_limit,
+            ud_call_limit: self.ud_call_limit,
+            maximum_search: self.maximum_search
         }
     }
 }
@@ -86,9 +90,7 @@ impl ScriptConfig {
         };
 
         let main_fn = eval_scope
-            .get_user_defined_function("main")
-            .expect(r#"function "main" found more than once"#)
-            .expect(r#"function "main" not found"#);
+            .get_user_defined_function("main").unwrap();
         let main_output = &eval_scope
             .run_function(main_fn, vec![])
             .unwrap()
@@ -96,7 +98,7 @@ impl ScriptConfig {
             .unwrap()
             .value;
         if !matches!(main_output, XValue::Bool(true)) {
-            panic!("main outputted {:?}, expected true", main_output)
+            panic!("main returned {:?}, expected true", main_output)
         }
 
         if let Some(expected_output) = &self.expected_stdout {
@@ -929,4 +931,24 @@ fn test_script_157() {
 #[test]
 fn test_script_158() {
     test_script(158);
+}
+
+#[test]
+fn test_script_159() {
+    test_script(159);
+}
+
+#[test]
+fn test_script_160() {
+    test_script(160);
+}
+
+#[test]
+fn test_script_161() {
+    test_script(161);
+}
+
+#[test]
+fn test_script_162() {
+    test_script(162);
 }

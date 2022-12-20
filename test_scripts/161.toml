@@ -1,0 +1,4 @@
+expected_violation="MaximumSearch"
+
+[limits]
+maximum_search=1_000

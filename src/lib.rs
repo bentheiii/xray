@@ -10,7 +10,7 @@ pub mod builtin;
 //pub mod __compilation_scope;
 mod compilation_scope;
 pub mod compile_err;
-pub mod evaluation_scope;
+pub mod root_runtime_scope;
 pub mod native_types;
 pub mod parser;
 pub mod root_compilation_scope;

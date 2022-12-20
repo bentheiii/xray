@@ -1,0 +1,5 @@
+let z = range(1, 10_000).nth(0, (x: int) -> {x < 0}).value();
+
+fn main()->bool{
+    z == 0
+}

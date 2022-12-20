@@ -1,0 +1,56 @@
+fn f0()->int{1}
+
+fn f1()->int{
+    let n0 = f0();
+    let n1 = f0();
+    let n2 = f0();
+    1
+}
+
+fn f2()->int{
+    let n0 = f1();
+    let n1 = f1();
+    let n2 = f1();
+    1
+}
+
+fn f3()->int{
+    let n0 = f2();
+    let n1 = f2();
+    let n2 = f2();
+    1
+}
+
+fn f4()->int{
+    let n0 = f3();
+    let n1 = f3();
+    let n2 = f3();
+    1
+}
+
+fn f5()->int{
+    let n0 = f4();
+    let n1 = f4();
+    let n2 = f4();
+    1
+}
+
+fn f6()->int{
+    let n0 = f5();
+    let n1 = f5();
+    let n2 = f5();
+    1
+}
+
+fn f7()->int{
+    let n0 = f6();
+    let n1 = f6();
+    let n2 = f6();
+    1
+}
+
+let f8 = f7();
+
+fn main()->bool{
+    true
+}

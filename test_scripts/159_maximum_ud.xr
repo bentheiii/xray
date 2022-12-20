@@ -1,0 +1,105 @@
+fn f0()->int{1}
+
+fn f1()->int{
+    let n0 = f0();
+    let n1 = f0();
+    let n2 = f0();
+    let n3 = f0();
+    let n4 = f0();
+    let n5 = f0();
+    let n6 = f0();
+    let n7 = f0();
+    let n8 = f0();
+    let n9 = f0();
+    1
+}
+
+fn f2()->int{
+    let n0 = f1();
+    let n1 = f1();
+    let n2 = f1();
+    let n3 = f1();
+    let n4 = f1();
+    let n5 = f1();
+    let n6 = f1();
+    let n7 = f1();
+    let n8 = f1();
+    let n9 = f1();
+    1
+}
+
+fn f3()->int{
+    let n0 = f2();
+    let n1 = f2();
+    let n2 = f2();
+    let n3 = f2();
+    let n4 = f2();
+    let n5 = f2();
+    let n6 = f2();
+    let n7 = f2();
+    let n8 = f2();
+    let n9 = f2();
+    1
+}
+
+fn f4()->int{
+    let n0 = f3();
+    let n1 = f3();
+    let n2 = f3();
+    let n3 = f3();
+    let n4 = f3();
+    let n5 = f3();
+    let n6 = f3();
+    let n7 = f3();
+    let n8 = f3();
+    let n9 = f3();
+    1
+}
+
+fn f5()->int{
+    let n0 = f4();
+    let n1 = f4();
+    let n2 = f4();
+    let n3 = f4();
+    let n4 = f4();
+    let n5 = f4();
+    let n6 = f4();
+    let n7 = f4();
+    let n8 = f4();
+    let n9 = f4();
+    1
+}
+
+fn f6()->int{
+    let n0 = f5();
+    let n1 = f5();
+    let n2 = f5();
+    let n3 = f5();
+    let n4 = f5();
+    let n5 = f5();
+    let n6 = f5();
+    let n7 = f5();
+    let n8 = f5();
+    let n9 = f5();
+    1
+}
+
+fn f7()->int{
+    let n0 = f6();
+    let n1 = f6();
+    let n2 = f6();
+    let n3 = f6();
+    let n4 = f6();
+    let n5 = f6();
+    let n6 = f6();
+    let n7 = f6();
+    let n8 = f6();
+    let n9 = f6();
+    1
+}
+
+let f8 = f7();
+
+fn main()->bool{
+    true
+}

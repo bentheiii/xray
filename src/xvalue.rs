@@ -1,4 +1,4 @@
-use crate::evaluation_scope::EvaluatedValue;
+use crate::root_runtime_scope::EvaluatedValue;
 use crate::native_types::XNativeValue;
 use crate::runtime::RTCell;
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};

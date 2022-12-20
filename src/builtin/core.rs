@@ -4,7 +4,7 @@ use num_traits::{One, Zero};
 use std::io::Write;
 
 use crate::compilation_scope::CompilationScope;
-use crate::evaluation_scope::EvaluatedValue;
+use crate::root_runtime_scope::EvaluatedValue;
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
@@ -222,4 +222,9 @@ macro_rules! parse_hash {
                 $rt
             )?))
     }};
+}
+
+pub(crate) fn search<W: Write+'static, I: IntoIterator>(other: I, rt: RTCell<W>) -> impl Iterator<Item=(I::Item, Result<(), RuntimeViolation>)>{
+    let s = rt.borrow().limits.search_iter();
+    other.into_iter().zip(s)
 }

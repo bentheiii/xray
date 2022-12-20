@@ -4,5 +4,7 @@ pub enum RuntimeViolation {
     AllocationLimitReached,
     MaximumRecursion,
     MaximumStackDepth,
+    MaximumUDCall,
+    MaximumSearch,
     OutputFailure(std::io::Error),
 }

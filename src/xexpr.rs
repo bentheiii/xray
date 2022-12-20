@@ -1,4 +1,4 @@
-use crate::evaluation_scope::EvaluatedValue;
+use crate::root_runtime_scope::EvaluatedValue;
 use crate::runtime::RTCell;
 use crate::xtype::{Bind, XCompoundSpec, XType};
 use crate::xvalue::{ManagedXValue, NativeCallable, XFunction};

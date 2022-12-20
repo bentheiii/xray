@@ -86,7 +86,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
     pub fn get_user_defined_function(
         &self,
         name: &str,
-    ) -> Result<Option<&XFunction<W>>, GetUniqueFunctionError> {
+    ) -> Result<&XFunction<W>, GetUniqueFunctionError> {
         let id = self.compilation_scope.get_identifier(name);
         if let Some(id) = id {
             let overload = self
@@ -101,7 +101,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
                     let v = self.scope.get_cell_value(*cell_idx);
                     if let EvaluationCell::Value(v) = v {
                         let XValue::Function(func) = &v.as_ref().unwrap().value else {unreachable!()};
-                        Ok(Some(func))
+                        Ok(func)
                     } else {
                         Err(GetUniqueFunctionError::NonValueCell)
                     }

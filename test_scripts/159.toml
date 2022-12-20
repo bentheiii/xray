@@ -1,0 +1,4 @@
+expected_violation="MaximumUDCall"
+
+[limits]
+ud_call_limit=10_000

@@ -18,4 +18,12 @@ fn any<T>(a: Sequence<T>, f: (T)->(bool))->bool{
 fn all<T>(a: Sequence<T>, f: (T)->(bool))->bool{
     !a.nth(0, (t: T) -> {!f(t)}).has_value()
 }
+
+fn first<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{
+     a.nth(0, f)
+}
+
+fn last<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{
+     a.nth(-1, f)
+}
 "#;
