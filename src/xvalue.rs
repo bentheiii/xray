@@ -97,24 +97,16 @@ impl<W: Write + 'static> Debug for XFunction<W> {
 
 impl<W: Write + 'static> XValue<W> {
     pub(crate) fn size(&self) -> usize {
-        match self {
-            Self::Int(i) => {
-                size_of::<LazyBigint>()
-                    + match i {
-                        LazyBigint::Short(..) => 0,
-                        LazyBigint::Long(i) => (i.bits() / 8_u64) as usize,
-                    }
-            }
-            Self::Float(_) => 64 / 8,
+        let base = size_of::<Self>();
+        base + match self {
+            Self::Int(i) => i.additional_size(),
             Self::String(s) => s.len(),
-            Self::Bool(_) => 1,
-            Self::Function(XFunction::Native(_)) => size_of::<usize>(),
             Self::Function(XFunction::UserFunction { template, .. }) => {
                 size_of::<usize>() + template.cells.len() * size_of::<usize>()
             }
             Self::StructInstance(items) => items.len() * size_of::<usize>(),
-            Self::UnionInstance(..) => 2 * size_of::<usize>(),
             Self::Native(n) => size_of::<usize>() + n.size(),
+            _ => 0,
         }
     }
 }

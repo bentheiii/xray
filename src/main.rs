@@ -1,7 +1,7 @@
 extern crate core;
 extern crate pest;
 
-use std::io::stdout;
+use std::io::{stdout};
 use xray::root_runtime_scope::RootEvaluationScope;
 
 use xray::runtime::RuntimeLimits;
