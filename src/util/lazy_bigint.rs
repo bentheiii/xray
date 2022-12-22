@@ -12,7 +12,7 @@ type SmallInt = i64;
 #[derive(Eq, PartialEq, Clone)]
 pub enum LazyBigint {
     Short(SmallInt),
-    Long(Box<BigInt>),
+    Long(BigInt),
 }
 
 impl LazyBigint {
@@ -20,12 +20,12 @@ impl LazyBigint {
         match (self, rhs) {
             (Self::Short(s1), Self::Short(s2)) => s1 as f64 / s2 as f64,
             (Self::Short(s), Self::Long(b)) => {
-                BigRational::new(BigInt::from(s), *b).to_f64().unwrap()
+                BigRational::new(BigInt::from(s), b).to_f64().unwrap()
             }
             (Self::Long(b), Self::Short(s)) => {
-                BigRational::new(*b, BigInt::from(s)).to_f64().unwrap()
+                BigRational::new(b, BigInt::from(s)).to_f64().unwrap()
             }
-            (Self::Long(b0), Self::Long(b1)) => BigRational::new(*b0, *b1).to_f64().unwrap(),
+            (Self::Long(b0), Self::Long(b1)) => BigRational::new(b0, b1).to_f64().unwrap(),
         }
     }
 
@@ -36,7 +36,6 @@ impl LazyBigint {
         })
     }
 
-    // todo delete this function
     pub(crate) fn bits(&self) -> u64 {
         match self {
             Self::Short(_) => 64,
@@ -57,7 +56,7 @@ impl Inv for LazyBigint {
     fn inv(self) -> Self::Output {
         match self {
             Self::Short(s) => (s as f64).inv(),
-            Self::Long(b) => BigRational::from(*b).inv().to_f64().unwrap(),
+            Self::Long(b) => BigRational::from(b).inv().to_f64().unwrap(),
         }
     }
 }
@@ -67,7 +66,7 @@ impl<T: TryInto<SmallInt> + Into<BigInt> + Clone> From<T> for LazyBigint {
         t.clone()
             .try_into()
             .ok()
-            .map_or_else(|| Self::Long(Box::new(t.into())), Self::Short)
+            .map_or_else(|| Self::Long(t.into()), Self::Short)
     }
 }
 
@@ -113,14 +112,14 @@ impl Neg for LazyBigint {
         match self {
             Self::Short(SmallInt::MIN) => Self::Long(assert_is_long(-BigInt::from(SmallInt::MIN))),
             Self::Short(s) => Self::Short(-s),
-            Self::Long(b) => Self::from(-*b),
+            Self::Long(b) => Self::from(-b),
         }
     }
 }
 
-fn assert_is_long(bi: BigInt) -> Box<BigInt> {
+fn assert_is_long(bi: BigInt) -> BigInt {
     debug_assert!(<&BigInt as TryInto<SmallInt>>::try_into(&bi).is_err());
-    Box::new(bi)
+    bi
 }
 
 impl Mul for LazyBigint {
@@ -134,9 +133,9 @@ impl Mul for LazyBigint {
                 Self::Short,
             ),
             (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => {
-                Self::Long(assert_is_long(*b * s))
+                Self::Long(assert_is_long(b * s))
             }
-            (Self::Long(b0), Self::Long(b1)) => Self::Long(assert_is_long(*b0 * *b1)),
+            (Self::Long(b0), Self::Long(b1)) => Self::Long(assert_is_long(b0 * b1)),
         }
     }
 }
@@ -151,8 +150,8 @@ impl Add for LazyBigint {
                 || Self::Long(assert_is_long(BigInt::from(s1) + s2)),
                 Self::Short,
             ),
-            (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => Self::from(*b + s),
-            (Self::Long(b0), Self::Long(b1)) => Self::from(*b0 + *b1),
+            (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => Self::from(b + s),
+            (Self::Long(b0), Self::Long(b1)) => Self::from(b0 + b1),
         }
     }
 }
@@ -167,8 +166,8 @@ impl Sub for LazyBigint {
                 || Self::Long(assert_is_long(BigInt::from(s1) - s2)),
                 Self::Short,
             ),
-            (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => Self::from(*b - s),
-            (Self::Long(b0), Self::Long(b1)) => Self::from(*b0 - *b1),
+            (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => Self::from(b - s),
+            (Self::Long(b0), Self::Long(b1)) => Self::from(b0 - b1),
         }
     }
 }
@@ -182,9 +181,9 @@ impl Rem for LazyBigint {
             (Self::Short(0), _) => Self::zero(),
             (_, Self::Short(-1 | 1)) => Self::zero(),
             (Self::Short(s1), Self::Short(s2)) => Self::Short(s1 % s2),
-            (Self::Long(b), Self::Short(s)) => Self::from(*b % s),
-            (Self::Short(s), Self::Long(b)) => Self::from(s % *b),
-            (Self::Long(b0), Self::Long(b1)) => Self::from(*b0 % *b1),
+            (Self::Long(b), Self::Short(s)) => Self::from(b % s),
+            (Self::Short(s), Self::Long(b)) => Self::from(s % b),
+            (Self::Long(b0), Self::Long(b1)) => Self::from(b0 % b1),
         }
     }
 }
@@ -195,9 +194,9 @@ impl Div for LazyBigint {
     fn div(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Self::Short(s1), Self::Short(s2)) => Self::Short(s1 / s2),
-            (Self::Short(s), Self::Long(b)) => Self::from(s / *b),
-            (Self::Long(b), Self::Short(s)) => Self::from(*b / s),
-            (Self::Long(b0), Self::Long(b1)) => Self::from(*b0 / *b1),
+            (Self::Short(s), Self::Long(b)) => Self::from(s / b),
+            (Self::Long(b), Self::Short(s)) => Self::from(b / s),
+            (Self::Long(b0), Self::Long(b1)) => Self::from(b0 / b1),
         }
     }
 }
@@ -209,9 +208,9 @@ impl BitAnd for LazyBigint {
         match (self, rhs) {
             (Self::Short(s1), Self::Short(s2)) => Self::Short(s1 & s2),
             (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => {
-                Self::from(*b & BigInt::from(s))
+                Self::from(b & BigInt::from(s))
             }
-            (Self::Long(b0), Self::Long(b1)) => Self::from(*b0 & *b1),
+            (Self::Long(b0), Self::Long(b1)) => Self::from(b0 & b1),
         }
     }
 }
@@ -223,9 +222,9 @@ impl BitOr for LazyBigint {
         match (self, rhs) {
             (Self::Short(s1), Self::Short(s2)) => Self::Short(s1 | s2),
             (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => {
-                Self::from(*b | BigInt::from(s))
+                Self::from(b | BigInt::from(s))
             }
-            (Self::Long(b0), Self::Long(b1)) => Self::from(*b0 | *b1),
+            (Self::Long(b0), Self::Long(b1)) => Self::from(b0 | b1),
         }
     }
 }
@@ -258,15 +257,15 @@ impl Pow<Self> for LazyBigint {
         match (self, rhs) {
             (Self::Short(s1), Self::Short(s2)) => {
                 s1.checked_pow(s2.try_into().unwrap()).map_or_else(
-                    || Self::Long(Box::new(BigInt::from(s1).pow(BigUint::try_from(s2).unwrap()))),
+                    || Self::Long(BigInt::from(s1).pow(BigUint::try_from(s2).unwrap())),
                     Self::Short,
                 )
             }
             (Self::Short(s), Self::Long(b)) => {
-                Self::Long(Box::new(BigInt::from(s).pow(BigUint::try_from(*b).unwrap())))
+                Self::Long(BigInt::from(s).pow(BigUint::try_from(b).unwrap()))
             }
-            (Self::Long(b), Self::Short(s)) => Self::Long(Box::new(b.pow(BigUint::try_from(s).unwrap()))),
-            (Self::Long(b0), Self::Long(b1)) => Self::Long(Box::new(b0.pow(BigUint::try_from(*b1).unwrap()))),
+            (Self::Long(b), Self::Short(s)) => Self::Long(b.pow(BigUint::try_from(s).unwrap())),
+            (Self::Long(b0), Self::Long(b1)) => Self::Long(b0.pow(BigUint::try_from(b1).unwrap())),
         }
     }
 }
@@ -282,7 +281,7 @@ impl Num for LazyBigint {
 impl Signed for LazyBigint {
     fn abs(&self) -> Self {
         match self {
-            Self::Short(SmallInt::MIN) => Self::Long(assert_is_long(-BigInt::from(SmallInt::MIN))),
+            Self::Short(SmallInt::MIN) => Self::Long(-BigInt::from(SmallInt::MIN)),
             Self::Short(a) => Self::Short(a.abs()),
             Self::Long(a) => Self::Long(assert_is_long(a.abs())),
         }
