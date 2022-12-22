@@ -1,9 +1,9 @@
 mod utils;
 
-use std::borrow::Borrow;
-use std::collections::HashSet;
 use glob::glob;
 use itertools::Itertools;
+use std::borrow::Borrow;
+use std::collections::HashSet;
 use std::fs;
 use std::time::Duration;
 
@@ -28,22 +28,24 @@ pub struct RuntimeLimitsConfig {
     ud_call_limit: Option<usize>,
     maximum_search: Option<usize>,
     time_limit: Option<Duration>,
-    forbidden_permissions: Vec<String>
+    forbidden_permissions: Vec<String>,
 }
-
-
 
 impl RuntimeLimitsConfig {
     fn to_runtime_limits(&self) -> RuntimeLimits {
-        let forbidden: HashSet<_> = self.forbidden_permissions.iter().map(|s| s.borrow()).collect();
+        let forbidden: HashSet<_> = self
+            .forbidden_permissions
+            .iter()
+            .map(|s| s.borrow())
+            .collect();
         let mut permission_set = PermissionSet::default();
-        if forbidden.contains("sleep"){
+        if forbidden.contains("sleep") {
             permission_set.forbid(&builtin_permissions::SLEEP)
         }
-        if forbidden.contains("print_debug"){
+        if forbidden.contains("print_debug") {
             permission_set.forbid(&builtin_permissions::PRINT_DEBUG)
         }
-        if forbidden.contains("print"){
+        if forbidden.contains("print") {
             permission_set.forbid(&builtin_permissions::PRINT)
         }
         RuntimeLimits {
@@ -123,7 +125,8 @@ impl ScriptConfig {
         }
 
         if let Some(expected_output) = &self.expected_stdout {
-            let actual_stdout = runtime.as_ref()
+            let actual_stdout = runtime
+                .as_ref()
                 .borrow()
                 .stdout
                 .as_ref()
@@ -986,4 +989,19 @@ fn test_script_164() {
 #[test]
 fn test_script_165() {
     test_script(165);
+}
+
+#[test]
+fn test_script_166() {
+    test_script(166);
+}
+
+#[test]
+fn test_script_167() {
+    test_script(167);
+}
+
+#[test]
+fn test_script_168() {
+    test_script(168);
 }

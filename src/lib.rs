@@ -12,6 +12,7 @@ mod compilation_scope;
 pub mod compile_err;
 pub mod native_types;
 pub mod parser;
+pub mod permissions;
 pub mod root_compilation_scope;
 pub mod root_runtime_scope;
 pub mod runtime;
@@ -22,7 +23,6 @@ pub mod util;
 pub mod xexpr;
 pub mod xtype;
 pub mod xvalue;
-pub mod permissions;
 
 extern crate pest;
 #[macro_use]
@@ -47,6 +47,7 @@ use std::io::Write;
 
 use crate::runtime::RTCell;
 
+use crate::builtin::builtin_permissions;
 use crate::builtin::include::INCLUDE;
 use crate::builtin::set::{
     add_set_add, add_set_bit_and, add_set_contains, add_set_discard, add_set_len, add_set_new,
@@ -55,7 +56,6 @@ use crate::builtin::set::{
 use crate::builtin::tuple::add_tuple_eq;
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
 use string_interner::{DefaultBackend, DefaultSymbol};
-use crate::builtin::builtin_permissions;
 
 use crate::xexpr::{XExplicitStaticArgSpec, XStaticExpr, XStaticFunction};
 use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType};

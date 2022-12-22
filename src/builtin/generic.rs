@@ -7,13 +7,13 @@ use crate::{
 };
 use rc::Rc;
 
+use crate::builtin::builtin_permissions;
 use crate::builtin::core::{eval, eval_resolved_func, get_func};
 use crate::runtime::RTCell;
 use crate::runtime_violation::RuntimeViolation;
 use num_traits::Signed;
 use std::io::Write;
 use std::rc;
-use crate::builtin::builtin_permissions;
 
 pub(crate) fn add_if<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -50,7 +50,9 @@ pub(crate) fn add_debug<W: Write + 'static>(
         "debug",
         XFuncSpec::new_with_optional(&[&t], &[&X_STRING], t.clone()).generic(params),
         XStaticFunction::from_native(|args: &[XExpr<W>], ns, _tca, rt| {
-            rt.borrow().limits.check_permission(&builtin_permissions::PRINT_DEBUG)?;
+            rt.borrow()
+                .limits
+                .check_permission(&builtin_permissions::PRINT_DEBUG)?;
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
             let b = to_primitive!(a1, String, "".to_string());
@@ -145,7 +147,9 @@ pub(crate) fn add_display<W: Write + 'static>(
             Ok(XFunctionFactoryOutput::from_native(
                 XFuncSpec::new_with_optional(&[&t.clone()], &[&X_STRING], t.clone()),
                 move |args, ns, _tca, rt| {
-                    rt.borrow().limits.check_permission(&builtin_permissions::PRINT)?;
+                    rt.borrow()
+                        .limits
+                        .check_permission(&builtin_permissions::PRINT)?;
                     let a0 = eval(&args[0], ns, &rt)?;
                     let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
                     let b = to_primitive!(a1, String, "".to_string());

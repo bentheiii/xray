@@ -26,4 +26,12 @@ fn first<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{
 fn last<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{
      a.nth(-1, f)
 }
+
+fn count(start: int)->Sequence<int>{
+    count().map((x:int)->{x+start})
+}
+
+fn enumerate<T>(a: Sequence<T>, start: int ?= 0)->Sequence<(int, T)>{
+    count(start).zip(a)
+}
 "#;

@@ -1,3 +1,4 @@
+use crate::permissions::{Permission, PermissionSet};
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
 use either::Either;
@@ -8,7 +9,6 @@ use std::iter;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
-use crate::permissions::{Permission, PermissionSet};
 
 #[derive(Debug, Default)]
 pub struct RuntimeLimits {
@@ -19,7 +19,7 @@ pub struct RuntimeLimits {
     pub ud_call_limit: Option<usize>,
     pub maximum_search: Option<usize>,
     pub time_limit: Option<Duration>,
-    pub permissions: PermissionSet
+    pub permissions: PermissionSet,
 }
 
 impl RuntimeLimits {
@@ -46,8 +46,8 @@ impl RuntimeLimits {
         )
     }
 
-    pub fn check_permission(&self, permission: &Permission)->Result<(), RuntimeViolation>{
-        if self.permissions[permission]{
+    pub fn check_permission(&self, permission: &Permission) -> Result<(), RuntimeViolation> {
+        if self.permissions[permission] {
             Ok(())
         } else {
             Err(RuntimeViolation::PermissionError(permission.0))
@@ -60,7 +60,7 @@ pub struct Runtime<W: Write + 'static> {
     pub(crate) size: usize, // this will be zero if the runtime has no size limit
     pub(crate) ud_calls: usize, // this will be zero if the runtime has no us_call limit
     pub stdout: W,
-    pub(crate) timeout: Option<Instant>
+    pub(crate) timeout: Option<Instant>,
 }
 
 pub type RTCell<W> = Rc<RefCell<Runtime<W>>>;
@@ -85,19 +85,19 @@ impl<W: Write + 'static> Runtime<W> {
         self.can_allocate_by(|| Some(x.prospective_size()))
     }
 
-    pub fn reset_ud_calls(&mut self){
+    pub fn reset_ud_calls(&mut self) {
         self.ud_calls = 0
     }
 
-    pub fn reset_timeout(&mut self){
+    pub fn reset_timeout(&mut self) {
         self.timeout = self.limits.time_limit.map(|tl| Instant::now() + tl)
     }
 
-    pub fn check_timeout(&self)->Result<(), RuntimeViolation>{
-        self.timeout.map_or(
-            true,
-            |timeout| timeout > Instant::now()
-        ).then_some(()).ok_or(RuntimeViolation::Timeout)
+    pub fn check_timeout(&self) -> Result<(), RuntimeViolation> {
+        self.timeout
+            .map_or(true, |timeout| timeout > Instant::now())
+            .then_some(())
+            .ok_or(RuntimeViolation::Timeout)
     }
 }
 

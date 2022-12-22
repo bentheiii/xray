@@ -44,7 +44,7 @@ impl LazyBigint {
         }
     }
 
-    pub(crate) fn additional_size(&self)->usize{
+    pub(crate) fn additional_size(&self) -> usize {
         match self {
             Self::Short(_) => 0,
             Self::Long(b) => size_of::<BigInt>() + b.iter_u64_digits().count() * 8,
