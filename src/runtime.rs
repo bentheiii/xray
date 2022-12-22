@@ -14,6 +14,7 @@ pub struct RuntimeLimits {
     pub depth_limit: Option<usize>,
     pub recursion_limit: Option<usize>,
     pub ud_call_limit: Option<usize>,
+    // note that all the standard functions already take upa bout 5K bytes
     pub maximum_search: Option<usize>,
 }
 

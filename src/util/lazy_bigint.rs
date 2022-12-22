@@ -36,6 +36,7 @@ impl LazyBigint {
         })
     }
 
+    // todo remove this function
     pub(crate) fn bits(&self) -> u64 {
         match self {
             Self::Short(_) => 64,
