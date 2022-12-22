@@ -1,0 +1,7 @@
+fn foo()->int{1}
+
+let z = foo();
+
+fn main()->bool{
+    assert(z == 1)
+}

@@ -1,0 +1,4 @@
+expected_violation="Timeout"
+
+[limits]
+time_limit=[0, 0]

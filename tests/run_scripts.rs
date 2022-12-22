@@ -3,6 +3,7 @@ mod utils;
 use glob::glob;
 use itertools::Itertools;
 use std::fs;
+use std::time::Duration;
 
 use crate::utils::capture_writer::CaptureWriter;
 use crate::utils::memory_writer::MemoryWriter;
@@ -22,6 +23,7 @@ pub struct RuntimeLimitsConfig {
     recursion_limit: Option<usize>,
     ud_call_limit: Option<usize>,
     maximum_search: Option<usize>,
+    time_limit: Option<Duration>,
 }
 
 impl RuntimeLimitsConfig {
@@ -32,6 +34,7 @@ impl RuntimeLimitsConfig {
             recursion_limit: self.recursion_limit,
             ud_call_limit: self.ud_call_limit,
             maximum_search: self.maximum_search,
+            time_limit: self.time_limit,
         }
     }
 }
@@ -949,4 +952,14 @@ fn test_script_161() {
 #[test]
 fn test_script_162() {
     test_script(162);
+}
+
+#[test]
+fn test_script_163() {
+    test_script(163);
+}
+
+#[test]
+fn test_script_164() {
+    test_script(164);
 }

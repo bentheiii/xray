@@ -394,6 +394,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                             return Err(RuntimeViolation::MaximumUDCall);
                         }
                     }
+                    rt.check_timeout()?;
                 }
                 let mut args = args;
                 let mut recursion_depth = 0_usize;

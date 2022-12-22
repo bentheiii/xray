@@ -1,0 +1,7 @@
+fn foo()->(){()}
+
+let z = foo();
+
+fn main()->bool{
+    true
+}

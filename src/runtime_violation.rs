@@ -7,4 +7,5 @@ pub enum RuntimeViolation {
     MaximumUDCall,
     MaximumSearch,
     OutputFailure(std::io::Error),
+    Timeout,
 }

@@ -7,24 +7,27 @@ use std::io::Write;
 use std::iter;
 use std::mem::size_of;
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Default)]
 pub struct RuntimeLimits {
+    // note that all the standard functions already take up about 5K bytes
     pub size_limit: Option<usize>,
     pub depth_limit: Option<usize>,
     pub recursion_limit: Option<usize>,
     pub ud_call_limit: Option<usize>,
-    // note that all the standard functions already take upa bout 5K bytes
     pub maximum_search: Option<usize>,
+    pub time_limit: Option<Duration>,
 }
 
 impl RuntimeLimits {
     pub fn to_runtime<W: Write + 'static>(self, output: W) -> RTCell<W> {
         Rc::new(RefCell::new(Runtime {
-            limits: self,
             size: 0,
             stdout: output,
             ud_calls: 0,
+            timeout: self.time_limit.map(|ti| Instant::now() + ti),
+            limits: self,
         }))
     }
 
@@ -47,6 +50,7 @@ pub struct Runtime<W: Write + 'static> {
     pub(crate) size: usize, // this will be zero if the runtime has no size limit
     pub(crate) ud_calls: usize, // this will be zero if the runtime has no us_call limit
     pub stdout: W,
+    pub(crate) timeout: Option<Instant>
 }
 
 pub type RTCell<W> = Rc<RefCell<Runtime<W>>>;
@@ -69,6 +73,21 @@ impl<W: Write + 'static> Runtime<W> {
 
     pub fn can_afford(&self, x: &impl ProspectiveSize) -> Result<(), RuntimeViolation> {
         self.can_allocate_by(|| Some(x.prospective_size()))
+    }
+
+    pub fn reset_ud_calls(&mut self){
+        self.ud_calls = 0
+    }
+
+    pub fn reset_timeout(&mut self){
+        self.timeout = self.limits.time_limit.map(|tl| Instant::now() + tl)
+    }
+
+    pub fn check_timeout(&self)->Result<(), RuntimeViolation>{
+        self.timeout.map_or(
+            true,
+            |timeout| timeout > Instant::now()
+        ).then_some(()).ok_or(RuntimeViolation::Timeout)
     }
 }
 
