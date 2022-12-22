@@ -22,6 +22,7 @@ pub mod util;
 pub mod xexpr;
 pub mod xtype;
 pub mod xvalue;
+pub mod permissions;
 
 extern crate pest;
 #[macro_use]
@@ -54,6 +55,7 @@ use crate::builtin::set::{
 use crate::builtin::tuple::add_tuple_eq;
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
 use string_interner::{DefaultBackend, DefaultSymbol};
+use crate::builtin::builtin_permissions;
 
 use crate::xexpr::{XExplicitStaticArgSpec, XStaticExpr, XStaticFunction};
 use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType};
@@ -62,6 +64,11 @@ pub type Identifier = SpecialPrefixSymbol<DefaultBackend<DefaultSymbol>>;
 
 pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     let mut ret = RootCompilationScope::new();
+    // todo move this into builtins?
+    let _ = &builtin_permissions::PRINT;
+    let _ = &builtin_permissions::PRINT_DEBUG;
+    let _ = &builtin_permissions::SLEEP;
+
     add_int_type(&mut ret).unwrap();
     add_int_add(&mut ret).unwrap();
     add_int_eq(&mut ret).unwrap();

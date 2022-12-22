@@ -1,0 +1,4 @@
+expected_violation="PermissionError(\"print\")"
+
+[limits]
+forbidden_permissions=["print", "sleep"]

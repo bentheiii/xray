@@ -12,3 +12,4 @@ pub mod stack;
 pub mod str;
 pub mod tuple;
 pub mod unknown;
+pub mod builtin_permissions;

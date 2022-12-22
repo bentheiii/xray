@@ -1,5 +1,7 @@
 mod utils;
 
+use std::borrow::Borrow;
+use std::collections::HashSet;
 use glob::glob;
 use itertools::Itertools;
 use std::fs;
@@ -10,6 +12,8 @@ use crate::utils::memory_writer::MemoryWriter;
 use either::Either;
 use regex::Regex;
 use serde::Deserialize;
+use xray::builtin::builtin_permissions;
+use xray::permissions::PermissionSet;
 use xray::root_runtime_scope::RootEvaluationScope;
 use xray::runtime::RuntimeLimits;
 use xray::std_compilation_scope;
@@ -24,10 +28,24 @@ pub struct RuntimeLimitsConfig {
     ud_call_limit: Option<usize>,
     maximum_search: Option<usize>,
     time_limit: Option<Duration>,
+    forbidden_permissions: Vec<String>
 }
+
+
 
 impl RuntimeLimitsConfig {
     fn to_runtime_limits(&self) -> RuntimeLimits {
+        let forbidden: HashSet<_> = self.forbidden_permissions.iter().map(|s| s.borrow()).collect();
+        let mut permission_set = PermissionSet::default();
+        if forbidden.contains("sleep"){
+            permission_set.forbid(&builtin_permissions::SLEEP)
+        }
+        if forbidden.contains("print_debug"){
+            permission_set.forbid(&builtin_permissions::PRINT_DEBUG)
+        }
+        if forbidden.contains("print"){
+            permission_set.forbid(&builtin_permissions::PRINT)
+        }
         RuntimeLimits {
             size_limit: self.size_limit,
             depth_limit: self.depth_limit,
@@ -35,6 +53,7 @@ impl RuntimeLimitsConfig {
             ud_call_limit: self.ud_call_limit,
             maximum_search: self.maximum_search,
             time_limit: self.time_limit,
+            permissions: permission_set,
         }
     }
 }
@@ -104,7 +123,7 @@ impl ScriptConfig {
         }
 
         if let Some(expected_output) = &self.expected_stdout {
-            let actual_stdout = runtime
+            let actual_stdout = runtime.as_ref()
                 .borrow()
                 .stdout
                 .as_ref()
@@ -962,4 +981,9 @@ fn test_script_163() {
 #[test]
 fn test_script_164() {
     test_script(164);
+}
+
+#[test]
+fn test_script_165() {
+    test_script(165);
 }

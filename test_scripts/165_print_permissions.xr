@@ -1,0 +1,9 @@
+fn foo()->int{
+    display(12)
+}
+
+let z = foo();
+
+fn main()->bool{
+    true
+}

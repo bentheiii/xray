@@ -8,4 +8,5 @@ pub enum RuntimeViolation {
     MaximumSearch,
     OutputFailure(std::io::Error),
     Timeout,
+    PermissionError(&'static str),
 }

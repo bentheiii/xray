@@ -8,6 +8,7 @@ use std::iter;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
+use crate::permissions::{Permission, PermissionSet};
 
 #[derive(Debug, Default)]
 pub struct RuntimeLimits {
@@ -18,6 +19,7 @@ pub struct RuntimeLimits {
     pub ud_call_limit: Option<usize>,
     pub maximum_search: Option<usize>,
     pub time_limit: Option<Duration>,
+    pub permissions: PermissionSet
 }
 
 impl RuntimeLimits {
@@ -42,6 +44,14 @@ impl RuntimeLimits {
                 )
             },
         )
+    }
+
+    pub fn check_permission(&self, permission: &Permission)->Result<(), RuntimeViolation>{
+        if self.permissions[permission]{
+            Ok(())
+        } else {
+            Err(RuntimeViolation::PermissionError(permission.0))
+        }
     }
 }
 
