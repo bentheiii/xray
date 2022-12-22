@@ -1,8 +1,8 @@
 fn main()->bool{
-    let s = count(10);
+    let s = count(10,2);
 
-    assert(s[5] == 15)
+    assert(s[5] == 20)
     && assert(is_error(s.len()))
-    && assert(s.map((x: int) -> {x*x})[5] == 225)
+    && assert(s.map((x: int) -> {x*x})[5] == 400)
     && assert(is_error(s.map((x: int) -> {x*x}).len()))
 }

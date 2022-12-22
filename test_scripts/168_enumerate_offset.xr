@@ -1,4 +1,4 @@
 fn main()->bool{
-    assert("abcd".chars().enumerate(10) == [(10,"a"), (11, "b"), (12, "c"), (13, "d")])
-    &&  assert("".chars().enumerate(10) == [])
+    assert("abcd".chars().enumerate(10,2) == [(10,"a"), (12, "b"), (14, "c"), (16, "d")])
+    &&  assert("".chars().enumerate(10,2) == [])
 }
