@@ -1,7 +1,5 @@
 use crate::permissions::Permission;
-lazy_static! {
-    pub static ref SLEEP: Permission = Permission("sleep");
-    pub static ref PRINT_DEBUG: Permission = Permission("print_debug");
-    pub static ref PRINT: Permission = Permission("print");
-    pub static ref RANDOM: Permission = Permission("random");
-}
+pub const SLEEP: Permission = Permission("sleep");
+pub const PRINT_DEBUG: Permission = Permission("print_debug");
+pub const PRINT: Permission = Permission("print");
+pub const RANDOM: Permission = Permission("random");

@@ -47,13 +47,12 @@ use std::io::Write;
 
 use crate::runtime::RTCell;
 
-use crate::builtin::builtin_permissions;
 use crate::builtin::include::INCLUDE;
 use crate::builtin::set::{
     add_set_add, add_set_bit_and, add_set_contains, add_set_discard, add_set_len, add_set_new,
     add_set_new_dyn, add_set_remove, add_set_to_array, add_set_type, add_set_update,
 };
-use crate::builtin::tuple::add_tuple_eq;
+use crate::builtin::tuple::{add_empty_tup_and, add_tuple_eq};
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
 use string_interner::{DefaultBackend, DefaultSymbol};
 
@@ -65,9 +64,6 @@ pub type Identifier = SpecialPrefixSymbol<DefaultBackend<DefaultSymbol>>;
 pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     let mut ret = RootCompilationScope::new();
     // todo move this into builtins?
-    let _ = &builtin_permissions::PRINT;
-    let _ = &builtin_permissions::PRINT_DEBUG;
-    let _ = &builtin_permissions::SLEEP;
 
     add_int_type(&mut ret).unwrap();
     add_int_add(&mut ret).unwrap();
@@ -117,6 +113,7 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_str_chars(&mut ret).unwrap();
     add_str_get(&mut ret).unwrap();
     add_str_ord(&mut ret).unwrap();
+    add_str_split(&mut ret).unwrap();
 
     add_bool_type(&mut ret).unwrap();
     add_bool_and(&mut ret).unwrap();
@@ -220,6 +217,7 @@ pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
     add_set_bit_and(&mut ret).unwrap();
     add_set_new_dyn(&mut ret).unwrap();
 
+    add_empty_tup_and(&mut ret).unwrap();
     add_tuple_eq(&mut ret).unwrap();
 
     ret.feed_file(INCLUDE).unwrap();

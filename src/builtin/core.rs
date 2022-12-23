@@ -32,7 +32,7 @@ pub fn xerr<W: Write + 'static>(
 
 #[macro_export]
 macro_rules! add_binfunc {
-    ($fn_name:ident, $name:ident, $operand_type: ident, $operand_variant:ident, $return_type:ident, $func:expr) => {
+    ($fn_name:ident, $name:ident, $operand_type: expr, $operand_variant:ident, $return_type:expr, $func:expr) => {
         pub(crate) fn $fn_name<W: Write + 'static>(
             scope: &mut RootCompilationScope<W>,
         ) -> Result<(), $crate::CompilationError> {

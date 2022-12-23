@@ -22,7 +22,7 @@ use std::fmt::Debug;
 use std::io::Write;
 use std::mem::size_of;
 use std::ops::Neg;
-use std::rc;
+use std::{iter, rc};
 use std::sync::Arc;
 
 use crate::util::lazy_bigint::LazyBigint;
@@ -53,7 +53,14 @@ pub enum XSequence<W: Write + 'static> {
     Array(Vec<Rc<ManagedXValue<W>>>),
     Range(i64, i64, i64),
     Map(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
+    // todo store the length?
     Zip(Vec<Rc<ManagedXValue<W>>>),
+    // we are guaranteed that
+    // a. there are at least two parts,
+    // b. all parts except (possibly) the last are finite
+    // c. there is exactly one more part than midpoints
+    // d. none of the parts are empty
+    Chain { parts: Vec<Rc<ManagedXValue<W>>>, midpoint_lengths: Vec<usize> },
     // end is always at most the length of the sequence, start is always lower than end
     // end = None indicates an infinite sequence
     Slice(Rc<ManagedXValue<W>>, usize, Option<usize>),
@@ -89,6 +96,8 @@ impl<W: Write + 'static> XSequence<W> {
                 .min()?,
             Self::Slice(_, start, end) => (*end)? - start,
             Self::Count => None?,
+            Self::Chain { parts, midpoint_lengths } =>
+                to_native!(parts.last().unwrap(), Self).len()? + midpoint_lengths.last().unwrap()
         })
     }
 
@@ -120,6 +129,15 @@ impl<W: Write + 'static> XSequence<W> {
             }
             Self::Slice(seq, start, ..) => to_native!(seq, Self).get(idx + start, ns, rt),
             Self::Count => ManagedXValue::new(XValue::Int(idx.into()), rt).map(Ok),
+            Self::Chain { parts, midpoint_lengths } => {
+                let part_idx = midpoint_lengths.partition_point(|x| *x <= idx);
+                let internal_idx = idx - if part_idx == 0 {
+                    0
+                } else {
+                    midpoint_lengths[part_idx - 1]
+                };
+                to_native!(parts[part_idx], Self).get(internal_idx, ns, rt)
+            }
         }
     }
 
@@ -127,16 +145,22 @@ impl<W: Write + 'static> XSequence<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> Option<impl DoubleEndedIterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a>
+    ) -> Option<impl DoubleEndedIterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a>
     {
-        Some((0..self.len()?).map(move |idx| self.get(idx, ns, rt.clone())))
+
+        Some(
+            match self{
+                XSequence::Array(arr) => Either::Left(arr.iter().cloned().map(|i| Ok(Ok(i)))),
+                _ => Either::Right((0..self.len()?).map(move |idx| self.get(idx, ns, rt.clone())))
+            }
+        )
     }
 
     pub(super) fn iter<'a>(
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
+    ) -> impl Iterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
         self.diter(ns, rt.clone()).map_or_else(
             || Either::Left((0..).map(move |idx| self.get(idx, ns, rt.clone()))),
             Either::Right,
@@ -147,7 +171,8 @@ impl<W: Write + 'static> XSequence<W> {
         base: &Rc<ManagedXValue<W>>,
         start: usize,
         mut end: Option<usize>,
-    ) -> Option<Self> {
+    ) -> Option<Self> // todo return an error with a reference instead?
+    {
         let self_ = to_native!(base, XSequence<W>);
         let len = self_.len();
         if end.map_or(true, |end| len.map_or(false, |len| end >= len)) {
@@ -167,6 +192,50 @@ impl<W: Write + 'static> XSequence<W> {
             ),
             _ => Self::Slice(base.clone(), start, end),
         })
+    }
+
+    pub(crate) fn chain<'a>(
+        base0: &'a Rc<ManagedXValue<W>>,
+        base1: &'a Rc<ManagedXValue<W>>,
+    ) -> Result<Result<Self, &'a Rc<ManagedXValue<W>>>, &'static str> {
+        let seq0 = to_native!(base0, XSequence<W>);
+        let seq1 = to_native!(base1, XSequence<W>);
+        if seq0.is_empty(){
+            return if seq1.is_empty(){
+                Ok(Ok(XSequence::Empty))
+            } else {
+                Ok(Err(base1))
+            }
+        } else if seq1.is_empty(){
+            return Ok(Err(base0))
+        }
+        let Some(len0) = seq0.len() else {return Err("first sequence is infinite")};
+        let (parts, midpoint_lengths) = match (seq0, seq1) {
+            (XSequence::Chain {parts: parts0, midpoint_lengths:mid_lengths0}, XSequence::Chain {parts:parts1, midpoint_lengths:mid_lengths1}) => {
+                let parts = parts0.iter().chain(parts1).cloned().collect();
+                let midpoint_lengths = mid_lengths0.iter().cloned().chain(iter::once(len0)).chain(mid_lengths1.iter().map(|len| len + len0)).collect();
+                (parts, midpoint_lengths)
+            }
+
+            (XSequence::Chain {parts: parts0, midpoint_lengths:mid_lengths0}, _) => {
+                let parts = parts0.iter().chain(iter::once(base1)).cloned().collect();
+                let midpoint_lengths = mid_lengths0.iter().cloned().chain(iter::once(len0)).collect();
+                (parts, midpoint_lengths)
+            }
+
+            (_, XSequence::Chain {parts: parts1, midpoint_lengths:mid_lengths1}) => {
+                let parts = iter::once(base0).chain(parts1.iter()).cloned().collect();
+                let midpoint_lengths = iter::once(len0).chain(mid_lengths1.iter().map(|len| len + len0)).collect();
+                (parts, midpoint_lengths)
+            }
+
+            (_, _) => {
+                let parts = vec![base0.clone(), base1.clone()];
+                let midpoint_lengths = vec![len0];
+                (parts, midpoint_lengths)
+            }
+        };
+        Ok(Ok(XSequence::Chain {parts, midpoint_lengths}))
     }
 
     pub(super) fn is_empty(&self) -> bool {
@@ -200,7 +269,7 @@ impl<W: Write + 'static> XSequence<W> {
                 },
                 Int
             )
-            .is_positive()
+                .is_positive()
             {
                 is_sorted = false;
                 break;
@@ -261,6 +330,7 @@ impl<W: Write + 'static> XNativeValue for XSequence<W> {
             Self::Empty => size_of::<usize>(),
             Self::Array(arr) => arr.len() * size_of::<usize>(),
             Self::Zip(arr) => arr.len() * size_of::<usize>(),
+            Self::Chain{parts, ..} => (parts.len()*2 - 1) * size_of::<usize>(),
             Self::Range(..) => 3 * size_of::<i64>(),
             Self::Map(..) => 2 * size_of::<usize>(),
             Self::Slice(..) => 3 * size_of::<usize>(),
@@ -320,25 +390,15 @@ pub(crate) fn add_sequence_add<W: Write + 'static>(
     scope.add_func(
         "add",
         XFuncSpec::new(&[&t_arr, &t_arr], t_arr.clone()).generic(params),
-        XStaticFunction::from_native(|args, ns, tca, rt| {
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W>);
-            if seq0.is_empty() {
-                return ns.eval(&args[1], rt, tca);
-            }
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let seq1 = to_native!(a1, XSequence<W>);
-            if seq1.is_empty() {
-                return Ok(a0.clone().into());
+
+            match XSequence::chain(&a0, &a1){
+                Err(s) => xerr(ManagedXError::new(s, rt)?),
+                Ok(Err(v)) => Ok(v.clone().into()),
+                Ok(Ok(s)) => Ok(manage_native!(s, rt))
             }
-            let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("first sequence is infinite", rt)?); };
-            let Some(len1) = seq1.len() else { return xerr(ManagedXError::new("second sequence is infinite", rt)?); };
-            rt.as_ref().borrow().can_allocate(len0 + len1)?;
-            let mut arr = xraise!(seq0
-                .iter(ns, rt.clone())
-                .collect::<Result<Result<Vec<_>, _>, _>>()?);
-            xraise!(arr.try_extend(seq1.iter(ns, rt.clone()))?);
-            Ok(manage_native!(XSequence::array(arr), rt))
         }),
     )
 }
@@ -623,7 +683,7 @@ pub(crate) fn add_sequence_map<W: Write + 'static>(
             ],
             XSequenceType::xtype(output_t),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -708,7 +768,7 @@ pub(crate) fn add_sequence_reduce3<W: Write + 'static>(
             ],
             s.clone(),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
@@ -748,7 +808,7 @@ pub(crate) fn add_sequence_reduce2<W: Write + 'static>(
             ],
             t,
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -828,7 +888,7 @@ pub(crate) fn add_sequence_filter<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -945,7 +1005,7 @@ pub(crate) fn add_sequence_take_while<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -992,7 +1052,7 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);

@@ -83,8 +83,7 @@ impl ScriptConfig {
             comp_scope.feed_file(input),
             &self.expected_compilation_error,
         ) {
-            (Ok(_), None) => {}
-            (Err(e), None) => panic!("{e:?}"),
+            (r, None) => r.unwrap(),
             (Ok(_), Some(_)) => panic!("expected compilation error"),
             (Err(e), Some(pat)) => {
                 let pat = Regex::new(pat).unwrap();
@@ -101,9 +100,8 @@ impl ScriptConfig {
             RootEvaluationScope::from_compilation_scope(&comp_scope, runtime.clone());
 
         let eval_scope = match (eval_scope_results, &self.expected_violation) {
-            (Ok(s), None) => s,
+            (r, None) => r.unwrap(),
             (Ok(..), Some(v)) => panic!("expected violation error {v}"),
-            (Err(e), None) => panic!("{e:?}"),
             (Err(e), Some(expected)) => {
                 let description = format!("{e:?}");
                 if &description == expected {
@@ -1004,4 +1002,44 @@ fn test_script_167() {
 #[test]
 fn test_script_168() {
     test_script(168);
+}
+
+#[test]
+fn test_script_169() {
+    test_script(169);
+}
+
+#[test]
+fn test_script_170() {
+    test_script(170);
+}
+
+#[test]
+fn test_script_171() {
+    test_script(171);
+}
+
+#[test]
+fn test_script_172() {
+    test_script(172);
+}
+
+#[test]
+fn test_script_173() {
+    test_script(173);
+}
+
+#[test]
+fn test_script_174() {
+    test_script(174);
+}
+
+#[test]
+fn test_script_175() {
+    test_script(175);
+}
+
+#[test]
+fn test_script_176() {
+    test_script(176);
 }

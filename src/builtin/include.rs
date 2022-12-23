@@ -34,4 +34,31 @@ fn count(start: int, offset: int ?= 1)->Sequence<int>{
 fn enumerate<T>(a: Sequence<T>, start: int ?= 0, offset: int ?= 1)->Sequence<(int, T)>{
     count(start, offset).zip(a)
 }
+
+fn repeat<T>(a: Sequence<T>)->Sequence<T>{
+    let length = a.len();
+    if(is_error(length),
+        a,
+        count().map((idx: int)->{a[idx%length]})
+    )
+}
+
+fn repeat<T>(a: Sequence<T>, n: int)->Sequence<T>{
+    let length = a.len();
+    if(is_error(length),
+        a,
+        count().map((idx: int)->{a[idx%length]}).take(n*length)
+    )
+}
+
+fn mul<T>(a: Sequence<T>, b: int)->Sequence<T>{
+    a.repeat(b)
+}
+
+fn mul(a: str, n: int)->str{
+    fn helper(n: int, ret: str)->str{
+        if(n==0, ret, helper(n-1, ret+a))
+    }
+    helper(n, "")
+}
 "#;

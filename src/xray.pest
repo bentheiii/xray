@@ -124,23 +124,23 @@ binnum = { "0b" ~ bin_digit+ }
  bin_digit = {"0"|"1"|"_"}
 
 STRING = {single_quote_str | double_quote_str}
- single_quote_str = _{PUSH("#"*) ~ "'" ~ inner_string_single ~ "'" ~ POP}
+ single_quote_str = ${PUSH("#"*) ~ "'" ~ inner_string_single ~ "'" ~ POP}
   inner_string_single = @{(!("'" ~ PEEK)~ ("\'" | "\\\\" | ANY))*}
- double_quote_str = _{PUSH("#"*) ~ "\"" ~ inner_string_double ~ "\"" ~ POP}
+ double_quote_str = ${PUSH("#"*) ~ "\"" ~ inner_string_double ~ "\"" ~ POP}
   inner_string_double = @{(!("\"" ~ PEEK)~ ("\\\"" | "\\\\" | ANY))*}
 
 FORMATTED_STRING = {"f" ~ (f_single_quote_str | f_double_quote_str)}
- f_single_quote_str = _{PUSH("#"*) ~ "'" ~ f_inner_string_single ~ "'" ~ POP}
+ f_single_quote_str = ${PUSH("#"*) ~ "'" ~ f_inner_string_single ~ "'" ~ POP}
   f_inner_string_single = ${(f_inner_string_part_single | "{" ~ expression ~ "}")*}
   f_inner_string_part_single = @{(!(("'") ~ PEEK) ~ ("\'" | "\\\\" | "{{" | "}}" | (!("{"|"}")~ANY)))+}
- f_double_quote_str = _{PUSH("#"*) ~ "\"" ~ f_inner_string_double ~ "\"" ~ POP}
+ f_double_quote_str = ${PUSH("#"*) ~ "\"" ~ f_inner_string_double ~ "\"" ~ POP}
   f_inner_string_double = ${(f_inner_string_part_double | "{" ~ expression ~ "}")*}
   f_inner_string_part_double = @{(!(("\"") ~ PEEK) ~ ("\'" | "\\\\" | "{{" | "}}" | (!("{"|"}")~ANY)))+}
 
 RAW_STRING = {"r" ~ (raw_single_quote_str | raw_double_quote_str)}
- raw_single_quote_str = _{PUSH("#"*) ~ "'" ~ raw_inner_string_single ~ "'" ~ POP}
+ raw_single_quote_str = ${PUSH("#"*) ~ "'" ~ raw_inner_string_single ~ "'" ~ POP}
   raw_inner_string_single = @{(!("'" ~ PEEK)~ ANY)*}
- raw_double_quote_str = _{PUSH("#"*) ~ "\"" ~ raw_inner_string_double ~ "\"" ~ POP}
+ raw_double_quote_str = ${PUSH("#"*) ~ "\"" ~ raw_inner_string_double ~ "\"" ~ POP}
   raw_inner_string_double = @{(!("\"" ~ PEEK)~ ANY)*}
 
 WHITESPACE = _{ " " | "\t" | "\r" | "\n" }

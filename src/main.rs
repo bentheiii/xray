@@ -11,8 +11,7 @@ use xray::xvalue::XValue;
 
 fn main() {
     let input = r###"
-    let s = set((x:int)->{0}, eq{int, int}).update([1,2,3,4,5]);
-    let z = s.remove(4);
+    let z = " "[0];
     "###;
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()

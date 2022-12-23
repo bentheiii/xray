@@ -43,6 +43,22 @@ add_binfunc!(
     }
 );
 
+add_binfunc!(
+    add_str_split,
+    split,
+    X_STRING,
+    String,
+    XSequenceType::xtype(X_STRING.clone()),
+    |a: &String, b: &String, rt: &RTCell<W>| {
+        let mut ret = Vec::new();
+        for part in a.split(b){
+            ret.push(ManagedXValue::new(XValue::String(part.to_string()), rt.clone())?);
+            rt.borrow().can_afford(&ret)?;
+        }
+        Ok(Ok(XValue::Native(Box::new(XSequence::array(ret)))))
+    }
+);
+
 pub(crate) fn add_str_hash<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {

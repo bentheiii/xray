@@ -1,0 +1,4 @@
+fn main()->bool{
+    assert(() && 12365 == 12365)
+    && assert(is_error(cast<()>(error("")) && 125))
+}

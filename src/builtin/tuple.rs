@@ -4,6 +4,23 @@ use crate::{to_primitive, unpack_types, xraise, CompilationError, RootCompilatio
 
 use crate::builtin::core::{eval, eval_resolved_func, get_func};
 use std::io::Write;
+use std::sync::Arc;
+use crate::xexpr::XStaticFunction;
+
+pub(crate) fn add_empty_tup_and<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+
+    scope.add_func(
+        "and",
+        XFuncSpec::new(&[&Arc::new(XType::Tuple(Vec::new())), &t.clone()], t).generic(params),
+        XStaticFunction::from_native(|args, ns, tca, rt| {
+            let _ = xraise!(eval(&args[0], ns, &rt)?);
+            ns.eval(&args[1], rt, tca)
+        }),
+    )
+}
 
 pub(crate) fn add_tuple_eq<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,

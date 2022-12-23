@@ -1,0 +1,5 @@
+fn main()->bool{
+    let s = "hi there";
+
+    assert(s*5 == "hi therehi therehi therehi therehi there")
+}
