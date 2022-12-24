@@ -1,0 +1,14 @@
+fn foo(i: int)->()->(int){
+    fn bar()->int{
+        fn fib()->int{
+            i
+        }
+        fib()
+    }
+    bar
+}
+let z = foo(5)();
+
+fn main()->bool{
+    assert(z == 5)
+}

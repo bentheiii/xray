@@ -30,6 +30,10 @@ impl<T> IPush<T> {
         self.0.iter()
     }
 
+    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        self.0.iter_mut()
+    }
+
     #[allow(dead_code)]
     pub(crate) fn len(&self) -> usize {
         self.0.len()
