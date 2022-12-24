@@ -135,8 +135,8 @@ impl<W: Write + 'static> XMapping<W> {
 }
 
 impl<W: Write + 'static> XNativeValue for XMapping<W> {
-    fn size(&self) -> usize {
-        (self.len * 2 + self.inner.len() + 2) * size_of::<usize>()
+    fn dyn_size(&self) -> usize {
+        (self.len * 2 + self.inner.len() + 2) * size_of::<Rc<ManagedXValue<W>>>()
     }
 }
 

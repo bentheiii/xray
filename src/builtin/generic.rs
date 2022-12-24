@@ -57,7 +57,7 @@ pub(crate) fn add_debug<W: Write + 'static>(
             let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
             let b = to_primitive!(a1, String, "".to_string());
             writeln!(rt.borrow_mut().stdout, "{b}{a0:?}")
-                .map_err(RuntimeViolation::OutputFailure)?;
+                .map_err(|e| RuntimeViolation::OutputFailure(Rc::new(e)))?;
             Ok(a0.into())
         }),
     )
@@ -161,7 +161,7 @@ pub(crate) fn add_display<W: Write + 'static>(
                     )?);
                     let str_slice = to_primitive!(string, String);
                     writeln!(rt.borrow_mut().stdout, "{b}{str_slice}")
-                        .map_err(RuntimeViolation::OutputFailure)?;
+                        .map_err(|e| RuntimeViolation::OutputFailure(Rc::new(e)))?;
                     Ok(a0.into())
                 },
             ))

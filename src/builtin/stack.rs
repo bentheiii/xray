@@ -112,7 +112,7 @@ impl<W: Write + 'static> XStack<W> {
 }
 
 impl<W: Write + 'static> XNativeValue for XStack<W> {
-    fn size(&self) -> usize {
+    fn dyn_size(&self) -> usize {
         let mut managed_count = 0;
         let mut node = &self.head;
         while let Some(ref n) = node {
@@ -127,7 +127,7 @@ impl<W: Write + 'static> XNativeValue for XStack<W> {
         if node.is_none() {
             managed_count += 1;
         }
-        (managed_count + 1) * size_of::<usize>()
+        (managed_count + 1) * size_of::<Rc<ManagedXValue<W>>>()
     }
 }
 

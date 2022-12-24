@@ -6,18 +6,20 @@ use crate::compile_err::CompilationItemCategory;
 use crate::units::ScopeDepth;
 use crate::util::ipush::IPush;
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
-use crate::xexpr::{OverloadSpecializationBorrowed, StaticUserFunction, XExpr};
-use crate::xtype::{common_type, CompoundKind, X_BOOL, X_FLOAT, X_INT, X_STRING};
+use crate::xexpr::{OverloadSpecializationBorrowed, StaticUserFunction, XExpr, XStaticExpr};
+use crate::xtype::{Bind, common_type, CompoundKind, X_BOOL, X_FLOAT, X_INT, X_STRING, XCompoundSpec, XFuncSpec, XType};
 use crate::xvalue::{DynBind, NativeCallable, XFunctionFactoryOutput};
-use crate::{
-    Bind, CompilationError, Declaration, Identifier, XCompoundSpec, XFuncSpec, XOptionalType,
-    XSequenceType, XStaticExpr, XStaticFunction, XType,
-};
+use crate::{add_binfunc, Identifier, manage_native, to_primitive, ufunc, xraise};
+use crate::builtin::sequence::{XSequence, XSequenceType};
+use crate::compile_err::CompilationError;
+use crate::root_compilation_scope::{Declaration, RootCompilationScope};
+use crate::xexpr::XStaticFunction;
 use derivative::Derivative;
 use itertools::{ExactlyOneError, Itertools};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use crate::builtin::optional::XOptionalType;
 
 /// this is the information stored for a cell during compilation
 #[derive(Derivative)]

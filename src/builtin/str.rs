@@ -1,10 +1,6 @@
 use crate::builtin::core::{eval, xcmp};
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
-use crate::{
-    add_binfunc, manage_native, to_primitive, ufunc, xraise, CompilationError,
-    RootCompilationScope, XSequence, XSequenceType, XStaticFunction,
-};
 
 use crate::util::lazy_bigint::LazyBigint;
 use rc::Rc;
@@ -17,6 +13,11 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::ops::Neg;
 use std::rc;
+use crate::{add_binfunc, manage_native, to_primitive, ufunc, xraise};
+use crate::builtin::sequence::{XSequence, XSequenceType};
+use crate::compile_err::CompilationError;
+use crate::root_compilation_scope::RootCompilationScope;
+use crate::xexpr::XStaticFunction;
 
 pub(crate) fn add_str_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,

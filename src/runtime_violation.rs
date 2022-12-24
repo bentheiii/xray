@@ -1,12 +1,14 @@
+use std::rc::Rc;
+
 // these are errors at which runtime is aborted
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RuntimeViolation {
     AllocationLimitReached,
     MaximumRecursion,
     MaximumStackDepth,
     MaximumUDCall,
     MaximumSearch,
-    OutputFailure(std::io::Error),
+    OutputFailure(Rc<std::io::Error>),
     Timeout,
     PermissionError(&'static str),
 }

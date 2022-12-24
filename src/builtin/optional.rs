@@ -38,8 +38,8 @@ pub(crate) struct XOptional<W: Write + 'static> {
 }
 
 impl<W: Write + 'static> XNativeValue for XOptional<W> {
-    fn size(&self) -> usize {
-        1
+    fn dyn_size(&self) -> usize {
+        0
     }
 }
 

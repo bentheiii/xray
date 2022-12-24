@@ -133,8 +133,8 @@ impl<W: Write + 'static> XSet<W> {
 }
 
 impl<W: Write + 'static> XNativeValue for XSet<W> {
-    fn size(&self) -> usize {
-        (self.len + self.inner.len() + 2) * size_of::<usize>()
+    fn dyn_size(&self) -> usize {
+        (self.len + self.inner.len() + 2) * size_of::<Rc<ManagedXValue<W>>>()
     }
 }
 

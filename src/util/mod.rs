@@ -6,3 +6,4 @@ pub mod trysort;
 pub mod forward_err;
 pub mod special_prefix_interner;
 pub mod str_escapes;
+pub mod multieither;

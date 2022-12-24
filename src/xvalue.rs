@@ -105,7 +105,7 @@ impl<W: Write + 'static> XValue<W> {
                 size_of::<usize>() + template.cells.len() * size_of::<usize>()
             }
             Self::StructInstance(items) => items.len() * size_of::<usize>(),
-            Self::Native(n) => size_of::<usize>() + n.size(),
+            Self::Native(n) => size_of::<usize>() + n.full_size(),
             _ => 0,
         }
     }

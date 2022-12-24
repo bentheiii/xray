@@ -198,11 +198,11 @@ impl<W: Write + 'static> XSequence<W> {
         base0: &'a Rc<ManagedXValue<W>>,
         base1: &'a Rc<ManagedXValue<W>>,
     ) -> Result<Result<Self, &'a Rc<ManagedXValue<W>>>, &'static str> {
-        let seq0 = to_native!(base0, XSequence<W>);
-        let seq1 = to_native!(base1, XSequence<W>);
+        let seq0 = to_native!(base0, Self);
+        let seq1 = to_native!(base1, Self);
         if seq0.is_empty(){
             return if seq1.is_empty(){
-                Ok(Ok(XSequence::Empty))
+                Ok(Ok(Self::Empty))
             } else {
                 Ok(Err(base1))
             }
@@ -211,19 +211,19 @@ impl<W: Write + 'static> XSequence<W> {
         }
         let Some(len0) = seq0.len() else {return Err("first sequence is infinite")};
         let (parts, midpoint_lengths) = match (seq0, seq1) {
-            (XSequence::Chain {parts: parts0, midpoint_lengths:mid_lengths0}, XSequence::Chain {parts:parts1, midpoint_lengths:mid_lengths1}) => {
+            (Self::Chain {parts: parts0, midpoint_lengths:mid_lengths0}, Self::Chain {parts:parts1, midpoint_lengths:mid_lengths1}) => {
                 let parts = parts0.iter().chain(parts1).cloned().collect();
                 let midpoint_lengths = mid_lengths0.iter().cloned().chain(iter::once(len0)).chain(mid_lengths1.iter().map(|len| len + len0)).collect();
                 (parts, midpoint_lengths)
             }
 
-            (XSequence::Chain {parts: parts0, midpoint_lengths:mid_lengths0}, _) => {
+            (Self::Chain {parts: parts0, midpoint_lengths:mid_lengths0}, _) => {
                 let parts = parts0.iter().chain(iter::once(base1)).cloned().collect();
                 let midpoint_lengths = mid_lengths0.iter().cloned().chain(iter::once(len0)).collect();
                 (parts, midpoint_lengths)
             }
 
-            (_, XSequence::Chain {parts: parts1, midpoint_lengths:mid_lengths1}) => {
+            (_, Self::Chain {parts: parts1, midpoint_lengths:mid_lengths1}) => {
                 let parts = iter::once(base0).chain(parts1.iter()).cloned().collect();
                 let midpoint_lengths = iter::once(len0).chain(mid_lengths1.iter().map(|len| len + len0)).collect();
                 (parts, midpoint_lengths)
@@ -235,7 +235,7 @@ impl<W: Write + 'static> XSequence<W> {
                 (parts, midpoint_lengths)
             }
         };
-        Ok(Ok(XSequence::Chain {parts, midpoint_lengths}))
+        Ok(Ok(Self::Chain {parts, midpoint_lengths}))
     }
 
     pub(super) fn is_empty(&self) -> bool {
@@ -325,16 +325,12 @@ impl<W: Write + 'static> XSequence<W> {
 }
 
 impl<W: Write + 'static> XNativeValue for XSequence<W> {
-    fn size(&self) -> usize {
+    fn dyn_size(&self) -> usize {
         match self {
-            Self::Empty => size_of::<usize>(),
-            Self::Array(arr) => arr.len() * size_of::<usize>(),
-            Self::Zip(arr) => arr.len() * size_of::<usize>(),
-            Self::Chain{parts, ..} => (parts.len()*2 - 1) * size_of::<usize>(),
-            Self::Range(..) => 3 * size_of::<i64>(),
-            Self::Map(..) => 2 * size_of::<usize>(),
-            Self::Slice(..) => 3 * size_of::<usize>(),
-            Self::Count => size_of::<usize>(),
+            Self::Array(arr) => arr.len() * size_of::<Rc<ManagedXValue<W>>>(),
+            Self::Zip(arr) => arr.len() * size_of::<Rc<ManagedXValue<W>>>(),
+            Self::Chain{parts, ..} => parts.len() * size_of::<Rc<ManagedXValue<W>>>() + (parts.len()-1) * size_of::<usize>(),
+            _ => 0,
         }
     }
 }
@@ -969,15 +965,15 @@ pub(crate) fn add_sequence_nth<W: Write + 'static>(
             let f = to_primitive!(a2, Function);
             for (item, search_lim) in search(arr, rt.clone()) {
                 search_lim?;
-                let item = xraise!(item?);
+                let item = item?;
                 if *to_primitive!(
                     xraise!(ns
-                        .eval_func_with_values(f, vec![Ok(item.clone())], rt.clone(), false)?
+                        .eval_func_with_values(f, vec![item.clone()], rt.clone(), false)?
                         .unwrap_value()),
                     Bool
                 ) {
                     if matches_left.is_zero() {
-                        return Ok(manage_native!(XOptional { value: Some(item) }, rt));
+                        return Ok(manage_native!(XOptional { value: Some(xraise!(item)) }, rt));
                     }
                     matches_left = matches_left - One::one();
                 }
