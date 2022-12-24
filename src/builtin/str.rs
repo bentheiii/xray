@@ -6,18 +6,18 @@ use crate::util::lazy_bigint::LazyBigint;
 use rc::Rc;
 use std::collections::hash_map::DefaultHasher;
 
+use crate::builtin::sequence::{XSequence, XSequenceType};
+use crate::compile_err::CompilationError;
+use crate::root_compilation_scope::RootCompilationScope;
 use crate::runtime::RTCell;
+use crate::xexpr::XStaticFunction;
+use crate::{add_binfunc, manage_native, to_primitive, ufunc, xraise};
 use itertools::Itertools;
 use num_traits::{FromPrimitive, Signed, ToPrimitive};
 use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::ops::Neg;
 use std::rc;
-use crate::{add_binfunc, manage_native, to_primitive, ufunc, xraise};
-use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::compile_err::CompilationError;
-use crate::root_compilation_scope::RootCompilationScope;
-use crate::xexpr::XStaticFunction;
 
 pub(crate) fn add_str_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -52,8 +52,11 @@ add_binfunc!(
     XSequenceType::xtype(X_STRING.clone()),
     |a: &String, b: &String, rt: &RTCell<W>| {
         let mut ret = Vec::new();
-        for part in a.split(b){
-            ret.push(ManagedXValue::new(XValue::String(part.to_string()), rt.clone())?);
+        for part in a.split(b) {
+            ret.push(ManagedXValue::new(
+                XValue::String(part.to_string()),
+                rt.clone(),
+            )?);
             rt.borrow().can_afford(&ret)?;
         }
         Ok(Ok(XValue::Native(Box::new(XSequence::array(ret)))))

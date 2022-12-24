@@ -501,7 +501,7 @@ pub(crate) fn add_set_bit_and<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_set_new_dyn<W: Write + 'static>(
+pub(crate) fn add_set_dyn_new<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");

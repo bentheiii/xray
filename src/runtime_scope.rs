@@ -7,12 +7,12 @@ use std::io::Write;
 use std::mem;
 use std::rc::Rc;
 
+use crate::builtin::optional::XOptional;
+use crate::builtin::sequence::XSequence;
 use crate::root_runtime_scope::EvaluatedValue;
 use crate::runtime_violation::RuntimeViolation;
 use crate::units::{ScopeDepth, StackDepth};
 use derivative::Derivative;
-use crate::builtin::optional::XOptional;
-use crate::builtin::sequence::XSequence;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]

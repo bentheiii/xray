@@ -545,7 +545,7 @@ pub(crate) fn add_mapping_discard<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_mapping_new_dyn<W: Write + 'static>(
+pub(crate) fn add_mapping_dyn_new<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");

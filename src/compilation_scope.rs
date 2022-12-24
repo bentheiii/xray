@@ -2,24 +2,27 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::io::Write;
 
+use crate::builtin::optional::XOptionalType;
+use crate::builtin::sequence::{XSequence, XSequenceType};
+use crate::compile_err::CompilationError;
 use crate::compile_err::CompilationItemCategory;
+use crate::root_compilation_scope::{Declaration, RootCompilationScope};
 use crate::units::ScopeDepth;
 use crate::util::ipush::IPush;
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
-use crate::xexpr::{OverloadSpecializationBorrowed, StaticUserFunction, XExpr, XStaticExpr};
-use crate::xtype::{Bind, common_type, CompoundKind, X_BOOL, X_FLOAT, X_INT, X_STRING, XCompoundSpec, XFuncSpec, XType};
-use crate::xvalue::{DynBind, NativeCallable, XFunctionFactoryOutput};
-use crate::{add_binfunc, Identifier, manage_native, to_primitive, ufunc, xraise};
-use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::compile_err::CompilationError;
-use crate::root_compilation_scope::{Declaration, RootCompilationScope};
 use crate::xexpr::XStaticFunction;
+use crate::xexpr::{OverloadSpecializationBorrowed, StaticUserFunction, XExpr, XStaticExpr};
+use crate::xtype::{
+    common_type, Bind, CompoundKind, XCompoundSpec, XFuncSpec, XType, X_BOOL, X_FLOAT, X_INT,
+    X_STRING,
+};
+use crate::xvalue::{DynBind, NativeCallable, XFunctionFactoryOutput};
+use crate::{add_binfunc, manage_native, to_primitive, ufunc, xraise, Identifier};
 use derivative::Derivative;
 use itertools::{ExactlyOneError, Itertools};
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use crate::builtin::optional::XOptionalType;
 
 /// this is the information stored for a cell during compilation
 #[derive(Derivative)]

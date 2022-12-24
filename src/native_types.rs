@@ -35,7 +35,7 @@ impl<S: 'static> RuntimeEquatable for S {
 pub trait XNativeValue: Debug + RuntimeEquatable {
     fn dyn_size(&self) -> usize;
 
-    fn full_size(&self)->usize{
+    fn full_size(&self) -> usize {
         self.static_size() + self.dyn_size()
     }
 }

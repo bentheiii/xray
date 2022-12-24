@@ -11,17 +11,8 @@ use xray::xvalue::XValue;
 
 fn main() {
     let input = r###"
-    fn foo()->Sequence<int>{
-        let n = 6;
-        fn tee(x:int)->int{
-            x*n
-        }
-        fn bar()->Sequence<int>{
-            [1,2,3].map((x: int)->{tee(x)})
-        }
-        bar()
-    }
-    let z = foo()[1];
+    let s = successors(5, (x: int) -> {if(x%2 == 0, floor(x/2), 3*x+1)}).zip(count());
+    let z = s.nth(0, (x: (int, int))->{x::item0==1}).value()::item1;
     "###;
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()

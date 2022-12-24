@@ -240,7 +240,7 @@ pub(crate) fn add_optional_value<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_optional_eq<W: Write + 'static>(
+pub(crate) fn add_optional_dyn_eq<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
