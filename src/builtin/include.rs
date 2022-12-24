@@ -85,4 +85,25 @@ fn filter<T>(s: Sequence<T>, f: (T)->(bool))->Generator<T>{
 fn count<T>(s: Generator<T>, f: (T)->(bool))->int{
     s.filter(f).len()
 }
+
+fn substring<T>(s: str, start: int, end: Optional<int> ?= none())->str{
+    s.substring(start, end || s.len())
+}
+
+fn split(s: str, n: str)->Generator<str>{
+    fn next_bound(prev_bounds: Optional<(int, Optional<int>)>)->Optional<(int, Optional<int>)>{
+        let v = prev_bounds.value();
+        v::item1.map((prev_end: int)->{
+            (prev_end, s.find(n,prev_end))
+        })
+    }
+    fn bounds_to_string(bounds: Optional<(int, Optional<int>)>)->str{
+        let v = bounds.value();
+        s.substring(v::item0, v::item1)
+    }
+    let first_match = s.find(n);
+    successors(some((0, first_match)), next_bound)
+    .take_while((bounds: Optional<(int, Optional<int>)>) -> {bounds.has_value()})
+    .map(bounds_to_string)
+}
 "#;

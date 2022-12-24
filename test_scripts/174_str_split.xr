@@ -1,5 +1,5 @@
 fn main()->bool{
     let s = "hi there";
 
-    assert(s.split(" ") == ["hi", "there"])
+    assert(s.split(" ").to_array() == ["hi", "there"])
 }

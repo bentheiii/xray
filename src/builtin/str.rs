@@ -1,4 +1,4 @@
-use crate::builtin::core::{eval, xcmp};
+use crate::builtin::core::{eval, xcmp, xerr};
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 
@@ -11,13 +11,14 @@ use crate::compile_err::CompilationError;
 use crate::root_compilation_scope::RootCompilationScope;
 use crate::runtime::RTCell;
 use crate::xexpr::XStaticFunction;
-use crate::{add_binfunc, manage_native, to_primitive, ufunc, xraise};
+use crate::{add_binfunc, manage_native, to_primitive, ufunc, xraise, xraise_opt};
 use itertools::Itertools;
 use num_traits::{FromPrimitive, Signed, ToPrimitive};
 use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::ops::Neg;
 use std::rc;
+use crate::builtin::optional::{XOptional, XOptionalType};
 
 pub(crate) fn add_str_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -44,25 +45,6 @@ add_binfunc!(
     }
 );
 
-add_binfunc!(
-    add_str_split,
-    split,
-    X_STRING,
-    String,
-    XSequenceType::xtype(X_STRING.clone()),
-    |a: &String, b: &String, rt: &RTCell<W>| {
-        let mut ret = Vec::new();
-        for part in a.split(b) {
-            ret.push(ManagedXValue::new(
-                XValue::String(part.to_string()),
-                rt.clone(),
-            )?);
-            rt.borrow().can_afford(&ret)?;
-        }
-        Ok(Ok(XValue::Native(Box::new(XSequence::array(ret)))))
-    }
-);
-
 pub(crate) fn add_str_hash<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
@@ -76,6 +58,18 @@ pub(crate) fn add_str_hash<W: Write + 'static>(
                 let hash = s.finish();
                 LazyBigint::from(hash)
             })))
+        }),
+    )
+}
+
+pub(crate) fn add_str_len<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "len",
+        XFuncSpec::new(&[&X_STRING], X_INT.clone()),
+        ufunc!(String, |a: &String, _rt| {
+            Ok(Ok(XValue::Int(LazyBigint::from(a.chars().count()))))
         }),
     )
 }
@@ -137,6 +131,50 @@ pub(crate) fn add_str_get<W: Write + 'static>(
                 s.chars().nth(i)
             }) else { xraise!(Err(ManagedXError::new("index out of bounds",rt)?))};
             Ok(ManagedXValue::new(XValue::String(char.to_string()), rt)?.into())
+        }),
+    )
+}
+
+pub(crate) fn add_str_find<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "find",
+        XFuncSpec::new_with_optional(&[&X_STRING, &X_STRING, ], &[&X_INT], XOptionalType::xtype(X_INT.clone())),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise_opt!(args.get(2).map(|e| eval(e, ns, &rt)).transpose()?);
+            let string = to_primitive!(a0, String);
+            let needle = to_primitive!(a1, String);
+            let start_ind = match a2{
+                None => 0usize,
+                Some(a2) => match to_primitive!(a2, Int).to_usize() {
+                    None => return xerr(ManagedXError::new("index out of bounds", rt)?),
+                    Some(i) => i
+                }
+            };
+            let found_idx = string.as_str()[start_ind..].find(needle).map(|i| ManagedXValue::new(XValue::Int(i.into()), rt.clone())).transpose()?;
+            Ok(manage_native!(XOptional{value: found_idx}, rt))
+        }),
+    )
+}
+
+pub(crate) fn add_str_substring<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "substring",
+        XFuncSpec::new(&[&X_STRING, &X_INT, &X_INT], X_STRING.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise!(eval(&args[1], ns, &rt)?);
+            let string = to_primitive!(a0, String);
+            let Some(start) = to_primitive!(a1, Int).to_usize() else {return xerr(ManagedXError::new("index out of bounds", rt)?)};
+            let Some(end) = to_primitive!(a2, Int).to_usize() else {return xerr(ManagedXError::new("index out of bounds", rt)?)};
+            let ret = string[start..end].to_string();
+            Ok(ManagedXValue::new(XValue::String(ret), rt)?.into())
         }),
     )
 }

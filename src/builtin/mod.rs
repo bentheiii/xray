@@ -82,10 +82,12 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_str_chars(scope).unwrap();
     add_str_cmp(scope).unwrap();
     add_str_eq(scope).unwrap();
+    add_str_find(scope).unwrap();
     add_str_get(scope).unwrap();
     add_str_hash(scope).unwrap();
+    add_str_len(scope).unwrap();
     add_str_ord(scope).unwrap();
-    add_str_split(scope).unwrap();
+    add_str_substring(scope).unwrap();
     add_str_to_str(scope).unwrap();
 
     add_bool_type(scope).unwrap();
