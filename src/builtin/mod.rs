@@ -8,11 +8,11 @@ use crate::builtin::sequence::*;
 use crate::builtin::stack::*;
 use crate::builtin::str::*;
 use crate::builtin::unknown::*;
-use crate::compile_err::TracedCompilationError;
+
 
 use std::io::Write;
 
-use crate::runtime::RTCell;
+
 
 use crate::builtin::generators::*;
 use crate::builtin::include::INCLUDE;
@@ -196,10 +196,12 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
 
     add_cast(scope).unwrap();
     add_debug(scope).unwrap();
+    add_display(scope).unwrap();
     add_error(scope).unwrap();
     add_cmp_ge(scope).unwrap();
     add_cmp_gt(scope).unwrap();
     add_if(scope).unwrap();
+    add_if_error(scope).unwrap();
     add_is_error(scope).unwrap();
     add_cmp_le(scope).unwrap();
     add_cmp_lt(scope).unwrap();

@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use std::io::Write;
 
 use crate::builtin::optional::XOptionalType;
-use crate::builtin::sequence::{XSequence, XSequenceType};
+use crate::builtin::sequence::{XSequenceType};
 use crate::compile_err::CompilationError;
 use crate::compile_err::CompilationItemCategory;
-use crate::root_compilation_scope::{Declaration, RootCompilationScope};
+use crate::root_compilation_scope::{Declaration};
 use crate::units::ScopeDepth;
 use crate::util::ipush::IPush;
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
@@ -17,7 +17,7 @@ use crate::xtype::{
     X_STRING,
 };
 use crate::xvalue::{DynBind, NativeCallable, XFunctionFactoryOutput};
-use crate::{add_binfunc, manage_native, to_primitive, ufunc, xraise, Identifier};
+use crate::{Identifier};
 use derivative::Derivative;
 use itertools::{ExactlyOneError, Itertools};
 use std::rc::Rc;

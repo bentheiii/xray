@@ -1185,7 +1185,7 @@ pub(crate) fn add_sequence_to_generator<W: Write + 'static>(
 
     scope.add_func(
         "to_generator",
-        XFuncSpec::new(&[&t_arr.clone()], XGeneratorType::xtype(t)).generic(params),
+        XFuncSpec::new(&[&t_arr], XGeneratorType::xtype(t)).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             Ok(manage_native!(XGenerator::FromSequence(a0), rt))

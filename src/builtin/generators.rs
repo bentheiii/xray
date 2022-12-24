@@ -1,38 +1,38 @@
-use crate::builtin::core::{eval, get_func, search, unpack_native, xerr};
+use crate::builtin::core::{eval, unpack_native, xerr};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::builtin::stack::{XStack, XStackType};
+
 use crate::native_types::{NativeType, XNativeValue};
 use crate::root_runtime_scope::EvaluatedValue;
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
-use crate::util::trysort::try_sort;
+
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, xraise_opt,
+    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise,
     CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
-use dyn_clone::DynClone;
+
 use either::Either;
-use itertools::multizip;
+
 use num_traits::{One, Signed, ToPrimitive, Zero};
 use rc::Rc;
-use std::borrow::Cow;
+
 use std::fmt::Debug;
 use std::io::Write;
 use std::mem::size_of;
-use std::ops::Neg;
+
 use std::sync::Arc;
 use std::{iter, rc};
 
-use crate::util::lazy_bigint::LazyBigint;
+
 use crate::util::multieither::{
     either_a, either_b, either_c, either_d, either_e, either_f, either_g, either_h_last,
 };
-use crate::util::try_extend::TryExtend;
+
 
 #[derive(Debug, Clone)]
 pub(crate) struct XGeneratorType;
@@ -108,10 +108,10 @@ impl<W: Write + 'static> XGenerator<W> {
                         Err(violation) => return Some(Err(violation)),
                     };
                     *state = res.clone();
-                    return Some(Ok(res));
+                    Some(Ok(res))
                 })
             }),
-            Self::FromSequence(seq) => either_b({ to_native!(seq, XSequence<W>).iter(ns, rt) }),
+            Self::FromSequence(seq) => either_b(to_native!(seq, XSequence<W>).iter(ns, rt)),
             Self::Successors(initial_state, func) => either_c({
                 let fun = to_primitive!(func, Function);
                 iter::successors(Some(Ok(Ok(initial_state.clone()))), move |prev| {
@@ -125,7 +125,7 @@ impl<W: Write + 'static> XGenerator<W> {
                         Ok(g) => g.unwrap_value(),
                         Err(violation) => return Some(Err(violation)),
                     };
-                    return Some(Ok(res));
+                    Some(Ok(res))
                 })
             }),
             Self::Map(gen, func) => either_d({
@@ -272,7 +272,7 @@ pub(crate) fn add_generator_successors<W: Write + 'static>(
                     return_type: t.clone(),
                 })),
             ],
-            t_gen.clone(),
+            t_gen,
         )
         .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
@@ -371,7 +371,7 @@ pub(crate) fn add_generator_filter<W: Write + 'static>(
             &[
                 &t_gen.clone(),
                 &Arc::new(XCallable(XCallableSpec {
-                    param_types: vec![t.clone()],
+                    param_types: vec![t],
                     return_type: X_BOOL.clone(),
                 })),
             ],
@@ -420,7 +420,7 @@ pub(crate) fn add_generator_skip<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
-    let t_gen = XGeneratorType::xtype(t.clone());
+    let t_gen = XGeneratorType::xtype(t);
 
     scope.add_func(
         "skip",
@@ -439,7 +439,7 @@ pub(crate) fn add_generator_take<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
-    let t_gen = XGeneratorType::xtype(t.clone());
+    let t_gen = XGeneratorType::xtype(t);
 
     scope.add_func(
         "take",
@@ -514,7 +514,7 @@ pub(crate) fn add_generator_dyn_zip<W: Write + 'static>(
             ),
             move |args, ns, _tca, rt| {
                 let mut gens = vec![];
-                for (a, is_seq) in args.into_iter().zip(is_seq.iter()) {
+                for (a, is_seq) in args.iter().zip(is_seq.iter()) {
                     let mut a = xraise!(eval(a, ns, &rt)?);
                     if *is_seq {
                         a = manage_native!(XGenerator::FromSequence(a), rt.clone());
