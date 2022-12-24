@@ -77,4 +77,8 @@ fn mul(a: str, n: int)->str{
     }
     helper(n, "")
 }
+
+fn filter<T>(s: Sequence<T>, f: (T)->(bool))->Generator<T>{
+    s.to_generator().filter(f)
+}
 "#;

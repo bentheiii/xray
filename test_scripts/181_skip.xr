@@ -1,0 +1,5 @@
+fn main()->bool{
+    let a = successors(2, (x: int)->{x*x}).skip(2); // 2,4,16,256
+
+    assert(a[1] == 256)
+}

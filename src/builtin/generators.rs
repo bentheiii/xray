@@ -400,6 +400,48 @@ pub(crate) fn add_generator_nth<W: Write + 'static>(
     )
 }
 
+pub(crate) fn add_generator_get<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+    let t_gen = XGeneratorType::xtype(t.clone());
+
+    scope.add_func(
+        "get",
+        XFuncSpec::new(
+            &[
+                &t_gen,
+                &X_INT,
+            ],
+            t,
+        )
+            .generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let gen0 = to_native!(a0, XGenerator<W>);
+            let mut idx = to_primitive!(a1, Int).clone();
+            if idx.is_negative() {
+                return xerr(ManagedXError::new(
+                    "cannot get negative index of a generator",
+                    rt,
+                )?);
+            }
+            for value in gen0.iter(ns, rt.clone()) {
+                let value = value?;
+                if idx.is_zero() {
+                    return Ok(value.into());
+                }
+                idx = idx - One::one();
+            }
+            xerr(ManagedXError::new(
+                    "index out of bounds",
+                    rt,
+                )?)
+        }),
+    )
+}
+
 pub(crate) fn add_generator_filter<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
@@ -643,7 +685,7 @@ pub(crate) fn add_generator_dyn_unzip<W: Write + 'static>(
         }
 
         let (t0, ) = unpack_types!(types, 0);
-        let [inner0] = unpack_native(t0, "Generators")? else { unreachable!() };
+        let [inner0] = unpack_native(t0, "Generator")? else { unreachable!() };
         let XType::Tuple(inner_types) = inner0.as_ref() else { return Err(format!("expected sequence of tuples, got {t0:?}")); };
         let t_len = inner_types.len();
 

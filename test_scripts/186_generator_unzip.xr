@@ -1,0 +1,7 @@
+fn main()->bool{
+    let a = [(0,0,0), (1,1,1), (2,4,1), (3,9,2)].to_generator().unzip();
+
+    assert(a::item0.to_array() == [0,1,2,3])
+    && assert(a::item1.to_array() == [0,1,4,9])
+    && assert(a::item2.to_array() == [0,1,1,2])
+}

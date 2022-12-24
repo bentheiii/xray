@@ -1058,3 +1058,38 @@ fn test_script_178() {
 fn test_script_179() {
     test_script(179);
 }
+
+#[test]
+fn test_script_180() {
+    test_script(180);
+}
+
+#[test]
+fn test_script_181() {
+    test_script(181);
+}
+
+#[test]
+fn test_script_182() {
+    test_script(182);
+}
+
+#[test]
+fn test_script_183() {
+    test_script(183);
+}
+
+#[test]
+fn test_script_184() {
+    test_script(184);
+}
+
+#[test]
+fn test_script_185() {
+    test_script(185);
+}
+
+#[test]
+fn test_script_186() {
+    test_script(186);
+}

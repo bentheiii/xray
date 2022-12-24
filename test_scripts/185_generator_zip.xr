@@ -1,0 +1,7 @@
+fn main()->bool{
+    let a = zip(count(),
+                count().map((x: int)->{x*x}),
+                successors((0,1), (t: (int, int))->{(t::item1, t::item1+t::item0)}).map((i:(int, int)) -> {i::item0}).take(4));
+
+    assert(a.to_array() == [(0,0,0), (1,1,1), (2,4,1), (3,9,2)])
+}

@@ -1,0 +1,5 @@
+fn main()->bool{
+    let a = [1,2,3].filter((x:int)->{x != 2}).repeat();
+
+    assert(a[5] == 3)
+}

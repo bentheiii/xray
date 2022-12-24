@@ -1,0 +1,5 @@
+fn main()->bool{
+    let a = successors(2, (x: int)->{x+1}).skip_until((x: int)->{x%7 == 0});
+
+    assert(a[1] == 8)
+}

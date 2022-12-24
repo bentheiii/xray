@@ -1,0 +1,5 @@
+fn main()->bool{
+    let a = successors(2, (x: int)->{x*x}).take(4);
+
+    assert(a.to_array() == [2,4,16,256])
+}

@@ -911,69 +911,6 @@ pub(crate) fn add_sequence_range<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_sequence_filter<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError> {
-    let ([t], params) = scope.generics_from_names(["T"]);
-    let t_arr = XSequenceType::xtype(t.clone());
-
-    scope.add_func(
-        "filter",
-        XFuncSpec::new(
-            &[
-                &t_arr,
-                &Arc::new(XCallable(XCallableSpec {
-                    param_types: vec![t],
-                    return_type: X_BOOL.clone(),
-                })),
-            ],
-            t_arr.clone(),
-        )
-        .generic(params),
-        XStaticFunction::from_native(|args, ns, _tca, rt| {
-            let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W>);
-            if seq0.len().is_none() {
-                return xerr(ManagedXError::new("sequence is infinite", rt)?);
-            }
-            let f = to_primitive!(a1, Function);
-            // first we check if the seq already fully_matches
-            let mut first_drop_idx = None; // if this is not none, it is the first index we need to drop
-            let mut items = seq0.iter(ns, rt.clone());
-            let mut ret = Vec::new();
-            for (i, item) in items.by_ref().enumerate() {
-                let item = xraise!(item?);
-                let res = xraise!(ns
-                    .eval_func_with_values(f, vec![Ok(item.clone())], rt.clone(), false)?
-                    .unwrap_value());
-                if !*to_primitive!(res, Bool) {
-                    first_drop_idx = Some(i);
-                    break;
-                }
-                ret.push(item);
-                rt.as_ref().borrow().can_afford(&ret)?;
-            }
-            if first_drop_idx.is_some() {
-                for item in items {
-                    let item = xraise!(item?);
-                    let res = xraise!(ns
-                        .eval_func_with_values(f, vec![Ok(item.clone())], rt.clone(), false)?
-                        .unwrap_value());
-                    if *to_primitive!(res, Bool) {
-                        ret.push(item);
-                        rt.as_ref().borrow().can_afford(&ret)?;
-                    }
-                }
-                Ok(manage_native!(XSequence::array(ret), rt))
-            } else {
-                // no indices need to drop, we can just return the sequence
-                Ok(a0.clone().into())
-            }
-        }),
-    )
-}
-
 pub(crate) fn add_sequence_nth<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
