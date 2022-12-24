@@ -192,7 +192,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     output,
                     self.id,
                 );
-                /* !!! BEN
+                /* !!! BEN*/
                 // todo improve this
                 for cell in func.cell_specs.iter_mut(){
                     if let CellSpec::Capture {ancestor_depth, cell_idx} = cell{
@@ -202,7 +202,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         }
                     }
                 }
-                 */
                 self.add_static_func(
                     fn_symbol,
                     spec,

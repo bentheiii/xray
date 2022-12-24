@@ -92,10 +92,12 @@ fn substring<T>(s: str, start: int, end: Optional<int> ?= none())->str{
 
 fn split(s: str, n: str)->Generator<str>{
     fn next_bound(prev_bounds: Optional<(int, Optional<int>)>)->Optional<(int, Optional<int>)>{
+        fn from_prev_end(prev_end: int)->(int, Optional<int>){
+            let next_start = prev_end+n.len();
+            (next_start, debug(s.find(n,next_start), "hi "))
+        }
         let v = prev_bounds.value();
-        v::item1.map((prev_end: int)->{
-            (prev_end, s.find(n,prev_end))
-        })
+        v::item1.map(from_prev_end)
     }
     fn bounds_to_string(bounds: Optional<(int, Optional<int>)>)->str{
         let v = bounds.value();

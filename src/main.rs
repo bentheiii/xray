@@ -11,6 +11,9 @@ use xray::xvalue::XValue;
 
 fn main() {
     let input = r###"
+    let z = "a--b--c".split("--").to_array();
+    "###;
+    /*
     fn foo()->()->(int){ // 32
         let i = 5;
         fn bar()->int{ // 33
@@ -22,7 +25,8 @@ fn main() {
         bar
     }
     let z = foo()();
-    "###;
+
+     */
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()
     };

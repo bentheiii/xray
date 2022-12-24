@@ -147,6 +147,9 @@ pub(crate) fn add_str_find<W: Write + 'static>(
             let a2 = xraise_opt!(args.get(2).map(|e| eval(e, ns, &rt)).transpose()?);
             let string = to_primitive!(a0, String);
             let needle = to_primitive!(a1, String);
+            if needle.is_empty(){
+                return xerr(ManagedXError::new("needle cannot be empty", rt)?);
+            }
             let start_ind = match a2{
                 None => 0usize,
                 Some(a2) => match to_primitive!(a2, Int).to_usize() {
@@ -154,7 +157,7 @@ pub(crate) fn add_str_find<W: Write + 'static>(
                     Some(i) => i
                 }
             };
-            let found_idx = string.as_str()[start_ind..].find(needle).map(|i| ManagedXValue::new(XValue::Int(i.into()), rt.clone())).transpose()?;
+            let found_idx = string.as_str()[start_ind..].find(needle).map(|i| ManagedXValue::new(XValue::Int((i + start_ind).into()), rt.clone())).transpose()?;
             Ok(manage_native!(XOptional{value: found_idx}, rt))
         }),
     )
@@ -169,11 +172,11 @@ pub(crate) fn add_str_substring<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let a2 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let string = to_primitive!(a0, String);
             let Some(start) = to_primitive!(a1, Int).to_usize() else {return xerr(ManagedXError::new("index out of bounds", rt)?)};
             let Some(end) = to_primitive!(a2, Int).to_usize() else {return xerr(ManagedXError::new("index out of bounds", rt)?)};
-            let ret = string[start..end].to_string();
+            let ret = string.chars().take(end).skip(start).collect();
             Ok(ManagedXValue::new(XValue::String(ret), rt)?.into())
         }),
     )
