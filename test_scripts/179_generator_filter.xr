@@ -1,0 +1,5 @@
+fn main()->bool{
+    let a = count().to_generator().map((x: int) -> {x*x}).filter((x: int) -> {x%3==0});
+
+    assert(a.nth(1, (x: int)->{x>50}).value() == 144)
+}

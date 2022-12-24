@@ -1,5 +1,5 @@
 fn main()->bool{
-    assert(r" a\u{125}b"[2].ord() == 92)
-    && assert(r" a\u{125}b"[2] == 92.chr())
-    && assert(r" a\u{125}b".chars() == [" ", "a", "\\", "u", "{", "1", "2", "5", "}", "b"])
+    let s = successors(5, (x: int) -> {if(x%2 == 0, floor(x/2), 3*x+1)}).zip(count());
+
+    assert(s.nth(0, (x: (int, int))->{x::item0==1}).value()::item1 == 5)
 }

@@ -19,7 +19,19 @@ fn all<T>(a: Sequence<T>, f: (T)->(bool))->bool{
     !a.nth(0, (t: T) -> {!f(t)}).has_value()
 }
 
+fn any<T>(a: Generator<T>, f: (T)->(bool))->bool{
+    a.nth(0, f).has_value()
+}
+
+fn all<T>(a: Generator<T>, f: (T)->(bool))->bool{
+    !a.nth(0, (t: T) -> {!f(t)}).has_value()
+}
+
 fn first<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{
+     a.nth(0, f)
+}
+
+fn first<T>(a: Generator<T>, f: (T)->(bool))->Optional<T>{
      a.nth(0, f)
 }
 
@@ -32,6 +44,10 @@ fn count(start: int, offset: int ?= 1)->Sequence<int>{
 }
 
 fn enumerate<T>(a: Sequence<T>, start: int ?= 0, offset: int ?= 1)->Sequence<(int, T)>{
+    count(start, offset).zip(a)
+}
+
+fn enumerate<T>(a: Generator<T>, start: int ?= 0, offset: int ?= 1)->Generator<(int, T)>{
     count(start, offset).zip(a)
 }
 

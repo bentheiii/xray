@@ -1,0 +1,9 @@
+fn main()->bool{
+    let a = [1,2].to_generator();
+    let b = [3].to_generator();
+    let c = [4,5].to_generator();
+
+    assert(((a+b)+c).to_array() == [1,2,3,4,5])
+    && assert((a+(b+c)).to_array() == [1,2,3,4,5])
+    && assert(((a+b)+(c+a)).to_array() == [1,2,3,4,5,1,2])
+}

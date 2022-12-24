@@ -7,6 +7,9 @@ type Either5<T0, T1, T2, T3, T4> = Either<T0, Either4<T1, T2, T3, T4>>;
 type Either6<T0, T1, T2, T3, T4, T5> = Either<T0, Either5<T1, T2, T3, T4, T5>>;
 type Either7<T0, T1, T2, T3, T4, T5, T6> = Either<T0, Either6<T1, T2, T3, T4, T5, T6>>;
 type Either8<T0, T1, T2, T3, T4, T5, T6, T7> = Either<T0, Either7<T1, T2, T3, T4, T5, T6, T7>>;
+type Either9<T0, T1, T2, T3, T4, T5, T6, T7, T8> = Either<T0, Either8<T1, T2, T3, T4, T5, T6, T7, T8>>;
+type Either10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> = Either<T0, Either9<T1, T2, T3, T4, T5, T6, T7, T8, T9>>;
+type Either11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> = Either<T0, Either10<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>;
 
 pub(crate) fn either_a<T0, T1>(v: T0) -> Either2<T0, T1> {
     Either::Left(v)
@@ -68,4 +71,40 @@ pub(crate) fn either_h_last<T0, T1, T2, T3, T4, T5, T6, T7>(
     v: T7,
 ) -> Either8<T0, T1, T2, T3, T4, T5, T6, T7> {
     Either::Right(either_g_last(v))
+}
+
+pub(crate) fn either_h<T0, T1, T2, T3, T4, T5, T6, T7, T8>(
+    v: T7,
+) -> Either9<T0, T1, T2, T3, T4, T5, T6, T7, T8> {
+    Either::Right(either_g(v))
+}
+
+pub(crate) fn either_i_last<T0, T1, T2, T3, T4, T5, T6, T7, T8>(
+    v: T8,
+) -> Either9<T0, T1, T2, T3, T4, T5, T6, T7, T8> {
+    Either::Right(either_h_last(v))
+}
+
+pub(crate) fn either_i<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>(
+    v: T8,
+) -> Either10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> {
+    Either::Right(either_h(v))
+}
+
+pub(crate) fn either_j_last<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9>(
+    v: T9,
+) -> Either10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> {
+    Either::Right(either_i_last(v))
+}
+
+pub(crate) fn either_j<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(
+    v: T9,
+) -> Either11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> {
+    Either::Right(either_i(v))
+}
+
+pub(crate) fn either_k_last<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(
+    v: T10,
+) -> Either11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> {
+    Either::Right(either_j_last(v))
 }
