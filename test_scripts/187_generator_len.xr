@@ -1,0 +1,5 @@
+fn main()->bool{
+    let a = successors(2, (x: int)->{x*x}).take_while((x: int) -> {x<300});
+
+    assert(a.len() == 4)
+}

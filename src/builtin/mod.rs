@@ -185,6 +185,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_generator_add(scope).unwrap();
     add_generator_filter(scope).unwrap();
     add_generator_get(scope).unwrap();
+    add_generator_len(scope).unwrap();
     add_generator_map(scope).unwrap();
     add_generator_nth(scope).unwrap();
     add_generator_repeat(scope).unwrap();

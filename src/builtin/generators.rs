@@ -27,6 +27,7 @@ use std::mem::size_of;
 
 use std::sync::Arc;
 use std::{iter, rc};
+use crate::util::lazy_bigint::LazyBigint;
 
 
 use crate::util::multieither::{either_a, either_b, either_c, either_d, either_e, either_f, either_g, either_h, either_i, either_j, either_k_last};
@@ -621,6 +622,28 @@ pub(crate) fn add_generator_to_array<W: Write + 'static>(
                 rt.borrow().can_afford(&ret)?;
             }
             Ok(manage_native!(XSequence::Array(ret), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_generator_len<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+    let t_gen = XGeneratorType::xtype(t.clone());
+
+    scope.add_func(
+        "len",
+        XFuncSpec::new(&[&t_gen], X_INT.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let gen0 = to_native!(a0, XGenerator<W>);
+            let mut ret = 0usize;
+            for value in gen0.iter(ns, rt.clone()) {
+                xraise!(value?);
+                ret += 1;
+            }
+            Ok(ManagedXValue::new(XValue::Int(LazyBigint::from(ret)), rt)?.into())
         }),
     )
 }

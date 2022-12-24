@@ -81,4 +81,8 @@ fn mul(a: str, n: int)->str{
 fn filter<T>(s: Sequence<T>, f: (T)->(bool))->Generator<T>{
     s.to_generator().filter(f)
 }
+
+fn count<T>(s: Generator<T>, f: (T)->(bool))->int{
+    s.filter(f).len()
+}
 "#;

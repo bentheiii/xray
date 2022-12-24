@@ -1,0 +1,6 @@
+fn main()->bool{
+    let a = successors(2, (x: int)->{x*x}).take(5);
+    // 2,4,16,256,65536
+
+    assert(a.count((x:int)->{x%10 == 6}) == 3)
+}

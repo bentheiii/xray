@@ -1093,3 +1093,13 @@ fn test_script_185() {
 fn test_script_186() {
     test_script(186);
 }
+
+#[test]
+fn test_script_187() {
+    test_script(187);
+}
+
+#[test]
+fn test_script_188() {
+    test_script(188);
+}
