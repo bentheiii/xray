@@ -71,6 +71,7 @@ pub(crate) enum CellSpec<W: Write + 'static> {
     /// parameter cells with the arguments (including defaults)
     Variable,
     Capture {
+        // todo i'm pretty sure this is always 1
         ancestor_depth: ScopeDepth,
         cell_idx: usize,
     },
@@ -396,17 +397,46 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         param_len: usize,
         output: Box<XExpr<W>>,
         parent_id: usize,
-    ) -> StaticUserFunction<W> {
-        StaticUserFunction {
+    ) -> (StaticUserFunction<W>, Vec<Cell<W>>) {
+        /*
+        what this function returns is an ugly patch
+        basically the problem is we have no way to tell a parent a scope to capture something
+        for the child scope while the child scope is still alive, so we return a list of cells we
+        want the parent to capture
+        TODO a possible way to improve this is to let the child scope keep track of its requests
+         as it is building them, and then to integrate them back into the parent when the child is
+         disposed
+         */
+
+        let mut parent_capture_requests = Vec::new();
+        let mut cell_specs = Vec::new();
+        if let Some(parent) = self.parent{
+            let mut parent_new_cell_idx = parent.cells.len();
+            for cell in self.cells{
+                let spec = if let Cell::Capture {ancestor_depth, cell_idx} = cell{
+                    if ancestor_depth.0 > 1{
+                        parent_capture_requests.push(Cell::Capture {ancestor_depth: ancestor_depth-1, cell_idx});
+                        parent_new_cell_idx+=1;
+                        CellSpec::Capture {ancestor_depth: ScopeDepth(1), cell_idx: parent_new_cell_idx-1}
+                    }else {
+                        CellSpec::from(cell)
+                    }
+                } else {CellSpec::from(cell)};
+                cell_specs.push(spec)
+            }
+        } else {
+            cell_specs.extend(self.cells.into_iter().map(CellSpec::from))
+        }
+        (StaticUserFunction {
             name,
             defaults,
             param_len,
-            cell_specs: self.cells.into_iter().map(CellSpec::from).collect(),
+            cell_specs,
             declarations: self.declarations,
             output,
             parent_id,
             id: self.id,
-        }
+        }, parent_capture_requests)
     }
 
     fn get_overloads(&self, name: &Identifier) -> Vec<TracedOverload<W>> {
@@ -516,8 +546,11 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .into_iter()
                     .filter_map(|a| a.default.map(|s| subscope.compile(s)))
                     .collect::<Result<_, _>>()?;
-                let ud_func =
+                let (ud_func,parent_capture_requests) =
                     subscope.into_static_ud(None, defaults, param_len, Box::new(output), self.id);
+                for pr in parent_capture_requests {
+                    self.cells.ipush(pr);
+                }
                 self.add_anonymous_func(spec, XStaticFunction::UserFunction(Rc::new(ud_func)))
             }
             XStaticExpr::SpecializedIdent(name, specialization) => {

@@ -185,22 +185,15 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     }
                     .trace(&out_pair));
                 }
-                let mut func = subscope.into_static_ud(
+                let (func, parent_capture_requests) = subscope.into_static_ud(
                     Some(fn_name.to_string()),
                     defaults,
                     param_len,
                     output,
                     self.id,
                 );
-                /* !!! BEN*/
-                // todo improve this
-                for cell in func.cell_specs.iter_mut(){
-                    if let CellSpec::Capture {ancestor_depth, cell_idx} = cell{
-                        if ancestor_depth.0 > 1{
-                            let new_cell = self.cells.ipush(Cell::Capture {ancestor_depth: *ancestor_depth-1, cell_idx: *cell_idx});
-                            *cell = CellSpec::Capture {ancestor_depth: ScopeDepth(1), cell_idx: new_cell};
-                        }
-                    }
+                for pr in parent_capture_requests {
+                    self.cells.ipush(pr);
                 }
                 self.add_static_func(
                     fn_symbol,

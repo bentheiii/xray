@@ -30,6 +30,7 @@ impl<T> IPush<T> {
         self.0.iter()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
         self.0.iter_mut()
     }
