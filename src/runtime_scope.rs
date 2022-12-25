@@ -180,10 +180,8 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
     ) -> Result<Rc<Self>, RuntimeViolation> {
         let scope_parent = if let Some(parent_id) = template.scope_parent_id {
             {
-                println!("!!! B.0 {} looking for {}", template.id, parent_id);
                 let mut ancestor = stack_parent;
                 loop {
-                    println!("!!! B.1 {:?}", ancestor.map(|a| a.template.id));
                     match ancestor {
                         None => break ancestor,
                         Some(p) if p.template.id == parent_id => break ancestor,
@@ -425,9 +423,6 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
 
     fn scope_ancestor_at_depth(&self, depth: ScopeDepth) -> &Self {
         let mut current = self;
-        if depth.0 > 0{
-            println!("!!! C.0 {} {depth:?}", self.template.id);
-        }
         for _ in 0..depth.0 {
             current = current
                 .scope_parent

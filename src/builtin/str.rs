@@ -6,6 +6,7 @@ use crate::util::lazy_bigint::LazyBigint;
 use rc::Rc;
 use std::collections::hash_map::DefaultHasher;
 
+use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::compile_err::CompilationError;
 use crate::root_compilation_scope::RootCompilationScope;
@@ -18,7 +19,6 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::ops::Neg;
 use std::rc;
-use crate::builtin::optional::{XOptional, XOptionalType};
 
 pub(crate) fn add_str_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -140,25 +140,32 @@ pub(crate) fn add_str_find<W: Write + 'static>(
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "find",
-        XFuncSpec::new_with_optional(&[&X_STRING, &X_STRING, ], &[&X_INT], XOptionalType::xtype(X_INT.clone())),
+        XFuncSpec::new_with_optional(
+            &[&X_STRING, &X_STRING],
+            &[&X_INT],
+            XOptionalType::xtype(X_INT.clone()),
+        ),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise_opt!(args.get(2).map(|e| eval(e, ns, &rt)).transpose()?);
             let string = to_primitive!(a0, String);
             let needle = to_primitive!(a1, String);
-            if needle.is_empty(){
+            if needle.is_empty() {
                 return xerr(ManagedXError::new("needle cannot be empty", rt)?);
             }
-            let start_ind = match a2{
+            let start_ind = match a2 {
                 None => 0usize,
                 Some(a2) => match to_primitive!(a2, Int).to_usize() {
                     None => return xerr(ManagedXError::new("index out of bounds", rt)?),
-                    Some(i) => i
-                }
+                    Some(i) => i,
+                },
             };
-            let found_idx = string.as_str()[start_ind..].find(needle).map(|i| ManagedXValue::new(XValue::Int((i + start_ind).into()), rt.clone())).transpose()?;
-            Ok(manage_native!(XOptional{value: found_idx}, rt))
+            let found_idx = string.as_str()[start_ind..]
+                .find(needle)
+                .map(|i| ManagedXValue::new(XValue::Int((i + start_ind).into()), rt.clone()))
+                .transpose()?;
+            Ok(manage_native!(XOptional { value: found_idx }, rt))
         }),
     )
 }

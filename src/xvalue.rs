@@ -138,8 +138,11 @@ impl<W: Write + 'static> ManagedXValue<W> {
             if let Some(max_size) = size_limit {
                 size = value.size();
                 runtime.borrow_mut().size += size;
-                if cfg!(vebose_alloc){
-                    println!("Allocated {size} bytes (total {}) for {value:?}", runtime.borrow().size);
+                if cfg!(vebose_alloc) {
+                    println!(
+                        "Allocated {size} bytes (total {}) for {value:?}",
+                        runtime.borrow().size
+                    );
                 }
                 if runtime.borrow().size > max_size {
                     return Err(RuntimeViolation::AllocationLimitReached);

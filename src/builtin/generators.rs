@@ -11,8 +11,8 @@ use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise,
-    CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
+    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError,
+    RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
 
@@ -25,13 +25,14 @@ use std::fmt::Debug;
 use std::io::Write;
 use std::mem::size_of;
 
+use crate::util::lazy_bigint::LazyBigint;
 use std::sync::Arc;
 use std::{iter, rc};
-use crate::util::lazy_bigint::LazyBigint;
 
-
-use crate::util::multieither::{either_a, either_b, either_c, either_d, either_e, either_f, either_g, either_h, either_i, either_j, either_k_last};
-
+use crate::util::multieither::{
+    either_a, either_b, either_c, either_d, either_e, either_f, either_g, either_h, either_i,
+    either_j, either_k_last,
+};
 
 #[derive(Debug, Clone)]
 pub(crate) struct XGeneratorType;
@@ -85,9 +86,9 @@ impl<W: Write + 'static> XGenerator<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> impl Iterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
+    ) -> impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
         type InnerIter<'a, W> =
-        dyn Iterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a;
+            dyn Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a;
         type BIter<'a, W> = Box<InnerIter<'a, W>>;
 
         match self {
@@ -159,7 +160,7 @@ impl<W: Write + 'static> XGenerator<W> {
                                 XValue::StructInstance(forward_err!(items?)),
                                 rt.clone(),
                             )
-                                .map(Ok)
+                            .map(Ok)
                         })
                 })
             }),
@@ -197,7 +198,8 @@ impl<W: Write + 'static> XGenerator<W> {
                 iter::repeat_with(move || {
                     let inner: BIter<_> = Box::new(gen._iter(ns, rt.clone()));
                     inner
-                }).flatten()
+                })
+                .flatten()
             }),
             Self::TakeWhile(gen, func) => either_j({
                 let inner: BIter<_> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
@@ -231,7 +233,7 @@ impl<W: Write + 'static> XGenerator<W> {
                     found_first = *to_primitive!(guard, Bool);
                     found_first.then_some(Ok(value))
                 })
-            })
+            }),
         }
     }
 
@@ -239,7 +241,7 @@ impl<W: Write + 'static> XGenerator<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> impl Iterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
+    ) -> impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
         self._iter(ns, rt.clone())
             .zip(rt.borrow().limits.search_iter())
             .map(|(v, search)| {
@@ -316,7 +318,7 @@ pub(crate) fn add_generator_successors<W: Write + 'static>(
             ],
             t_gen,
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -363,7 +365,7 @@ pub(crate) fn add_generator_nth<W: Write + 'static>(
             ],
             XOptionalType::xtype(t),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -409,14 +411,7 @@ pub(crate) fn add_generator_get<W: Write + 'static>(
 
     scope.add_func(
         "get",
-        XFuncSpec::new(
-            &[
-                &t_gen,
-                &X_INT,
-            ],
-            t,
-        )
-            .generic(params),
+        XFuncSpec::new(&[&t_gen, &X_INT], t).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -435,10 +430,7 @@ pub(crate) fn add_generator_get<W: Write + 'static>(
                 }
                 idx = idx - One::one();
             }
-            xerr(ManagedXError::new(
-                    "index out of bounds",
-                    rt,
-                )?)
+            xerr(ManagedXError::new("index out of bounds", rt)?)
         }),
     )
 }
@@ -461,7 +453,7 @@ pub(crate) fn add_generator_filter<W: Write + 'static>(
             ],
             t_gen,
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -490,7 +482,7 @@ pub(crate) fn add_generator_map<W: Write + 'static>(
             ],
             t1_gen,
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -552,10 +544,17 @@ pub(crate) fn add_generator_skip_until<W: Write + 'static>(
 
     scope.add_func(
         "skip_until",
-        XFuncSpec::new(&[&t_gen.clone(), &Arc::new(XCallable(XCallableSpec {
-            param_types: vec![t],
-            return_type: X_BOOL.clone(),
-        })), ], t_gen).generic(params),
+        XFuncSpec::new(
+            &[
+                &t_gen.clone(),
+                &Arc::new(XCallable(XCallableSpec {
+                    param_types: vec![t],
+                    return_type: X_BOOL.clone(),
+                })),
+            ],
+            t_gen,
+        )
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -573,10 +572,17 @@ pub(crate) fn add_generator_take_while<W: Write + 'static>(
 
     scope.add_func(
         "take_while",
-        XFuncSpec::new(&[&t_gen.clone(), &Arc::new(XCallable(XCallableSpec {
-            param_types: vec![t],
-            return_type: X_BOOL.clone(),
-        })), ], t_gen).generic(params),
+        XFuncSpec::new(
+            &[
+                &t_gen.clone(),
+                &Arc::new(XCallable(XCallableSpec {
+                    param_types: vec![t],
+                    return_type: X_BOOL.clone(),
+                })),
+            ],
+            t_gen,
+        )
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -594,7 +600,7 @@ pub(crate) fn add_generator_repeat<W: Write + 'static>(
 
     scope.add_func(
         "repeat",
-        XFuncSpec::new(&[&t_gen.clone(), ], t_gen).generic(params),
+        XFuncSpec::new(&[&t_gen.clone()], t_gen).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
 

@@ -3,10 +3,10 @@ use std::collections::HashMap;
 use std::io::Write;
 
 use crate::builtin::optional::XOptionalType;
-use crate::builtin::sequence::{XSequenceType};
+use crate::builtin::sequence::XSequenceType;
 use crate::compile_err::CompilationError;
 use crate::compile_err::CompilationItemCategory;
-use crate::root_compilation_scope::{Declaration};
+use crate::root_compilation_scope::Declaration;
 use crate::units::ScopeDepth;
 use crate::util::ipush::IPush;
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
@@ -17,7 +17,7 @@ use crate::xtype::{
     X_STRING,
 };
 use crate::xvalue::{DynBind, NativeCallable, XFunctionFactoryOutput};
-use crate::{Identifier};
+use crate::Identifier;
 use derivative::Derivative;
 use itertools::{ExactlyOneError, Itertools};
 use std::rc::Rc;
@@ -410,33 +410,48 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
         let mut parent_capture_requests = Vec::new();
         let mut cell_specs = Vec::new();
-        if let Some(parent) = self.parent{
+        if let Some(parent) = self.parent {
             let mut parent_new_cell_idx = parent.cells.len();
-            for cell in self.cells{
-                let spec = if let Cell::Capture {ancestor_depth, cell_idx} = cell{
-                    if ancestor_depth.0 > 1{
-                        parent_capture_requests.push(Cell::Capture {ancestor_depth: ancestor_depth-1, cell_idx});
-                        parent_new_cell_idx+=1;
-                        CellSpec::Capture {ancestor_depth: ScopeDepth(1), cell_idx: parent_new_cell_idx-1}
-                    }else {
+            for cell in self.cells {
+                let spec = if let Cell::Capture {
+                    ancestor_depth,
+                    cell_idx,
+                } = cell
+                {
+                    if ancestor_depth.0 > 1 {
+                        parent_capture_requests.push(Cell::Capture {
+                            ancestor_depth: ancestor_depth - 1,
+                            cell_idx,
+                        });
+                        parent_new_cell_idx += 1;
+                        CellSpec::Capture {
+                            ancestor_depth: ScopeDepth(1),
+                            cell_idx: parent_new_cell_idx - 1,
+                        }
+                    } else {
                         CellSpec::from(cell)
                     }
-                } else {CellSpec::from(cell)};
+                } else {
+                    CellSpec::from(cell)
+                };
                 cell_specs.push(spec)
             }
         } else {
             cell_specs.extend(self.cells.into_iter().map(CellSpec::from))
         }
-        (StaticUserFunction {
-            name,
-            defaults,
-            param_len,
-            cell_specs,
-            declarations: self.declarations,
-            output,
-            parent_id,
-            id: self.id,
-        }, parent_capture_requests)
+        (
+            StaticUserFunction {
+                name,
+                defaults,
+                param_len,
+                cell_specs,
+                declarations: self.declarations,
+                output,
+                parent_id,
+                id: self.id,
+            },
+            parent_capture_requests,
+        )
     }
 
     fn get_overloads(&self, name: &Identifier) -> Vec<TracedOverload<W>> {
@@ -546,7 +561,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .into_iter()
                     .filter_map(|a| a.default.map(|s| subscope.compile(s)))
                     .collect::<Result<_, _>>()?;
-                let (ud_func,parent_capture_requests) =
+                let (ud_func, parent_capture_requests) =
                     subscope.into_static_ud(None, defaults, param_len, Box::new(output), self.id);
                 for pr in parent_capture_requests {
                     self.cells.ipush(pr);

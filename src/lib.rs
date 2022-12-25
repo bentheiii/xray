@@ -37,9 +37,7 @@ use std::io::Write;
 
 use crate::runtime::RTCell;
 
-
 use crate::builtin::load_builtin;
-
 
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
 use string_interner::{DefaultBackend, DefaultSymbol};

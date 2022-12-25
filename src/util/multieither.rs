@@ -7,9 +7,12 @@ type Either5<T0, T1, T2, T3, T4> = Either<T0, Either4<T1, T2, T3, T4>>;
 type Either6<T0, T1, T2, T3, T4, T5> = Either<T0, Either5<T1, T2, T3, T4, T5>>;
 type Either7<T0, T1, T2, T3, T4, T5, T6> = Either<T0, Either6<T1, T2, T3, T4, T5, T6>>;
 type Either8<T0, T1, T2, T3, T4, T5, T6, T7> = Either<T0, Either7<T1, T2, T3, T4, T5, T6, T7>>;
-type Either9<T0, T1, T2, T3, T4, T5, T6, T7, T8> = Either<T0, Either8<T1, T2, T3, T4, T5, T6, T7, T8>>;
-type Either10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> = Either<T0, Either9<T1, T2, T3, T4, T5, T6, T7, T8, T9>>;
-type Either11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> = Either<T0, Either10<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>;
+type Either9<T0, T1, T2, T3, T4, T5, T6, T7, T8> =
+    Either<T0, Either8<T1, T2, T3, T4, T5, T6, T7, T8>>;
+type Either10<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9> =
+    Either<T0, Either9<T1, T2, T3, T4, T5, T6, T7, T8, T9>>;
+type Either11<T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10> =
+    Either<T0, Either10<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>>;
 
 pub(crate) fn either_a<T0, T1>(v: T0) -> Either2<T0, T1> {
     Either::Left(v)

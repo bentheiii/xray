@@ -12,6 +12,7 @@ use std::iter;
 use std::sync::Arc;
 
 use crate::root_compilation_scope::Interner;
+use crate::units::ScopeDepth;
 use crate::util::str_escapes::{apply_brace_escape, apply_escapes};
 use crate::xexpr::OverloadSpecialization;
 use crate::xtype::{CompoundKind, XFuncParamSpec};
@@ -19,7 +20,6 @@ use pest::prec_climber::Assoc::{Left, Right};
 use pest::prec_climber::{Operator, PrecClimber};
 use std::iter::FromIterator;
 use std::rc::Rc;
-use crate::units::ScopeDepth;
 
 #[derive(Parser)]
 #[grammar = "xray.pest"]
@@ -159,8 +159,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let mut subscope =
                     CompilationScope::from_parent(self, param_names, fn_symbol, spec.clone())
                         .map_err(|e| e.trace(&params_pair))?;
-
-                println!("!!! A.0 {}, id: {} from {}", fn_name, subscope.id, self.id);
                 for gen_param in specific_gen_params.unwrap_or_default() {
                     subscope
                         .add_native_type(gen_param, Arc::new(XType::XGeneric(gen_param)))
@@ -173,7 +171,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let out = subscope
                     .compile(out_static_expr)
                     .map_err(|e| e.trace(&input))?;
-
 
                 let out_type = subscope.type_of(&out).map_err(|e| e.trace(&out_pair))?;
                 let output = Box::new(out);
