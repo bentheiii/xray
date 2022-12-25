@@ -596,7 +596,7 @@ pub(crate) fn add_generator_repeat<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
-    let t_gen = XGeneratorType::xtype(t.clone());
+    let t_gen = XGeneratorType::xtype(t);
 
     scope.add_func(
         "repeat",
@@ -636,7 +636,7 @@ pub(crate) fn add_generator_len<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
-    let t_gen = XGeneratorType::xtype(t.clone());
+    let t_gen = XGeneratorType::xtype(t);
 
     scope.add_func(
         "len",

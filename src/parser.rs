@@ -1,4 +1,4 @@
-use crate::compilation_scope::{Cell, CellSpec, CompilationScope};
+use crate::compilation_scope::{CompilationScope};
 use crate::{
     Bind, CompilationError, Identifier, TracedCompilationError, XCallableSpec, XCompoundFieldSpec,
     XCompoundSpec, XExplicitStaticArgSpec, XFuncSpec, XStaticExpr, XStaticFunction, XType,
@@ -12,7 +12,7 @@ use std::iter;
 use std::sync::Arc;
 
 use crate::root_compilation_scope::Interner;
-use crate::units::ScopeDepth;
+
 use crate::util::str_escapes::{apply_brace_escape, apply_escapes};
 use crate::xexpr::OverloadSpecialization;
 use crate::xtype::{CompoundKind, XFuncParamSpec};
