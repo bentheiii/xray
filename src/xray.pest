@@ -2,7 +2,7 @@ header = {SOI ~ execution ~ EOI}
 eval = {SOI ~ expression ~ EOI}
 
 execution = {declaration*}
-declaration = {value | function | compound_def}
+declaration = {value | function | compound_def | type_def}
 expression = {
     expression1 ~ (BINARY_OP ~ expression1)*
 }
@@ -98,6 +98,8 @@ compound_def = { compound_kind ~ CNAME ~ generic_signature_opt ~ "(" ~ compound_
  compound_kind = {"struct" | "union"}
  compound_parameters = {(compound_parameter ~ ",")* ~ (compound_parameter ~ (",")?)?}
  compound_parameter = {CNAME ~ ":" ~ complete_type}
+
+type_def = {"type" ~ CNAME ~ "=" ~ complete_type ~ ";"}
 
 complete_type = {
   CNAME ~ generic_arguments?

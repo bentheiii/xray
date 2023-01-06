@@ -18,6 +18,7 @@ use xray::root_runtime_scope::RootEvaluationScope;
 use xray::runtime::RuntimeLimits;
 use xray::std_compilation_scope;
 use xray::xvalue::XValue;
+use stdext::function_name;
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
@@ -164,952 +165,972 @@ fn test_script(script_number: usize) {
     config.run(&input);
 }
 
+fn run_script_from_name(fn_name: &str){
+    let script_number = fn_name[fn_name.len()-3..].parse().unwrap();
+    test_script(script_number)
+}
+
 #[test]
 fn test_script_001() {
-    test_script(1);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_002() {
-    test_script(2);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_003() {
-    test_script(3);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_004() {
-    test_script(4);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_005() {
-    test_script(5);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_006() {
-    test_script(6);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_007() {
-    test_script(7);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_008() {
-    test_script(8);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_009() {
-    test_script(9);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_010() {
-    test_script(10);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_011() {
-    test_script(11);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_012() {
-    test_script(12);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_013() {
-    test_script(13);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_014() {
-    test_script(14);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_015() {
-    test_script(15);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_016() {
-    test_script(16);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_017() {
-    test_script(17);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_018() {
-    test_script(18);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_019() {
-    test_script(19);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_020() {
-    test_script(20);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_021() {
-    test_script(21);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 #[ignore]
 fn test_script_022() {
-    test_script(22);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_023() {
-    test_script(23);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_024() {
-    test_script(24);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_025() {
-    test_script(25);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_026() {
-    test_script(26);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_027() {
-    test_script(27);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_028() {
-    test_script(28);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_029() {
-    test_script(29);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_030() {
-    test_script(30);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_031() {
-    test_script(31);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_032() {
-    test_script(32);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_033() {
-    test_script(33);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_034() {
-    test_script(34);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_035() {
-    test_script(35);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_036() {
-    test_script(36);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_037() {
-    test_script(37);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_038() {
-    test_script(38);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_039() {
-    test_script(39);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_040() {
-    test_script(40);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_041() {
-    test_script(41);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_042() {
-    test_script(42);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_043() {
-    test_script(43);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_044() {
-    test_script(44);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_045() {
-    test_script(45);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_046() {
-    test_script(46);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_047() {
-    test_script(47);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_048() {
-    test_script(48);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_049() {
-    test_script(49);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_050() {
-    test_script(50);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_051() {
-    test_script(51);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_052() {
-    test_script(52);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_053() {
-    test_script(53);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_054() {
-    test_script(54);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_055() {
-    test_script(55);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_056() {
-    test_script(56);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_057() {
-    test_script(57);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_058() {
-    test_script(58);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_059() {
-    test_script(59);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_060() {
-    test_script(60);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_061() {
-    test_script(61);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_062() {
-    test_script(62);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_063() {
-    test_script(63);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_064() {
-    test_script(64);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_065() {
-    test_script(65);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_066() {
-    test_script(66);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_067() {
-    test_script(67);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_068() {
-    test_script(68);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_069() {
-    test_script(69);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_070() {
-    test_script(70);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_071() {
-    test_script(71);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_072() {
-    test_script(72);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_073() {
-    test_script(73);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_074() {
-    test_script(74);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_075() {
-    test_script(75);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_076() {
-    test_script(76);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_077() {
-    test_script(77);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_078() {
-    test_script(78);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_079() {
-    test_script(79);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_080() {
-    test_script(80);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_081() {
-    test_script(81);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_082() {
-    test_script(82);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_083() {
-    test_script(83);
+    run_script_from_name(function_name!());
 }
 #[test]
 fn test_script_084() {
-    test_script(84);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_085() {
-    test_script(85);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_086() {
-    test_script(86);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_087() {
-    test_script(87);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_088() {
-    test_script(88);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_089() {
-    test_script(89);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_090() {
-    test_script(90);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_091() {
-    test_script(91);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_092() {
-    test_script(92);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_093() {
-    test_script(93);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_094() {
-    test_script(94);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_095() {
-    test_script(95);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_096() {
-    test_script(96);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_097() {
-    test_script(97);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_098() {
-    test_script(98);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_099() {
-    test_script(99);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_100() {
-    test_script(100);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_101() {
-    test_script(101);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_102() {
-    test_script(102);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_103() {
-    test_script(103);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_104() {
-    test_script(104);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_105() {
-    test_script(105);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_106() {
-    test_script(106);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_107() {
-    test_script(107);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_108() {
-    test_script(108);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_109() {
-    test_script(109);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_110() {
-    test_script(110);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_111() {
-    test_script(111);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_112() {
-    test_script(112);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_113() {
-    test_script(113);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_114() {
-    test_script(114);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_115() {
-    test_script(115);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_116() {
-    test_script(116);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_117() {
-    test_script(117);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_118() {
-    test_script(118);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_119() {
-    test_script(119);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_120() {
-    test_script(120);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_121() {
-    test_script(121);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_122() {
-    test_script(122);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_123() {
-    test_script(123);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_124() {
-    test_script(124);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_125() {
-    test_script(125);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_126() {
-    test_script(126);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_127() {
-    test_script(127);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_128() {
-    test_script(128);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_129() {
-    test_script(129);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_130() {
-    test_script(130);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_131() {
-    test_script(131);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_132() {
-    test_script(132);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_133() {
-    test_script(133);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_134() {
-    test_script(134);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_135() {
-    test_script(135);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_136() {
-    test_script(136);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_137() {
-    test_script(137);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_138() {
-    test_script(138);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_139() {
-    test_script(139);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_140() {
-    test_script(140);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_141() {
-    test_script(141);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_142() {
-    test_script(142);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_143() {
-    test_script(143);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_144() {
-    test_script(144);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_145() {
-    test_script(145);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_146() {
-    test_script(146);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_147() {
-    test_script(147);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_148() {
-    test_script(148);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_149() {
-    test_script(149);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_150() {
-    test_script(150);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_151() {
-    test_script(151);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_152() {
-    test_script(152);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_153() {
-    test_script(153);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_154() {
-    test_script(154);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_155() {
-    test_script(155);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_156() {
-    test_script(156);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_157() {
-    test_script(157);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_158() {
-    test_script(158);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_159() {
-    test_script(159);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_160() {
-    test_script(160);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_161() {
-    test_script(161);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_162() {
-    test_script(162);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_163() {
-    test_script(163);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_164() {
-    test_script(164);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_165() {
-    test_script(165);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_166() {
-    test_script(166);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_167() {
-    test_script(167);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_168() {
-    test_script(168);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_169() {
-    test_script(169);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_170() {
-    test_script(170);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_171() {
-    test_script(171);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_172() {
-    test_script(172);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_173() {
-    test_script(173);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_174() {
-    test_script(174);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_175() {
-    test_script(175);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_176() {
-    test_script(176);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_177() {
-    test_script(177);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_178() {
-    test_script(178);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_179() {
-    test_script(179);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_180() {
-    test_script(180);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_181() {
-    test_script(181);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_182() {
-    test_script(182);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_183() {
-    test_script(183);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_184() {
-    test_script(184);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_185() {
-    test_script(185);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_186() {
-    test_script(186);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_187() {
-    test_script(187);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_188() {
-    test_script(188);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_189() {
-    test_script(189);
+    run_script_from_name(function_name!());
 }
 
 #[test]
 fn test_script_190() {
-    test_script(190);
+    run_script_from_name(function_name!());
+}
+
+#[test]
+fn test_script_191() {
+    run_script_from_name(function_name!());
+}
+
+#[test]
+fn test_script_192() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_193() {
+    run_script_from_name(function_name!())
 }

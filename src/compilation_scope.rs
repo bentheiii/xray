@@ -322,7 +322,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         Ok(())
     }
 
-    pub(crate) fn add_native_type(
+    pub(crate) fn add_type(
         &mut self,
         name: Identifier,
         type_: Arc<XType>,

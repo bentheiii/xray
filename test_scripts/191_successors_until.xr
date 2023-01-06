@@ -1,0 +1,5 @@
+fn main()->bool{
+    let s = successors_until(5, (x: int) -> {(x!=1).then(if(x%2 == 0, floor(x/2), 3*x+1))});
+
+    assert(s.len() == 6)
+}

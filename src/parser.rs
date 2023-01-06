@@ -94,8 +94,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     comp_xtype
                 };
                 self.add_variable(interner.get_or_intern(var_name), compiled, declared_type)
-                    .map_err(|e| e.trace(&input))?;
-                Ok(())
+                    .map_err(|e| e.trace(&input))
             }
             Rule::function => {
                 let mut inners = input.clone().into_inner();
@@ -161,7 +160,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         .map_err(|e| e.trace(&params_pair))?;
                 for gen_param in specific_gen_params.unwrap_or_default() {
                     subscope
-                        .add_native_type(gen_param, Arc::new(XType::XGeneric(gen_param)))
+                        .add_type(gen_param, Arc::new(XType::XGeneric(gen_param)))
                         .map_err(|e| e.trace(&params_pair))?;
                 }
                 let mut body_iter = body.clone().into_inner();
@@ -242,10 +241,18 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 self.add_compound(spec.name, compound_kind, spec)
                     .map_err(|e| e.trace(&input))
             }
+            Rule::type_def => {
+                let mut inners = input.clone().into_inner();
+                let var_name = inners.next().unwrap().as_str();
+                let symbol = interner.get_or_intern(var_name);
+                let type_ = inners.next().unwrap();
+                let complete_type = self.get_complete_type(type_, parent_gen_param_names, interner, None, false)?;
+                self.add_type(symbol, complete_type).map_err(|e| e.trace(&input))
+            }
             Rule::EOI => Ok(()),
             _ => {
                 println!("{input:?}");
-                Ok(())
+                unreachable!()
             }
         }
     }

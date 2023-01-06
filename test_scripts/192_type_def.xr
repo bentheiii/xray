@@ -1,0 +1,8 @@
+type Fib = (int, int);
+fn next(f: Fib)->Fib{
+    (f::item1, f::item0 + f::item1)
+}
+fn main()->bool{
+    let i: (int, int) = (0,1);
+    assert(i.next().next().next() == (2,3))
+}

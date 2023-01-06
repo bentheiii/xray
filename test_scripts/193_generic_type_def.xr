@@ -1,0 +1,13 @@
+fn gen_fib<T>(start: (T,T), add_: (T,T)->(T), n: int)->T{
+    type Fib = (T, T);
+    fn next(f: Fib)->Fib{
+        (f::item1, add_(f::item0, f::item1))
+    }
+    successors(start, next)[n]::item0
+}
+fn main()->bool{
+    assert(
+        gen_fib((1.3,3.6), add{float, float}, 3)
+        == 8.5
+    )
+}

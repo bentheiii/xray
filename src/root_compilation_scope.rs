@@ -61,7 +61,7 @@ impl<W: Write + 'static> RootCompilationScope<W> {
         type_: Arc<XType>,
     ) -> Result<(), CompilationError> {
         self.scope
-            .add_native_type(self.interner.get_or_intern_static(name), type_)
+            .add_type(self.interner.get_or_intern_static(name), type_)
     }
 
     pub fn add_func(
