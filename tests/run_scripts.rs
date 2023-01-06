@@ -1108,3 +1108,8 @@ fn test_script_188() {
 fn test_script_189() {
     test_script(189);
 }
+
+#[test]
+fn test_script_190() {
+    test_script(190);
+}

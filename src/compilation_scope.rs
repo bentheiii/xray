@@ -477,7 +477,10 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             .or_else(|| self.parent.and_then(|p| p.get_type(name)))
     }
 
-    pub(crate) fn compile(&mut self, stat_expr: XStaticExpr<W>) -> Result<XExpr<W>, CompilationError> {
+    pub(crate) fn compile(
+        &mut self,
+        stat_expr: XStaticExpr<W>,
+    ) -> Result<XExpr<W>, CompilationError> {
         match stat_expr {
             XStaticExpr::LiteralBool(v) => Ok(XExpr::LiteralBool(v)),
             XStaticExpr::LiteralInt(v) => Ok(XExpr::LiteralInt(v)),
@@ -547,9 +550,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .map(|i| self.compile(i))
                     .collect::<Result<_, _>>()?,
             )),
-            XStaticExpr::Lambda(spec, func) => {
-                self.add_anonymous_func(spec, *func)
-            }
+            XStaticExpr::Lambda(spec, func) => self.add_anonymous_func(spec, *func),
             XStaticExpr::SpecializedIdent(name, specialization) => {
                 let overloads = self.get_overloads(&name);
                 if overloads.is_empty() {

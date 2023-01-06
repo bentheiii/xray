@@ -1,4 +1,4 @@
-use crate::compilation_scope::{CompilationScope};
+use crate::compilation_scope::CompilationScope;
 use crate::{
     Bind, CompilationError, Identifier, TracedCompilationError, XCallableSpec, XCompoundFieldSpec,
     XCompoundSpec, XFuncSpec, XStaticExpr, XStaticFunction, XType,
@@ -87,7 +87,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             expected_type: complete_type,
                             actual_type: comp_xtype,
                         }
-                            .trace(&input));
+                        .trace(&input));
                     }
                     complete_type
                 } else {
@@ -180,7 +180,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         expected_type: spec.ret,
                         actual_type: out_type,
                     }
-                        .trace(&out_pair));
+                    .trace(&out_pair));
                 }
                 let (func, parent_capture_requests) = subscope.into_static_ud(
                     Some(fn_name.to_string()),
@@ -197,7 +197,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     spec,
                     XStaticFunction::UserFunction(Rc::new(func)),
                 )
-                    .map_err(|e| e.trace(&input))?;
+                .map_err(|e| e.trace(&input))?;
                 Ok(())
             }
             Rule::compound_def => {
@@ -358,7 +358,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                 Err(CompilationError::TypeNotFound {
                                     name: name.to_string(),
                                 }
-                                    .trace(&input))
+                                .trace(&input))
                             }
                             Some(t) => match t.as_ref() {
                                 XType::XNative(t, ..) => {
@@ -368,7 +368,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                             expected_count: t.generic_names().len(),
                                             actual_count: gen_params.len(),
                                         }
-                                            .trace(&input));
+                                        .trace(&input));
                                     }
                                     Ok(Arc::new(XType::XNative(t.clone(), gen_params)))
                                 }
@@ -379,7 +379,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                             expected_count: t.generic_names.len(),
                                             actual_count: gen_params.len(),
                                         }
-                                            .trace(&input));
+                                        .trace(&input));
                                     }
                                     let bind = Bind::from_iter(
                                         t.generic_names.iter().cloned().zip(gen_params.into_iter()),
@@ -590,7 +590,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         .unwrap()
                         .as_str(),
                 )
-                    .map_err(|e| e.trace(&input))?,
+                .map_err(|e| e.trace(&input))?,
             )),
             Rule::RAW_STRING => Ok(XStaticExpr::LiteralString(
                 input
@@ -710,11 +710,18 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .filter_map(|s| s.map(|s| self.compile(s)))
                     .collect::<Result<_, _>>()
                     .map_err(|e| e.trace(&input))?;
-                let mut subscope =
-                    CompilationScope::from_parent_lambda(self, param_names.into_iter().zip(param_specs.iter().map(|s| s.type_.clone())))
-                        .map_err(|e| e.trace(&params_pair))?;
-                subscope.feed(body_iter.next().unwrap(), &HashSet::new() // todo introduce new gen params names?
-                              , interner)?;
+                let mut subscope = CompilationScope::from_parent_lambda(
+                    self,
+                    param_names
+                        .into_iter()
+                        .zip(param_specs.iter().map(|s| s.type_.clone())),
+                )
+                .map_err(|e| e.trace(&params_pair))?;
+                subscope.feed(
+                    body_iter.next().unwrap(),
+                    &HashSet::new(), // todo introduce new gen params names?
+                    interner,
+                )?;
                 let out_pair = body_iter.next().unwrap();
                 let out_static_expr = subscope.parse_expr(out_pair.clone(), interner)?;
                 let out = subscope
@@ -729,17 +736,15 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     ret: out_type,
                     short_circuit_overloads: false,
                 };
-                let (func, parent_capture_requests) = subscope.into_static_ud(
-                    None,
-                    defaults,
-                    param_len,
-                    output,
-                    self.id,
-                );
+                let (func, parent_capture_requests) =
+                    subscope.into_static_ud(None, defaults, param_len, output, self.id);
                 for pr in parent_capture_requests {
                     self.cells.ipush(pr);
                 }
-                Ok(XStaticExpr::Lambda(spec, Box::new(XStaticFunction::UserFunction(Rc::new(func)))))
+                Ok(XStaticExpr::Lambda(
+                    spec,
+                    Box::new(XStaticFunction::UserFunction(Rc::new(func))),
+                ))
             }
             _ => {
                 panic!("not an expression {:?}", input);
@@ -787,7 +792,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 function_name,
                 param_name: *out_of_order_param_name,
             }
-                .trace(&param_pairs));
+            .trace(&param_pairs));
         }
         Ok(ret)
     }

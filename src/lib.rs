@@ -42,7 +42,7 @@ use crate::builtin::load_builtin;
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
 use string_interner::{DefaultBackend, DefaultSymbol};
 
-use crate::xexpr::{XExplicitStaticArgSpec, XStaticExpr, XStaticFunction};
+use crate::xexpr::{XStaticExpr, XStaticFunction};
 use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType};
 
 pub type Identifier = SpecialPrefixSymbol<DefaultBackend<DefaultSymbol>>;

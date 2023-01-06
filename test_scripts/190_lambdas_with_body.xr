@@ -1,0 +1,8 @@
+fn main()->bool{
+    let f = (s: str)->{
+        let start = s.find("(").value();
+        let end = s.find(")", start).value();
+        s.substring(start+1, end)
+    };
+    assert(f("hi (three)") == "three")
+}
