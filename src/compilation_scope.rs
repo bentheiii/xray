@@ -477,7 +477,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             .or_else(|| self.parent.and_then(|p| p.get_type(name)))
     }
 
-    pub(crate) fn compile(&mut self, stat_expr: XStaticExpr) -> Result<XExpr<W>, CompilationError> {
+    pub(crate) fn compile(&mut self, stat_expr: XStaticExpr<W>) -> Result<XExpr<W>, CompilationError> {
         match stat_expr {
             XStaticExpr::LiteralBool(v) => Ok(XExpr::LiteralBool(v)),
             XStaticExpr::LiteralInt(v) => Ok(XExpr::LiteralInt(v)),
@@ -547,26 +547,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .map(|i| self.compile(i))
                     .collect::<Result<_, _>>()?,
             )),
-            XStaticExpr::Lambda(args, output) => {
-                let mut subscope = CompilationScope::from_parent_lambda(
-                    self,
-                    args.iter().map(|arg| (arg.name, arg.type_.clone())),
-                )?;
-                let output = subscope.compile(*output)?;
-                let output_type = subscope.type_of(&output)?;
-                let param_len = args.len();
-                let arg_types: Vec<_> = args.iter().map(|a| &a.type_).collect();
-                let spec = XFuncSpec::new(&arg_types, output_type);
-                let defaults = args
-                    .into_iter()
-                    .filter_map(|a| a.default.map(|s| subscope.compile(s)))
-                    .collect::<Result<_, _>>()?;
-                let (ud_func, parent_capture_requests) =
-                    subscope.into_static_ud(None, defaults, param_len, Box::new(output), self.id);
-                for pr in parent_capture_requests {
-                    self.cells.ipush(pr);
-                }
-                self.add_anonymous_func(spec, XStaticFunction::UserFunction(Rc::new(ud_func)))
+            XStaticExpr::Lambda(spec, func) => {
+                self.add_anonymous_func(spec, *func)
             }
             XStaticExpr::SpecializedIdent(name, specialization) => {
                 let overloads = self.get_overloads(&name);

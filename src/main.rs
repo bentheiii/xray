@@ -11,7 +11,8 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    let z = "a--b--c".split("--").to_array();
+    let f = (x: int) -> {let n = x*2; n+n};
+    let z = f(5);
     "###;
     /*
     fn foo()->()->(int){ // 32

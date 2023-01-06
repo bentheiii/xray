@@ -1,6 +1,6 @@
 use crate::root_runtime_scope::EvaluatedValue;
 use crate::runtime::RTCell;
-use crate::xtype::{Bind, XCompoundSpec, XType};
+use crate::xtype::{Bind, XCompoundSpec, XFuncSpec, XType};
 use crate::xvalue::{ManagedXValue, NativeCallable, XFunction};
 use crate::{Declaration, Identifier};
 use std::borrow::Borrow;
@@ -38,24 +38,25 @@ impl<'a> OverloadSpecialization {
     }
 }
 
-#[derive(Debug)]
-pub(crate) enum XStaticExpr {
+#[derive(Derivative)]
+#[derivative(Debug(bound = ""))]
+pub(crate) enum XStaticExpr<W: Write + 'static> {
     LiteralBool(bool),
     LiteralInt(i64),
     LiteralFloat(f64),
     LiteralString(String),
-    Array(Vec<XStaticExpr>),
-    Tuple(Vec<XStaticExpr>),
-    Call(Box<XStaticExpr>, Vec<XStaticExpr>),
-    Member(Box<XStaticExpr>, Identifier),
-    MemberValue(Box<XStaticExpr>, Identifier),
-    MemberOptValue(Box<XStaticExpr>, Identifier),
+    Array(Vec<XStaticExpr<W>>),
+    Tuple(Vec<XStaticExpr<W>>),
+    Call(Box<XStaticExpr<W>>, Vec<XStaticExpr<W>>),
+    Member(Box<XStaticExpr<W>>, Identifier),
+    MemberValue(Box<XStaticExpr<W>>, Identifier),
+    MemberOptValue(Box<XStaticExpr<W>>, Identifier),
     Ident(Identifier),
     SpecializedIdent(Identifier, OverloadSpecialization),
-    Lambda(Vec<XExplicitStaticArgSpec>, Box<XStaticExpr>),
+    Lambda(XFuncSpec, Box<XStaticFunction<W>>),
 }
 
-impl XStaticExpr {
+impl<W: Write + 'static> XStaticExpr<W> {
     pub(crate) fn new_call(name: &'static str, args: Vec<Self>, interner: &mut Interner) -> Self {
         Self::Call(
             Box::new(Self::Ident(interner.get_or_intern_static(name))),
@@ -167,10 +168,10 @@ impl<W: Write + 'static> Debug for XStaticFunction<W> {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub struct XExplicitStaticArgSpec {
+pub struct XExplicitStaticArgSpec<W: Write + 'static> {
     pub(crate) name: Identifier,
     pub(crate) type_: Arc<XType>,
-    pub(crate) default: Option<XStaticExpr>,
+    pub(crate) default: Option<XStaticExpr<W>>,
 }
 
 #[derive(Derivative)]

@@ -175,15 +175,7 @@ pub struct XFuncSpec {
 
 impl XFuncSpec {
     pub(crate) fn new(required: &[&Arc<XType>], ret: Arc<XType>) -> Self {
-        Self {
-            generic_params: None,
-            params: required
-                .iter()
-                .map(|t| XFuncParamSpec::required((*t).clone()))
-                .collect(),
-            ret,
-            short_circuit_overloads: false,
-        }
+        Self::new_with_optional(required, &[], ret)
     }
 
     pub(crate) fn new_with_optional(
