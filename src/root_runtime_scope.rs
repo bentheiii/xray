@@ -26,7 +26,7 @@ pub enum GetUniqueFunctionError {
     FactoryFunction,
 }
 
-pub struct RootEvaluationScope<'c, W: Write + 'static> {
+pub struct RootEvaluationScope<'c, W: 'static> {
     scope: Rc<RuntimeScope<'static, W>>,
     compilation_scope: &'c RootCompilationScope<W>,
     runtime: RTCell<W>,

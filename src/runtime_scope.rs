@@ -16,7 +16,7 @@ use derivative::Derivative;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(crate) enum TemplatedEvaluationCell<W: Write + 'static> {
+pub(crate) enum TemplatedEvaluationCell<W> {
     Owned(EvaluationCell<W>),
     FromTemplate(usize),
 }
@@ -40,7 +40,7 @@ impl<W: Write + 'static> TemplatedEvaluationCell<W> {
 
 #[derive(Default, Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(crate) enum EvaluationCell<W: Write + 'static> {
+pub(crate) enum EvaluationCell<W> {
     #[default]
     Uninitialized,
     Value(EvaluatedValue<W>),
@@ -90,7 +90,7 @@ impl<W: Write + 'static> EvaluationCell<W> {
     }
 }
 
-pub struct RuntimeScopeTemplate<W: Write + 'static> {
+pub struct RuntimeScopeTemplate<W> {
     pub(crate) id: usize,
     pub(crate) name: Option<String>,
     pub(crate) cells: Vec<EvaluationCell<W>>,
@@ -164,7 +164,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
     }
 }
 
-pub struct RuntimeScope<'a, W: Write + 'static> {
+pub struct RuntimeScope<'a, W> {
     pub(crate) cells: Vec<TemplatedEvaluationCell<W>>,
     height: StackDepth,
     scope_parent: Option<&'a Self>,

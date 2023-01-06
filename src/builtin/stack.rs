@@ -36,7 +36,7 @@ impl NativeType for XStackType {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-struct StackNode<W: Write + 'static> {
+struct StackNode<W> {
     value: Rc<ManagedXValue<W>>,
     next: Option<Rc<StackNode<W>>>,
 }
@@ -55,12 +55,12 @@ impl<W: Write + 'static> StackNode<W> {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(super) struct XStack<W: Write + 'static> {
+pub(super) struct XStack<W> {
     head: Option<Rc<StackNode<W>>>,
     pub(super) length: usize,
 }
 
-impl<W: Write + 'static> Default for XStack<W> {
+impl<W> Default for XStack<W> {
     fn default() -> Self {
         Self {
             head: None,
@@ -111,7 +111,7 @@ impl<W: Write + 'static> XStack<W> {
     }
 }
 
-impl<W: Write + 'static> XNativeValue for XStack<W> {
+impl<W: 'static> XNativeValue for XStack<W> {
     fn dyn_size(&self) -> usize {
         let mut managed_count = 0;
         let mut node = &self.head;

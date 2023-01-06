@@ -18,7 +18,7 @@ use std::sync::Arc;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub enum XValue<W: Write + 'static> {
+pub enum XValue<W> {
     Int(LazyBigint),
     Float(f64),
     String(String),
@@ -45,7 +45,7 @@ type DynCallback<W> = dyn Fn(
 pub type NativeCallable<W> = Rc<NativeCallback<W>>;
 pub type DynBind<W> = Rc<DynCallback<W>>;
 
-pub struct XFunctionFactoryOutput<W: Write + 'static> {
+pub struct XFunctionFactoryOutput<W> {
     pub(crate) spec: XFuncSpec,
     pub(crate) func: XStaticFunction<W>,
 }
@@ -70,7 +70,7 @@ impl<W: Write + 'static> XFunctionFactoryOutput<W> {
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
-pub enum XFunction<W: Write + 'static> {
+pub enum XFunction<W> {
     Native(NativeCallable<W>),
     UserFunction {
         template: Rc<RuntimeScopeTemplate<W>>,
@@ -78,7 +78,7 @@ pub enum XFunction<W: Write + 'static> {
     },
 }
 
-impl<W: Write + 'static> Debug for XFunction<W> {
+impl<W> Debug for XFunction<W> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             Self::Native(..) => {
@@ -111,20 +111,20 @@ impl<W: Write + 'static> XValue<W> {
     }
 }
 
-pub struct ManagedXValue<W: Write + 'static> {
+pub struct ManagedXValue<W> {
     runtime: RTCell<W>,
     /// this will be zero if the runtime has no size limit
     size: usize,
     pub value: XValue<W>,
 }
 
-impl<W: Write + 'static> Debug for ManagedXValue<W> {
+impl<W> Debug for ManagedXValue<W> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "ManagedXValue({:?})", self.value)
     }
 }
 
-impl<W: Write + 'static> Drop for ManagedXValue<W> {
+impl<W> Drop for ManagedXValue<W> {
     fn drop(&mut self) {
         self.runtime.borrow_mut().size -= self.size;
     }
@@ -169,20 +169,20 @@ impl<W: Write + 'static> ManagedXValue<W> {
     }
 }
 
-pub struct ManagedXError<W: Write + 'static> {
+pub struct ManagedXError<W> {
     runtime: RTCell<W>,
     /// this will be zero if the runtime has no size limit
     size: usize,
     pub error: String,
 }
 
-impl<W: Write + 'static> Debug for ManagedXError<W> {
+impl<W> Debug for ManagedXError<W> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "ManagedXError({:?})", self.error)
     }
 }
 
-impl<W: Write + 'static> Drop for ManagedXError<W> {
+impl<W> Drop for ManagedXError<W> {
     fn drop(&mut self) {
         self.runtime.borrow_mut().size -= self.size;
     }

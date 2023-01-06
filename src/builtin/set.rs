@@ -47,7 +47,7 @@ type SetBucket<W> = Vec<Rc<ManagedXValue<W>>>;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-struct XSet<W: Write + 'static> {
+struct XSet<W> {
     inner: HashMap<u64, SetBucket<W>>,
     len: usize,
     hash_func: Rc<ManagedXValue<W>>,
@@ -132,7 +132,7 @@ impl<W: Write + 'static> XSet<W> {
     }
 }
 
-impl<W: Write + 'static> XNativeValue for XSet<W> {
+impl<W: 'static> XNativeValue for XSet<W> {
     fn dyn_size(&self) -> usize {
         (self.len + self.inner.len() + 2) * size_of::<Rc<ManagedXValue<W>>>()
     }

@@ -25,7 +25,7 @@ use crate::util::special_prefix_interner::SpecialPrefixBackend;
 /// these will always point to variable cells
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Debug(bound = ""))]
-pub enum Declaration<W: Write + 'static> {
+pub enum Declaration<W> {
     Parameter {
         cell_idx: usize,
         argument_idx: usize,
@@ -42,7 +42,7 @@ pub enum Declaration<W: Write + 'static> {
 
 pub(crate) type Interner = StringInterner<SpecialPrefixBackend<DefaultBackend<DefaultSymbol>>>;
 
-pub struct RootCompilationScope<W: Write + 'static> {
+pub struct RootCompilationScope<W: 'static> {
     pub(crate) scope: CompilationScope<'static, W>,
     interner: Interner,
 }

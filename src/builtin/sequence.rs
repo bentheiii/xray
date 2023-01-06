@@ -49,7 +49,7 @@ impl NativeType for XSequenceType {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub enum XSequence<W: Write + 'static> {
+pub enum XSequence<W> {
     Empty,
     Array(Vec<Rc<ManagedXValue<W>>>),
     Range(i64, i64, i64),
@@ -366,7 +366,7 @@ impl<W: Write + 'static> XSequence<W> {
     }
 }
 
-impl<W: Write + 'static> XNativeValue for XSequence<W> {
+impl<W: 'static> XNativeValue for XSequence<W> {
     fn dyn_size(&self) -> usize {
         match self {
             Self::Array(arr) => arr.len() * size_of::<Rc<ManagedXValue<W>>>(),

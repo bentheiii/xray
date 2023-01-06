@@ -40,7 +40,7 @@ impl<'a> OverloadSpecialization {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(crate) enum XStaticExpr<W: Write + 'static> {
+pub(crate) enum XStaticExpr<W> {
     LiteralBool(bool),
     LiteralInt(i64),
     LiteralFloat(f64),
@@ -71,7 +71,7 @@ impl<W: Write + 'static> XStaticExpr<W> {
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Debug(bound = ""))]
-pub enum XExpr<W: Write + 'static> {
+pub enum XExpr<W> {
     LiteralBool(bool),
     LiteralInt(i64),
     LiteralFloat(f64),
@@ -92,14 +92,14 @@ pub enum XExpr<W: Write + 'static> {
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
-pub enum XStaticFunction<W: Write + 'static> {
+pub enum XStaticFunction<W> {
     Native(NativeCallable<W>),
     UserFunction(Rc<StaticUserFunction<W>>),
 }
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub struct StaticUserFunction<W: Write + 'static> {
+pub struct StaticUserFunction<W> {
     pub(crate) name: Option<String>,
     pub(crate) param_len: usize,
     pub(crate) defaults: Vec<XExpr<W>>,
@@ -149,7 +149,7 @@ impl<W: Write + 'static> XStaticFunction<W> {
     }
 }
 
-impl<W: Write + 'static> Debug for XStaticFunction<W> {
+impl<W> Debug for XStaticFunction<W> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             Self::Native(..) => {
@@ -168,7 +168,7 @@ impl<W: Write + 'static> Debug for XStaticFunction<W> {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub struct XExplicitStaticArgSpec<W: Write + 'static> {
+pub struct XExplicitStaticArgSpec<W> {
     pub(crate) name: Identifier,
     pub(crate) type_: Arc<XType>,
     pub(crate) default: Option<XStaticExpr<W>>,
@@ -176,7 +176,7 @@ pub struct XExplicitStaticArgSpec<W: Write + 'static> {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub enum TailedEvalResult<W: Write + 'static> {
+pub enum TailedEvalResult<W> {
     Value(EvaluatedValue<W>),
     TailCall(Vec<EvaluatedValue<W>>),
 }

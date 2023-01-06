@@ -33,11 +33,11 @@ impl NativeType for XOptionalType {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(crate) struct XOptional<W: Write + 'static> {
+pub(crate) struct XOptional<W> {
     pub(crate) value: Option<Rc<ManagedXValue<W>>>,
 }
 
-impl<W: Write + 'static> XNativeValue for XOptional<W> {
+impl<W: 'static> XNativeValue for XOptional<W> {
     fn dyn_size(&self) -> usize {
         0
     }

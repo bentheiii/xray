@@ -54,7 +54,7 @@ impl NativeType for XGeneratorType {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(crate) enum XGenerator<W: Write + 'static> {
+pub(crate) enum XGenerator<W> {
     Aggregate {
         inner: Rc<ManagedXValue<W>>,
         initial_state: Rc<ManagedXValue<W>>,
@@ -72,7 +72,7 @@ pub(crate) enum XGenerator<W: Write + 'static> {
     SkipUntil(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
 }
 
-impl<W: Write + 'static> XNativeValue for XGenerator<W> {
+impl<W: 'static> XNativeValue for XGenerator<W> {
     fn dyn_size(&self) -> usize {
         match self {
             Self::Zip(arr) | Self::Chain(arr) => arr.len() * size_of::<Rc<ManagedXValue<W>>>(),

@@ -27,7 +27,7 @@ use std::sync::Arc;
 /// this is the information stored for a cell during compilation
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Debug(bound = ""))]
-pub(crate) enum Cell<W: Write + 'static> {
+pub(crate) enum Cell<W> {
     Recourse,
     /// this can also be a parameter
     Variable(Arc<XType>),
@@ -65,7 +65,7 @@ impl<W: Write + 'static> From<Cell<W>> for CellSpec<W> {
 /// this is the information stored for a cell for it to work during runtime
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(crate) enum CellSpec<W: Write + 'static> {
+pub(crate) enum CellSpec<W> {
     Recourse,
     /// when the function is called, it is the caller's responsibility to fill the
     /// parameter cells with the arguments (including defaults)
@@ -80,7 +80,7 @@ pub(crate) enum CellSpec<W: Write + 'static> {
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
-pub(crate) enum Overload<W: Write + 'static> {
+pub(crate) enum Overload<W> {
     /// will lead to one of:
     ///  * Cell::Recourse
     ///  * Variable
@@ -91,7 +91,7 @@ pub(crate) enum Overload<W: Write + 'static> {
     Factory(&'static str, DynBind<W>),
 }
 
-pub struct CompilationScope<'p, W: Write + 'static> {
+pub struct CompilationScope<'p, W> {
     /// in general: the cells of a scope are organized thus:
     /// * params first
     /// * the recursion value, if any
@@ -858,7 +858,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     ) -> Result<XExpr<W>, CompilationError> {
         #[derive(Derivative)]
         #[derivative(Debug(bound = ""))]
-        enum OverloadToConsider<W: Write + 'static> {
+        enum OverloadToConsider<W> {
             /// height, cell
             FromCell(ScopeDepth, usize),
             FromFactory(Arc<XType>, XStaticFunction<W>),

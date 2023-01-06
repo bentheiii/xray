@@ -48,7 +48,7 @@ type MappingBucket<W> = Vec<(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>)>;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-struct XMapping<W: Write + 'static> {
+struct XMapping<W> {
     inner: HashMap<u64, MappingBucket<W>>,
     len: usize,
     hash_func: Rc<ManagedXValue<W>>,
@@ -134,7 +134,7 @@ impl<W: Write + 'static> XMapping<W> {
     }
 }
 
-impl<W: Write + 'static> XNativeValue for XMapping<W> {
+impl<W: 'static> XNativeValue for XMapping<W> {
     fn dyn_size(&self) -> usize {
         (self.len * 2 + self.inner.len() + 2) * size_of::<Rc<ManagedXValue<W>>>()
     }
