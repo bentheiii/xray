@@ -12,13 +12,13 @@ use crate::utils::memory_writer::MemoryWriter;
 use either::Either;
 use regex::Regex;
 use serde::Deserialize;
+use stdext::function_name;
 use xray::builtin::builtin_permissions;
 use xray::permissions::PermissionSet;
 use xray::root_runtime_scope::RootEvaluationScope;
 use xray::runtime::RuntimeLimits;
 use xray::std_compilation_scope;
 use xray::xvalue::XValue;
-use stdext::function_name;
 
 #[derive(Deserialize, Default)]
 #[serde(default)]
@@ -168,8 +168,8 @@ fn test_script(script_number: usize) {
     config.run(&input);
 }
 
-fn run_script_from_name(fn_name: &str){
-    let script_number = fn_name[fn_name.len()-3..].parse().unwrap();
+fn run_script_from_name(fn_name: &str) {
+    let script_number = fn_name[fn_name.len() - 3..].parse().unwrap();
     test_script(script_number)
 }
 

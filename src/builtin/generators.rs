@@ -119,18 +119,13 @@ impl<W: Write + 'static> XGenerator<W> {
                 let fun = to_primitive!(func, Function);
                 iter::successors(Some(Ok(Ok(initial_state.clone()))), move |prev| {
                     let Ok(prev) = prev else { return Some(prev.clone()); };
-                    match ns.eval_func_with_values(
-                        fun,
-                        vec![prev.clone()],
-                        rt.clone(),
-                        false,
-                    ) {
+                    match ns.eval_func_with_values(fun, vec![prev.clone()], rt.clone(), false) {
                         Ok(g) => {
                             let g = g.unwrap_value();
                             let Ok(g) = g else {return Some(Ok(g))};
                             let as_opt = to_native!(g, XOptional<W>);
                             as_opt.value.as_ref().map(|v| Ok(Ok(v.clone())))
-                        },
+                        }
                         Err(violation) => Some(Err(violation)),
                     }
                 })

@@ -28,13 +28,13 @@ pub mod include;
 pub mod int;
 pub mod mapping;
 pub mod optional;
+pub mod regex;
 pub mod sequence;
 pub mod set;
 pub mod stack;
 pub mod str;
 pub mod tuple;
 pub mod unknown;
-pub mod regex;
 
 pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<W>) {
     add_int_type(scope).unwrap();

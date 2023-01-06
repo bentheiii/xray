@@ -1,25 +1,27 @@
-use crate::builtin::core::{eval, eval_resolved_func, get_func, unpack_native, xerr};
+use crate::builtin::core::{eval, xerr};
 use crate::native_types::{NativeType, XNativeValue};
-use crate::xtype::{XFuncSpec, X_BOOL, X_UNKNOWN, X_STRING, X_INT};
-use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
-use crate::XType::XCallable;
-use crate::{manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError, RootCompilationScope, XCallableSpec, XStaticFunction, XType, xraise_opt};
-use derivative::Derivative;
+use crate::xtype::{XFuncSpec, X_INT, X_STRING};
+use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
+
+use crate::{
+    manage_native, to_native, to_primitive, xraise, xraise_opt, CompilationError,
+    RootCompilationScope, XStaticFunction, XType,
+};
+
 use std::fmt::Debug;
 use std::io::Write;
-use std::rc::Rc;
-use std::sync::Arc;
+
 use num_traits::ToPrimitive;
 use regex::{Regex, RegexBuilder};
-use regex::internal::Compiler;
+use std::sync::Arc;
+
 use crate::builtin::builtin_permissions;
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::parser::Rule::STRING;
+
 use crate::util::lazy_bigint::LazyBigint;
 
 // note that this entire module is on hold until we can make regexes somewhat safe.
-
 
 #[derive(Debug, Clone)]
 pub(crate) struct XRegexType {}
@@ -35,7 +37,9 @@ impl NativeType for XRegexType {
 
 lazy_static! {
     static ref X_REGEX: Arc<XType> = Arc::new(XType::XNative(Box::new(XRegexType {}), vec![]));
-    static ref X_MATCH: Arc<XType> = XOptionalType::xtype(XSequenceType::xtype(XOptionalType::xtype(Arc::new(XType::Tuple(vec![X_INT.clone(), X_INT.clone()])))));
+    static ref X_MATCH: Arc<XType> = XOptionalType::xtype(XSequenceType::xtype(
+        XOptionalType::xtype(Arc::new(XType::Tuple(vec![X_INT.clone(), X_INT.clone()])))
+    ));
 }
 
 impl XNativeValue for Regex {
@@ -65,13 +69,18 @@ pub(crate) fn add_regex_new<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s0 = to_primitive!(a0, String);
             let mut builder = RegexBuilder::new(s0);
-            if rt.borrow().limits.size_limit.is_some(){
+            if rt.borrow().limits.size_limit.is_some() {
                 builder.size_limit(rt.borrow().size_left());
             }
 
             let regex = match builder.build() {
                 Ok(regex) => regex,
-                Err(err) => return xerr(ManagedXError::new(format!("error compiling regex: {err}"), rt)?)
+                Err(err) => {
+                    return xerr(ManagedXError::new(
+                        format!("error compiling regex: {err}"),
+                        rt,
+                    )?)
+                }
             };
             Ok(manage_native!(regex, rt))
         }),
@@ -83,8 +92,7 @@ pub(crate) fn add_regex_match<W: Write + 'static>(
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "match",
-        XFuncSpec::new_with_optional(&[&X_REGEX, &X_STRING], &[&X_INT], X_MATCH.clone())
-        ,
+        XFuncSpec::new_with_optional(&[&X_REGEX, &X_STRING], &[&X_INT], X_MATCH.clone()),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -93,34 +101,38 @@ pub(crate) fn add_regex_match<W: Write + 'static>(
             let s1 = to_primitive!(a1, String);
             let i2 = match a2 {
                 None => 0,
-                Some(a2) => match to_primitive!(a2, Int).to_usize(){
-                    Some(i2)=>i2,
-                    None => return xerr(ManagedXError::new("start index out of range", rt)?)
-                }
+                Some(a2) => match to_primitive!(a2, Int).to_usize() {
+                    Some(i2) => i2,
+                    None => return xerr(ManagedXError::new("start index out of range", rt)?),
+                },
             };
             let Some(cap) = r0.captures(&s1[i2..]) else {
                 return Ok(manage_native!(XOptional::<W> {value: None}, rt))
             };
             let mut pairs = Vec::with_capacity(r0.captures_len());
-            for sub_cap in cap.iter(){
-                pairs.push(
-                    match sub_cap{
-                    None => manage_native!(XOptional::<W> {value: None}, rt.clone()),
+            for sub_cap in cap.iter() {
+                pairs.push(match sub_cap {
+                    None => manage_native!(XOptional::<W> { value: None }, rt.clone()),
                     Some(m) => {
-                        let start = ManagedXValue::new(XValue::Int(LazyBigint::from(m.start() + i2)), rt.clone())?;
-                        let end = ManagedXValue::new(XValue::Int(LazyBigint::from(m.end() + i2)), rt.clone())?;
+                        let start = ManagedXValue::new(
+                            XValue::Int(LazyBigint::from(m.start() + i2)),
+                            rt.clone(),
+                        )?;
+                        let end = ManagedXValue::new(
+                            XValue::Int(LazyBigint::from(m.end() + i2)),
+                            rt.clone(),
+                        )?;
                         let t = ManagedXValue::new(
                             XValue::StructInstance(vec![start, end]),
                             rt.clone(),
                         )?;
-                        manage_native!(XOptional::<W> {value: Some(t)}, rt.clone())
+                        manage_native!(XOptional::<W> { value: Some(t) }, rt.clone())
                     }
-                }
-                )
+                })
             }
 
             let arr = manage_native!(XSequence::array(pairs), rt.clone());
-            Ok(manage_native!(XOptional::<W> {value: Some(arr)}, rt))
+            Ok(manage_native!(XOptional::<W> { value: Some(arr) }, rt))
         }),
     )
 }

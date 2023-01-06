@@ -246,8 +246,10 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let var_name = inners.next().unwrap().as_str();
                 let symbol = interner.get_or_intern(var_name);
                 let type_ = inners.next().unwrap();
-                let complete_type = self.get_complete_type(type_, parent_gen_param_names, interner, None, false)?;
-                self.add_type(symbol, complete_type).map_err(|e| e.trace(&input))
+                let complete_type =
+                    self.get_complete_type(type_, parent_gen_param_names, interner, None, false)?;
+                self.add_type(symbol, complete_type)
+                    .map_err(|e| e.trace(&input))
             }
             Rule::EOI => Ok(()),
             _ => {
