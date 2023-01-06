@@ -13,6 +13,7 @@ use std::io::Write;
 
 use crate::builtin::generators::*;
 use crate::builtin::include::INCLUDE;
+use crate::builtin::regex::{add_regex_match, add_regex_new, add_regex_type};
 use crate::builtin::set::*;
 use crate::builtin::tuple::*;
 use crate::root_compilation_scope::RootCompilationScope;
@@ -33,6 +34,7 @@ pub mod stack;
 pub mod str;
 pub mod tuple;
 pub mod unknown;
+pub mod regex;
 
 pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<W>) {
     add_int_type(scope).unwrap();
@@ -145,7 +147,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_optional_has_value(scope).unwrap();
     add_optional_map(scope).unwrap();
     add_optional_map_or(scope).unwrap();
-    add_optional_null(scope).unwrap();
+    add_optional_none(scope).unwrap();
     add_optional_or(scope).unwrap();
     add_optional_or_unwrap(scope).unwrap();
     add_optional_some(scope).unwrap();
@@ -196,6 +198,10 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_generator_to_array(scope).unwrap();
     add_generator_dyn_zip(scope).unwrap();
     add_generator_dyn_unzip(scope).unwrap();
+
+    add_regex_type(scope).unwrap();
+    add_regex_match(scope).unwrap();
+    add_regex_new(scope).unwrap();
 
     add_cast(scope).unwrap();
     add_debug(scope).unwrap();

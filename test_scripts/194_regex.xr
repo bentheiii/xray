@@ -1,0 +1,6 @@
+fn main()->bool{
+    let pat = regex(r"[0-9](?:([a-z]+)|(\s))");
+    assert(pat.match("bla 10 9two") == some([some((5,7)),none(),some((6,7))]))
+    && assert(pat.match("bla 10 9two", 6) == some([some((7,11)),some((8,11)),none()]))
+    && assert(pat.match("bla 10 9two", 8) == none())
+}

@@ -46,6 +46,9 @@ impl RuntimeLimitsConfig {
         if forbidden.contains("print_debug") {
             permission_set.forbid(&builtin_permissions::PRINT_DEBUG)
         }
+        if forbidden.contains("regex") {
+            permission_set.forbid(&builtin_permissions::REGEX)
+        }
         if forbidden.contains("print") {
             permission_set.forbid(&builtin_permissions::PRINT)
         }
@@ -1132,5 +1135,10 @@ fn test_script_192() {
 
 #[test]
 fn test_script_193() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_194() {
     run_script_from_name(function_name!())
 }

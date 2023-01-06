@@ -50,7 +50,7 @@ pub(crate) fn add_optional_type<W: Write + 'static>(
     scope.add_native_type("Optional", XOptionalType::xtype(t))
 }
 
-pub(crate) fn add_optional_null<W: Write + 'static>(
+pub(crate) fn add_optional_none<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     scope.add_func(

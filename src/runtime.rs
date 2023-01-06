@@ -85,6 +85,14 @@ impl<W: Write + 'static> Runtime<W> {
         self.can_allocate_by(|| Some(x.prospective_size()))
     }
 
+    pub fn size_left(&self)->usize{
+        if let Some(size_limit) = self.limits.size_limit {
+            size_limit - self.size
+        } else {
+            usize::MAX
+        }
+    }
+
     pub fn reset_ud_calls(&mut self) {
         self.ud_calls = 0
     }
