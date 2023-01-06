@@ -61,7 +61,7 @@ pub(crate) enum XGenerator<W: Write + 'static> {
         func: Rc<ManagedXValue<W>>,
     },
     FromSequence(Rc<ManagedXValue<W>>),
-    Successors(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
+    SuccessorsUntil(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
     Map(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
     Filter(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
     Zip(Vec<Rc<ManagedXValue<W>>>),
@@ -115,20 +115,24 @@ impl<W: Write + 'static> XGenerator<W> {
                 })
             }),
             Self::FromSequence(seq) => either_b(to_native!(seq, XSequence<W>).iter(ns, rt)),
-            Self::Successors(initial_state, func) => either_c({
+            Self::SuccessorsUntil(initial_state, func) => either_c({
                 let fun = to_primitive!(func, Function);
                 iter::successors(Some(Ok(Ok(initial_state.clone()))), move |prev| {
                     let Ok(prev) = prev else { return Some(prev.clone()); };
-                    let res = match ns.eval_func_with_values(
+                    match ns.eval_func_with_values(
                         fun,
                         vec![prev.clone()],
                         rt.clone(),
                         false,
                     ) {
-                        Ok(g) => g.unwrap_value(),
-                        Err(violation) => return Some(Err(violation)),
-                    };
-                    Some(Ok(res))
+                        Ok(g) => {
+                            let g = g.unwrap_value();
+                            let Ok(g) = g else {return Some(Ok(g))};
+                            let as_opt = to_native!(g, XOptional<W>);
+                            as_opt.value.as_ref().map(|v| Ok(Ok(v.clone())))
+                        },
+                        Err(violation) => Some(Err(violation)),
+                    }
                 })
             }),
             Self::Map(gen, func) => either_d({
@@ -300,20 +304,20 @@ pub(crate) fn add_generator_type<W: Write + 'static>(
     scope.add_native_type("Generator", XGeneratorType::xtype(t))
 }
 
-pub(crate) fn add_generator_successors<W: Write + 'static>(
+pub(crate) fn add_generator_successors_until<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_gen = XGeneratorType::xtype(t.clone());
 
     scope.add_func(
-        "successors",
+        "successors_until",
         XFuncSpec::new(
             &[
                 &t,
                 &Arc::new(XCallable(XCallableSpec {
                     param_types: vec![t.clone()],
-                    return_type: t.clone(),
+                    return_type: XOptionalType::xtype(t.clone()),
                 })),
             ],
             t_gen,
@@ -323,7 +327,7 @@ pub(crate) fn add_generator_successors<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
 
-            Ok(manage_native!(XGenerator::Successors(a0, a1), rt))
+            Ok(manage_native!(XGenerator::SuccessorsUntil(a0, a1), rt))
         }),
     )
 }

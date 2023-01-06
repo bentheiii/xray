@@ -78,6 +78,10 @@ fn mul(a: str, n: int)->str{
     helper(n, "")
 }
 
+fn successors<T>(start: T, f: (T)->(T))->Generator<T>{
+    successors_until(start, (t: T) -> {some(f(t))})
+}
+
 fn filter<T>(s: Sequence<T>, f: (T)->(bool))->Generator<T>{
     s.to_generator().filter(f)
 }
@@ -91,21 +95,18 @@ fn substring<T>(s: str, start: int, end: Optional<int> ?= none())->str{
 }
 
 fn split(s: str, n: str)->Generator<str>{
-    fn next_bound(prev_bounds: Optional<(int, Optional<int>)>)->Optional<(int, Optional<int>)>{
+    fn next_bound(prev_bounds: (int, Optional<int>))->Optional<(int, Optional<int>)>{
         fn from_prev_end(prev_end: int)->(int, Optional<int>){
             let next_start = prev_end+n.len();
             (next_start, debug(s.find(n,next_start), "hi "))
         }
-        let v = prev_bounds.value();
-        v::item1.map(from_prev_end)
+        prev_bounds::item1.map(from_prev_end)
     }
-    fn bounds_to_string(bounds: Optional<(int, Optional<int>)>)->str{
-        let v = bounds.value();
-        s.substring(v::item0, v::item1)
+    fn bounds_to_string(bounds: (int, Optional<int>))->str{
+        s.substring(bounds::item0, bounds::item1)
     }
     let first_match = s.find(n);
-    successors(some((0, first_match)), next_bound)
-    .take_while((bounds: Optional<(int, Optional<int>)>) -> {bounds.has_value()})
+    successors_until((0, first_match), next_bound)
     .map(bounds_to_string)
 }
 "#;

@@ -10,8 +10,9 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    let f = (x: int) -> {let n = x*2; n+n};
-    let z = f(5);
+    let g = successors_until(1, (x: int) -> {let t = x*2; (t < 100).then(t)});
+    let f = successors(1, (x: int) -> {x*2}).take(7);
+    let z = f.to_array();
     "###;
     /*
     fn foo()->()->(int){ // 32
