@@ -1,0 +1,9 @@
+fn foo(a:(int, int),b:str,c:int)->str{
+    b.substring(a::item0, a::item1) * c
+}
+
+fn main()->bool{
+    let f = partial(foo, (1,-1));
+    let g = partial(f, "mess");
+    assert(g(3) == "eseses")
+}

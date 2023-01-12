@@ -4,6 +4,7 @@ use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 
 use crate::util::lazy_bigint::LazyBigint;
 use rc::Rc;
+use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;
 
 use crate::builtin::optional::{XOptional, XOptionalType};
@@ -182,7 +183,9 @@ pub(crate) fn add_str_substring<W: Write + 'static>(
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let string = to_primitive!(a0, String);
             let Some(start) = to_primitive!(a1, Int).to_usize() else {return xerr(ManagedXError::new("index out of bounds", rt)?)};
-            let Some(end) = to_primitive!(a2, Int).to_usize() else {return xerr(ManagedXError::new("index out of bounds", rt)?)};
+            let raw_end = to_primitive!(a2, Int);
+            let raw_end = if raw_end.is_negative() {Cow::Owned(raw_end+string.chars().count())} else {Cow::Borrowed(raw_end)};
+            let Some(end) = raw_end.to_usize() else {return xerr(ManagedXError::new("index out of bounds", rt)?)};
             let ret = string.chars().take(end).skip(start).collect();
             Ok(ManagedXValue::new(XValue::String(ret), rt)?.into())
         }),

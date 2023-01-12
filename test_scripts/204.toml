@@ -1,0 +1,1 @@
+expected_compilation_error='^expected argument of type int, but got float \{3\| .*\} \[InvalidArgumentType\]$'

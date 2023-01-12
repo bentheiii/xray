@@ -10,11 +10,9 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    fn foo<T>(x: T)->T{
-        10
-    }
+    let f = partial(add{int, int}, 3);
 
-    let z = foo("hi");
+    let z = f(5);
     "###;
     /*
     fn foo()->()->(int){ // 32

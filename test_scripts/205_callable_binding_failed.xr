@@ -1,0 +1,8 @@
+fn foo<T>(x: T, y:T)->T{
+    x
+}
+
+fn main()->bool{
+    let f = foo;
+    assert(f(1, "hi") == 1)
+}

@@ -79,7 +79,7 @@ impl Bind {
         self.bound_generics.iter()
     }
 
-    pub(crate) fn is_empty(&self)->bool{
+    pub(crate) fn is_empty(&self) -> bool {
         self.bound_generics.is_empty()
     }
 }
@@ -241,6 +241,15 @@ impl XFuncSpec {
 
     pub(crate) fn xtype(&self) -> Arc<XType> {
         Arc::new(XType::XFunc(self.clone()))
+    }
+
+    pub(crate) fn skip_args(&self, n: usize) -> Self {
+        Self {
+            generic_params: self.generic_params.clone(),
+            params: self.params.iter().skip(n).cloned().collect(),
+            ret: self.ret.clone(),
+            short_circuit_overloads: self.short_circuit_overloads,
+        }
     }
 }
 
@@ -428,7 +437,7 @@ impl XType {
                 }
                 Some(bind)
             }
-            (Self::XGeneric(ref a), Self::XGeneric(ref b)) if a==b => Some(Bind::new()),
+            (Self::XGeneric(ref a), Self::XGeneric(ref b)) if a == b => Some(Bind::new()),
             (_, Self::XUnknown) => Some(Bind::new()),
             (Self::XGeneric(ref a), _) => Some(Bind::from([(*a, other.clone())])),
             (Self::XUnknown, _) => Some(Bind::new()),
@@ -571,6 +580,7 @@ impl XType {
         }
     }
 }
+
 impl PartialEq<Self> for XType {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {

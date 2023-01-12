@@ -88,7 +88,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                 expected_type: complete_type,
                                 actual_type: compiled_xtype,
                             }
-                                .trace(&input));
+                            .trace(&input));
                         }
                         Some(bind) if !bind.is_empty() => {
                             return Err(CompilationError::VariableTypeMismatch {
@@ -96,7 +96,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                 expected_type: complete_type,
                                 actual_type: compiled_xtype,
                             }
-                                .trace(&input));
+                            .trace(&input));
                         }
                         _ => {}
                     }
@@ -180,7 +180,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let out_static_expr = subscope.parse_expr(out_pair.clone(), interner)?;
                 let out = subscope
                     .compile(out_static_expr)
-                    .map_err(|e| e.trace(&input))?;
+                    .map_err(|e| e.trace(&out_pair))?;
 
                 let out_type = subscope.type_of(&out).map_err(|e| e.trace(&out_pair))?;
                 let output = Box::new(out);
@@ -191,7 +191,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             expected_type: spec.ret,
                             actual_type: out_type,
                         }
-                            .trace(&out_pair));
+                        .trace(&out_pair));
                     }
                     Some(return_bind) if !return_bind.is_empty() => {
                         return Err(CompilationError::FunctionOutputTypeMismatch {
@@ -199,7 +199,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             expected_type: spec.ret,
                             actual_type: out_type,
                         }
-                            .trace(&out_pair));
+                        .trace(&out_pair));
                     }
                     _ => {}
                 }
@@ -218,7 +218,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     spec,
                     XStaticFunction::UserFunction(Rc::new(func)),
                 )
-                    .map_err(|e| e.trace(&input))?;
+                .map_err(|e| e.trace(&input))?;
                 Ok(())
             }
             Rule::compound_def => {
@@ -389,7 +389,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                 Err(CompilationError::TypeNotFound {
                                     name: name.to_string(),
                                 }
-                                    .trace(&input))
+                                .trace(&input))
                             }
                             Some(t) => match t.as_ref() {
                                 XType::XNative(t, ..) => {
@@ -399,7 +399,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                             expected_count: t.generic_names().len(),
                                             actual_count: gen_params.len(),
                                         }
-                                            .trace(&input));
+                                        .trace(&input));
                                     }
                                     Ok(Arc::new(XType::XNative(t.clone(), gen_params)))
                                 }
@@ -410,7 +410,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                             expected_count: t.generic_names.len(),
                                             actual_count: gen_params.len(),
                                         }
-                                            .trace(&input));
+                                        .trace(&input));
                                     }
                                     let bind = Bind::from_iter(
                                         t.generic_names.iter().cloned().zip(gen_params.into_iter()),
@@ -621,7 +621,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         .unwrap()
                         .as_str(),
                 )
-                    .map_err(|e| e.trace(&input))?,
+                .map_err(|e| e.trace(&input))?,
             )),
             Rule::RAW_STRING => Ok(XStaticExpr::LiteralString(
                 input
@@ -747,7 +747,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         .into_iter()
                         .zip(param_specs.iter().map(|s| s.type_.clone())),
                 )
-                    .map_err(|e| e.trace(&params_pair))?;
+                .map_err(|e| e.trace(&params_pair))?;
                 subscope.feed(
                     body_iter.next().unwrap(),
                     &HashSet::new(), // todo introduce new gen params names?
@@ -757,7 +757,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 let out_static_expr = subscope.parse_expr(out_pair.clone(), interner)?;
                 let out = subscope
                     .compile(out_static_expr)
-                    .map_err(|e| e.trace(&input))?;
+                    .map_err(|e| e.trace(&out_pair))?;
 
                 let out_type = subscope.type_of(&out).map_err(|e| e.trace(&out_pair))?;
                 let output = Box::new(out);
@@ -823,7 +823,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 function_name,
                 param_name: *out_of_order_param_name,
             }
-                .trace(&param_pairs));
+            .trace(&param_pairs));
         }
         Ok(ret)
     }

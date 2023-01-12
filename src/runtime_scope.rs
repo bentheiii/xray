@@ -356,7 +356,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
         }
     }
 
-    fn eval_func_with_expressions(
+    pub(crate) fn eval_func_with_expressions(
         &self,
         func: &XFunction<W>,
         args: &[XExpr<W>],

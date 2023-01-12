@@ -1,0 +1,6 @@
+fn main()->bool{
+    let f = partial(add{int, int}, 3);
+    let g = partial(add{int, int}, 3, 6);
+    assert(f(5) == 8)
+    && assert(g() == 9)
+}

@@ -1,0 +1,4 @@
+fn main()->bool{
+    let f = (x:int)->{x+1};
+    assert(f(3.2) == 1)
+}

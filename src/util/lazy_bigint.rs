@@ -157,6 +157,39 @@ impl Add for LazyBigint {
     }
 }
 
+impl Add for &LazyBigint {
+    type Output = LazyBigint;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (LazyBigint::Short(0), a) | (a, LazyBigint::Short(0)) => a.clone(),
+            (LazyBigint::Short(s1), LazyBigint::Short(s2)) => s1.checked_add(*s2).map_or_else(
+                || LazyBigint::Long(assert_is_long(BigInt::from(*s1) + s2)),
+                LazyBigint::Short,
+            ),
+            (LazyBigint::Short(s), LazyBigint::Long(b))
+            | (LazyBigint::Long(b), LazyBigint::Short(s)) => LazyBigint::from(b + s),
+            (LazyBigint::Long(b0), LazyBigint::Long(b1)) => LazyBigint::from(b0 + b1),
+        }
+    }
+}
+
+impl Add<usize> for LazyBigint {
+    type Output = Self;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        self + Self::from(rhs)
+    }
+}
+
+impl Add<usize> for &LazyBigint {
+    type Output = LazyBigint;
+
+    fn add(self, rhs: usize) -> Self::Output {
+        self + &LazyBigint::from(rhs)
+    }
+}
+
 impl Sub for LazyBigint {
     type Output = Self;
 

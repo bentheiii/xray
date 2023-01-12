@@ -150,6 +150,11 @@ pub enum CompilationError {
         current_category: CompilationItemCategory,
         new_category: CompilationItemCategory,
     },
+    InvalidArgumentType {
+        expected: Arc<XType>,
+        got: Arc<XType>,
+    },
+    CallableBindingFailed,
 }
 
 trait Resolve {
@@ -319,6 +324,8 @@ impl Resolve for CompilationError {
                 current_category,
                 new_category,
             },
+            InvalidArgumentType { expected, got },
+            CallableBindingFailed {},
         )
     }
 }
@@ -463,6 +470,11 @@ pub enum ResolvedCompilationError {
         current_category: CompilationItemCategory,
         new_category: CompilationItemCategory,
     },
+    InvalidArgumentType {
+        expected: ResolvedType,
+        got: ResolvedType,
+    },
+    CallableBindingFailed,
 }
 
 impl Display for ResolvedCompilationError {
@@ -525,7 +537,7 @@ impl Display for ResolvedCompilationError {
                     name,
                     param_types.as_ref().map_or_else(
                         || "".to_string(),
-                        |types| format!(" for param types ({})", types.iter().format(","))
+                        |types| format!(" for param types ({})", types.iter().format(",")),
                     ),
                     items
                 )
@@ -541,7 +553,7 @@ impl Display for ResolvedCompilationError {
                     name,
                     param_types.as_ref().map_or_else(
                         || "".to_string(),
-                        |types| format!(" for param types ({})", types.iter().format(","))
+                        |types| format!(" for param types ({})", types.iter().format(",")),
                     ),
                     if dynamic_failures.is_empty() {
                         "".to_string()
@@ -673,6 +685,12 @@ impl Display for ResolvedCompilationError {
                     f,
                     "cannot shadow {current_category} {name} with a {new_category}"
                 )
+            }
+            Self::InvalidArgumentType { expected, got } => {
+                write!(f, "expected argument of type {expected}, but got {got}")
+            }
+            Self::CallableBindingFailed => {
+                write!(f, "callable finding failed")
             }
         }
     }

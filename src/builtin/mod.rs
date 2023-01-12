@@ -215,6 +215,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_cmp_le(scope).unwrap();
     add_cmp_lt(scope).unwrap();
     add_ne(scope).unwrap();
+    add_partial(scope).unwrap();
 
     scope.feed_file(INCLUDE).unwrap();
 }

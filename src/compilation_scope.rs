@@ -736,8 +736,13 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     for (param, arg) in func.params.iter().zip(args) {
                         let arg_type = self.type_of(arg)?;
                         bind = bind
-                            .mix(&param.type_.bind_in_assignment(&arg_type).unwrap())
-                            .unwrap();
+                            .mix(&param.type_.bind_in_assignment(&arg_type).ok_or(
+                                CompilationError::InvalidArgumentType {
+                                    expected: param.type_.clone(),
+                                    got: arg_type,
+                                },
+                            )?)
+                            .ok_or(CompilationError::CallableBindingFailed)?;
                     }
                     return Ok(func.rtype(&bind));
                 }
