@@ -737,7 +737,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         let arg_type = self.type_of(arg)?;
                         bind = bind
                             .mix(&param.type_.bind_in_assignment(&arg_type).unwrap())
-                            .unwrap()
+                            .unwrap();
                     }
                     return Ok(func.rtype(&bind));
                 }

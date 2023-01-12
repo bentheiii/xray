@@ -1,0 +1,7 @@
+fn foo<T>(x: T)->T{
+    0
+}
+
+fn main()->bool{
+    true
+}

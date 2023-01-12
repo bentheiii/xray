@@ -1,0 +1,13 @@
+fn foo<T>(x: T)->T{
+    let r: Stack<T> = stack();
+    x
+}
+
+fn bar<T>(x: T)->T{
+    let r: Stack<int> = stack();
+    x
+}
+
+fn main()->bool{
+    true
+}

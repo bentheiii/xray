@@ -429,8 +429,8 @@ impl XType {
                 Some(bind)
             }
             (Self::XGeneric(ref a), Self::XGeneric(ref b)) if a==b => Some(Bind::new()),
-            (Self::XGeneric(ref a), _) => Some(Bind::from([(*a, other.clone())])),
             (_, Self::XUnknown) => Some(Bind::new()),
+            (Self::XGeneric(ref a), _) => Some(Bind::from([(*a, other.clone())])),
             (Self::XUnknown, _) => Some(Bind::new()),
 
             _ => None,
