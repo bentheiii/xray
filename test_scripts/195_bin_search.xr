@@ -1,0 +1,9 @@
+fn main()->bool{
+    let s = [0,1,1,2,3,5,8,11,21,34];
+    assert(s.binary_search((x: int) -> {x-21}) == some(8))
+    && assert(s.binary_search((x: int) -> {x-0}) == some(0))
+    && assert(s.binary_search((x: int) -> {x-34}) == some(9))
+    && assert(s.binary_search((x: int) -> {x-13}) == none())
+    && assert(s.binary_search((x: int) -> {x+1}) == none())
+    && assert(s.binary_search((x: int) -> {x-64}) == none())
+}

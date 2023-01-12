@@ -109,4 +109,33 @@ fn split(s: str, n: str)->Generator<str>{
     successors_until((0, first_match), next_bound)
     .map(bounds_to_string)
 }
+
+fn binary_search<T>(seq: Sequence<T>, cmp_: (T)->(int))->Optional<int>{
+    fn helper(seq: Sequence<T>, offset: int)->Optional<int>{
+        let mid = floor(seq.len()/2);
+        let res = if(mid==seq.len(), -1, cmp_(seq[mid]));
+        if(res == 0, some(mid+offset),
+            if(res > 0, helper(seq.take(mid), offset),
+                if(mid==seq.len(), none(),
+                    helper(seq.skip(mid+1), offset+mid+1)
+                )
+            )
+        )
+    }
+    helper(seq, 0)
+}
+
+fn bisect<T>(seq: Sequence<T>, left_predicate: (T)->(bool))->int{
+    fn helper(seq: Sequence<T>, offset: int)->int{
+        let mid = floor(seq.len()/2);
+        let res = if(mid==seq.len(), true, left_predicate(seq[mid]));
+        if(res,
+            if(mid==seq.len(), offset,
+                helper(seq.skip(mid+1), offset+mid+1)
+            ),
+            helper(seq.take(mid), offset),
+        )
+    }
+    helper(seq, 0)
+}
 "#;

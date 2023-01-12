@@ -1,0 +1,5 @@
+fn main()->bool{
+    let s = [34,21,11,8,5,3,2,1,1,0];
+    assert(s.binary_search((x: int) -> {21-x}) == some(1))
+    && assert(s.binary_search((x: int) -> {13-x}) == none())
+}

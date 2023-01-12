@@ -78,6 +78,10 @@ impl Bind {
     fn iter(&self) -> impl Iterator<Item = (&Identifier, &Arc<XType>)> {
         self.bound_generics.iter()
     }
+
+    pub(crate) fn is_empty(&self)->bool{
+        self.bound_generics.is_empty()
+    }
 }
 
 impl<I> FromIterator<I> for Bind
@@ -424,6 +428,7 @@ impl XType {
                 }
                 Some(bind)
             }
+            (Self::XGeneric(ref a), Self::XGeneric(ref b)) if a==b => Some(Bind::new()),
             (Self::XGeneric(ref a), _) => Some(Bind::from([(*a, other.clone())])),
             (_, Self::XUnknown) => Some(Bind::new()),
             (Self::XUnknown, _) => Some(Bind::new()),

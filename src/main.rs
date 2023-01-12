@@ -10,9 +10,11 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    let re = regex(r"([0-9]+)\s+([0-9]+)");
-    let s = "blue 156 -  987";
-    let z = re.match(s);
+    fn foo<T>(x: T)->T{
+        10
+    }
+
+    let z = foo("hi");
     "###;
     /*
     fn foo()->()->(int){ // 32

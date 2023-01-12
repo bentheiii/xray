@@ -1,0 +1,7 @@
+fn main()->bool{
+    let s = [34,21,11,8,5,3,2,1,1,0];
+    assert(s.bisect((x: int) -> {x >= 10}) == 3)
+    && assert(s.bisect((x: int) -> {x > 11}) == 2)
+    && assert(s.bisect((x: int) -> {x > 60}) == 0)
+    && assert(s.bisect((x: int) -> {x >= 0}) == 10)
+}

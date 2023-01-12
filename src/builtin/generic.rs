@@ -1,5 +1,5 @@
 use crate::xexpr::XExpr;
-use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
+use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN, Bind};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::{
     to_primitive, ufunc, unpack_types, xraise, xraise_opt, CompilationError, RootCompilationScope,
@@ -321,3 +321,47 @@ pub(crate) fn add_cast<W: Write + 'static>(
         ))
     })
 }
+/*
+pub(crate) fn add_partial<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_dyn_func("partial", "currying", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+
+        let (t0,) = unpack_types!(types, 0);
+        let XType::XFunc(spec) = t0.as_ref() else {return Err("first argument must be a function".to_string())};
+        let mut binding = Bind::new();
+        for (param_spec,t) in spec.params.iter().zip(types.unwrap().iter().skip(1)){
+            if let Some(b) = param_spec.type_.bind_in_assignment(t).and_then(|b| binding.mix(&b)){
+                binding = b;
+            } else {
+                return Err("arguments to function must match".to_string())
+            }
+        }
+
+
+        let inner_func = get_func(ns, cmp_symbol, &[t0.clone(), t1.clone()], &X_INT)?;
+
+        Ok(XFunctionFactoryOutput::from_native(
+            XFuncSpec::new(&[t0, t1], X_BOOL.clone()),
+            move |args, ns, _tca, rt| {
+                let a0 = eval(&args[0], ns, &rt)?;
+                let a1 = eval(&args[1], ns, &rt)?;
+                let cmp = xraise!(eval_resolved_func(
+                    &inner_func,
+                    ns,
+                    rt.clone(),
+                    vec![a0, a1]
+                )?);
+                Ok(
+                    ManagedXValue::new(XValue::Bool(!to_primitive!(cmp, Int).is_positive()), rt)?
+                        .into(),
+                )
+            },
+        ))
+    })
+}
+
+ */
