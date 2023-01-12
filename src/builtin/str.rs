@@ -124,13 +124,13 @@ pub(crate) fn add_str_get<W: Write + 'static>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let s = to_primitive!(a0, String);
             let i = to_primitive!(a1, Int);
-            let Some(char) = (if i.is_negative(){
+            let Some(char) = (if i.is_negative() {
                 let Some(i) = i.clone().neg().to_usize() else { xraise!(Err(ManagedXError::new("index too large",rt)?)) };
-                s.chars().nth_back(i-1)
+                s.chars().nth_back(i - 1)
             } else {
                 let Some(i) = (i).to_usize() else { xraise!(Err(ManagedXError::new("index too large",rt)?)) };
                 s.chars().nth(i)
-            }) else { xraise!(Err(ManagedXError::new("index out of bounds",rt)?))};
+            }) else { xraise!(Err(ManagedXError::new("index out of bounds",rt)?)) };
             Ok(ManagedXValue::new(XValue::String(char.to_string()), rt)?.into())
         }),
     )
@@ -162,7 +162,17 @@ pub(crate) fn add_str_find<W: Write + 'static>(
                     Some(i) => i,
                 },
             };
-            let found_idx = string.as_str()[start_ind..]
+            let haystack = {
+                let mut haystack_iter = string.chars();
+                for _ in 0..start_ind {
+                    if haystack_iter.next().is_none() {
+                        // start is higher than the number of chars, return None
+                        return Ok(manage_native!(XOptional::<W> { value: None }, rt));
+                    }
+                }
+                haystack_iter.as_str()
+            };
+            let found_idx = haystack
                 .find(needle)
                 .map(|i| ManagedXValue::new(XValue::Int((i + start_ind).into()), rt.clone()))
                 .transpose()?;
@@ -182,10 +192,10 @@ pub(crate) fn add_str_substring<W: Write + 'static>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let string = to_primitive!(a0, String);
-            let Some(start) = to_primitive!(a1, Int).to_usize() else {return xerr(ManagedXError::new("index out of bounds", rt)?)};
+            let Some(start) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("index out of bounds", rt)?); };
             let raw_end = to_primitive!(a2, Int);
-            let raw_end = if raw_end.is_negative() {Cow::Owned(raw_end+string.chars().count())} else {Cow::Borrowed(raw_end)};
-            let Some(end) = raw_end.to_usize() else {return xerr(ManagedXError::new("index out of bounds", rt)?)};
+            let raw_end = if raw_end.is_negative() { Cow::Owned(raw_end + string.chars().count()) } else { Cow::Borrowed(raw_end) };
+            let Some(end) = raw_end.to_usize() else { return xerr(ManagedXError::new("index out of bounds", rt)?); };
             let ret = string.chars().take(end).skip(start).collect();
             Ok(ManagedXValue::new(XValue::String(ret), rt)?.into())
         }),
@@ -201,7 +211,7 @@ pub(crate) fn add_str_ord<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s = to_primitive!(a0, String);
-            let Ok(chr) = s.chars().exactly_one() else { xraise!(Err(ManagedXError::new("cannot ord a string without exactly one char",rt)?))};
+            let Ok(chr) = s.chars().exactly_one() else { xraise!(Err(ManagedXError::new("cannot ord a string without exactly one char",rt)?)) };
             Ok(ManagedXValue::new(XValue::Int(LazyBigint::from_u64(chr.into()).unwrap()), rt)?.into())
         }),
     )
