@@ -101,6 +101,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_bool_to_str(scope).unwrap();
 
     add_unknown_eq(scope).unwrap();
+    add_unknown_to_str(scope).unwrap();
 
     add_sequence_type(scope).unwrap();
     add_sequence_add(scope).unwrap();
@@ -130,6 +131,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_sequence_to_stack(scope).unwrap();
     add_sequence_dyn_eq(scope).unwrap();
     add_sequence_dyn_sort(scope).unwrap();
+    add_sequence_dyn_to_str(scope).unwrap();
     add_sequence_dyn_unzip(scope).unwrap();
     add_sequence_dyn_zip(scope).unwrap();
 
@@ -153,6 +155,8 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_optional_some(scope).unwrap();
     add_optional_value(scope).unwrap();
     add_optional_dyn_eq(scope).unwrap();
+    add_optional_dyn_hash(scope).unwrap();
+    add_optional_dyn_to_string(scope).unwrap();
 
     add_mapping_type(scope).unwrap();
     add_mapping_contains(scope).unwrap();

@@ -1,0 +1,5 @@
+fn main()->bool{
+    assert(some(11).to_str() == "11")
+    && assert(some(0).to_str() == "0")
+    && assert(none().to_str() == "None")
+}

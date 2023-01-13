@@ -7,7 +7,7 @@ use crate::root_runtime_scope::EvaluatedValue;
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::trysort::try_sort;
-use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
+use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
@@ -25,6 +25,7 @@ use std::mem::size_of;
 use std::ops::Neg;
 use std::sync::Arc;
 use std::{iter, rc};
+use crate::util::fenced_string::FencedString;
 
 use crate::util::lazy_bigint::LazyBigint;
 use crate::util::try_extend::TryExtend;
@@ -1294,6 +1295,65 @@ pub(crate) fn add_sequence_dyn_unzip<W: Write + 'static>(
                 Ok(ManagedXValue::new(
                     XValue::StructInstance(items), rt,
                 )?.into())
+            },
+        ))
+    })
+}
+
+pub(crate) fn add_sequence_dyn_to_str<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let symbol = scope.identifier("to_str");
+
+    scope.add_dyn_func("to_str", "sequences", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+
+        let (a0,) = unpack_types!(types, 0);
+        let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
+
+        let inner = get_func(ns, symbol, &[t0.clone()], &X_STRING)?;
+
+        Ok(XFunctionFactoryOutput::from_native(
+            XFuncSpec::new(
+                &[
+                    &XSequenceType::xtype(t0.clone()),
+                ],
+                X_STRING.clone(),
+            ),
+            move |args, ns, _tca, rt| {
+                let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                let seq0 = to_native!(a0, XSequence<W>);
+                match seq0.len(){
+                    None => return xerr(ManagedXError::new("infinite sequence", rt)?),
+                    Some(len) => rt.borrow().can_allocate(len+2)?
+                }
+                let arr0 = seq0.iter(ns, rt.clone());
+                let inner_value =
+                    xraise!(ns.eval(&inner, rt.clone(), false)?.unwrap_value());
+                let inner_func = to_primitive!(inner_value, Function);
+
+                let mut ret = FencedString::from_str("[");
+                let mut first = true;
+
+                for (x, search) in search(arr0, rt.clone()){
+                    search?;
+                    if !first{
+                        ret.push_ascii(", ")
+                    }
+                    let to_str = xraise!(ns
+                        .eval_func_with_values(inner_func, vec![x?], rt.clone(), false)?
+                        .unwrap_value());
+                    let f = to_primitive!(to_str, String);
+                    ret.push(f);
+                    rt.borrow().can_allocate_by(|| Some(ret.size()))?;
+                    first = false;
+                }
+                ret.push_ascii("]");
+                ret.shrink_to_fit();
+
+                Ok(ManagedXValue::new(XValue::String(Box::new(ret)), rt)?.into())
             },
         ))
     })

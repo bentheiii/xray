@@ -37,6 +37,10 @@ impl FencedString {
         }
     }
 
+    pub(crate) fn from_str(s: &str)->Self{
+        Self::from_string(s.to_string())
+    }
+
     pub(crate) fn substring(&self, start: usize, end: Option<usize>) -> Self {
         if self.char_starts.is_empty() {
             Self {
@@ -115,6 +119,39 @@ impl FencedString {
     pub(crate) fn size(&self)->usize{
         size_of::<Self>() + self.buffer.len() + self.char_starts.len()*size_of::<usize>()
     }
+
+    pub(crate) fn push(&mut self, other: &Self){
+        let offset = self.buffer.len();
+        self.buffer.push_str(other.as_str());
+        if self.char_starts.is_empty() && other.char_starts.is_empty(){
+            return;
+        }
+        let extension = if other.char_starts.is_empty(){
+            Either::Left(offset..other.buffer.len() + offset)
+        } else {
+            Either::Right(other.char_starts.iter().map(|s| s + offset))
+        };
+
+        if self.char_starts.is_empty(){
+            self.char_starts = (0..offset).chain(extension).collect()
+        } else {
+            self.char_starts.extend(extension)
+        }
+    }
+
+    pub(crate) fn push_ascii(&mut self, other: &str){
+        let offset = self.buffer.len();
+        self.buffer.push_str(other);
+        if self.char_starts.is_empty(){
+            return;
+        }
+        self.char_starts.extend(offset..other.len() + offset)
+    }
+
+    pub(crate) fn shrink_to_fit(&mut self){
+        self.buffer.shrink_to_fit();
+        self.char_starts.shrink_to_fit();
+    }
 }
 
 impl Debug for FencedString {
@@ -158,30 +195,10 @@ impl Ord for FencedString {
 impl Add for &FencedString {
     type Output = FencedString;
     fn add(self, rhs: Self) -> Self::Output {
-        let mut s = String::with_capacity(self.bytes() + rhs.bytes());
-        s.push_str(self.as_str());
-        s.push_str(rhs.as_str());
-
-        let starts = if self.char_starts.is_empty() && rhs.char_starts.is_empty() {
-            Vec::new()
-        } else {
-            let offset = self.buffer.len();
-            (if self.char_starts.is_empty() {
-                Either::Left(0..self.buffer.len())
-            } else {
-                Either::Right(self.char_starts.iter().cloned())
-            })
-            .chain(if rhs.char_starts.is_empty() {
-                Either::Left(offset..rhs.buffer.len() + offset)
-            } else {
-                Either::Right(rhs.char_starts.iter().map(|s| s + offset))
-            })
-            .collect()
-        };
-        FencedString {
-            buffer: s,
-            char_starts: starts,
-        }
+        let mut ret = self.clone();
+        ret.push(rhs);
+        ret.shrink_to_fit();
+        ret
     }
 }
 
@@ -256,6 +273,33 @@ mod tests {
                 let y = FencedString::from_string(y.to_string());
 
                 let z0 = &x + &y;
+
+                assert_eq!(z0.buffer, z1.buffer);
+                assert_eq!(z0.char_starts, z1.char_starts);
+            }
+        }
+    }
+
+    #[test]
+    fn test_add_ascii() {
+        let arr = [
+            "",
+            "mary had a little lamb",
+            "rs🧡s💛dfdd💚d💙d💜d",
+            "🧡s💛dfdd💚d💙d💜d",
+            "rs🧡s💛dfdd💚d💙d💜",
+            "🧡s💛dfdd💚d💙d💜",
+            "y̆es",
+        ];
+        let ascii_arr = [
+            "hi",
+            ""
+        ];
+        for x in arr.iter() {
+            for y in ascii_arr.iter() {
+                let z1 = FencedString::from_string(format!("{x}{y}"));
+                let mut z0 = FencedString::from_string(x.to_string());
+                z0.push_ascii(y);
 
                 assert_eq!(z0.buffer, z1.buffer);
                 assert_eq!(z0.char_starts, z1.char_starts);

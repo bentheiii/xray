@@ -210,6 +210,13 @@ impl XFuncSpec {
         }
     }
 
+    pub(crate) fn short_circut_overloads(self)->Self{
+        Self{
+            short_circuit_overloads: true,
+            ..self
+        }
+    }
+
     pub(crate) fn is_generic(&self) -> bool {
         self.generic_params.as_ref().map_or(false, |i| {
             debug_assert!(!i.is_empty());

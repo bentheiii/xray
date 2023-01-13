@@ -1,0 +1,7 @@
+fn main()->bool{
+    let m = mapping<Optional<int>>().set(some(11), 6).set(some(0), 10).set(none(), 9);
+
+    assert(m[none()] == 9)
+    && assert(m[some(11)] == 6)
+    && assert(m[some(0)] == 10)
+}
