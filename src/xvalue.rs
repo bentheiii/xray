@@ -101,7 +101,7 @@ impl<W: Write + 'static> XValue<W> {
         let base = size_of::<Self>();
         base + match self {
             Self::Int(i) => i.additional_size(),
-            Self::String(s) => s.len(),
+            Self::String(s) => s.size(),
             Self::Function(XFunction::UserFunction { template, .. }) => {
                 size_of::<usize>() + template.cells.len() * size_of::<usize>()
             }

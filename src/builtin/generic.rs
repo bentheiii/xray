@@ -13,7 +13,6 @@ use crate::runtime::RTCell;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::fenced_string::FencedString;
 use num_traits::Signed;
-use std::borrow::Cow;
 use std::io::Write;
 use std::sync::Arc;
 use std::{iter, rc};

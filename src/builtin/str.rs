@@ -19,7 +19,6 @@ use itertools::Itertools;
 use num_traits::{FromPrimitive, Signed, ToPrimitive};
 use std::hash::{Hash, Hasher};
 use std::io::Write;
-use std::ops::Neg;
 use std::rc;
 
 pub(crate) fn add_str_type<W: Write + 'static>(

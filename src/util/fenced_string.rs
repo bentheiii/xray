@@ -2,8 +2,8 @@ use either::Either;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
-use std::ops::{Add, Deref, Index};
-use std::slice::SliceIndex;
+use std::mem::size_of;
+use std::ops::{Add};
 
 #[derive(Default, Clone)]
 pub struct FencedString {
@@ -72,11 +72,11 @@ impl FencedString {
 
     pub(crate) fn substr(&self, start: usize, end: Option<usize>) -> &str {
         if self.char_starts.is_empty() {
-            (if let Some(end) = end {
+            if let Some(end) = end {
                 &self.buffer[start..end]
             } else {
                 &self.buffer[start..]
-            })
+            }
         } else {
             let start_byte = self.char_starts[start];
             let end_byte = end.and_then(|e| self.char_starts.get(e)).cloned();
@@ -100,10 +100,6 @@ impl FencedString {
         self.buffer.len()
     }
 
-    pub(crate) fn to_string(&self) -> String {
-        self.buffer.clone()
-    }
-
     pub(crate) fn as_str(&self) -> &str {
         &self.buffer
     }
@@ -114,6 +110,10 @@ impl FencedString {
 
     pub(crate) fn is_empty(&self) -> bool {
         self.buffer.is_empty()
+    }
+
+    pub(crate) fn size(&self)->usize{
+        size_of::<Self>() + self.buffer.len() + self.char_starts.len()*size_of::<usize>()
     }
 }
 
