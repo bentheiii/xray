@@ -20,6 +20,7 @@ use std::rc;
 
 use crate::root_compilation_scope::RootCompilationScope;
 use crate::runtime::{ProspectiveSize, RTCell};
+use crate::util::fenced_string::FencedString;
 use crate::util::lazy_bigint::LazyBigint;
 
 pub(crate) fn add_int_type<W: Write + 'static>(
@@ -167,7 +168,9 @@ pub(crate) fn add_int_to_str<W: Write + 'static>(
         ufunc!(Int, |a: &LazyBigint, rt: RTCell<W>| {
             rt.borrow()
                 .can_allocate_by(|| ((a.bits() / 8) as f64 * LOG10_2).ceil().to_usize())?;
-            Ok(Ok(XValue::String(a.to_string())))
+            Ok(Ok(XValue::String(Box::new(FencedString::from_string(
+                a.to_string(),
+            )))))
         }),
     )
 }
@@ -241,7 +244,7 @@ pub(crate) fn add_int_chr<W: Write + 'static>(
             let s = to_primitive!(a0, Int);
             let Some(ord) = s.to_u32() else {return xerr(ManagedXError::new("number too large", rt)?)};
             let Ok(chr) = char::try_from(ord) else {return xerr(ManagedXError::new("value is not a unicode char", rt)?)};
-            Ok(ManagedXValue::new(XValue::String(chr.into()), rt)?.into())
+            Ok(ManagedXValue::new(XValue::String(Box::new(FencedString::from_string(chr.into()))), rt)?.into())
         }),
     )
 }

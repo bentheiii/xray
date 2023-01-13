@@ -11,7 +11,9 @@ use crate::builtin::builtin_permissions;
 use crate::builtin::core::{eval, eval_resolved_func, get_func};
 use crate::runtime::RTCell;
 use crate::runtime_violation::RuntimeViolation;
+use crate::util::fenced_string::FencedString;
 use num_traits::Signed;
+use std::borrow::Cow;
 use std::io::Write;
 use std::sync::Arc;
 use std::{iter, rc};
@@ -36,9 +38,9 @@ pub(crate) fn add_error<W: Write + 'static>(
     scope.add_func(
         "error",
         XFuncSpec::new(&[&X_STRING], X_UNKNOWN.clone()),
-        ufunc!(String, |a: &String, rt: RTCell<W>| {
-            rt.borrow().can_allocate(a.len())?;
-            Ok(Err(a.clone()))
+        ufunc!(String, |a: &FencedString, rt: RTCell<W>| {
+            rt.borrow().can_allocate(a.bytes())?;
+            Ok(Err(a.to_string()))
         }),
     )
 }
@@ -56,9 +58,13 @@ pub(crate) fn add_debug<W: Write + 'static>(
                 .check_permission(&builtin_permissions::PRINT_DEBUG)?;
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
-            let b = to_primitive!(a1, String, "".to_string());
-            writeln!(rt.borrow_mut().stdout, "{b}{a0:?}")
-                .map_err(|e| RuntimeViolation::OutputFailure(Rc::new(e)))?;
+            if let Some(a1) = a1 {
+                let b = to_primitive!(a1, String).as_str();
+                writeln!(rt.borrow_mut().stdout, "{b}{a0:?}")
+            } else {
+                writeln!(rt.borrow_mut().stdout, "{a0:?}")
+            }
+            .map_err(|e| RuntimeViolation::OutputFailure(Rc::new(e)))?;
             Ok(a0.into())
         }),
     )
@@ -153,7 +159,6 @@ pub(crate) fn add_display<W: Write + 'static>(
                         .check_permission(&builtin_permissions::PRINT)?;
                     let a0 = eval(&args[0], ns, &rt)?;
                     let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
-                    let b = to_primitive!(a1, String, "".to_string());
                     let string = xraise!(eval_resolved_func(
                         &inner_to_str,
                         ns,
@@ -161,8 +166,13 @@ pub(crate) fn add_display<W: Write + 'static>(
                         vec![a0.clone()]
                     )?);
                     let str_slice = to_primitive!(string, String);
-                    writeln!(rt.borrow_mut().stdout, "{b}{str_slice}")
-                        .map_err(|e| RuntimeViolation::OutputFailure(Rc::new(e)))?;
+                    if let Some(a1) = a1 {
+                        let b = to_primitive!(a1, String).as_str();
+                        writeln!(rt.borrow_mut().stdout, "{b}{str_slice}")
+                    } else {
+                        writeln!(rt.borrow_mut().stdout, "{str_slice}")
+                    }
+                    .map_err(|e| RuntimeViolation::OutputFailure(Rc::new(e)))?;
                     Ok(a0.into())
                 },
             ))
@@ -331,22 +341,22 @@ pub(crate) fn add_partial<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (t0,) = unpack_types!(types, 0);
-        let XType::XFunc(spec) = t0.as_ref() else {return Err("first argument must be a function".to_string())};
+        let (t0, ) = unpack_types!(types, 0);
+        let XType::XFunc(spec) = t0.as_ref() else { return Err("first argument must be a function".to_string()); };
         let mut binding = Bind::new();
         let star_types = types.unwrap().iter().skip(1).collect::<Vec<_>>();
-        if star_types.len() > spec.params.len(){
-            return Err("function has less parameters than supplied".to_string())
+        if star_types.len() > spec.params.len() {
+            return Err("function has less parameters than supplied".to_string());
         }
-        for (param_spec,t) in spec.params.iter().zip(star_types.iter()){
-            if let Some(b) = param_spec.type_.bind_in_assignment(t).and_then(|b| binding.mix(&b)){
+        for (param_spec, t) in spec.params.iter().zip(star_types.iter()) {
+            if let Some(b) = param_spec.type_.bind_in_assignment(t).and_then(|b| binding.mix(&b)) {
                 binding = b;
             } else {
-                return Err("arguments to function must match".to_string())
+                return Err("arguments to function must match".to_string());
             }
         }
-        if !binding.is_empty(){
-            return Err("cannot curry generic parameters".to_string())
+        if !binding.is_empty() {
+            return Err("cannot curry generic parameters".to_string());
         }
 
         let new_spec = spec.skip_args(star_types.len());
@@ -362,7 +372,7 @@ pub(crate) fn add_partial<W: Write + 'static>(
                 let curried = curried.into_iter().map(|v| XExpr::Dummy(Ok(v))).collect::<Vec<_>>();
 
                 let f0 = to_primitive!(a0, Function).clone();
-                let f = XValue::Function(XFunction::Native(Rc::new(move |inner_args, inner_ns , tca, rt|{
+                let f = XValue::Function(XFunction::Native(Rc::new(move |inner_args, inner_ns, tca, rt| {
                     let new_args: Vec<_> = curried.iter().chain(inner_args).cloned().collect();
                     inner_ns.eval_func_with_expressions(&f0, &new_args, rt, tca)
                 })));

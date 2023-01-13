@@ -68,7 +68,7 @@ pub(crate) fn add_regex_new<W: Write + 'static>(
                 .check_permission(&builtin_permissions::REGEX)?;
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s0 = to_primitive!(a0, String);
-            let mut builder = RegexBuilder::new(s0);
+            let mut builder = RegexBuilder::new(s0.as_str());
             if rt.borrow().limits.size_limit.is_some() {
                 builder.size_limit(rt.borrow().size_left());
             }
@@ -106,7 +106,7 @@ pub(crate) fn add_regex_match<W: Write + 'static>(
                     None => return xerr(ManagedXError::new("start index out of range", rt)?),
                 },
             };
-            let Some(cap) = r0.captures(&s1[i2..]) else {
+            let Some(cap) = r0.captures(s1.substr(i2, None)) else {
                 return Ok(manage_native!(XOptional::<W> {value: None}, rt))
             };
             let mut pairs = Vec::with_capacity(r0.captures_len());

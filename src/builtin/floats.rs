@@ -11,6 +11,7 @@ use num_traits::{FromPrimitive, Zero};
 use rc::Rc;
 use std::cmp::max_by;
 
+use crate::util::fenced_string::FencedString;
 use std::io::Write;
 use std::rc;
 
@@ -189,10 +190,9 @@ pub(crate) fn add_float_to_str<W: Write + 'static>(
         "to_str",
         XFuncSpec::new(&[&X_FLOAT], X_STRING.clone()),
         ufunc!(Float, |a: &f64, _rt| {
-            Ok(Ok(XValue::String(format!(
-                "{:?}",
-                if *a == -0.0 { 0.0 } else { *a }
-            ))))
+            Ok(Ok(XValue::String(Box::new(FencedString::from_string(
+                format!("{:?}", if *a == -0.0 { 0.0 } else { *a }),
+            )))))
         }),
     )
 }

@@ -12,6 +12,7 @@ use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::compile_err::CompilationError;
 use crate::root_compilation_scope::RootCompilationScope;
 use crate::runtime::RTCell;
+use crate::util::fenced_string::FencedString;
 use crate::xexpr::XStaticFunction;
 use crate::{add_binfunc, manage_native, to_primitive, ufunc, xraise, xraise_opt};
 use itertools::Itertools;
@@ -37,12 +38,9 @@ add_binfunc!(
     X_STRING,
     String,
     X_STRING,
-    |a: &String, b: &String, rt: &RTCell<W>| {
-        rt.borrow().can_allocate(a.len() + b.len())?;
-        let mut ret = String::with_capacity(a.len() + b.len());
-        ret.push_str(a);
-        ret.push_str(b);
-        Ok(Ok(XValue::String(ret)))
+    |a: &FencedString, b: &FencedString, rt: &RTCell<W>| {
+        rt.borrow().can_allocate(a.bytes() + b.bytes())?;
+        Ok(Ok(XValue::String(Box::new(a + b))))
     }
 );
 
@@ -52,7 +50,7 @@ pub(crate) fn add_str_hash<W: Write + 'static>(
     scope.add_func(
         "hash",
         XFuncSpec::new(&[&X_STRING], X_INT.clone()),
-        ufunc!(String, |a: &String, _rt| {
+        ufunc!(String, |a: &FencedString, _rt| {
             Ok(Ok(XValue::Int({
                 let mut s = DefaultHasher::new();
                 a.hash(&mut s);
@@ -69,8 +67,8 @@ pub(crate) fn add_str_len<W: Write + 'static>(
     scope.add_func(
         "len",
         XFuncSpec::new(&[&X_STRING], X_INT.clone()),
-        ufunc!(String, |a: &String, _rt| {
-            Ok(Ok(XValue::Int(LazyBigint::from(a.chars().count()))))
+        ufunc!(String, |a: &FencedString, _rt| {
+            Ok(Ok(XValue::Int(LazyBigint::from(a.len()))))
         }),
     )
 }
@@ -94,17 +92,15 @@ pub(crate) fn add_str_chars<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s = to_primitive!(a0, String);
-            rt.borrow().can_allocate_by(|| {
-                Some(if s.len() < 128 {
-                    // as a shortcut, we won't check the lengths of all strings under a certain bound
-                    0
-                } else {
-                    s.chars().count()
-                })
-            })?;
+            rt.borrow().can_allocate_by(|| Some(s.bytes()))?;
             let chars = s
-                .chars()
-                .map(|c| ManagedXValue::new(XValue::String(c.to_string()), rt.clone()))
+                .iter()
+                .map(|c| {
+                    ManagedXValue::new(
+                        XValue::String(Box::new(FencedString::from_string(c.to_string()))),
+                        rt.clone(),
+                    )
+                })
                 .collect::<Result<Vec<_>, _>>()?
                 .into_iter()
                 .collect();
@@ -124,14 +120,8 @@ pub(crate) fn add_str_get<W: Write + 'static>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let s = to_primitive!(a0, String);
             let i = to_primitive!(a1, Int);
-            let Some(char) = (if i.is_negative() {
-                let Some(i) = i.clone().neg().to_usize() else { xraise!(Err(ManagedXError::new("index too large",rt)?)) };
-                s.chars().nth_back(i - 1)
-            } else {
-                let Some(i) = (i).to_usize() else { xraise!(Err(ManagedXError::new("index too large",rt)?)) };
-                s.chars().nth(i)
-            }) else { xraise!(Err(ManagedXError::new("index out of bounds",rt)?)) };
-            Ok(ManagedXValue::new(XValue::String(char.to_string()), rt)?.into())
+            let Some(i) = if i.is_negative() {Cow::Owned(i+s.len())} else {Cow::Borrowed(i)}.to_usize() else {xraise!(Err(ManagedXError::new("index too large",rt)?))};
+            Ok(ManagedXValue::new(XValue::String(Box::new(s.substring(i,Some(i+1)))), rt)?.into())
         }),
     )
 }
@@ -162,18 +152,9 @@ pub(crate) fn add_str_find<W: Write + 'static>(
                     Some(i) => i,
                 },
             };
-            let haystack = {
-                let mut haystack_iter = string.chars();
-                for _ in 0..start_ind {
-                    if haystack_iter.next().is_none() {
-                        // start is higher than the number of chars, return None
-                        return Ok(manage_native!(XOptional::<W> { value: None }, rt));
-                    }
-                }
-                haystack_iter.as_str()
-            };
+            let haystack = string.substr(start_ind, None);
             let found_idx = haystack
-                .find(needle)
+                .find(needle.as_str())
                 .map(|i| ManagedXValue::new(XValue::Int((i + start_ind).into()), rt.clone()))
                 .transpose()?;
             Ok(manage_native!(XOptional { value: found_idx }, rt))
@@ -194,10 +175,12 @@ pub(crate) fn add_str_substring<W: Write + 'static>(
             let string = to_primitive!(a0, String);
             let Some(start) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("index out of bounds", rt)?); };
             let raw_end = to_primitive!(a2, Int);
-            let raw_end = if raw_end.is_negative() { Cow::Owned(raw_end + string.chars().count()) } else { Cow::Borrowed(raw_end) };
+            let raw_end = if raw_end.is_negative() { Cow::Owned(raw_end + string.len()) } else { Cow::Borrowed(raw_end) };
             let Some(end) = raw_end.to_usize() else { return xerr(ManagedXError::new("index out of bounds", rt)?); };
-            let ret = string.chars().take(end).skip(start).collect();
-            Ok(ManagedXValue::new(XValue::String(ret), rt)?.into())
+            if end < start { return xerr(ManagedXError::new("index out of bounds", rt)?); }
+
+            let ret = string.substring(start, Some(end));
+            Ok(ManagedXValue::new(XValue::String(Box::new(ret)), rt)?.into())
         }),
     )
 }
@@ -211,7 +194,7 @@ pub(crate) fn add_str_ord<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s = to_primitive!(a0, String);
-            let Ok(chr) = s.chars().exactly_one() else { xraise!(Err(ManagedXError::new("cannot ord a string without exactly one char",rt)?)) };
+            let Ok(chr) = s.iter().exactly_one() else { xraise!(Err(ManagedXError::new("cannot ord a string without exactly one char",rt)?)) };
             Ok(ManagedXValue::new(XValue::Int(LazyBigint::from_u64(chr.into()).unwrap()), rt)?.into())
         }),
     )

@@ -10,6 +10,7 @@ use derivative::Derivative;
 use crate::compilation_scope::CompilationScope;
 use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
 use crate::runtime_violation::RuntimeViolation;
+use crate::util::fenced_string::FencedString;
 use std::fmt::{Debug, Error, Formatter};
 use std::io::Write;
 use std::mem::size_of;
@@ -21,7 +22,7 @@ use std::sync::Arc;
 pub enum XValue<W> {
     Int(LazyBigint),
     Float(f64),
-    String(String),
+    String(Box<FencedString>),
     Bool(bool),
     Function(XFunction<W>),
     StructInstance(Vec<Rc<ManagedXValue<W>>>),

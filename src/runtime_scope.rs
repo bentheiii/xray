@@ -12,6 +12,7 @@ use crate::builtin::sequence::XSequence;
 use crate::root_runtime_scope::EvaluatedValue;
 use crate::runtime_violation::RuntimeViolation;
 use crate::units::{ScopeDepth, StackDepth};
+use crate::util::fenced_string::FencedString;
 use derivative::Derivative;
 
 #[derive(Derivative)]
@@ -261,9 +262,11 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 Ok(ManagedXValue::new(XValue::Int(LazyBigint::from(*i)), rt)?.into())
             }
             XExpr::LiteralFloat(r) => Ok(ManagedXValue::new(XValue::Float(*r), rt)?.into()),
-            XExpr::LiteralString(s) => {
-                Ok(ManagedXValue::new(XValue::String(s.clone()), rt)?.into())
-            }
+            XExpr::LiteralString(s) => Ok(ManagedXValue::new(
+                XValue::String(Box::new(FencedString::from_string(s.clone()))),
+                rt,
+            )?
+            .into()),
             XExpr::Array(items) => {
                 let seq = if items.is_empty() {
                     XSequence::Empty

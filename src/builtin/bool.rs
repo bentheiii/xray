@@ -9,6 +9,7 @@ use crate::{
 use num_traits::{One, Zero};
 use rc::Rc;
 
+use crate::util::fenced_string::FencedString;
 use crate::xexpr::XExpr;
 use std::io::Write;
 use std::rc;
@@ -138,9 +139,9 @@ pub(crate) fn add_bool_to_str<W: Write + 'static>(
         "to_str",
         XFuncSpec::new(&[&X_BOOL], X_STRING.clone()),
         ufunc!(Bool, |a: &bool, _rt| {
-            Ok(Ok(XValue::String(
+            Ok(Ok(XValue::String(Box::new(FencedString::from_string(
                 if *a { "true" } else { "false" }.to_string(),
-            )))
+            )))))
         }),
     )
 }
