@@ -1,93 +1,24 @@
 pub const INCLUDE: &str = r#"
-fn abs(f: float)->float{
-    if(f < 0.0, -f, f)
-}
-
+// int
 fn abs(i: int)->int{
     if(i < 0, -i, i)
-}
-
-fn bit_or<T>(a: Set<T>, b: Set<T>)->Set<T>{
-    a.update(b.to_array())
-}
-
-fn any<T>(a: Sequence<T>, f: (T)->(bool))->bool{
-    a.nth(0, f).has_value()
-}
-
-fn all<T>(a: Sequence<T>, f: (T)->(bool))->bool{
-    !a.nth(0, (t: T) -> {!f(t)}).has_value()
-}
-
-fn any<T>(a: Generator<T>, f: (T)->(bool))->bool{
-    a.nth(0, f).has_value()
-}
-
-fn all<T>(a: Generator<T>, f: (T)->(bool))->bool{
-    !a.nth(0, (t: T) -> {!f(t)}).has_value()
-}
-
-fn first<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{
-     a.nth(0, f)
-}
-
-fn first<T>(a: Generator<T>, f: (T)->(bool))->Optional<T>{
-     a.nth(0, f)
-}
-
-fn last<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{
-     a.nth(-1, f)
 }
 
 fn count(start: int, offset: int ?= 1)->Sequence<int>{
     count().map((x:int)->{x*offset+start})
 }
 
-fn enumerate<T>(a: Sequence<T>, start: int ?= 0, offset: int ?= 1)->Sequence<(int, T)>{
-    count(start, offset).zip(a)
+// float
+fn abs(f: float)->float{
+    if(f < 0.0, -f, f)
 }
 
-fn enumerate<T>(a: Generator<T>, start: int ?= 0, offset: int ?= 1)->Generator<(int, T)>{
-    count(start, offset).zip(a)
-}
-
-fn repeat<T>(a: Sequence<T>)->Sequence<T>{
-    let length = a.len();
-    if(is_error(length),
-        a,
-        count().map((idx: int)->{a[idx%length]})
-    )
-}
-
-fn repeat<T>(a: Sequence<T>, n: int)->Sequence<T>{
-    let length = a.len();
-    if(is_error(length),
-        a,
-        count().map((idx: int)->{a[idx%length]}).take(n*length)
-    )
-}
-
-fn mul<T>(a: Sequence<T>, b: int)->Sequence<T>{
-    a.repeat(b)
-}
-
+// string
 fn mul(a: str, n: int)->str{
     fn helper(n: int, ret: str)->str{
         if(n==0, ret, helper(n-1, ret+a))
     }
     helper(n, "")
-}
-
-fn successors<T>(start: T, f: (T)->(T))->Generator<T>{
-    successors_until(start, (t: T) -> {some(f(t))})
-}
-
-fn filter<T>(s: Sequence<T>, f: (T)->(bool))->Generator<T>{
-    s.to_generator().filter(f)
-}
-
-fn count<T>(s: Generator<T>, f: (T)->(bool))->int{
-    s.filter(f).len()
 }
 
 fn substring<T>(s: str, start: int, end: Optional<int> ?= none())->str{
@@ -137,5 +68,107 @@ fn bisect<T>(seq: Sequence<T>, left_predicate: (T)->(bool))->int{
         )
     }
     helper(seq, 0)
+}
+
+fn join(s: Sequence<str>, delimiter: str ?= "")->str{
+    s.to_generator().join(delimiter)
+}
+
+//sequences
+fn any<T>(a: Sequence<T>, f: (T)->(bool))->bool{
+    a.nth(0, f).has_value()
+}
+
+fn all<T>(a: Sequence<T>, f: (T)->(bool))->bool{
+    !a.nth(0, (t: T) -> {!f(t)}).has_value()
+}
+
+fn first<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{
+     a.nth(0, f)
+}
+
+fn last<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{
+     a.nth(-1, f)
+}
+
+fn enumerate<T>(a: Sequence<T>, start: int ?= 0, offset: int ?= 1)->Sequence<(int, T)>{
+    count(start, offset).zip(a)
+}
+
+fn repeat<T>(a: Sequence<T>)->Sequence<T>{
+    let length = a.len();
+    if(is_error(length),
+        a,
+        count().map((idx: int)->{a[idx%length]})
+    )
+}
+
+fn repeat<T>(a: Sequence<T>, n: int)->Sequence<T>{
+    let length = a.len();
+    if(is_error(length),
+        a,
+        count().map((idx: int)->{a[idx%length]}).take(n*length)
+    )
+}
+
+fn mul<T>(a: Sequence<T>, b: int)->Sequence<T>{
+    a.repeat(b)
+}
+
+fn filter<T>(s: Sequence<T>, f: (T)->(bool))->Generator<T>{
+    s.to_generator().filter(f)
+}
+
+
+//generators
+fn any<T>(a: Generator<T>, f: (T)->(bool))->bool{
+    a.nth(0, f).has_value()
+}
+
+fn all<T>(a: Generator<T>, f: (T)->(bool))->bool{
+    !a.nth(0, (t: T) -> {!f(t)}).has_value()
+}
+
+fn first<T>(a: Generator<T>, f: (T)->(bool))->Optional<T>{
+     a.nth(0, f)
+}
+
+fn enumerate<T>(a: Generator<T>, start: int ?= 0, offset: int ?= 1)->Generator<(int, T)>{
+    count(start, offset).zip(a)
+}
+
+fn successors<T>(start: T, f: (T)->(T))->Generator<T>{
+    successors_until(start, (t: T) -> {some(f(t))})
+}
+
+fn count<T>(s: Generator<T>, f: (T)->(bool))->int{
+    s.filter(f).len()
+}
+
+
+// sets
+fn __std_xset_order_by_cardinality<T>(a: Set<T>, b: Set<T>) -> (Set<T>, Set<T>){
+    if(a.len() < b.len(), (a,b), (b,a))
+}
+
+fn bit_and<T>(a: Set<T>, b: Set<T>)->Set<T>{
+    let ord = __std_xset_order_by_cardinality(a, b);
+    a.clear().update(ord::item0.to_generator().filter((i: T) -> {ord::item1.contains(i)}))
+}
+
+fn bit_or<T>(a: Set<T>, b: Set<T>)->Set<T>{
+    a.update(b.to_generator())
+}
+
+fn to_array<T>(s: Set<T>)->Sequence<T>{
+    s.to_generator().to_array()
+}
+
+fn update<T>(s: Set<T>, a: Sequence<T>)->Set<T>{
+    s.update(a.to_generator())
+}
+
+fn eq<T>(a: Set<T>, b: Set<T>)->bool{
+    a.len() == b.len() && a.to_generator().all((x: T)->{b.contains(x)})
 }
 "#;

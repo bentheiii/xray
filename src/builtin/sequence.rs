@@ -1131,49 +1131,6 @@ pub(crate) fn add_sequence_to_generator<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_sequence_join<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError> {
-    let t_arr = XSequenceType::xtype(X_STRING.clone());
-
-    scope.add_func(
-        "join",
-        XFuncSpec::new_with_optional(&[&t_arr], &[&X_STRING], X_STRING.clone()),
-        XStaticFunction::from_native(|args, ns, _tca, rt| {
-            let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
-            let seq0 = to_native!(a0, XSequence<W>);
-            match seq0.len() {
-                None => return xerr(ManagedXError::new("infinite sequence", rt)?),
-                Some(len) => rt.borrow().can_allocate(len + 2)?,
-            }
-            let delimiter = match a1 {
-                None => Cow::Owned(FencedString::from_str("")),
-                Some(ref a) => Cow::Borrowed(to_primitive!(a, String).as_ref()),
-            };
-            let arr0 = seq0.iter(ns, rt.clone());
-            let mut ret = FencedString::default();
-            let mut first = true;
-
-            for (x, search) in search(arr0, rt.clone()) {
-                search?;
-                let item = xraise!(x?);
-                if !first {
-                    ret.push(delimiter.as_ref())
-                }
-
-                let f = to_primitive!(item, String);
-                ret.push(f.as_ref());
-                rt.borrow().can_allocate_by(|| Some(ret.size()))?;
-                first = false;
-            }
-            ret.shrink_to_fit();
-
-            Ok(ManagedXValue::new(XValue::String(Box::new(ret)), rt)?.into())
-        }),
-    )
-}
-
 pub(crate) fn add_sequence_dyn_eq<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {

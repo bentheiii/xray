@@ -1,5 +1,4 @@
 use crate::builtin::core::{eval, get_func, xerr};
-use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
@@ -13,7 +12,6 @@ use crate::{
 use derivative::Derivative;
 use num_traits::ToPrimitive;
 use rc::Rc;
-use std::cmp::max;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -22,6 +20,8 @@ use std::iter::once;
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
+use crate::builtin::generators::{XGenerator, XGeneratorType};
+use crate::root_runtime_scope::EvaluatedValue;
 
 use crate::xexpr::TailedEvalResult;
 
@@ -71,7 +71,7 @@ impl<W: Write + 'static> XSet<W> {
 
     fn with_update(
         &self,
-        items: impl Iterator<Item = Rc<ManagedXValue<W>>>,
+        items: impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>>,
         ns: &RuntimeScope<W>,
         rt: RTCell<W>,
     ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
@@ -80,6 +80,7 @@ impl<W: Write + 'static> XSet<W> {
         let mut new_table = self.inner.clone();
         let mut new_len = self.len;
         for k in items {
+            let k = xraise!(k?);
             let hash_key = parse_hash!(
                 ns.eval_func_with_values(hash_func, vec![Ok(k.clone())], rt.clone(), false)?,
                 rt.clone()
@@ -131,9 +132,9 @@ impl<W: Write + 'static> XSet<W> {
         ))
     }
 
-    pub(super) fn iter<'a>(
-        &'a self,
-    ) -> impl Iterator<Item=Rc<ManagedXValue<W>>> + 'a {
+    pub(super) fn iter(
+        &self,
+    ) -> impl Iterator<Item=Rc<ManagedXValue<W>>> + '_ {
         self.inner.iter().flat_map(|(_,b)|b.iter()).cloned()
     }
 }
@@ -194,7 +195,7 @@ pub(crate) fn add_set_update<W: Write + 'static>(
         XFuncSpec::new(
             &[
                 &st,
-                &XSequenceType::xtype(t),
+                &XGeneratorType::xtype(t),
             ],
             st.clone(),
         )
@@ -203,14 +204,8 @@ pub(crate) fn add_set_update<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let set = to_native!(a0, XSet<W>);
-            let seq0 = to_native!(a1, XSequence<W>);
-            let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-            rt.borrow()
-                .can_allocate(max(set.len, len0))?;
-            let arr = xraise!(seq0
-                .iter(ns, rt.clone())
-                .collect::<Result<Result<Vec<_>, _>, _>>()?);
-            set.with_update(arr.into_iter(), ns, rt)
+            let gen0 = to_native!(a1, XGenerator<W>);
+            set.with_update(gen0.iter(ns, rt.clone()), ns, rt)
         }),
     )
 }
@@ -229,7 +224,7 @@ pub(crate) fn add_set_add<W: Write + 'static>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let mapping = to_native!(a0, XSet<W>);
             rt.borrow().can_allocate(mapping.len * 2)?;
-            mapping.with_update(once(a1), ns, rt)
+            mapping.with_update(once(Ok(Ok(a1))), ns, rt)
         }),
     )
 }
@@ -299,25 +294,18 @@ pub(crate) fn add_set_len<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_set_to_array<W: Write + 'static>(
+pub(crate) fn add_set_to_generator<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let st = XSetType::xtype(t.clone());
 
     scope.add_func(
-        "to_array",
-        XFuncSpec::new(&[&st], XSequenceType::xtype(t)).generic(params),
+        "to_generator",
+        XFuncSpec::new(&[&st], XGeneratorType::xtype(t)).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let set = to_native!(a0, XSet<W>);
-            rt.borrow().can_allocate(set.len)?;
-            let items = set
-                .inner
-                .values()
-                .flat_map(|lst| lst.clone())
-                .collect::<Vec<_>>();
-            Ok(manage_native!(XSequence::array(items), rt))
+            Ok(manage_native!(XGenerator::FromSet(a0), rt))
         }),
     )
 }
@@ -442,67 +430,27 @@ pub(crate) fn add_set_discard<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_set_bit_and<W: Write + 'static>(
+pub(crate) fn add_set_clear<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
-    let st = XSetType::xtype(t);
+    let st = XSetType::xtype(t.clone());
 
     scope.add_func(
-        "bit_and",
-        XFuncSpec::new(&[&st, &st], st.clone()).generic(params),
+        "clear",
+        XFuncSpec::new(&[&st], st.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let set0 = to_native!(a0, XSet<W>);
-            let set1 = to_native!(a1, XSet<W>);
-
-            let hash_func = to_primitive!(set0.hash_func, Function);
-            let eq_func = to_primitive!(set0.eq_func, Function);
-
-            let mut new_values = Vec::new();
-
-            for k1 in set1.inner.values().flat_map(|lst| lst.clone()) {
-                let hash_key = parse_hash!(
-                    ns.eval_func_with_values(hash_func, vec![Ok(k1.clone())], rt.clone(), false)?,
-                    rt.clone()
-                );
-                let spot = set0.inner.get(&hash_key);
-                let found_in_set0 = match spot {
-                    None => false,
-                    Some(candidates) => {
-                        let mut found = false;
-                        for k0 in candidates.iter() {
-                            if *to_primitive!(
-                                xraise!(ns
-                                    .eval_func_with_values(
-                                        eq_func,
-                                        vec![Ok(k0.clone()), Ok(k1.clone())],
-                                        rt.clone(),
-                                        false
-                                    )?
-                                    .unwrap_value()),
-                                Bool
-                            ) {
-                                found = true;
-                            }
-                        }
-                        found
-                    }
-                };
-                if found_in_set0 {
-                    new_values.push(k1);
-                    rt.borrow().can_afford(&new_values)?;
-                }
+            if set0.len == 0 {
+                return Ok(a0.clone().into());
             }
-
-            XSet::new(
+            Ok(manage_native!(XSet::new(
                 set0.hash_func.clone(),
                 set0.eq_func.clone(),
                 Default::default(),
                 0,
-            )
-            .with_update(new_values.into_iter(), ns, rt)
+            ), rt))
         }),
     )
 }

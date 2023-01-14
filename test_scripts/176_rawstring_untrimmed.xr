@@ -1,5 +1,5 @@
 fn main()->bool{
-    assert(r" a\u{125}b"[2].ord() == 92)
+    assert(r" a\u{125}b"[2].code_point() == 92)
     && assert(r" a\u{125}b"[2] == 92.chr())
     && assert(r" a\u{125}b".chars() == [" ", "a", "\\", "u", "{", "1", "2", "5", "}", "b"])
 }

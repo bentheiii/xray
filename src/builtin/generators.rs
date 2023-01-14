@@ -7,13 +7,10 @@ use crate::root_runtime_scope::EvaluatedValue;
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 
-use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
+use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
-use crate::{
-    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError,
-    RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
-};
+use crate::{forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType, xraise_opt};
 use derivative::Derivative;
 
 use either::Either;
@@ -28,8 +25,10 @@ use std::mem::size_of;
 use crate::util::lazy_bigint::LazyBigint;
 use std::sync::Arc;
 use std::{iter, rc};
+use std::borrow::Cow;
 use crate::builtin::mapping::XMapping;
 use crate::builtin::set::XSet;
+use crate::util::fenced_string::FencedString;
 
 use crate::util::multieither::{either_a, either_b, either_c, either_d, either_e, either_f, either_g, either_h, either_i, either_j, either_k, either_l, either_m_last};
 
@@ -245,7 +244,7 @@ impl<W: Write + 'static> XGenerator<W> {
         }
     }
 
-    fn iter<'a>(
+    pub(super) fn iter<'a>(
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
@@ -658,6 +657,43 @@ pub(crate) fn add_generator_len<W: Write + 'static>(
                 ret += 1;
             }
             Ok(ManagedXValue::new(XValue::Int(LazyBigint::from(ret)), rt)?.into())
+        }),
+    )
+}
+
+pub(crate) fn add_generator_join<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let t_arr = XGeneratorType::xtype(X_STRING.clone());
+
+    scope.add_func(
+        "join",
+        XFuncSpec::new_with_optional(&[&t_arr], &[&X_STRING], X_STRING.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
+            let seq0 = to_native!(a0, XGenerator<W>);
+            let delimiter = match a1 {
+                None => Cow::Owned(FencedString::from_str("")),
+                Some(ref a) => Cow::Borrowed(to_primitive!(a, String).as_ref()),
+            };
+            let mut ret = FencedString::default();
+            let mut first = true;
+
+            for x in seq0.iter(ns, rt.clone()) {
+                let item = xraise!(x?);
+                if !first {
+                    ret.push(delimiter.as_ref())
+                }
+
+                let f = to_primitive!(item, String);
+                ret.push(f.as_ref());
+                rt.borrow().can_allocate_by(|| Some(ret.size()))?;
+                first = false;
+            }
+            ret.shrink_to_fit();
+
+            Ok(ManagedXValue::new(XValue::String(Box::new(ret)), rt)?.into())
         }),
     )
 }

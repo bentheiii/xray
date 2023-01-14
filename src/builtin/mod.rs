@@ -80,12 +80,12 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_str_add(scope).unwrap();
     add_str_chars(scope).unwrap();
     add_str_cmp(scope).unwrap();
+    add_str_code_point(scope).unwrap();
     add_str_eq(scope).unwrap();
     add_str_find(scope).unwrap();
     add_str_get(scope).unwrap();
     add_str_hash(scope).unwrap();
     add_str_len(scope).unwrap();
-    add_str_ord(scope).unwrap();
     add_str_substring(scope).unwrap();
     add_str_to_str(scope).unwrap();
 
@@ -111,7 +111,6 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_sequence_count(scope).unwrap();
     add_sequence_get(scope).unwrap();
     add_sequence_insert(scope).unwrap();
-    add_sequence_join(scope).unwrap();
     add_sequence_len(scope).unwrap();
     add_sequence_map(scope).unwrap();
     add_sequence_nth(scope).unwrap();
@@ -177,13 +176,13 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
 
     add_set_type(scope).unwrap();
     add_set_add(scope).unwrap();
-    add_set_bit_and(scope).unwrap();
+    add_set_clear(scope).unwrap();
     add_set_contains(scope).unwrap();
     add_set_discard(scope).unwrap();
     add_set_len(scope).unwrap();
     add_set_new(scope).unwrap();
     add_set_remove(scope).unwrap();
-    add_set_to_array(scope).unwrap();
+    add_set_to_generator(scope).unwrap();
     add_set_update(scope).unwrap();
     add_set_dyn_new(scope).unwrap();
 
@@ -194,6 +193,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_generator_add(scope).unwrap();
     add_generator_filter(scope).unwrap();
     add_generator_get(scope).unwrap();
+    add_generator_join(scope).unwrap();
     add_generator_len(scope).unwrap();
     add_generator_map(scope).unwrap();
     add_generator_nth(scope).unwrap();

@@ -184,16 +184,16 @@ pub(crate) fn add_str_substring<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_str_ord<W: Write + 'static>(
+pub(crate) fn add_str_code_point<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
-        "ord",
+        "code_point",
         XFuncSpec::new(&[&X_STRING], X_INT.clone()),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s = to_primitive!(a0, String);
-            let Ok(chr) = s.iter().exactly_one() else { xraise!(Err(ManagedXError::new("cannot ord a string without exactly one char",rt)?)) };
+            let Ok(chr) = s.iter().exactly_one() else { xraise!(Err(ManagedXError::new("cannot get code_point a string without exactly one char",rt)?)) };
             Ok(ManagedXValue::new(XValue::Int(LazyBigint::from_u64(chr.into()).unwrap()), rt)?.into())
         }),
     )

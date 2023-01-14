@@ -118,7 +118,7 @@ CNAME = @{("_" | ASCII_ALPHA) ~ ("_" | ASCII_ALPHANUMERIC)*}
 
 NUMBER_ANY = @{hexnum | binnum | num}
 num = { int ~ ("." ~ num_digit+)? ~ (^"e" ~ "-"? ~ int)? }
- int = { num_digit+ }
+ int = { ASCII_DIGIT ~ num_digit* }
  num_digit = {ASCII_DIGIT|"_"}
 hexnum = { "0x" ~ hex_digit+ }
  hex_digit = {ASCII_HEX_DIGIT|"_"}
