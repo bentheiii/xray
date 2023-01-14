@@ -28,11 +28,10 @@ use std::mem::size_of;
 use crate::util::lazy_bigint::LazyBigint;
 use std::sync::Arc;
 use std::{iter, rc};
+use crate::builtin::mapping::XMapping;
+use crate::builtin::set::XSet;
 
-use crate::util::multieither::{
-    either_a, either_b, either_c, either_d, either_e, either_f, either_g, either_h, either_i,
-    either_j, either_k_last,
-};
+use crate::util::multieither::{either_a, either_b, either_c, either_d, either_e, either_f, either_g, either_h, either_i, either_j, either_k, either_l, either_m_last};
 
 #[derive(Debug, Clone)]
 pub(crate) struct XGeneratorType;
@@ -70,6 +69,8 @@ pub(crate) enum XGenerator<W> {
     Repeat(Rc<ManagedXValue<W>>),
     TakeWhile(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
     SkipUntil(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
+    FromSet(Rc<ManagedXValue<W>>),
+    FromMapping(Rc<ManagedXValue<W>>),
 }
 
 impl<W: 'static> XNativeValue for XGenerator<W> {
@@ -214,7 +215,7 @@ impl<W: Write + 'static> XGenerator<W> {
                     to_primitive!(guard, Bool).then(|| Ok(value))
                 })
             }),
-            Self::SkipUntil(gen, func) => either_k_last({
+            Self::SkipUntil(gen, func) => either_k({
                 let inner: BIter<_> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
                 let f = to_primitive!(func, Function);
                 let mut found_first = false;
@@ -233,6 +234,14 @@ impl<W: Write + 'static> XGenerator<W> {
                     found_first.then_some(Ok(value))
                 })
             }),
+            Self::FromSet(set) => either_l(
+                to_native!(set, XSet<W>).iter().map(|e| Ok(Ok(e)))
+            ),
+            Self::FromMapping(mapping) => either_m_last(
+                to_native!(mapping, XMapping<W>).iter().map(move |(k,v)|
+                    Ok(Ok(ManagedXValue::new(XValue::StructInstance(vec![k,v]), rt.clone())?))
+                )
+            )
         }
     }
 

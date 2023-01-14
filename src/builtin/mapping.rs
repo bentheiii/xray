@@ -48,7 +48,7 @@ type MappingBucket<W> = Vec<(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>)>;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-struct XMapping<W> {
+pub(super) struct XMapping<W> {
     inner: HashMap<u64, MappingBucket<W>>,
     len: usize,
     hash_func: Rc<ManagedXValue<W>>,
@@ -131,6 +131,12 @@ impl<W: Write + 'static> XMapping<W> {
             ),
             rt
         ))
+    }
+    
+    pub(super) fn iter<'a>(
+        &'a self,
+    ) -> impl Iterator<Item=(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>)> + 'a {
+        self.inner.iter().flat_map(|(_,b)|b.iter()).cloned()
     }
 }
 

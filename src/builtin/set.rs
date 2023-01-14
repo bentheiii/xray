@@ -47,7 +47,7 @@ type SetBucket<W> = Vec<Rc<ManagedXValue<W>>>;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-struct XSet<W> {
+pub(crate) struct XSet<W> {
     inner: HashMap<u64, SetBucket<W>>,
     len: usize,
     hash_func: Rc<ManagedXValue<W>>,
@@ -129,6 +129,12 @@ impl<W: Write + 'static> XSet<W> {
             ),
             rt
         ))
+    }
+
+    pub(super) fn iter<'a>(
+        &'a self,
+    ) -> impl Iterator<Item=Rc<ManagedXValue<W>>> + 'a {
+        self.inner.iter().flat_map(|(_,b)|b.iter()).cloned()
     }
 }
 
