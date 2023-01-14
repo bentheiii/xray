@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem::size_of;
-use std::ops::{Add};
+use std::ops::Add;
 
 #[derive(Default, Clone)]
 pub struct FencedString {
@@ -37,7 +37,7 @@ impl FencedString {
         }
     }
 
-    pub(crate) fn from_str(s: &str)->Self{
+    pub(crate) fn from_str(s: &str) -> Self {
         Self::from_string(s.to_string())
     }
 
@@ -116,39 +116,39 @@ impl FencedString {
         self.buffer.is_empty()
     }
 
-    pub(crate) fn size(&self)->usize{
-        size_of::<Self>() + self.buffer.len() + self.char_starts.len()*size_of::<usize>()
+    pub(crate) fn size(&self) -> usize {
+        size_of::<Self>() + self.buffer.len() + self.char_starts.len() * size_of::<usize>()
     }
 
-    pub(crate) fn push(&mut self, other: &Self){
+    pub(crate) fn push(&mut self, other: &Self) {
         let offset = self.buffer.len();
         self.buffer.push_str(other.as_str());
-        if self.char_starts.is_empty() && other.char_starts.is_empty(){
+        if self.char_starts.is_empty() && other.char_starts.is_empty() {
             return;
         }
-        let extension = if other.char_starts.is_empty(){
+        let extension = if other.char_starts.is_empty() {
             Either::Left(offset..other.buffer.len() + offset)
         } else {
             Either::Right(other.char_starts.iter().map(|s| s + offset))
         };
 
-        if self.char_starts.is_empty(){
+        if self.char_starts.is_empty() {
             self.char_starts = (0..offset).chain(extension).collect()
         } else {
             self.char_starts.extend(extension)
         }
     }
 
-    pub(crate) fn push_ascii(&mut self, other: &str){
+    pub(crate) fn push_ascii(&mut self, other: &str) {
         let offset = self.buffer.len();
         self.buffer.push_str(other);
-        if self.char_starts.is_empty(){
+        if self.char_starts.is_empty() {
             return;
         }
         self.char_starts.extend(offset..other.len() + offset)
     }
 
-    pub(crate) fn shrink_to_fit(&mut self){
+    pub(crate) fn shrink_to_fit(&mut self) {
         self.buffer.shrink_to_fit();
         self.char_starts.shrink_to_fit();
     }
@@ -291,10 +291,7 @@ mod tests {
             "🧡s💛dfdd💚d💙d💜",
             "y̆es",
         ];
-        let ascii_arr = [
-            "hi",
-            ""
-        ];
+        let ascii_arr = ["hi", ""];
         for x in arr.iter() {
             for y in ascii_arr.iter() {
                 let z1 = FencedString::from_string(format!("{x}{y}"));

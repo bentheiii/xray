@@ -1,0 +1,8 @@
+fn main()->bool{
+    let s = ["mary", "had", "a", "little", "lamb"];
+    let m = mapping<Sequence<str>>().set(s, "15").set([], "hi").set(["a"], "");
+
+    assert(m[s] == "15")
+    && assert(m[[]] == "hi")
+    && assert(m[["a"]] == "")
+}

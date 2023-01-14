@@ -1,0 +1,7 @@
+fn main()->bool{
+    let s = ["mary", "had", "a", "little", "lamb"];
+
+    assert(s.join(" ") == "mary had a little lamb")
+    && assert(s.join() == "maryhadalittlelamb")
+    && assert(s.join("--") == "mary--had--a--little--lamb")
+}

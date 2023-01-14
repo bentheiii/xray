@@ -1,10 +1,9 @@
 use crate::xtype::{X_BOOL, X_STRING, X_UNKNOWN};
-use crate::{unpack_types, CompilationError, RootCompilationScope, XFuncSpec, ufunc};
+use crate::{unpack_types, CompilationError, RootCompilationScope, XFuncSpec};
 
 use crate::builtin::core::xerr;
 use crate::xvalue::{ManagedXError, XFunctionFactoryOutput};
 use std::io::Write;
-use crate::xexpr::XStaticFunction;
 
 pub(crate) fn add_unknown_eq<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -40,14 +39,33 @@ pub(crate) fn add_unknown_to_str<W: Write + 'static>(
         let (a0,) = unpack_types!(types, 0);
 
         if a0 != &X_UNKNOWN.clone() {
-            return Err(format!(
-                "expected at unknown, got {a0:?}"
-            ));
+            return Err(format!("expected at unknown, got {a0:?}"));
         }
 
         Ok(XFunctionFactoryOutput::from_native(
             XFuncSpec::new(&[&X_UNKNOWN], X_STRING.clone()),
             move |_args, _ns, _tca, rt| xerr(ManagedXError::new("unknown to_str applied", rt)?),
+        ))
+    })
+}
+
+pub(crate) fn add_unknown_hash<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_dyn_func("hash", "unknown", move |_params, types, _ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+
+        let (a0,) = unpack_types!(types, 0);
+
+        if a0 != &X_UNKNOWN.clone() {
+            return Err(format!("expected at unknown, got {a0:?}"));
+        }
+
+        Ok(XFunctionFactoryOutput::from_native(
+            XFuncSpec::new(&[&X_UNKNOWN], X_STRING.clone()),
+            move |_args, _ns, _tca, rt| xerr(ManagedXError::new("unknown hash applied", rt)?),
         ))
     })
 }

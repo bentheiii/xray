@@ -1,6 +1,8 @@
 use crate::builtin::core::{eval, eval_resolved_func, get_func, unpack_native, xerr};
 use crate::native_types::{NativeType, XNativeValue};
-use crate::xtype::{XFuncSpec, X_BOOL, X_UNKNOWN, X_INT, X_STRING};
+use crate::util::fenced_string::FencedString;
+use crate::util::lazy_bigint::LazyBigint;
+use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
@@ -8,13 +10,11 @@ use crate::{
     RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
+use num_traits::Zero;
 use std::fmt::Debug;
 use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
-use num_traits::Zero;
-use crate::util::fenced_string::FencedString;
-use crate::util::lazy_bigint::LazyBigint;
 
 #[derive(Debug, Clone)]
 pub(crate) struct XOptionalType {}
@@ -302,23 +302,15 @@ pub(crate) fn add_optional_dyn_hash<W: Write + 'static>(
         let inner = get_func(ns, symbol, &[t0.clone()], &X_INT)?;
 
         Ok(XFunctionFactoryOutput::from_native(
-            XFuncSpec::new(
-                &[
-                    &XOptionalType::xtype(t0.clone()),
-                ],
-                X_INT.clone(),
-            ),
+            XFuncSpec::new(&[&XOptionalType::xtype(t0.clone())], X_INT.clone()),
             move |args, ns, _tca, rt| {
                 let a0 = xraise!(eval(&args[0], ns, &rt)?);
                 let opt0 = &to_native!(a0, XOptional<W>).value;
-                if let Some(v) = opt0{
+                if let Some(v) = opt0 {
                     let hash = eval_resolved_func(&inner, ns, rt, vec![Ok(v.clone())])?;
                     Ok(hash.into())
                 } else {
-                    Ok(
-                        ManagedXValue::new(XValue::Int(LazyBigint::zero()), rt)?
-                            .into(),
-                    )
+                    Ok(ManagedXValue::new(XValue::Int(LazyBigint::zero()), rt)?.into())
                 }
             },
         ))
@@ -340,23 +332,19 @@ pub(crate) fn add_optional_dyn_to_string<W: Write + 'static>(
         let inner = get_func(ns, symbol, &[t0.clone()], &X_STRING)?;
 
         Ok(XFunctionFactoryOutput::from_native(
-            XFuncSpec::new(
-                &[
-                    &XOptionalType::xtype(t0.clone()),
-                ],
-                X_STRING.clone(),
-            ),
+            XFuncSpec::new(&[&XOptionalType::xtype(t0.clone())], X_STRING.clone()),
             move |args, ns, _tca, rt| {
                 let a0 = xraise!(eval(&args[0], ns, &rt)?);
                 let opt0 = &to_native!(a0, XOptional<W>).value;
-                if let Some(v) = opt0{
+                if let Some(v) = opt0 {
                     let inner_v = eval_resolved_func(&inner, ns, rt, vec![Ok(v.clone())])?;
                     Ok(inner_v.into())
                 } else {
-                    Ok(
-                        ManagedXValue::new(XValue::String(Box::new(FencedString::from_str("None"))), rt)?
-                            .into(),
-                    )
+                    Ok(ManagedXValue::new(
+                        XValue::String(Box::new(FencedString::from_str("None"))),
+                        rt,
+                    )?
+                    .into())
                 }
             },
         ))
