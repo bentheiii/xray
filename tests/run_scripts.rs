@@ -1232,3 +1232,12 @@ fn test_script_211() {
 fn test_script_212() {
     run_script_from_name(function_name!())
 }
+
+#[test]
+fn test_script_213() {
+    run_script_from_name(function_name!())
+}
+#[test]
+fn test_script_214() {
+    run_script_from_name(function_name!())
+}

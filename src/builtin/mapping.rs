@@ -14,7 +14,6 @@ use crate::{
 use derivative::Derivative;
 use num_traits::ToPrimitive;
 use rc::Rc;
-use std::cmp::max;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -23,6 +22,7 @@ use std::iter::once;
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
+use crate::builtin::generators::{XGenerator, XGeneratorType};
 
 use crate::xexpr::TailedEvalResult;
 
@@ -72,7 +72,7 @@ impl<W: Write + 'static> XMapping<W> {
 
     fn with_update(
         &self,
-        items: impl Iterator<Item = (Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>)>,
+        items: impl Iterator<Item = Result<Result<(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>), Rc<ManagedXError<W>>>, RuntimeViolation>>,
         ns: &RuntimeScope<W>,
         rt: RTCell<W>,
     ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
@@ -80,7 +80,8 @@ impl<W: Write + 'static> XMapping<W> {
         let mut eq_func = None;
         let mut new_dict = self.inner.clone();
         let mut new_len = self.len;
-        for (k, v) in items {
+        for item in items {
+            let (k,v) = xraise!(item?);
             let hash_key = parse_hash!(
                 ns.eval_func_with_values(hash_func, vec![Ok(k.clone())], rt.clone(), false)?,
                 rt.clone()
@@ -133,9 +134,9 @@ impl<W: Write + 'static> XMapping<W> {
         ))
     }
     
-    pub(super) fn iter<'a>(
-        &'a self,
-    ) -> impl Iterator<Item=(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>)> + 'a {
+    pub(super) fn iter(
+        &self,
+    ) -> impl Iterator<Item=(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>)> + '_ {
         self.inner.iter().flat_map(|(_,b)|b.iter()).cloned()
     }
 }
@@ -200,7 +201,7 @@ pub(crate) fn add_mapping_set<W: Write + 'static>(
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let mapping = to_native!(a0, XMapping<W>);
             rt.borrow().can_allocate(mapping.len * 2)?;
-            mapping.with_update(once((a1, a2)), ns, rt)
+            mapping.with_update(once(Ok(Ok((a1, a2)))), ns, rt)
         }),
     )
 }
@@ -216,7 +217,7 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(
         XFuncSpec::new(
             &[
                 &mp,
-                &XSequenceType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
+                &XGeneratorType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
             ],
             mp.clone(),
         )
@@ -225,16 +226,14 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let mapping = to_native!(a0, XMapping<W>);
-            let seq0 = to_native!(a1, XSequence<W>);
-            let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-            rt.borrow()
-                .can_allocate(max(mapping.len * 2, len0 * 2))?;
-            let arr = xraise!(seq0
-                .iter(ns, rt.clone())
-                .collect::<Result<Result<Vec<_>, _>, _>>()?);
-            let items = arr.iter().map(|t| {
+            let gen0 = to_native!(a1, XGenerator<W>);
+            let items = gen0.iter(ns, rt.clone()).map(|t| {
+                let t = match t? {
+                    Ok(t) => t,
+                    Err(e) => return Ok(Err(e))
+                };
                 let tup = to_primitive!(t, StructInstance);
-                (tup[0].clone(), tup[1].clone())
+                Ok(Ok((tup[0].clone(), tup[1].clone())))
             });
             mapping.with_update(items, ns, rt)
         }),
@@ -290,7 +289,7 @@ pub(crate) fn add_mapping_lookup<W: Write + 'static>(
         }),
     )
 }
-
+/*
 pub(crate) fn add_mapping_get<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
@@ -335,6 +334,8 @@ pub(crate) fn add_mapping_get<W: Write + 'static>(
         }),
     )
 }
+
+ */
 
 pub(crate) fn add_mapping_len<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,

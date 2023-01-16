@@ -26,6 +26,8 @@ use std::mem::size_of;
 use std::ops::Neg;
 use std::sync::Arc;
 use std::{iter, rc};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hasher;
 
 use crate::util::lazy_bigint::LazyBigint;
 use crate::util::try_extend::TryExtend;
@@ -1366,7 +1368,10 @@ pub(crate) fn add_sequence_dyn_hash<W: Write + 'static>(
         let (a0, ) = unpack_types!(types, 0);
         let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
 
+        println!("!!! B.0 {t0:?}");
+
         let inner = get_func(ns, symbol, &[t0.clone()], &X_INT)?;
+
 
         Ok(XFunctionFactoryOutput::from_native(
             XFuncSpec::new(&[&XSequenceType::xtype(t0.clone())], X_INT.clone()),
@@ -1379,20 +1384,18 @@ pub(crate) fn add_sequence_dyn_hash<W: Write + 'static>(
                 let arr0 = seq0.iter(ns, rt.clone());
                 let inner_value = xraise!(ns.eval(&inner, rt.clone(), false)?.unwrap_value());
                 let inner_func = to_primitive!(inner_value, Function);
-
-                let mut ret = 0x345678usize;
-                let mut mul = 1000003usize;
+                let mut hasher = DefaultHasher::new();
 
                 for (x, search) in search(arr0, rt.clone()) {
                     search?;
+                    println!("!!! B.1.0 {x:?}\n\t{inner_func:?}");
                     let hash = xraise!(ns
                         .eval_func_with_values(inner_func, vec![x?], rt.clone(), false)?
                         .unwrap_value());
                     let Some(f) = to_primitive!(hash, Int).to_usize() else { return xerr(ManagedXError::new("hash out of bounds", rt)?); };
-                    ret ^= f;
-                    ret = ret.wrapping_mul(mul);
-                    mul = mul.wrapping_add(82520);
+                    hasher.write_usize(f);
                 }
+                let ret = hasher.finish();
 
                 Ok(ManagedXValue::new(XValue::Int(LazyBigint::from(ret)), rt)?.into())
             },

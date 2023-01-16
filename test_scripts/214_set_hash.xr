@@ -1,0 +1,17 @@
+fn main()->bool{
+    let s0 = set<int>();
+    let s1 = s0.update([1,2,3]);
+    let s2 = s0.update([1]);
+    let s3 = s0.update([2,3]);
+    let s4 = s2 | s3;
+
+    let m = mapping<Set<int>>()
+        .set(s0, 0)
+        .set(s1, 3)
+        .set(s2, 1)
+        .set(s3, 2);
+
+    assert(m[s0] == 0)
+    && assert(m[s4] == 3)
+    && assert(m[s3] == 2)
+}

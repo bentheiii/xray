@@ -169,6 +169,32 @@ fn update<T>(s: Set<T>, a: Sequence<T>)->Set<T>{
 }
 
 fn eq<T>(a: Set<T>, b: Set<T>)->bool{
-    a.len() == b.len() && a.to_generator().all((x: T)->{b.contains(x)})
+    let ord = __std_xset_order_by_cardinality(a, b);
+    a.len() == b.len() && ord::item0.to_generator().all((x: T)->{ord::item1.contains(x)})
+}
+
+fn lt<T>(a: Set<T>, b: Set<T>)->bool{
+    a.len() < b.len() && a.to_generator().all((x: T)->{b.contains(x)})
+}
+
+fn le<T>(a: Set<T>, b: Set<T>)->bool{
+    a.len() <= b.len() && a.to_generator().all((x: T)->{b.contains(x)})
+}
+
+fn gt<T>(a: Set<T>, b: Set<T>)->bool{
+    b.lt(a)
+}
+
+fn ge<T>(a: Set<T>, b: Set<T>)->bool{
+    b.le(a)
+}
+
+// mappings
+fn update<K,V>(m: Mapping<K,V>, s: Sequence<(K,V)>)->Mapping<K,V>{
+    m.update(s.to_generator())
+}
+
+fn get<K,V>(m: Mapping<K,V>, k: K)->V{
+    m.lookup(k).value("key not found")
 }
 "#;

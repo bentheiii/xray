@@ -165,7 +165,6 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_mapping_contains(scope).unwrap();
     add_mapping_discard(scope).unwrap();
     add_mapping_entries(scope).unwrap();
-    add_mapping_get(scope).unwrap();
     add_mapping_len(scope).unwrap();
     add_mapping_lookup(scope).unwrap();
     add_mapping_new(scope).unwrap();
@@ -179,6 +178,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_set_clear(scope).unwrap();
     add_set_contains(scope).unwrap();
     add_set_discard(scope).unwrap();
+    add_set_hash(scope).unwrap();
     add_set_len(scope).unwrap();
     add_set_new(scope).unwrap();
     add_set_remove(scope).unwrap();

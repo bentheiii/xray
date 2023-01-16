@@ -1,3 +1,4 @@
+use std::borrow::Cow;
 use crate::builtin::core::{eval, eval_resolved_func, get_func, unpack_native, xerr};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::util::fenced_string::FencedString;
@@ -5,10 +6,7 @@ use crate::util::lazy_bigint::LazyBigint;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
-use crate::{
-    manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError,
-    RootCompilationScope, XCallableSpec, XStaticFunction, XType,
-};
+use crate::{manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError, RootCompilationScope, XCallableSpec, XStaticFunction, XType, xraise_opt};
 use derivative::Derivative;
 use num_traits::Zero;
 use std::fmt::Debug;
@@ -234,11 +232,16 @@ pub(crate) fn add_optional_value<W: Write + 'static>(
     let opt_t = XOptionalType::xtype(t.clone());
     scope.add_func(
         "value",
-        XFuncSpec::new(&[&opt_t], t).generic(params),
+        XFuncSpec::new_with_optional(&[&opt_t], &[&X_STRING], t).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let Some(opt0) = to_native!(a0, XOptional<W>).value.clone() else { return xerr(ManagedXError::new("optional has no value", rt)?)};
-            Ok(opt0.into())
+            let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
+            let err_msg = match a1 {
+                None => "optional has no value",
+                Some(ref a) => to_primitive!(a, String).as_str(),
+            };
+            let Some(ref opt0) = to_native!(a0, XOptional<W>).value else { return xerr(ManagedXError::new(err_msg, rt)?)};
+            Ok(opt0.clone().into())
         }),
     )
 }

@@ -22,6 +22,7 @@ use std::rc;
 use std::sync::Arc;
 use crate::builtin::generators::{XGenerator, XGeneratorType};
 use crate::root_runtime_scope::EvaluatedValue;
+use crate::util::lazy_bigint::LazyBigint;
 
 use crate::xexpr::TailedEvalResult;
 
@@ -451,6 +452,29 @@ pub(crate) fn add_set_clear<W: Write + 'static>(
                 Default::default(),
                 0,
             ), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_set_hash<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+    let st = XSetType::xtype(t.clone());
+
+    scope.add_func(
+        "hash",
+        XFuncSpec::new(&[&st], X_INT.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let set0 = to_native!(a0, XSet<W>);
+            // note that since order is important to the default hasher, we'll just xor them together
+            let mut ret = 0u64;
+            for (hash, bucket) in set0.inner.iter(){
+                let v = hash.wrapping_add(bucket.len() as u64);
+                ret ^= v;
+            }
+            Ok(ManagedXValue::new(XValue::Int(LazyBigint::from(ret)), rt)?.into())
         }),
     )
 }

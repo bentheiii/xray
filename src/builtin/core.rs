@@ -197,7 +197,7 @@ pub(super) fn get_func<W: Write + 'static>(
         return Err(format!("expected {symbol:?} function, got {ret_xtype:?}"));
     };
     if &func_spec.ret != expected_return_type {
-        return Err(format!("expected {symbol:?}::<{arguments:?}> to return {expected_return_type:?}, got {:?} instead", func_spec.ret));
+        return Err(format!("expected {symbol:?}{{{arguments:?}}} to return {expected_return_type:?}, got {:?} instead", func_spec.ret));
     }
     Ok(ret)
 }
