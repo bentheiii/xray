@@ -9,7 +9,7 @@ use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::{TailedEvalResult, XExpr};
-use crate::{forward_err, Identifier, RTCell, XStaticFunction, XType};
+use crate::{Identifier, RTCell, XStaticFunction, XType};
 use std::ops::Neg;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -200,18 +200,6 @@ pub(super) fn get_func<W: Write + 'static>(
         return Err(format!("expected {symbol:?}{{{arguments:?}}} to return {expected_return_type:?}, got {:?} instead", func_spec.ret));
     }
     Ok(ret)
-}
-
-pub(super) fn eval_resolved_func<W: Write + 'static>(
-    expr: &XExpr<W>,
-    ns: &RuntimeScope<W>,
-    rt: RTCell<W>,
-    args: Vec<EvaluatedValue<W>>,
-) -> Result<EvaluatedValue<W>, RuntimeViolation> {
-    let managed_func = forward_err!(ns.eval(expr, rt.clone(), false)?.unwrap_value());
-    let func = to_primitive!(managed_func, Function);
-    ns.eval_func_with_values(func, args, rt, false)
-        .map(|v| v.unwrap_value())
 }
 
 #[macro_export]

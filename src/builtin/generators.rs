@@ -10,7 +10,10 @@ use crate::runtime_violation::RuntimeViolation;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
-use crate::{forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType, xraise_opt};
+use crate::{
+    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, xraise_opt,
+    CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
+};
 use derivative::Derivative;
 
 use either::Either;
@@ -22,15 +25,18 @@ use std::fmt::Debug;
 use std::io::Write;
 use std::mem::size_of;
 
-use crate::util::lazy_bigint::LazyBigint;
-use std::sync::Arc;
-use std::{iter, rc};
-use std::borrow::Cow;
 use crate::builtin::mapping::XMapping;
 use crate::builtin::set::XSet;
 use crate::util::fenced_string::FencedString;
+use crate::util::lazy_bigint::LazyBigint;
+use std::borrow::Cow;
+use std::sync::Arc;
+use std::{iter, rc};
 
-use crate::util::multieither::{either_a, either_b, either_c, either_d, either_e, either_f, either_g, either_h, either_i, either_j, either_k, either_l, either_m_last};
+use crate::util::multieither::{
+    either_a, either_b, either_c, either_d, either_e, either_f, either_g, either_h, either_i,
+    either_j, either_k, either_l, either_m_last,
+};
 
 #[derive(Debug, Clone)]
 pub(crate) struct XGeneratorType;
@@ -233,14 +239,15 @@ impl<W: Write + 'static> XGenerator<W> {
                     found_first.then_some(Ok(value))
                 })
             }),
-            Self::FromSet(set) => either_l(
-                to_native!(set, XSet<W>).iter().map(|e| Ok(Ok(e)))
-            ),
-            Self::FromMapping(mapping) => either_m_last(
-                to_native!(mapping, XMapping<W>).iter().map(move |(k,v)|
-                    Ok(Ok(ManagedXValue::new(XValue::StructInstance(vec![k,v]), rt.clone())?))
-                )
-            )
+            Self::FromSet(set) => either_l(to_native!(set, XSet<W>).iter().map(|e| Ok(Ok(e)))),
+            Self::FromMapping(mapping) => {
+                either_m_last(to_native!(mapping, XMapping<W>).iter().map(move |(k, v)| {
+                    Ok(Ok(ManagedXValue::new(
+                        XValue::StructInstance(vec![k, v]),
+                        rt.clone(),
+                    )?))
+                }))
+            }
         }
     }
 

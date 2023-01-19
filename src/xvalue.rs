@@ -43,7 +43,12 @@ type DynBindCallback<W> = dyn Fn(
     &mut CompilationScope<'_, W>,
     Option<&[Arc<XType>]>,
 ) -> Result<XFunctionFactoryOutput<W>, String>;
-pub(crate) type DynEvalCallback<W> = Rc<dyn Fn(&RuntimeScope<W>, RTCell<W>) -> Result<Result<XStaticFunction<W>, Rc<ManagedXError<W>>>, RuntimeViolation>>;
+pub(crate) type DynEvalCallback<W> = Rc<
+    dyn Fn(
+        &RuntimeScope<W>,
+        RTCell<W>,
+    ) -> Result<Result<XStaticFunction<W>, Rc<ManagedXError<W>>>, RuntimeViolation>,
+>;
 
 pub type NativeCallable<W> = Rc<NativeCallback<W>>;
 pub type DynBind<W> = Rc<DynBindCallback<W>>;
@@ -57,38 +62,45 @@ impl<W: Write + 'static> XFunctionFactoryOutput<W> {
     pub(crate) fn from_native(
         spec: XFuncSpec,
         callable: impl Fn(
-            &[XExpr<W>],
-            &RuntimeScope<'_, W>,
-            bool,
-            RTCell<W>,
-        ) -> Result<TailedEvalResult<W>, RuntimeViolation>
-        + Clone
-        + 'static,
+                &[XExpr<W>],
+                &RuntimeScope<'_, W>,
+                bool,
+                RTCell<W>,
+            ) -> Result<TailedEvalResult<W>, RuntimeViolation>
+            + Clone
+            + 'static,
     ) -> Self {
         Self {
             spec,
-            func: Rc::new(move |_,_| Ok(Ok(XStaticFunction::from_native(callable.clone())))),
+            func: Rc::new(move |_, _| Ok(Ok(XStaticFunction::from_native(callable.clone())))),
         }
     }
 
     pub(crate) fn from_delayed_native<F>(
         spec: XFuncSpec,
-        callable: impl Fn(&RuntimeScope<W>, RTCell<W>) -> Result<Result<F, Rc<ManagedXError<W>>>, RuntimeViolation>
-        + 'static,
-    ) -> Self where F: Fn(
-        &[XExpr<W>],
-        &RuntimeScope<'_, W>,
-        bool,
-        RTCell<W>,
-    ) -> Result<TailedEvalResult<W>, RuntimeViolation> + 'static {
+        callable: impl Fn(
+                &RuntimeScope<W>,
+                RTCell<W>,
+            ) -> Result<Result<F, Rc<ManagedXError<W>>>, RuntimeViolation>
+            + 'static,
+    ) -> Self
+    where
+        F: Fn(
+                &[XExpr<W>],
+                &RuntimeScope<'_, W>,
+                bool,
+                RTCell<W>,
+            ) -> Result<TailedEvalResult<W>, RuntimeViolation>
+            + 'static,
+    {
         Self {
             spec,
-            func: Rc::new(move |ns, rt|
-                Ok(Ok(XStaticFunction::from_native(match callable(ns, rt)?{
-                    Ok(v)=>v,
-                    Err(e)=>return Ok(Err(e))
+            func: Rc::new(move |ns, rt| {
+                Ok(Ok(XStaticFunction::from_native(match callable(ns, rt)? {
+                    Ok(v) => v,
+                    Err(e) => return Ok(Err(e)),
                 })))
-            ),
+            }),
         }
     }
 }

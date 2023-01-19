@@ -41,7 +41,6 @@ mk_either_types!(
     >
 );
 
-
 macro_rules! mk_eithers {
     ([$fn_name: ident/$fn_name_last:ident,]<$t0:ident, $t1:ident> => {$out_t: ident})=>{
         pub(crate) fn $fn_name<$t0, $t1>(v: $t0) -> $out_t<$t0, $t1> {

@@ -875,7 +875,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 }
                 OverloadToConsider::FromFactory(t, f) => {
                     let cell_idx = namespace.cells.ipush(Cell::Variable(t));
-                    namespace.declarations.push(Declaration::FactoryFunction {cell_idx, cb: f});
+                    namespace
+                        .declarations
+                        .push(Declaration::FactoryFunction { cell_idx, cb: f });
                     cell_idx
                 }
             };

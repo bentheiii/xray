@@ -36,7 +36,7 @@ pub enum Declaration<W> {
     },
     FactoryFunction {
         cell_idx: usize,
-        #[derivative(Debug="ignore")]
+        #[derivative(Debug = "ignore")]
         cb: DynEvalCallback<W>,
     },
     Function {

@@ -1,12 +1,14 @@
 use crate::xtype::{XFuncSpec, X_BOOL};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
-use crate::{to_primitive, unpack_types, xraise, CompilationError, RootCompilationScope, XType, forward_err};
+use crate::{
+    forward_err, to_primitive, unpack_types, xraise, CompilationError, RootCompilationScope, XType,
+};
 
-use crate::builtin::core::{eval, eval_resolved_func, get_func};
+use crate::builtin::core::{eval, get_func};
+use crate::runtime_scope::RuntimeScope;
 use crate::xexpr::{XExpr, XStaticFunction};
 use std::io::Write;
 use std::sync::Arc;
-use crate::runtime_scope::RuntimeScope;
 
 pub(crate) fn add_tuple_empty_and<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -49,7 +51,7 @@ pub(crate) fn add_tuple_dyn_eq<W: Write + 'static>(
                     let mut inner_values = Vec::with_capacity(inner_funcs.len());
                     for inner in inner_funcs.iter() {
                         inner_values.push(
-                            forward_err!(ns.eval(&inner, rt.clone(), false)?.unwrap_value())
+                            forward_err!(ns.eval(inner, rt.clone(), false)?.unwrap_value())
                         )
                     }
                     inner_values

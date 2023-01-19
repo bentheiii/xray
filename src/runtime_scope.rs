@@ -135,7 +135,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
             None
         };
         let mut cells = Vec::with_capacity(cell_specs.len());
-        for cell_spec in cell_specs{
+        for cell_spec in cell_specs {
             let cell = EvaluationCell::from_spec(cell_spec, scope_parent)?;
             cells.push(cell);
         }
@@ -242,7 +242,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                     )?);
                     ret.cells[*cell_idx].put(new_value)
                 }
-                Declaration::FactoryFunction {cell_idx, cb} =>{
+                Declaration::FactoryFunction { cell_idx, cb } => {
                     let func_raw = cb(&ret, rt.clone())?;
                     let func = func_raw.unwrap();
                     let new_value = Ok(ManagedXValue::new(

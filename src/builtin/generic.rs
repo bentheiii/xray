@@ -1,19 +1,22 @@
 use crate::xexpr::XExpr;
 use crate::xtype::{Bind, XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
-use crate::{to_primitive, ufunc, unpack_types, xraise, xraise_opt, CompilationError, RootCompilationScope, XStaticFunction, XType, forward_err};
+use crate::{
+    forward_err, to_primitive, ufunc, unpack_types, xraise, xraise_opt, CompilationError,
+    RootCompilationScope, XStaticFunction, XType,
+};
 use rc::Rc;
 
 use crate::builtin::builtin_permissions;
-use crate::builtin::core::{eval, eval_resolved_func, get_func};
+use crate::builtin::core::{eval, get_func};
 use crate::runtime::RTCell;
+use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::fenced_string::FencedString;
 use num_traits::Signed;
 use std::io::Write;
 use std::sync::Arc;
 use std::{iter, rc};
-use crate::runtime_scope::RuntimeScope;
 
 pub(crate) fn add_if<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -61,7 +64,7 @@ pub(crate) fn add_debug<W: Write + 'static>(
             } else {
                 writeln!(rt.borrow_mut().stdout, "{a0:?}")
             }
-                .map_err(|e| RuntimeViolation::OutputFailure(Rc::new(e)))?;
+            .map_err(|e| RuntimeViolation::OutputFailure(Rc::new(e)))?;
             Ok(a0.into())
         }),
     )
@@ -115,16 +118,19 @@ pub(crate) fn add_ne<W: Write + 'static>(
         Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[t0, t1], X_BOOL.clone()),
             move |ns, rt| {
-                let inner_value =
-                    forward_err!(ns.eval(&eq_expr, rt.clone(), false)?.unwrap_value());
-                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
-                    let a0 = eval(&args[0], ns, &rt)?;
-                    let a1 = eval(&args[1], ns, &rt)?;
-                    let func = to_primitive!(inner_value, Function);
-                    let eq = xraise!(ns.eval_func_with_values(func, vec![a0, a1], rt.clone(), false)?.unwrap_value());
-                    let is_eq = to_primitive!(eq, Bool);
-                    Ok(ManagedXValue::new(XValue::Bool(!*is_eq), rt)?.into())
-                }))
+                let inner_value = forward_err!(ns.eval(&eq_expr, rt, false)?.unwrap_value());
+                Ok(Ok(
+                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                        let a0 = eval(&args[0], ns, &rt)?;
+                        let a1 = eval(&args[1], ns, &rt)?;
+                        let func = to_primitive!(inner_value, Function);
+                        let eq = xraise!(ns
+                            .eval_func_with_values(func, vec![a0, a1], rt.clone(), false)?
+                            .unwrap_value());
+                        let is_eq = to_primitive!(eq, Bool);
+                        Ok(ManagedXValue::new(XValue::Bool(!*is_eq), rt)?.into())
+                    },
+                ))
             },
         ))
     })
@@ -145,7 +151,8 @@ pub(crate) fn add_display<W: Write + 'static>(
 
             let (t, t1) = unpack_types!(types, 0 | 1);
             if let Some(t1) = t1 {
-                if let XType::String = t1.as_ref() {} else {
+                if let XType::String = t1.as_ref() {
+                } else {
                     return Err(format!("argument 2 must be a string, got {t1:?}"));
                 }
             }
@@ -156,31 +163,35 @@ pub(crate) fn add_display<W: Write + 'static>(
                 XFuncSpec::new_with_optional(&[&t.clone()], &[&X_STRING], t.clone()),
                 move |ns, rt| {
                     let inner_value =
-                        forward_err!(ns.eval(&inner_to_str, rt.clone(), false)?.unwrap_value());
-                    Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<W>| {
-                        rt.borrow()
-                            .limits
-                            .check_permission(&builtin_permissions::PRINT)?;
-                        let a0 = eval(&args[0], ns, &rt)?;
-                        let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
-                        let func = to_primitive!(inner_value, Function);
-                        let string = xraise!(ns.eval_func_with_values(func, vec![a0.clone()], rt.clone(), false)?.unwrap_value());
-                        let str_slice = to_primitive!(string, String);
-                        if let Some(a1) = a1 {
-                            let b = to_primitive!(a1, String).as_str();
-                            writeln!(rt.borrow_mut().stdout, "{b}{str_slice}")
-                        } else {
-                            writeln!(rt.borrow_mut().stdout, "{str_slice}")
-                        }
+                        forward_err!(ns.eval(&inner_to_str, rt, false)?.unwrap_value());
+                    Ok(Ok(
+                        move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<W>| {
+                            rt.borrow()
+                                .limits
+                                .check_permission(&builtin_permissions::PRINT)?;
+                            let a0 = eval(&args[0], ns, &rt)?;
+                            let a1 =
+                                xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
+                            let func = to_primitive!(inner_value, Function);
+                            let string = xraise!(ns
+                                .eval_func_with_values(func, vec![a0.clone()], rt.clone(), false)?
+                                .unwrap_value());
+                            let str_slice = to_primitive!(string, String);
+                            if let Some(a1) = a1 {
+                                let b = to_primitive!(a1, String).as_str();
+                                writeln!(rt.borrow_mut().stdout, "{b}{str_slice}")
+                            } else {
+                                writeln!(rt.borrow_mut().stdout, "{str_slice}")
+                            }
                             .map_err(|e| RuntimeViolation::OutputFailure(Rc::new(e)))?;
-                        Ok(a0.into())
-                    }))
+                            Ok(a0.into())
+                        },
+                    ))
                 },
             ))
         },
     )
 }
-
 
 pub(crate) fn add_cmp_lt<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -198,18 +209,22 @@ pub(crate) fn add_cmp_lt<W: Write + 'static>(
         Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[t0, t1], X_BOOL.clone()),
             move |ns, rt| {
-                let inner_value =
-                    forward_err!(ns.eval(&inner_func, rt.clone(), false)?.unwrap_value());
-                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
-                    let a0 = eval(&args[0], ns, &rt)?;
-                    let a1 = eval(&args[1], ns, &rt)?;
-                    let func = to_primitive!(inner_value, Function);
-                    let cmp = xraise!(ns.eval_func_with_values(func, vec![a0, a1], rt.clone(), false)?.unwrap_value());
-                    Ok(
-                        ManagedXValue::new(XValue::Bool(to_primitive!(cmp, Int).is_negative()), rt)?
-                            .into(),
-                    )
-                }))
+                let inner_value = forward_err!(ns.eval(&inner_func, rt, false)?.unwrap_value());
+                Ok(Ok(
+                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                        let a0 = eval(&args[0], ns, &rt)?;
+                        let a1 = eval(&args[1], ns, &rt)?;
+                        let func = to_primitive!(inner_value, Function);
+                        let cmp = xraise!(ns
+                            .eval_func_with_values(func, vec![a0, a1], rt.clone(), false)?
+                            .unwrap_value());
+                        Ok(ManagedXValue::new(
+                            XValue::Bool(to_primitive!(cmp, Int).is_negative()),
+                            rt,
+                        )?
+                        .into())
+                    },
+                ))
             },
         ))
     })
@@ -232,18 +247,22 @@ pub(crate) fn add_cmp_gt<W: Write + 'static>(
         Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[t0, t1], X_BOOL.clone()),
             move |ns, rt| {
-                let inner_value =
-                    forward_err!(ns.eval(&inner_func, rt.clone(), false)?.unwrap_value());
-                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
-                    let a0 = eval(&args[0], ns, &rt)?;
-                    let a1 = eval(&args[1], ns, &rt)?;
-                    let func = to_primitive!(inner_value, Function);
-                    let cmp = xraise!(ns.eval_func_with_values(func, vec![a0, a1], rt.clone(), false)?.unwrap_value());
-                    Ok(
-                        ManagedXValue::new(XValue::Bool(to_primitive!(cmp, Int).is_positive()), rt)?
-                            .into(),
-                    )
-                }))
+                let inner_value = forward_err!(ns.eval(&inner_func, rt, false)?.unwrap_value());
+                Ok(Ok(
+                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                        let a0 = eval(&args[0], ns, &rt)?;
+                        let a1 = eval(&args[1], ns, &rt)?;
+                        let func = to_primitive!(inner_value, Function);
+                        let cmp = xraise!(ns
+                            .eval_func_with_values(func, vec![a0, a1], rt.clone(), false)?
+                            .unwrap_value());
+                        Ok(ManagedXValue::new(
+                            XValue::Bool(to_primitive!(cmp, Int).is_positive()),
+                            rt,
+                        )?
+                        .into())
+                    },
+                ))
             },
         ))
     })
@@ -265,18 +284,22 @@ pub(crate) fn add_cmp_ge<W: Write + 'static>(
         Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[t0, t1], X_BOOL.clone()),
             move |ns, rt| {
-                let inner_value =
-                    forward_err!(ns.eval(&inner_func, rt.clone(), false)?.unwrap_value());
-                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
-                    let a0 = eval(&args[0], ns, &rt)?;
-                    let a1 = eval(&args[1], ns, &rt)?;
-                    let func = to_primitive!(inner_value, Function);
-                    let cmp = xraise!(ns.eval_func_with_values(func, vec![a0, a1], rt.clone(), false)?.unwrap_value());
-                    Ok(
-                        ManagedXValue::new(XValue::Bool(!to_primitive!(cmp, Int).is_negative()), rt)?
-                            .into(),
-                    )
-                }))
+                let inner_value = forward_err!(ns.eval(&inner_func, rt, false)?.unwrap_value());
+                Ok(Ok(
+                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                        let a0 = eval(&args[0], ns, &rt)?;
+                        let a1 = eval(&args[1], ns, &rt)?;
+                        let func = to_primitive!(inner_value, Function);
+                        let cmp = xraise!(ns
+                            .eval_func_with_values(func, vec![a0, a1], rt.clone(), false)?
+                            .unwrap_value());
+                        Ok(ManagedXValue::new(
+                            XValue::Bool(!to_primitive!(cmp, Int).is_negative()),
+                            rt,
+                        )?
+                        .into())
+                    },
+                ))
             },
         ))
     })
@@ -299,18 +322,22 @@ pub(crate) fn add_cmp_le<W: Write + 'static>(
         Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[t0, t1], X_BOOL.clone()),
             move |ns, rt| {
-                let inner_value =
-                    forward_err!(ns.eval(&inner_func, rt.clone(), false)?.unwrap_value());
-                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
-                    let a0 = eval(&args[0], ns, &rt)?;
-                    let a1 = eval(&args[1], ns, &rt)?;
-                    let func = to_primitive!(inner_value, Function);
-                    let cmp = xraise!(ns.eval_func_with_values(func, vec![a0, a1], rt.clone(), false)?.unwrap_value());
-                    Ok(
-                        ManagedXValue::new(XValue::Bool(!to_primitive!(cmp, Int).is_positive()), rt)?
-                            .into(),
-                    )
-                }))
+                let inner_value = forward_err!(ns.eval(&inner_func, rt, false)?.unwrap_value());
+                Ok(Ok(
+                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                        let a0 = eval(&args[0], ns, &rt)?;
+                        let a1 = eval(&args[1], ns, &rt)?;
+                        let func = to_primitive!(inner_value, Function);
+                        let cmp = xraise!(ns
+                            .eval_func_with_values(func, vec![a0, a1], rt.clone(), false)?
+                            .unwrap_value());
+                        Ok(ManagedXValue::new(
+                            XValue::Bool(!to_primitive!(cmp, Int).is_positive()),
+                            rt,
+                        )?
+                        .into())
+                    },
+                ))
             },
         ))
     })

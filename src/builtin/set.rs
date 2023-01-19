@@ -1,7 +1,10 @@
 use crate::builtin::core::{eval, get_func, xerr};
+use crate::builtin::generators::{XGenerator, XGeneratorType};
 use crate::native_types::{NativeType, XNativeValue};
+use crate::root_runtime_scope::EvaluatedValue;
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
+use crate::util::lazy_bigint::LazyBigint;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
@@ -20,9 +23,6 @@ use std::iter::once;
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
-use crate::builtin::generators::{XGenerator, XGeneratorType};
-use crate::root_runtime_scope::EvaluatedValue;
-use crate::util::lazy_bigint::LazyBigint;
 
 use crate::xexpr::{TailedEvalResult, XExpr};
 
@@ -72,7 +72,7 @@ impl<W: Write + 'static> XSet<W> {
 
     fn with_update(
         &self,
-        items: impl Iterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>>,
+        items: impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>>,
         ns: &RuntimeScope<W>,
         rt: RTCell<W>,
     ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
@@ -133,9 +133,7 @@ impl<W: Write + 'static> XSet<W> {
         ))
     }
 
-    pub(super) fn iter(
-        &self,
-    ) -> impl Iterator<Item=Rc<ManagedXValue<W>>> + '_ {
+    pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue<W>>> + '_ {
         self.inner.iter().flat_map(|(_, b)| b.iter()).cloned()
     }
 }
@@ -173,7 +171,7 @@ pub(crate) fn add_set_new<W: Write + 'static>(
             ],
             XSetType::xtype(t),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let hash_func = xraise!(eval(&args[0], ns, &rt)?);
             let eq_func = xraise!(eval(&args[1], ns, &rt)?);
@@ -193,14 +191,7 @@ pub(crate) fn add_set_update<W: Write + 'static>(
 
     scope.add_func(
         "update",
-        XFuncSpec::new(
-            &[
-                &st,
-                &XGeneratorType::xtype(t),
-            ],
-            st.clone(),
-        )
-            .generic(params),
+        XFuncSpec::new(&[&st, &XGeneratorType::xtype(t)], st.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -435,7 +426,7 @@ pub(crate) fn add_set_clear<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
-    let st = XSetType::xtype(t.clone());
+    let st = XSetType::xtype(t);
 
     scope.add_func(
         "clear",
@@ -446,12 +437,15 @@ pub(crate) fn add_set_clear<W: Write + 'static>(
             if set0.len == 0 {
                 return Ok(a0.clone().into());
             }
-            Ok(manage_native!(XSet::new(
-                set0.hash_func.clone(),
-                set0.eq_func.clone(),
-                Default::default(),
-                0,
-            ), rt))
+            Ok(manage_native!(
+                XSet::new(
+                    set0.hash_func.clone(),
+                    set0.eq_func.clone(),
+                    Default::default(),
+                    0,
+                ),
+                rt
+            ))
         }),
     )
 }
@@ -460,7 +454,7 @@ pub(crate) fn add_set_hash<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
-    let st = XSetType::xtype(t.clone());
+    let st = XSetType::xtype(t);
 
     scope.add_func(
         "hash",
@@ -486,7 +480,7 @@ pub(crate) fn add_set_dyn_new<W: Write + 'static>(
     let hash_symbol = scope.identifier("hash");
 
     scope.add_dyn_func("set", "default-funcs", move |_params, _types, ns, bind| {
-        let (a0, ) = unpack_types!(bind, 0);
+        let (a0,) = unpack_types!(bind, 0);
 
         let inner_eq = get_func(ns, eq_symbol, &[a0.clone(), a0.clone()], &X_BOOL)?;
         let inner_hash = get_func(ns, hash_symbol, &[a0.clone()], &X_INT)?;
@@ -497,13 +491,20 @@ pub(crate) fn add_set_dyn_new<W: Write + 'static>(
                 let inner_equal_value =
                     forward_err!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
                 let inner_hash_value =
-                    forward_err!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
-                Ok(Ok(move |_args: &[XExpr<W>], _ns: &RuntimeScope<'_, W>, _tca, rt| {
-                    Ok(manage_native!(
-                    XSet::new(inner_hash_value.clone(), inner_equal_value.clone(), Default::default(), 0),
-                    rt
+                    forward_err!(ns.eval(&inner_hash, rt, false)?.unwrap_value());
+                Ok(Ok(
+                    move |_args: &[XExpr<W>], _ns: &RuntimeScope<'_, W>, _tca, rt| {
+                        Ok(manage_native!(
+                            XSet::new(
+                                inner_hash_value.clone(),
+                                inner_equal_value.clone(),
+                                Default::default(),
+                                0
+                            ),
+                            rt
+                        ))
+                    },
                 ))
-                }))
             },
         ))
     })
