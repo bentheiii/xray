@@ -1,11 +1,13 @@
-use crate::builtin::core::{eval, xerr};
+use crate::builtin::core::{eval, get_func, unpack_native, xerr};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::native_types::{NativeType, XNativeValue};
-use crate::xtype::{XFuncSpec, X_INT, X_UNKNOWN};
-use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
+use crate::runtime_scope::RuntimeScope;
+use crate::xexpr::XExpr;
+use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
+use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::{
-    manage_native, to_native, xraise, CompilationError, RootCompilationScope, XStaticFunction,
-    XType,
+    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError,
+    RootCompilationScope, XStaticFunction, XType,
 };
 use derivative::Derivative;
 use rc::Rc;
@@ -265,4 +267,63 @@ pub(crate) fn add_stack_tail<W: Write + 'static>(
             }
         }),
     )
+}
+
+pub(crate) fn add_stack_dyn_eq<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let eq_symbol = scope.identifier("eq");
+
+    scope.add_dyn_func("eq", "stacks", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+
+        let (a0, a1) = unpack_types!(types, 0, 1);
+        let [t0] = unpack_native(a0, "Stack")? else { unreachable!() };
+        let [t1] = unpack_native(a1, "Stack")? else { unreachable!() };
+        let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t1.clone()], &X_BOOL)?;
+
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(
+                &[
+                    &XStackType::xtype(t0.clone()),
+                    &XStackType::xtype(t1.clone()),
+                ],
+                X_BOOL.clone(),
+            ),
+            move |ns, rt| {
+                let inner_value = forward_err!(ns.eval(&inner_eq, rt, false)?.unwrap_value());
+                Ok(Ok(
+                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                        let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                        let a1 = xraise!(eval(&args[1], ns, &rt)?);
+                        let s0 = &to_native!(a0, XStack<W>);
+                        let s1 = &to_native!(a1, XStack<W>);
+                        if s0.length != s1.length {
+                            return Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into());
+                        }
+                        let func = to_primitive!(inner_value, Function);
+                        for (i0, i1) in s0.iter().zip(s1.iter()) {
+                            let eq = *to_primitive!(
+                                xraise!(ns
+                                    .eval_func_with_values(
+                                        func,
+                                        vec![Ok(i0), Ok(i1)],
+                                        rt.clone(),
+                                        false
+                                    )?
+                                    .unwrap_value()),
+                                Bool
+                            );
+                            if !eq {
+                                return Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into());
+                            }
+                        }
+                        Ok(ManagedXValue::new(XValue::Bool(true), rt)?.into())
+                    },
+                ))
+            },
+        ))
+    })
 }

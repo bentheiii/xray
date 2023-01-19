@@ -146,6 +146,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_stack_tail(scope).unwrap();
     add_stack_to_array(scope).unwrap();
     add_stack_to_array_reversed(scope).unwrap();
+    add_stack_dyn_eq(scope).unwrap();
 
     add_optional_type(scope).unwrap();
     add_optional_and(scope).unwrap();

@@ -4,12 +4,13 @@ use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
+use crate::util::lazy_bigint::LazyBigint;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise,
-    CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
+    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError,
+    RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
 use num_traits::ToPrimitive;
@@ -21,7 +22,6 @@ use std::iter::once;
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
-use crate::util::lazy_bigint::LazyBigint;
 
 use crate::xexpr::{TailedEvalResult, XExpr};
 
@@ -88,7 +88,7 @@ impl<W: Write + 'static> XMapping<W> {
     fn with_update(
         &self,
         items: impl Iterator<
-            Item=Result<
+            Item = Result<
                 Result<(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>), Rc<ManagedXError<W>>>,
                 RuntimeViolation,
             >,
@@ -120,35 +120,36 @@ impl<W: Write + 'static> XMapping<W> {
             }
         }
 
-        Ok(manage_native!(
-            ret,
-            rt
-        ))
+        Ok(manage_native!(ret, rt))
     }
 
-    fn locate(&self, key: &Rc<ManagedXValue<W>>, ns: &RuntimeScope<W>, rt: RTCell<W>) -> Result<Result<KeyLocation, Rc<ManagedXError<W>>>, RuntimeViolation> {
+    fn locate(
+        &self,
+        key: &Rc<ManagedXValue<W>>,
+        ns: &RuntimeScope<W>,
+        rt: RTCell<W>,
+    ) -> Result<Result<KeyLocation, Rc<ManagedXError<W>>>, RuntimeViolation> {
         let hash_func = to_primitive!(self.hash_func, Function);
-        let raw_hash = forward_err!(ns.eval_func_with_values(hash_func, vec![Ok(key.clone())], rt.clone(), false)?.unwrap_value());
+        let raw_hash = forward_err!(ns
+            .eval_func_with_values(hash_func, vec![Ok(key.clone())], rt.clone(), false)?
+            .unwrap_value());
         let hash_key = forward_err!(to_primitive!(raw_hash, Int)
             .to_u64()
-            .ok_or(ManagedXError::new(
-                "hash is out of bounds",
-                rt.clone()
-            )?));
+            .ok_or(ManagedXError::new("hash is out of bounds", rt.clone())?));
         let Some(bucket) = self.inner.get(&hash_key) else { return Ok(Ok(KeyLocation::Vacant(hash_key))); };
         let eq_func = Some(to_primitive!(self.eq_func, Function));
         for (i, (k, _)) in bucket.iter().enumerate() {
             if *to_primitive!(
-                            forward_err!(ns
-                                .eval_func_with_values(
-                                    eq_func.unwrap(),
-                                    vec![Ok(key.clone()), Ok(k.clone())],
-                                    rt.clone(),
-                                    false
-                                )?
-                                .unwrap_value()),
-                            Bool
-                        ) {
+                forward_err!(ns
+                    .eval_func_with_values(
+                        eq_func.unwrap(),
+                        vec![Ok(key.clone()), Ok(k.clone())],
+                        rt.clone(),
+                        false
+                    )?
+                    .unwrap_value()),
+                Bool
+            ) {
                 return Ok(Ok(KeyLocation::Found((hash_key, i))));
             }
         }
@@ -161,7 +162,7 @@ impl<W: Write + 'static> XMapping<W> {
 
     pub(super) fn iter(
         &self,
-    ) -> impl Iterator<Item=(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>)> + '_ {
+    ) -> impl Iterator<Item = (Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>)> + '_ {
         self.inner.iter().flat_map(|(_, b)| b.iter()).cloned()
     }
 }
@@ -199,7 +200,7 @@ pub(crate) fn add_mapping_new<W: Write + 'static>(
             ],
             XMappingType::xtype(k, X_UNKNOWN.clone()),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let hash_func = xraise!(eval(&args[0], ns, &rt)?);
             let eq_func = xraise!(eval(&args[1], ns, &rt)?);
@@ -246,7 +247,7 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(
             ],
             mp.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -278,8 +279,15 @@ pub(crate) fn add_mapping_lookup<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let mapping = to_native!(a0, XMapping<W>);
-            let val = xraise!(mapping.locate(&a1, ns, rt.clone())?).found().map(|c| mapping.get(c));
-            Ok(manage_native!(XOptional::<W> { value: val.cloned() }, rt))
+            let val = xraise!(mapping.locate(&a1, ns, rt.clone())?)
+                .found()
+                .map(|c| mapping.get(c));
+            Ok(manage_native!(
+                XOptional::<W> {
+                    value: val.cloned()
+                },
+                rt
+            ))
         }),
     )
 }
@@ -313,14 +321,11 @@ pub(crate) fn add_mapping_to_generator<W: Write + 'static>(
             &[&mp],
             XGeneratorType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let gen = XGenerator::FromMapping(a0);
-            Ok(manage_native!(
-                gen,
-                rt
-            ))
+            Ok(manage_native!(gen, rt))
         }),
     )
 }
@@ -507,7 +512,7 @@ pub(crate) fn add_mapping_dyn_new<W: Write + 'static>(
         "mapping",
         "default-funcs",
         move |_params, _types, ns, bind| {
-            let (a0, ) = unpack_types!(bind, 0);
+            let (a0,) = unpack_types!(bind, 0);
 
             let inner_eq = get_func(ns, eq_symbol, &[a0.clone(), a0.clone()], &X_BOOL)?;
             let inner_hash = get_func(ns, hash_symbol, &[a0.clone()], &X_INT)?;

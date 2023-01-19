@@ -1,0 +1,15 @@
+fn main()->bool{
+    let a0 = stack();
+    let a1 = a0.push(10);
+    let a2 = stack().push(20);
+    let a3 = a1.push(20);
+    let a4 = stack().push(20);
+
+    assert(a0 == a0)
+    && assert(a1 == a1)
+    && assert(a2 == a2)
+    && assert(a3 == a3)
+    && assert(a4 == a2)
+    && assert(a0 != a1)
+    && assert(a1 != a2)
+}

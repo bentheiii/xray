@@ -174,7 +174,6 @@ pub struct XFuncSpec {
     pub generic_params: Option<Vec<Identifier>>,
     pub(crate) params: Vec<XFuncParamSpec>,
     pub ret: Arc<XType>,
-    // todo can we remove this?
     pub(crate) short_circuit_overloads: bool,
 }
 
@@ -207,6 +206,13 @@ impl XFuncSpec {
     pub(crate) fn generic(self, gen_params: Vec<Identifier>) -> Self {
         Self {
             generic_params: Some(gen_params),
+            ..self
+        }
+    }
+
+    pub(crate) fn short_circuit_overloads(self)->Self{
+        Self {
+            short_circuit_overloads: true,
             ..self
         }
     }

@@ -22,7 +22,7 @@ pub(crate) fn add_unknown_eq<W: Write + 'static>(
         }
 
         Ok(XFunctionFactoryOutput::from_native(
-            XFuncSpec::new(&[&X_UNKNOWN, &X_UNKNOWN], X_BOOL.clone()),
+            XFuncSpec::new(&[&X_UNKNOWN, &X_UNKNOWN], X_BOOL.clone()).short_circuit_overloads(),
             move |_args, _ns, _tca, rt| xerr(ManagedXError::new("unknown eq applied", rt)?),
         ))
     })
@@ -43,7 +43,7 @@ pub(crate) fn add_unknown_to_str<W: Write + 'static>(
         }
 
         Ok(XFunctionFactoryOutput::from_native(
-            XFuncSpec::new(&[&X_UNKNOWN], X_STRING.clone()),
+            XFuncSpec::new(&[&X_UNKNOWN], X_STRING.clone()).short_circuit_overloads(),
             move |_args, _ns, _tca, rt| xerr(ManagedXError::new("unknown to_str applied", rt)?),
         ))
     })
@@ -64,7 +64,7 @@ pub(crate) fn add_unknown_hash<W: Write + 'static>(
         }
 
         Ok(XFunctionFactoryOutput::from_native(
-            XFuncSpec::new(&[&X_UNKNOWN], X_STRING.clone()),
+            XFuncSpec::new(&[&X_UNKNOWN], X_STRING.clone()).short_circuit_overloads(),
             move |_args, _ns, _tca, rt| xerr(ManagedXError::new("unknown hash applied", rt)?),
         ))
     })

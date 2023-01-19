@@ -9,8 +9,8 @@ use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise,
-    CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
+    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError,
+    RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
 use num_traits::ToPrimitive;
@@ -82,11 +82,11 @@ impl<W: Write + 'static> XSet<W> {
         rt: RTCell<W>,
     ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
         let mut ret = Self::new(
-                self.hash_func.clone(),
-                self.eq_func.clone(),
-                self.inner.clone(),
-                self.len
-            );
+            self.hash_func.clone(),
+            self.eq_func.clone(),
+            self.inner.clone(),
+            self.len,
+        );
         for k in items {
             let k = xraise!(k?);
             let loc = xraise!(ret.locate(&k, ns, rt.clone())?);
@@ -103,35 +103,36 @@ impl<W: Write + 'static> XSet<W> {
             }
         }
 
-        Ok(manage_native!(
-            ret,
-            rt
-        ))
+        Ok(manage_native!(ret, rt))
     }
 
-    fn locate(&self, element: &Rc<ManagedXValue<W>>, ns: &RuntimeScope<W>, rt: RTCell<W>) -> Result<Result<KeyLocation, Rc<ManagedXError<W>>>, RuntimeViolation> {
+    fn locate(
+        &self,
+        element: &Rc<ManagedXValue<W>>,
+        ns: &RuntimeScope<W>,
+        rt: RTCell<W>,
+    ) -> Result<Result<KeyLocation, Rc<ManagedXError<W>>>, RuntimeViolation> {
         let hash_func = to_primitive!(self.hash_func, Function);
-        let raw_hash = forward_err!(ns.eval_func_with_values(hash_func, vec![Ok(element.clone())], rt.clone(), false)?.unwrap_value());
+        let raw_hash = forward_err!(ns
+            .eval_func_with_values(hash_func, vec![Ok(element.clone())], rt.clone(), false)?
+            .unwrap_value());
         let hash_key = forward_err!(to_primitive!(raw_hash, Int)
             .to_u64()
-            .ok_or(ManagedXError::new(
-                "hash is out of bounds",
-                rt.clone()
-            )?));
+            .ok_or(ManagedXError::new("hash is out of bounds", rt.clone())?));
         let Some(bucket) = self.inner.get(&hash_key) else { return Ok(Ok(KeyLocation::Vacant(hash_key))); };
         let eq_func = Some(to_primitive!(self.eq_func, Function));
         for (i, k) in bucket.iter().enumerate() {
             if *to_primitive!(
-                            forward_err!(ns
-                                .eval_func_with_values(
-                                    eq_func.unwrap(),
-                                    vec![Ok(element.clone()), Ok(k.clone())],
-                                    rt.clone(),
-                                    false
-                                )?
-                                .unwrap_value()),
-                            Bool
-                        ) {
+                forward_err!(ns
+                    .eval_func_with_values(
+                        eq_func.unwrap(),
+                        vec![Ok(element.clone()), Ok(k.clone())],
+                        rt.clone(),
+                        false
+                    )?
+                    .unwrap_value()),
+                Bool
+            ) {
                 return Ok(Ok(KeyLocation::Found((hash_key, i))));
             }
         }
@@ -239,7 +240,7 @@ pub(crate) fn add_set_contains<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let set = to_native!(a0, XSet<W>);
-            let found = if let KeyLocation::Found(_) = xraise!(set.locate(&a1, ns, rt.clone())?){
+            let found = if let KeyLocation::Found(_) = xraise!(set.locate(&a1, ns, rt.clone())?) {
                 true
             } else {
                 false
