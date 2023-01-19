@@ -1,7 +1,7 @@
 use crate::parser::Rule;
 use crate::xexpr::{XExpr, XStaticFunction};
 use crate::xtype::{XFuncSpec, XType};
-use crate::xvalue::XFunctionFactoryOutput;
+use crate::xvalue::{DynEvalCallback, XFunctionFactoryOutput};
 use crate::{CompilationError, Identifier, XRayParser};
 
 use std::collections::HashSet;
@@ -33,6 +33,11 @@ pub enum Declaration<W> {
     Value {
         cell_idx: usize,
         expr: XExpr<W>,
+    },
+    FactoryFunction {
+        cell_idx: usize,
+        #[derivative(Debug="ignore")]
+        cb: DynEvalCallback<W>,
     },
     Function {
         cell_idx: usize,

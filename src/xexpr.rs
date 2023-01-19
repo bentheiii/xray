@@ -103,7 +103,7 @@ pub struct StaticUserFunction<W> {
     pub(crate) name: Option<String>,
     pub(crate) param_len: usize,
     pub(crate) defaults: Vec<XExpr<W>>,
-    pub(crate) cell_specs: Vec<CellSpec<W>>,
+    pub(crate) cell_specs: Vec<CellSpec>,
     pub(crate) declarations: Vec<Declaration<W>>,
     pub(crate) output: Box<XExpr<W>>,
     pub(crate) id: usize,

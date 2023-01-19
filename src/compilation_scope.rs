@@ -16,7 +16,7 @@ use crate::xtype::{
     common_type, Bind, CompoundKind, XCompoundSpec, XFuncSpec, XType, X_BOOL, X_FLOAT, X_INT,
     X_STRING,
 };
-use crate::xvalue::{DynBind, NativeCallable, XFunctionFactoryOutput};
+use crate::xvalue::{DynBind, DynEvalCallback, XFunctionFactoryOutput};
 use crate::Identifier;
 use derivative::Derivative;
 use itertools::{ExactlyOneError, Itertools};
@@ -26,8 +26,9 @@ use std::sync::Arc;
 
 /// this is the information stored for a cell during compilation
 #[derive(Derivative)]
+// todo do we need to clone this? if not then we can make DynEvalCallback a Box
 #[derivative(Clone(bound = ""), Debug(bound = ""))]
-pub(crate) enum Cell<W> {
+pub(crate) enum Cell {
     Recourse,
     /// this can also be a parameter
     Variable(Arc<XType>),
@@ -37,11 +38,10 @@ pub(crate) enum Cell<W> {
         ancestor_depth: ScopeDepth,
         cell_idx: usize,
     },
-    FactoryMadeFunction(Arc<XType>, XStaticFunction<W>),
 }
 
-impl<W: Write + 'static> From<Cell<W>> for CellSpec<W> {
-    fn from(x: Cell<W>) -> Self {
+impl From<Cell> for CellSpec {
+    fn from(x: Cell) -> Self {
         match x {
             Cell::Recourse => Self::Recourse,
             Cell::Variable(..) => Self::Variable,
@@ -52,12 +52,6 @@ impl<W: Write + 'static> From<Cell<W>> for CellSpec<W> {
                 ancestor_depth,
                 cell_idx,
             },
-            Cell::FactoryMadeFunction(_t, func) => match func {
-                XStaticFunction::Native(native) => Self::FactoryMadeFunction(native),
-                XStaticFunction::UserFunction(..) => {
-                    panic!("unexpected factory resulting in user function")
-                }
-            },
         }
     }
 }
@@ -65,7 +59,7 @@ impl<W: Write + 'static> From<Cell<W>> for CellSpec<W> {
 /// this is the information stored for a cell for it to work during runtime
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(crate) enum CellSpec<W> {
+pub(crate) enum CellSpec {
     Recourse,
     /// when the function is called, it is the caller's responsibility to fill the
     /// parameter cells with the arguments (including defaults)
@@ -75,7 +69,6 @@ pub(crate) enum CellSpec<W> {
         ancestor_depth: ScopeDepth,
         cell_idx: usize,
     },
-    FactoryMadeFunction(#[derivative(Debug = "ignore")] NativeCallable<W>),
 }
 
 #[derive(Derivative)]
@@ -96,7 +89,7 @@ pub struct CompilationScope<'p, W> {
     /// * params first
     /// * the recursion value, if any
     /// * all the variables, factory made functions
-    pub(crate) cells: IPush<Cell<W>>,
+    pub(crate) cells: IPush<Cell>,
     pub(crate) declarations: Vec<Declaration<W>>,
 
     /// name to cell
@@ -397,7 +390,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         param_len: usize,
         output: Box<XExpr<W>>,
         parent_id: usize,
-    ) -> (StaticUserFunction<W>, Vec<Cell<W>>) {
+    ) -> (StaticUserFunction<W>, Vec<Cell>) {
         /*
         what this function returns is an ugly patch
         basically the problem is we have no way to tell a parent a scope to capture something
@@ -832,7 +825,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             cell_idx = *new_idx
                         }
                         Cell::Recourse => break Ok(scope.recourse_xtype.clone().unwrap()),
-                        Cell::FactoryMadeFunction(t, ..) => break Ok(t.clone()),
                     }
                 }
             }
@@ -861,12 +853,10 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         specialization: OverloadSpecializationBorrowed<'_>,
         name: Identifier,
     ) -> Result<XExpr<W>, CompilationError> {
-        #[derive(Derivative)]
-        #[derivative(Debug(bound = ""))]
         enum OverloadToConsider<W> {
             /// height, cell
             FromCell(ScopeDepth, usize),
-            FromFactory(Arc<XType>, XStaticFunction<W>),
+            FromFactory(Arc<XType>, DynEvalCallback<W>),
         }
         fn prepare_return<W: Write + 'static>(
             namespace: &mut CompilationScope<W>,
@@ -884,7 +874,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     }
                 }
                 OverloadToConsider::FromFactory(t, f) => {
-                    namespace.cells.ipush(Cell::FactoryMadeFunction(t, f))
+                    let cell_idx = namespace.cells.ipush(Cell::Variable(t));
+                    namespace.declarations.push(Declaration::FactoryFunction {cell_idx, cb: f});
+                    cell_idx
                 }
             };
             XExpr::Value(new_cell)

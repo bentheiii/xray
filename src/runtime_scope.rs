@@ -53,18 +53,14 @@ pub(crate) enum EvaluationCell<W> {
 }
 
 impl<W: Write + 'static> EvaluationCell<W> {
-    fn from_spec(
-        cell: &CellSpec<W>,
+    fn from_spec<'a>(
+        cell: &'a CellSpec,
         parent: Option<&RuntimeScope<W>>,
-        rt: RTCell<W>,
     ) -> Result<Self, RuntimeViolation> {
+        // todo I'm pretty sure this function always returns OK
         match cell {
             CellSpec::Variable => Ok(Self::Uninitialized),
             CellSpec::Recourse => Ok(Self::LocalRecourse),
-            CellSpec::FactoryMadeFunction(native) => Ok(Self::Value(Ok(ManagedXValue::new(
-                XValue::Function(XFunction::Native(native.clone())),
-                rt,
-            )?))),
             CellSpec::Capture {
                 ancestor_depth,
                 cell_idx,
@@ -115,7 +111,7 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
         id: usize,
         name: Option<String>,
         param_count: usize,
-        cell_specs: &[CellSpec<W>],
+        cell_specs: &[CellSpec],
         stack_parent: Option<&RuntimeScope<W>>,
         parent_id: Option<usize>,
         declarations: Vec<Declaration<W>>,
@@ -138,11 +134,11 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
         } else {
             None
         };
-
-        let cells = cell_specs
-            .iter()
-            .map(|s| EvaluationCell::from_spec(s, scope_parent, rt.clone()))
-            .collect::<Result<_, _>>()?;
+        let mut cells = Vec::with_capacity(cell_specs.len());
+        for cell_spec in cell_specs{
+            let cell = EvaluationCell::from_spec(cell_spec, scope_parent)?;
+            cells.push(cell);
+        }
         let defaults = defaults
             .iter()
             .map(|d| {
@@ -152,7 +148,8 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
                     .map(|r| r.unwrap_value())
             })
             .collect::<Result<_, _>>()?;
-        Ok(Rc::new(Self {
+
+        let ret = Rc::new(Self {
             name,
             cells,
             declarations,
@@ -161,7 +158,8 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
             id,
             param_count,
             scope_parent_id: parent_id,
-        }))
+        });
+        Ok(ret)
     }
 }
 
@@ -238,6 +236,15 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                     ret.cells[*cell_idx].put(new_value);
                 }
                 Declaration::Function { cell_idx, func } => {
+                    let new_value = Ok(ManagedXValue::new(
+                        XValue::Function(func.to_function(&ret, rt.clone())?),
+                        rt.clone(),
+                    )?);
+                    ret.cells[*cell_idx].put(new_value)
+                }
+                Declaration::FactoryFunction {cell_idx, cb} =>{
+                    let func_raw = cb(&ret, rt.clone())?;
+                    let func = func_raw.unwrap();
                     let new_value = Ok(ManagedXValue::new(
                         XValue::Function(func.to_function(&ret, rt.clone())?),
                         rt.clone(),

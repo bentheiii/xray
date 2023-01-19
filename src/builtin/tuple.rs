@@ -1,11 +1,12 @@
 use crate::xtype::{XFuncSpec, X_BOOL};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
-use crate::{to_primitive, unpack_types, xraise, CompilationError, RootCompilationScope, XType};
+use crate::{to_primitive, unpack_types, xraise, CompilationError, RootCompilationScope, XType, forward_err};
 
 use crate::builtin::core::{eval, eval_resolved_func, get_func};
-use crate::xexpr::XStaticFunction;
+use crate::xexpr::{XExpr, XStaticFunction};
 use std::io::Write;
 use std::sync::Arc;
+use crate::runtime_scope::RuntimeScope;
 
 pub(crate) fn add_tuple_empty_and<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -41,23 +42,35 @@ pub(crate) fn add_tuple_dyn_eq<W: Write + 'static>(
 
         let inner_funcs: Vec<_> = subtypes0.iter().zip(subtypes1.iter()).map(|(s0, s1)| get_func(ns, eq_symbol, &[s0.clone(), s1.clone()], &X_BOOL)).collect::<Result<_, _>>()?;
 
-        Ok(XFunctionFactoryOutput::from_native(
+        Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[t0, t1], X_BOOL.clone()),
-            move |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                let t0 = to_primitive!(a0, StructInstance);
-                let t1 = to_primitive!(a1, StructInstance);
-                let mut ret = true;
-                for ((i0, i1), func) in t0.iter().zip(t1.iter()).zip(inner_funcs.iter()) {
-                    let eq = xraise!(eval_resolved_func(func, ns, rt.clone(), vec![Ok(i0.clone()), Ok(i1.clone())])?);
-                    let is_eq = to_primitive!(eq, Bool);
-                    if !*is_eq {
-                        ret = false;
-                        break;
+            move |ns, rt| {
+                let inner_values = {
+                    let mut inner_values = Vec::with_capacity(inner_funcs.len());
+                    for inner in inner_funcs.iter() {
+                        inner_values.push(
+                            forward_err!(ns.eval(&inner, rt.clone(), false)?.unwrap_value())
+                        )
                     }
-                }
-                Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
+                    inner_values
+                };
+                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                    let a1 = xraise!(eval(&args[1], ns, &rt)?);
+                    let t0 = to_primitive!(a0, StructInstance);
+                    let t1 = to_primitive!(a1, StructInstance);
+                    let mut ret = true;
+                    for ((i0, i1), func) in t0.iter().zip(t1.iter()).zip(inner_values.iter()) {
+                        let func = to_primitive!(func, Function);
+                        let eq = xraise!(ns.eval_func_with_values(func, vec![Ok(i0.clone()), Ok(i1.clone())], rt.clone(), false)?.unwrap_value());
+                        let is_eq = to_primitive!(eq, Bool);
+                        if !*is_eq {
+                            ret = false;
+                            break;
+                        }
+                    }
+                    Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
+                }))
             },
         ))
     })

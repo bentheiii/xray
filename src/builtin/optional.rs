@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use crate::builtin::core::{eval, eval_resolved_func, get_func, unpack_native, xerr};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::util::fenced_string::FencedString;
@@ -6,13 +5,15 @@ use crate::util::lazy_bigint::LazyBigint;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
-use crate::{manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError, RootCompilationScope, XCallableSpec, XStaticFunction, XType, xraise_opt};
+use crate::{manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError, RootCompilationScope, XCallableSpec, XStaticFunction, XType, xraise_opt, forward_err};
 use derivative::Derivative;
 use num_traits::Zero;
 use std::fmt::Debug;
 use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
+use crate::runtime_scope::RuntimeScope;
+use crate::xexpr::XExpr;
 
 #[derive(Debug, Clone)]
 pub(crate) struct XOptionalType {}
@@ -93,7 +94,7 @@ pub(crate) fn add_optional_map<W: Write + 'static>(
             ],
             XOptionalType::xtype(t_out),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let opt0 = &to_native!(a0, XOptional<W>).value;
@@ -133,7 +134,7 @@ pub(crate) fn add_optional_map_or<W: Write + 'static>(
             ],
             t.clone(),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let opt0 = &to_native!(a0, XOptional<W>).value;
@@ -145,7 +146,7 @@ pub(crate) fn add_optional_map_or<W: Write + 'static>(
                     Ok(xraise!(ns
                         .eval_func_with_values(f1, vec![Ok(v.clone())], rt, false)?
                         .unwrap_value())
-                    .into())
+                        .into())
                 }
             }
         }),
@@ -240,7 +241,7 @@ pub(crate) fn add_optional_value<W: Write + 'static>(
                 None => "optional has no value",
                 Some(ref a) => to_primitive!(a, String).as_str(),
             };
-            let Some(ref opt0) = to_native!(a0, XOptional<W>).value else { return xerr(ManagedXError::new(err_msg, rt)?)};
+            let Some(ref opt0) = to_native!(a0, XOptional<W>).value else { return xerr(ManagedXError::new(err_msg, rt)?); };
             Ok(opt0.clone().into())
         }),
     )
@@ -257,11 +258,11 @@ pub(crate) fn add_optional_dyn_eq<W: Write + 'static>(
         }
 
         let (a0, a1) = unpack_types!(types, 0, 1);
-        let [t0] = unpack_native(a0, "Optional")? else {unreachable!()};
-        let [t1] = unpack_native(a1, "Optional")? else {unreachable!()};
+        let [t0] = unpack_native(a0, "Optional")? else { unreachable!() };
+        let [t1] = unpack_native(a1, "Optional")? else { unreachable!() };
         let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t1.clone()], &X_BOOL)?;
 
-        Ok(XFunctionFactoryOutput::from_native(
+        Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(
                 &[
                     &XOptionalType::xtype(t0.clone()),
@@ -269,22 +270,26 @@ pub(crate) fn add_optional_dyn_eq<W: Write + 'static>(
                 ],
                 X_BOOL.clone(),
             ),
-            move |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                let opt0 = &to_native!(a0, XOptional<W>).value;
-                let opt1 = &to_native!(a1, XOptional<W>).value;
-                if opt0.is_some() && opt1.is_some() {
-                    let v0 = opt0.clone().unwrap();
-                    let v1 = opt1.clone().unwrap();
-                    let eq = eval_resolved_func(&inner_eq, ns, rt, vec![Ok(v0), Ok(v1)])?;
-                    Ok(eq.into())
-                } else {
-                    Ok(
-                        ManagedXValue::new(XValue::Bool(opt0.is_some() == opt1.is_some()), rt)?
-                            .into(),
-                    )
-                }
+            move |ns, rt| {
+                let inner_value = forward_err!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
+                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                    let a1 = xraise!(eval(&args[1], ns, &rt)?);
+                    let opt0 = &to_native!(a0, XOptional<W>).value;
+                    let opt1 = &to_native!(a1, XOptional<W>).value;
+                    if opt0.is_some() && opt1.is_some() {
+                        let v0 = opt0.clone().unwrap();
+                        let v1 = opt1.clone().unwrap();
+                        let func = to_primitive!(inner_value, Function);
+                        let eq = xraise!(ns.eval_func_with_values(func, vec![Ok(v0), Ok(v1)], rt, false)?.unwrap_value());
+                        Ok(eq.into())
+                    } else {
+                        Ok(
+                            ManagedXValue::new(XValue::Bool(opt0.is_some() == opt1.is_some()), rt)?
+                                .into(),
+                        )
+                    }
+                }))
             },
         ))
     })
@@ -300,22 +305,27 @@ pub(crate) fn add_optional_dyn_hash<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0,) = unpack_types!(types, 0);
-        let [t0] = unpack_native(a0, "Optional")? else {unreachable!()};
+        let (a0, ) = unpack_types!(types, 0);
+        let [t0] = unpack_native(a0, "Optional")? else { unreachable!() };
         let inner = get_func(ns, symbol, &[t0.clone()], &X_INT)?;
 
-        Ok(XFunctionFactoryOutput::from_native(
+        Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[&XOptionalType::xtype(t0.clone())], X_INT.clone()),
-            move |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let opt0 = &to_native!(a0, XOptional<W>).value;
-                if let Some(v) = opt0 {
-                    let hash = eval_resolved_func(&inner, ns, rt, vec![Ok(v.clone())])?;
-                    Ok(hash.into())
-                } else {
-                    Ok(ManagedXValue::new(XValue::Int(LazyBigint::zero()), rt)?.into())
-                }
-            },
+            move |ns, rt| {
+                let inner_value =
+                    forward_err!(ns.eval(&inner, rt.clone(), false)?.unwrap_value());
+                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                    let opt0 = &to_native!(a0, XOptional<W>).value;
+                    if let Some(v) = opt0 {
+                        let func = to_primitive!(inner_value, Function);
+                        let hash = xraise!(ns.eval_func_with_values(func, vec![Ok(v.clone())], rt.clone(), false)?.unwrap_value());
+                        Ok(hash.into())
+                    } else {
+                        Ok(ManagedXValue::new(XValue::Int(LazyBigint::zero()), rt)?.into())
+                    }
+                }))
+            }
         ))
     })
 }
@@ -330,26 +340,31 @@ pub(crate) fn add_optional_dyn_to_string<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0,) = unpack_types!(types, 0);
-        let [t0] = unpack_native(a0, "Optional")? else {unreachable!()};
+        let (a0, ) = unpack_types!(types, 0);
+        let [t0] = unpack_native(a0, "Optional")? else { unreachable!() };
         let inner = get_func(ns, symbol, &[t0.clone()], &X_STRING)?;
 
-        Ok(XFunctionFactoryOutput::from_native(
+        Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[&XOptionalType::xtype(t0.clone())], X_STRING.clone()),
-            move |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let opt0 = &to_native!(a0, XOptional<W>).value;
-                if let Some(v) = opt0 {
-                    let inner_v = eval_resolved_func(&inner, ns, rt, vec![Ok(v.clone())])?;
-                    Ok(inner_v.into())
-                } else {
-                    Ok(ManagedXValue::new(
-                        XValue::String(Box::new(FencedString::from_str("None"))),
-                        rt,
-                    )?
-                    .into())
-                }
-            },
+            move |ns, rt| {
+                let inner_value =
+                    forward_err!(ns.eval(&inner, rt.clone(), false)?.unwrap_value());
+                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                    let opt0 = &to_native!(a0, XOptional<W>).value;
+                    if let Some(v) = opt0 {
+                        let func = to_primitive!(inner_value, Function);
+                        let inner_v = xraise!(ns.eval_func_with_values(func, vec![Ok(v.clone())], rt.clone(), false)?.unwrap_value());
+                        Ok(inner_v.into())
+                    } else {
+                        Ok(ManagedXValue::new(
+                            XValue::String(Box::new(FencedString::from_str("None"))),
+                            rt,
+                        )?
+                            .into())
+                    }
+                }))
+            }
         ))
     })
 }

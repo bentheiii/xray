@@ -31,6 +31,7 @@ use std::hash::Hasher;
 
 use crate::util::lazy_bigint::LazyBigint;
 use crate::util::try_extend::TryExtend;
+use crate::xexpr::XExpr;
 
 #[derive(Debug, Clone)]
 pub(crate) struct XSequenceType;
@@ -1149,7 +1150,7 @@ pub(crate) fn add_sequence_dyn_eq<W: Write + 'static>(
 
         let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t1.clone()], &X_BOOL)?;
 
-        Ok(XFunctionFactoryOutput::from_native(
+        Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(
                 &[
                     &XSequenceType::xtype(t0.clone()),
@@ -1157,33 +1158,35 @@ pub(crate) fn add_sequence_dyn_eq<W: Write + 'static>(
                 ],
                 X_BOOL.clone(),
             ),
-            move |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                let seq0 = to_native!(a0, XSequence<W>);
-                let seq1 = to_native!(a1, XSequence<W>);
-                if seq0.len() != seq1.len() {
-                    return Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into());
-                }
-                let arr0 = seq0.iter(ns, rt.clone());
-                let arr1 = seq1.iter(ns, rt.clone());
-                let mut ret = true;
+            move |ns, rt| {
                 let inner_equal_value =
-                    xraise!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
-                let inner_eq_func = to_primitive!(inner_equal_value, Function);
+                    forward_err!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
+                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                    let a1 = xraise!(eval(&args[1], ns, &rt)?);
+                    let seq0 = to_native!(a0, XSequence<W>);
+                    let seq1 = to_native!(a1, XSequence<W>);
+                    if seq0.len() != seq1.len() {
+                        return Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into());
+                    }
+                    let arr0 = seq0.iter(ns, rt.clone());
+                    let arr1 = seq1.iter(ns, rt.clone());
+                    let mut ret = true;
+                    let inner_eq_func = to_primitive!(inner_equal_value, Function);
 
-                for ((x, y), search) in search(arr0.zip(arr1), rt.clone()) {
-                    search?;
-                    let eq = xraise!(ns
+                    for ((x, y), search) in search(arr0.zip(arr1), rt.clone()) {
+                        search?;
+                        let eq = xraise!(ns
                         .eval_func_with_values(inner_eq_func, vec![x?, y?], rt.clone(), false)?
                         .unwrap_value());
-                    let is_eq = to_primitive!(eq, Bool);
-                    if !*is_eq {
-                        ret = false;
-                        break;
+                        let is_eq = to_primitive!(eq, Bool);
+                        if !*is_eq {
+                            ret = false;
+                            break;
+                        }
                     }
-                }
-                Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
+                    Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
+                }))
             },
         ))
     })
@@ -1204,17 +1207,20 @@ pub(crate) fn add_sequence_dyn_sort<W: Write + 'static>(
 
         let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t0.clone()], &X_INT)?;
 
-        Ok(XFunctionFactoryOutput::from_native(
+        Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[a0], a0.clone()),
-            move |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let seq0 = to_native!(a0, XSequence<W>);
-                let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-                rt.as_ref().borrow().can_allocate(len0)?;
-                let f_evaled = xraise!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
-                let f = to_primitive!(f_evaled, Function);
-                xraise!(seq0.sorted(f, ns, rt.clone())?)
-                    .map_or_else(|| Ok(a0.clone().into()), |s| Ok(manage_native!(s, rt)))
+            move |ns, rt| {
+                let inner_value =
+                    forward_err!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
+                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                    let seq0 = to_native!(a0, XSequence<W>);
+                    let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
+                    rt.as_ref().borrow().can_allocate(len0)?;
+                    let f = to_primitive!(inner_value, Function);
+                    xraise!(seq0.sorted(f, ns, rt.clone())?)
+                        .map_or_else(|| Ok(a0.clone().into()), |s| Ok(manage_native!(s, rt)))
+                }))
             },
         ))
     })
@@ -1317,39 +1323,42 @@ pub(crate) fn add_sequence_dyn_to_str<W: Write + 'static>(
 
         let inner = get_func(ns, symbol, &[t0.clone()], &X_STRING)?;
 
-        Ok(XFunctionFactoryOutput::from_native(
+        Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[&XSequenceType::xtype(t0.clone())], X_STRING.clone()),
-            move |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let seq0 = to_native!(a0, XSequence<W>);
-                match seq0.len() {
-                    None => return xerr(ManagedXError::new("infinite sequence", rt)?),
-                    Some(len) => rt.borrow().can_allocate(len + 2)?,
-                }
-                let arr0 = seq0.iter(ns, rt.clone());
-                let inner_value = xraise!(ns.eval(&inner, rt.clone(), false)?.unwrap_value());
-                let inner_func = to_primitive!(inner_value, Function);
-
-                let mut ret = FencedString::from_str("[");
-                let mut first = true;
-
-                for (x, search) in search(arr0, rt.clone()) {
-                    search?;
-                    if !first {
-                        ret.push_ascii(", ")
+            move |ns, rt| {
+                let inner_value =
+                    forward_err!(ns.eval(&inner, rt.clone(), false)?.unwrap_value());
+                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                    let seq0 = to_native!(a0, XSequence<W>);
+                    match seq0.len() {
+                        None => return xerr(ManagedXError::new("infinite sequence", rt)?),
+                        Some(len) => rt.borrow().can_allocate(len + 2)?,
                     }
-                    let to_str = xraise!(ns
+                    let arr0 = seq0.iter(ns, rt.clone());
+                    let inner_func = to_primitive!(inner_value, Function);
+
+                    let mut ret = FencedString::from_str("[");
+                    let mut first = true;
+
+                    for (x, search) in search(arr0, rt.clone()) {
+                        search?;
+                        if !first {
+                            ret.push_ascii(", ")
+                        }
+                        let to_str = xraise!(ns
                         .eval_func_with_values(inner_func, vec![x?], rt.clone(), false)?
                         .unwrap_value());
-                    let f = to_primitive!(to_str, String);
-                    ret.push(f);
-                    rt.borrow().can_allocate_by(|| Some(ret.size()))?;
-                    first = false;
-                }
-                ret.push_ascii("]");
-                ret.shrink_to_fit();
+                        let f = to_primitive!(to_str, String);
+                        ret.push(f);
+                        rt.borrow().can_allocate_by(|| Some(ret.size()))?;
+                        first = false;
+                    }
+                    ret.push_ascii("]");
+                    ret.shrink_to_fit();
 
-                Ok(ManagedXValue::new(XValue::String(Box::new(ret)), rt)?.into())
+                    Ok(ManagedXValue::new(XValue::String(Box::new(ret)), rt)?.into())
+                }))
             },
         ))
     })
@@ -1368,36 +1377,37 @@ pub(crate) fn add_sequence_dyn_hash<W: Write + 'static>(
         let (a0, ) = unpack_types!(types, 0);
         let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
 
-        println!("!!! B.0 {t0:?}");
-
         let inner = get_func(ns, symbol, &[t0.clone()], &X_INT)?;
 
 
-        Ok(XFunctionFactoryOutput::from_native(
+        Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[&XSequenceType::xtype(t0.clone())], X_INT.clone()),
-            move |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let seq0 = to_native!(a0, XSequence<W>);
-                if seq0.len().is_none() {
-                    return xerr(ManagedXError::new("infinite sequence", rt)?);
-                }
-                let arr0 = seq0.iter(ns, rt.clone());
-                let inner_value = xraise!(ns.eval(&inner, rt.clone(), false)?.unwrap_value());
-                let inner_func = to_primitive!(inner_value, Function);
-                let mut hasher = DefaultHasher::new();
+            move |ns, rt| {
+                let inner_value = forward_err!(ns.eval(&inner, rt.clone(), false)?.unwrap_value());
 
-                for (x, search) in search(arr0, rt.clone()) {
-                    search?;
-                    println!("!!! B.1.0 {x:?}\n\t{inner_func:?}");
-                    let hash = xraise!(ns
+
+                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                    let seq0 = to_native!(a0, XSequence<W>);
+                    if seq0.len().is_none() {
+                        return xerr(ManagedXError::new("infinite sequence", rt)?);
+                    }
+                    let arr0 = seq0.iter(ns, rt.clone());
+                    let mut hasher = DefaultHasher::new();
+                    let inner_func = to_primitive!(inner_value, Function);
+
+                    for (x, search) in search(arr0, rt.clone()) {
+                        search?;
+                        let hash = xraise!(ns
                         .eval_func_with_values(inner_func, vec![x?], rt.clone(), false)?
                         .unwrap_value());
-                    let Some(f) = to_primitive!(hash, Int).to_usize() else { return xerr(ManagedXError::new("hash out of bounds", rt)?); };
-                    hasher.write_usize(f);
-                }
-                let ret = hasher.finish();
+                        let Some(f) = to_primitive!(hash, Int).to_usize() else { return xerr(ManagedXError::new("hash out of bounds", rt)?); };
+                        hasher.write_usize(f);
+                    }
+                    let ret = hasher.finish();
 
-                Ok(ManagedXValue::new(XValue::Int(LazyBigint::from(ret)), rt)?.into())
+                    Ok(ManagedXValue::new(XValue::Int(LazyBigint::from(ret)), rt)?.into())
+                }))
             },
         ))
     })
@@ -1419,7 +1429,7 @@ pub(crate) fn add_sequence_dyn_cmp<W: Write + 'static>(
 
         let inner = get_func(ns, cmp_symbol, &[t0.clone(), t1.clone()], &X_INT)?;
 
-        Ok(XFunctionFactoryOutput::from_native(
+        Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(
                 &[
                     &XSequenceType::xtype(t0.clone()),
@@ -1427,36 +1437,38 @@ pub(crate) fn add_sequence_dyn_cmp<W: Write + 'static>(
                 ],
                 X_INT.clone(),
             ),
-            move |args, ns, _tca, rt| {
-                let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                let seq0 = to_native!(a0, XSequence<W>);
-                let seq1 = to_native!(a1, XSequence<W>);
-                let tie_breaker = match (seq0.len(), seq1.len()) {
-                    (None, None) => 0isize,
-                    (_, None) => -1,
-                    (None, _) => 1,
-                    (Some(l0), Some(l1)) => if l0 < l1 {
-                        -1
-                    } else {isize::from(l0 > l1)}
-                };
-                let arr0 = seq0.iter(ns, rt.clone());
-                let arr1 = seq1.iter(ns, rt.clone());
+            move |ns, rt| {
                 let inner_value =
-                    xraise!(ns.eval(&inner, rt.clone(), false)?.unwrap_value());
-                let inner_func = to_primitive!(inner_value, Function);
+                    forward_err!(ns.eval(&inner, rt.clone(), false)?.unwrap_value());
+                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                    let a1 = xraise!(eval(&args[1], ns, &rt)?);
+                    let seq0 = to_native!(a0, XSequence<W>);
+                    let seq1 = to_native!(a1, XSequence<W>);
+                    let tie_breaker = match (seq0.len(), seq1.len()) {
+                        (None, None) => 0isize,
+                        (_, None) => -1,
+                        (None, _) => 1,
+                        (Some(l0), Some(l1)) => if l0 < l1 {
+                            -1
+                        } else { isize::from(l0 > l1) }
+                    };
+                    let arr0 = seq0.iter(ns, rt.clone());
+                    let arr1 = seq1.iter(ns, rt.clone());
+                    let inner_func = to_primitive!(inner_value, Function);
 
-                for ((x, y), search) in search(arr0.zip(arr1), rt.clone()) {
-                    search?;
-                    let res = xraise!(ns
+                    for ((x, y), search) in search(arr0.zip(arr1), rt.clone()) {
+                        search?;
+                        let res = xraise!(ns
                         .eval_func_with_values(inner_func, vec![x?, y?], rt.clone(), false)?
                         .unwrap_value());
-                    let cmp = to_primitive!(res, Int);
-                    if !cmp.is_zero(){
-                        return Ok(res.into())
+                        let cmp = to_primitive!(res, Int);
+                        if !cmp.is_zero() {
+                            return Ok(res.into());
+                        }
                     }
-                }
-                Ok(ManagedXValue::new(XValue::Int(LazyBigint::from(tie_breaker)), rt)?.into())
+                    Ok(ManagedXValue::new(XValue::Int(LazyBigint::from(tie_breaker)), rt)?.into())
+                }))
             },
         ))
     })

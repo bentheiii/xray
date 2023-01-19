@@ -36,35 +36,59 @@ pub(crate) type NativeCallback<W> = dyn Fn(
     bool,
     RTCell<W>,
 ) -> Result<TailedEvalResult<W>, RuntimeViolation>;
-type DynCallback<W> = dyn Fn(
+
+type DynBindCallback<W> = dyn Fn(
     Option<&[XExpr<W>]>,
     Option<&[Arc<XType>]>,
     &mut CompilationScope<'_, W>,
     Option<&[Arc<XType>]>,
 ) -> Result<XFunctionFactoryOutput<W>, String>;
+pub(crate) type DynEvalCallback<W> = Rc<dyn Fn(&RuntimeScope<W>, RTCell<W>) -> Result<Result<XStaticFunction<W>, Rc<ManagedXError<W>>>, RuntimeViolation>>;
 
 pub type NativeCallable<W> = Rc<NativeCallback<W>>;
-pub type DynBind<W> = Rc<DynCallback<W>>;
+pub type DynBind<W> = Rc<DynBindCallback<W>>;
 
 pub struct XFunctionFactoryOutput<W> {
     pub(crate) spec: XFuncSpec,
-    pub(crate) func: XStaticFunction<W>,
+    pub(crate) func: DynEvalCallback<W>,
 }
 
 impl<W: Write + 'static> XFunctionFactoryOutput<W> {
     pub(crate) fn from_native(
         spec: XFuncSpec,
         callable: impl Fn(
-                &[XExpr<W>],
-                &RuntimeScope<'_, W>,
-                bool,
-                RTCell<W>,
-            ) -> Result<TailedEvalResult<W>, RuntimeViolation>
-            + 'static,
+            &[XExpr<W>],
+            &RuntimeScope<'_, W>,
+            bool,
+            RTCell<W>,
+        ) -> Result<TailedEvalResult<W>, RuntimeViolation>
+        + Clone
+        + 'static,
     ) -> Self {
         Self {
             spec,
-            func: XStaticFunction::from_native(callable),
+            func: Rc::new(move |_,_| Ok(Ok(XStaticFunction::from_native(callable.clone())))),
+        }
+    }
+
+    pub(crate) fn from_delayed_native<F>(
+        spec: XFuncSpec,
+        callable: impl Fn(&RuntimeScope<W>, RTCell<W>) -> Result<Result<F, Rc<ManagedXError<W>>>, RuntimeViolation>
+        + 'static,
+    ) -> Self where F: Fn(
+        &[XExpr<W>],
+        &RuntimeScope<'_, W>,
+        bool,
+        RTCell<W>,
+    ) -> Result<TailedEvalResult<W>, RuntimeViolation> + 'static {
+        Self {
+            spec,
+            func: Rc::new(move |ns, rt|
+                Ok(Ok(XStaticFunction::from_native(match callable(ns, rt)?{
+                    Ok(v)=>v,
+                    Err(e)=>return Ok(Err(e))
+                })))
+            ),
         }
     }
 }

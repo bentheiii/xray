@@ -24,7 +24,7 @@ use crate::builtin::generators::{XGenerator, XGeneratorType};
 use crate::root_runtime_scope::EvaluatedValue;
 use crate::util::lazy_bigint::LazyBigint;
 
-use crate::xexpr::TailedEvalResult;
+use crate::xexpr::{TailedEvalResult, XExpr};
 
 #[derive(Debug, Clone)]
 struct XSetType;
@@ -72,7 +72,7 @@ impl<W: Write + 'static> XSet<W> {
 
     fn with_update(
         &self,
-        items: impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>>,
+        items: impl Iterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>>,
         ns: &RuntimeScope<W>,
         rt: RTCell<W>,
     ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
@@ -136,7 +136,7 @@ impl<W: Write + 'static> XSet<W> {
     pub(super) fn iter(
         &self,
     ) -> impl Iterator<Item=Rc<ManagedXValue<W>>> + '_ {
-        self.inner.iter().flat_map(|(_,b)|b.iter()).cloned()
+        self.inner.iter().flat_map(|(_, b)| b.iter()).cloned()
     }
 }
 
@@ -173,7 +173,7 @@ pub(crate) fn add_set_new<W: Write + 'static>(
             ],
             XSetType::xtype(t),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let hash_func = xraise!(eval(&args[0], ns, &rt)?);
             let eq_func = xraise!(eval(&args[1], ns, &rt)?);
@@ -357,7 +357,7 @@ pub(crate) fn add_set_remove<W: Write + 'static>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let set = to_native!(a0, XSet<W>);
             if set.len == 0 {
-                return xerr(ManagedXError::new("item not found", rt)?)
+                return xerr(ManagedXError::new("item not found", rt)?);
             }
             rt.borrow().can_allocate(set.len - 1)?;
             let hash_func = to_primitive!(set.hash_func, Function);
@@ -370,7 +370,7 @@ pub(crate) fn add_set_remove<W: Write + 'static>(
                 None => xerr(ManagedXError::new("item not found", rt)?),
                 Some(candidates) => {
                     let eq_func = to_primitive!(set.eq_func, Function);
-                    let Some(new_spot) = xraise!(bucket_without(candidates, eq_func, &a1, ns, &rt)?) else { return xerr(ManagedXError::new("item not found", rt)?) };
+                    let Some(new_spot) = xraise!(bucket_without(candidates, eq_func, &a1, ns, &rt)?) else { return xerr(ManagedXError::new("item not found", rt)?); };
                     let mut new_table = HashMap::from([(hash_key, new_spot)]);
                     for (k, v) in &set.inner {
                         if *k != hash_key {
@@ -470,7 +470,7 @@ pub(crate) fn add_set_hash<W: Write + 'static>(
             let set0 = to_native!(a0, XSet<W>);
             // note that since order is important to the default hasher, we'll just xor them together
             let mut ret = 0u64;
-            for (hash, bucket) in set0.inner.iter(){
+            for (hash, bucket) in set0.inner.iter() {
                 let v = hash.wrapping_add(bucket.len() as u64);
                 ret ^= v;
             }
@@ -486,22 +486,24 @@ pub(crate) fn add_set_dyn_new<W: Write + 'static>(
     let hash_symbol = scope.identifier("hash");
 
     scope.add_dyn_func("set", "default-funcs", move |_params, _types, ns, bind| {
-        let (a0,) = unpack_types!(bind, 0);
+        let (a0, ) = unpack_types!(bind, 0);
 
         let inner_eq = get_func(ns, eq_symbol, &[a0.clone(), a0.clone()], &X_BOOL)?;
         let inner_hash = get_func(ns, hash_symbol, &[a0.clone()], &X_INT)?;
 
-        Ok(XFunctionFactoryOutput::from_native(
+        Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[], XSetType::xtype(a0.clone())),
-            move |_args, ns, _tca, rt| {
+            move |ns, rt| {
                 let inner_equal_value =
-                    xraise!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
+                    forward_err!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
                 let inner_hash_value =
-                    xraise!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
-                Ok(manage_native!(
-                    XSet::new(inner_hash_value, inner_equal_value, Default::default(), 0),
+                    forward_err!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
+                Ok(Ok(move |_args: &[XExpr<W>], _ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    Ok(manage_native!(
+                    XSet::new(inner_hash_value.clone(), inner_equal_value.clone(), Default::default(), 0),
                     rt
                 ))
+                }))
             },
         ))
     })
