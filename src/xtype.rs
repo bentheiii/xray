@@ -210,7 +210,7 @@ impl XFuncSpec {
         }
     }
 
-    pub(crate) fn short_circuit_overloads(self)->Self{
+    pub(crate) fn short_circuit_overloads(self) -> Self {
         Self {
             short_circuit_overloads: true,
             ..self

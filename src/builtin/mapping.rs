@@ -153,7 +153,7 @@ impl<W: Write + 'static> XMapping<W> {
                 return Ok(Ok(KeyLocation::Found((hash_key, i))));
             }
         }
-        return Ok(Ok(KeyLocation::Missing(hash_key)));
+        Ok(Ok(KeyLocation::Missing(hash_key)))
     }
 
     fn get(&self, coordinates: (u64, usize)) -> &Rc<ManagedXValue<W>> {
@@ -350,7 +350,7 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
                 return xerr(ManagedXError::new("key not found", rt)?);
             };
             rt.borrow().can_allocate((mapping.len - 1) * 2)?;
-            let mut new_dict = HashMap::from_iter(mapping.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (k.clone(), b.clone())));
+            let mut new_dict = HashMap::from_iter(mapping.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (*k, b.clone())));
             let old_bucket = &mapping.inner[&hash_key];
             new_dict.insert(hash_key, old_bucket.iter().take(idx).chain(old_bucket.iter().skip(idx + 1)).cloned().collect());
             Ok(manage_native!(
@@ -381,7 +381,7 @@ pub(crate) fn add_mapping_discard<W: Write + 'static>(
                 return Ok(a0.clone().into());
             };
             rt.borrow().can_allocate((mapping.len - 1) * 2)?;
-            let mut new_dict = HashMap::from_iter(mapping.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (k.clone(), b.clone())));
+            let mut new_dict = HashMap::from_iter(mapping.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (*k, b.clone())));
             let old_bucket = &mapping.inner[&hash_key];
             new_dict.insert(hash_key, old_bucket.iter().take(idx).chain(old_bucket.iter().skip(idx + 1)).cloned().collect());
             Ok(manage_native!(
@@ -495,7 +495,7 @@ pub(crate) fn add_mapping_dyn_eq<W: Write + 'static>(
                             }
                     }
 
-                    return Ok(ManagedXValue::new(XValue::Bool(true), rt)?.into());
+                    Ok(ManagedXValue::new(XValue::Bool(true), rt)?.into())
                 }))
             },
         ))

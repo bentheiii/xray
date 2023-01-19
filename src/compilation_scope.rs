@@ -858,7 +858,10 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         enum OverloadToConsider<W> {
             /// height, cell
             FromCell(ScopeDepth, usize),
-            FromFactory(Arc<XType>, #[derivative(Debug="ignore")] DynEvalCallback<W>),
+            FromFactory(
+                Arc<XType>,
+                #[derivative(Debug = "ignore")] DynEvalCallback<W>,
+            ),
         }
         fn prepare_return<W: Write + 'static>(
             namespace: &mut CompilationScope<W>,

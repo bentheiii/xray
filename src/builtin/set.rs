@@ -136,7 +136,7 @@ impl<W: Write + 'static> XSet<W> {
                 return Ok(Ok(KeyLocation::Found((hash_key, i))));
             }
         }
-        return Ok(Ok(KeyLocation::Missing(hash_key)));
+        Ok(Ok(KeyLocation::Missing(hash_key)))
     }
 
     pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue<W>>> + '_ {
@@ -240,12 +240,8 @@ pub(crate) fn add_set_contains<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let set = to_native!(a0, XSet<W>);
-            let found = if let KeyLocation::Found(_) = xraise!(set.locate(&a1, ns, rt.clone())?) {
-                true
-            } else {
-                false
-            };
-            return Ok(ManagedXValue::new(XValue::Bool(found), rt)?.into());
+            let found = matches!(xraise!(set.locate(&a1, ns, rt.clone())?), KeyLocation::Found(_));
+            Ok(ManagedXValue::new(XValue::Bool(found), rt)?.into())
         }),
     )
 }
@@ -303,7 +299,7 @@ pub(crate) fn add_set_remove<W: Write + 'static>(
                 return xerr(ManagedXError::new("key not found", rt)?);
             };
             rt.borrow().can_allocate(set.len - 1)?;
-            let mut new_dict = HashMap::from_iter(set.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (k.clone(), b.clone())));
+            let mut new_dict = HashMap::from_iter(set.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (*k, b.clone())));
             let old_bucket = &set.inner[&hash_key];
             new_dict.insert(hash_key, old_bucket.iter().take(idx).chain(old_bucket.iter().skip(idx + 1)).cloned().collect());
             Ok(manage_native!(
@@ -334,7 +330,7 @@ pub(crate) fn add_set_discard<W: Write + 'static>(
                 return Ok(a0.clone().into());
             };
             rt.borrow().can_allocate(set.len - 1)?;
-            let mut new_dict = HashMap::from_iter(set.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (k.clone(), b.clone())));
+            let mut new_dict = HashMap::from_iter(set.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (*k, b.clone())));
             let old_bucket = &set.inner[&hash_key];
             new_dict.insert(hash_key, old_bucket.iter().take(idx).chain(old_bucket.iter().skip(idx + 1)).cloned().collect());
             Ok(manage_native!(
