@@ -1,0 +1,9 @@
+fn main()->bool{
+    let m = mapping<int>()
+        .set(10, 0)
+        .set(41, 3)
+        .set(65, 1)
+        .set(3, 2);
+
+    assert(m.keys().to_array().sort() == [3,10,41,65])
+}

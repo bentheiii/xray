@@ -1,0 +1,13 @@
+fn main()->bool{
+    let k0 = mapping<str>().update([("hi", "ih")]);
+    let k1 = mapping<str>();
+    let k2 = mapping<str>().update([("ho", "hoo")]);
+    let m = mapping<Mapping<str, str>>()
+        .set(k0, 0)
+        .set(k1, 1)
+        .set(k2, 2);
+
+    assert(m[k0] == 0)
+    && assert(m[k1] == 1)
+    && assert(m[k2] == 2)
+}

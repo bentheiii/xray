@@ -41,34 +41,6 @@ fn split(s: str, n: str)->Generator<str>{
     .map(bounds_to_string)
 }
 
-fn binary_search<T>(seq: Sequence<T>, cmp_: (T)->(int))->Optional<int>{
-    fn helper(seq: Sequence<T>, offset: int)->Optional<int>{
-        let mid = floor(seq.len()/2);
-        let res = if(mid==seq.len(), -1, cmp_(seq[mid]));
-        if(res == 0, some(mid+offset),
-            if(res > 0, helper(seq.take(mid), offset),
-                if(mid==seq.len(), none(),
-                    helper(seq.skip(mid+1), offset+mid+1)
-                )
-            )
-        )
-    }
-    helper(seq, 0)
-}
-
-fn bisect<T>(seq: Sequence<T>, left_predicate: (T)->(bool))->int{
-    fn helper(seq: Sequence<T>, offset: int)->int{
-        let mid = floor(seq.len()/2);
-        let res = if(mid==seq.len(), true, left_predicate(seq[mid]));
-        if(res,
-            if(mid==seq.len(), offset,
-                helper(seq.skip(mid+1), offset+mid+1)
-            ),
-            helper(seq.take(mid), offset),
-        )
-    }
-    helper(seq, 0)
-}
 
 fn join(s: Sequence<str>, delimiter: str ?= "")->str{
     s.to_generator().join(delimiter)
@@ -119,6 +91,34 @@ fn filter<T>(s: Sequence<T>, f: (T)->(bool))->Generator<T>{
     s.to_generator().filter(f)
 }
 
+fn binary_search<T>(seq: Sequence<T>, cmp_: (T)->(int))->Optional<int>{
+    fn helper(seq: Sequence<T>, offset: int)->Optional<int>{
+        let mid = floor(seq.len()/2);
+        let res = if(mid==seq.len(), -1, cmp_(seq[mid]));
+        if(res == 0, some(mid+offset),
+            if(res > 0, helper(seq.take(mid), offset),
+                if(mid==seq.len(), none(),
+                    helper(seq.skip(mid+1), offset+mid+1)
+                )
+            )
+        )
+    }
+    helper(seq, 0)
+}
+
+fn bisect<T>(seq: Sequence<T>, left_predicate: (T)->(bool))->int{
+    fn helper(seq: Sequence<T>, offset: int)->int{
+        let mid = floor(seq.len()/2);
+        let res = if(mid==seq.len(), true, left_predicate(seq[mid]));
+        if(res,
+            if(mid==seq.len(), offset,
+                helper(seq.skip(mid+1), offset+mid+1)
+            ),
+            helper(seq.take(mid), offset),
+        )
+    }
+    helper(seq, 0)
+}
 
 //generators
 fn any<T>(a: Generator<T>, f: (T)->(bool))->bool{
@@ -196,5 +196,17 @@ fn update<K,V>(m: Mapping<K,V>, s: Sequence<(K,V)>)->Mapping<K,V>{
 
 fn get<K,V>(m: Mapping<K,V>, k: K)->V{
     m.lookup(k).value("key not found")
+}
+
+fn contains<K,V>(m: Mapping<K,V>, k: K)->bool{
+    m.lookup(k).has_value()
+}
+
+fn keys<K, V>(m: Mapping<K,V>)->Generator<K>{
+    m.to_generator().map((t: (K,V)) -> {t::item0})
+}
+
+fn values<K, V>(m: Mapping<K,V>)->Generator<V>{
+    m.to_generator().map((t: (K,V)) -> {t::item1})
 }
 "#;

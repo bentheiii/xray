@@ -162,15 +162,16 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_optional_dyn_to_string(scope).unwrap();
 
     add_mapping_type(scope).unwrap();
-    add_mapping_contains(scope).unwrap();
     add_mapping_discard(scope).unwrap();
-    add_mapping_entries(scope).unwrap();
     add_mapping_len(scope).unwrap();
     add_mapping_lookup(scope).unwrap();
     add_mapping_new(scope).unwrap();
     add_mapping_pop(scope).unwrap();
     add_mapping_set(scope).unwrap();
+    add_mapping_to_generator(scope).unwrap();
     add_mapping_update(scope).unwrap();
+    add_mapping_dyn_eq(scope).unwrap();
+    add_mapping_dyn_hash(scope).unwrap();
     add_mapping_dyn_new(scope).unwrap();
 
     add_set_type(scope).unwrap();

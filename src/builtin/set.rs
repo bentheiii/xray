@@ -6,16 +6,15 @@ use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
-use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    forward_err, manage_native, parse_hash, to_native, to_primitive, unpack_types, xraise,
+    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise,
     CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
 use num_traits::ToPrimitive;
 use rc::Rc;
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::io::Write;
@@ -45,6 +44,12 @@ impl NativeType for XSetType {
 }
 
 type SetBucket<W> = Vec<Rc<ManagedXValue<W>>>;
+
+enum KeyLocation {
+    Missing(u64),
+    Vacant(u64),
+    Found((u64, usize)),
+}
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
@@ -76,61 +81,61 @@ impl<W: Write + 'static> XSet<W> {
         ns: &RuntimeScope<W>,
         rt: RTCell<W>,
     ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
-        let hash_func = to_primitive!(self.hash_func, Function);
-        let mut eq_func = None;
-        let mut new_table = self.inner.clone();
-        let mut new_len = self.len;
+        let mut ret = Self::new(
+                self.hash_func.clone(),
+                self.eq_func.clone(),
+                self.inner.clone(),
+                self.len
+            );
         for k in items {
             let k = xraise!(k?);
-            let hash_key = parse_hash!(
-                ns.eval_func_with_values(hash_func, vec![Ok(k.clone())], rt.clone(), false)?,
-                rt.clone()
-            );
-
-            let spot = new_table.entry(hash_key);
-            match spot {
-                Entry::Vacant(spot) => {
-                    new_len += 1;
-                    spot.insert(vec![k]);
+            let loc = xraise!(ret.locate(&k, ns, rt.clone())?);
+            match loc {
+                KeyLocation::Found(_) => {}
+                KeyLocation::Missing(hash_key) => {
+                    ret.inner.get_mut(&hash_key).unwrap().push(k);
+                    ret.len += 1;
                 }
-                Entry::Occupied(mut spot) => {
-                    if eq_func.is_none() {
-                        eq_func = Some(to_primitive!(self.eq_func, Function));
-                    }
-                    let mut found = false;
-                    for existing_k in spot.get().iter() {
-                        if *to_primitive!(
-                            xraise!(ns
+                KeyLocation::Vacant(hash_key) => {
+                    ret.inner.insert(hash_key, vec![k]);
+                    ret.len += 1;
+                }
+            }
+        }
+
+        Ok(manage_native!(
+            ret,
+            rt
+        ))
+    }
+
+    fn locate(&self, element: &Rc<ManagedXValue<W>>, ns: &RuntimeScope<W>, rt: RTCell<W>) -> Result<Result<KeyLocation, Rc<ManagedXError<W>>>, RuntimeViolation> {
+        let hash_func = to_primitive!(self.hash_func, Function);
+        let raw_hash = forward_err!(ns.eval_func_with_values(hash_func, vec![Ok(element.clone())], rt.clone(), false)?.unwrap_value());
+        let hash_key = forward_err!(to_primitive!(raw_hash, Int)
+            .to_u64()
+            .ok_or(ManagedXError::new(
+                "hash is out of bounds",
+                rt.clone()
+            )?));
+        let Some(bucket) = self.inner.get(&hash_key) else { return Ok(Ok(KeyLocation::Vacant(hash_key))); };
+        let eq_func = Some(to_primitive!(self.eq_func, Function));
+        for (i, k) in bucket.iter().enumerate() {
+            if *to_primitive!(
+                            forward_err!(ns
                                 .eval_func_with_values(
                                     eq_func.unwrap(),
-                                    vec![Ok(existing_k.clone()), Ok(k.clone())],
+                                    vec![Ok(element.clone()), Ok(k.clone())],
                                     rt.clone(),
                                     false
                                 )?
                                 .unwrap_value()),
                             Bool
                         ) {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if !found {
-                        new_len += 1;
-                        spot.get_mut().push(k);
-                    }
-                }
+                return Ok(Ok(KeyLocation::Found((hash_key, i))));
             }
         }
-
-        Ok(manage_native!(
-            Self::new(
-                self.hash_func.clone(),
-                self.eq_func.clone(),
-                new_table,
-                new_len
-            ),
-            rt
-        ))
+        return Ok(Ok(KeyLocation::Missing(hash_key)));
     }
 
     pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue<W>>> + '_ {
@@ -234,37 +239,12 @@ pub(crate) fn add_set_contains<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let set = to_native!(a0, XSet<W>);
-
-            let hash_func = to_primitive!(set.hash_func, Function);
-            let hash_key = parse_hash!(
-                ns.eval_func_with_values(hash_func, vec![Ok(a1.clone())], rt.clone(), false)?,
-                rt.clone()
-            );
-
-            let spot = set.inner.get(&hash_key);
-
-            match spot {
-                None => Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into()),
-                Some(candidates) => {
-                    let eq_func = to_primitive!(set.eq_func, Function);
-                    for k in candidates.iter() {
-                        if *to_primitive!(
-                            xraise!(ns
-                                .eval_func_with_values(
-                                    eq_func,
-                                    vec![Ok(a1.clone()), Ok(k.clone())],
-                                    rt.clone(),
-                                    false
-                                )?
-                                .unwrap_value()),
-                            Bool
-                        ) {
-                            return Ok(ManagedXValue::new(XValue::Bool(true), rt)?.into());
-                        }
-                    }
-                    Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into())
-                }
-            }
+            let found = if let KeyLocation::Found(_) = xraise!(set.locate(&a1, ns, rt.clone())?){
+                true
+            } else {
+                false
+            };
+            return Ok(ManagedXValue::new(XValue::Bool(found), rt)?.into());
         }),
     )
 }
@@ -302,38 +282,6 @@ pub(crate) fn add_set_to_generator<W: Write + 'static>(
     )
 }
 
-#[allow(clippy::type_complexity)]
-fn bucket_without<W: Write + 'static>(
-    old_bucket: &SetBucket<W>,
-    eq_func: &XFunction<W>,
-    key: &Rc<ManagedXValue<W>>,
-    ns: &RuntimeScope<W>,
-    rt: &RTCell<W>,
-) -> Result<Result<Option<SetBucket<W>>, Rc<ManagedXError<W>>>, RuntimeViolation> {
-    for (i, k) in old_bucket.iter().enumerate() {
-        if *to_primitive!(
-            forward_err!(ns
-                .eval_func_with_values(
-                    eq_func,
-                    vec![Ok(key.clone()), Ok(k.clone())],
-                    rt.clone(),
-                    false
-                )?
-                .unwrap_value()),
-            Bool
-        ) {
-            return Ok(Ok(Some(
-                old_bucket[..i]
-                    .iter()
-                    .cloned()
-                    .chain(old_bucket[i + 1..].iter().cloned())
-                    .collect(),
-            )));
-        }
-    }
-    Ok(Ok(None))
-}
-
 pub(crate) fn add_set_remove<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
@@ -350,30 +298,17 @@ pub(crate) fn add_set_remove<W: Write + 'static>(
             if set.len == 0 {
                 return xerr(ManagedXError::new("item not found", rt)?);
             }
+            let KeyLocation::Found((hash_key, idx)) = xraise!(set.locate(&a1, ns, rt.clone())?) else {
+                return xerr(ManagedXError::new("key not found", rt)?);
+            };
             rt.borrow().can_allocate(set.len - 1)?;
-            let hash_func = to_primitive!(set.hash_func, Function);
-            let hash_key = parse_hash!(
-                ns.eval_func_with_values(hash_func, vec![Ok(a1.clone())], rt.clone(), false)?,
-                rt.clone()
-            );
-            let spot = set.inner.get(&hash_key);
-            match spot {
-                None => xerr(ManagedXError::new("item not found", rt)?),
-                Some(candidates) => {
-                    let eq_func = to_primitive!(set.eq_func, Function);
-                    let Some(new_spot) = xraise!(bucket_without(candidates, eq_func, &a1, ns, &rt)?) else { return xerr(ManagedXError::new("item not found", rt)?); };
-                    let mut new_table = HashMap::from([(hash_key, new_spot)]);
-                    for (k, v) in &set.inner {
-                        if *k != hash_key {
-                            new_table.insert(*k, v.clone());
-                        }
-                    }
-                    Ok(manage_native!(
-                        XSet::new(set.hash_func.clone(), set.eq_func.clone(), new_table, set.len-1),
-                        rt
-                    ))
-                }
-            }
+            let mut new_dict = HashMap::from_iter(set.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (k.clone(), b.clone())));
+            let old_bucket = &set.inner[&hash_key];
+            new_dict.insert(hash_key, old_bucket.iter().take(idx).chain(old_bucket.iter().skip(idx + 1)).cloned().collect());
+            Ok(manage_native!(
+                XSet::new(set.hash_func.clone(), set.eq_func.clone(), new_dict, set.len-1),
+                rt
+            ))
         }),
     )
 }
@@ -394,30 +329,17 @@ pub(crate) fn add_set_discard<W: Write + 'static>(
             if set.len == 0 {
                 return Ok(a0.clone().into());
             }
+            let KeyLocation::Found((hash_key, idx)) = xraise!(set.locate(&a1, ns, rt.clone())?) else {
+                return Ok(a0.clone().into());
+            };
             rt.borrow().can_allocate(set.len - 1)?;
-            let hash_func = to_primitive!(set.hash_func, Function);
-            let hash_key = parse_hash!(
-                ns.eval_func_with_values(hash_func, vec![Ok(a1.clone())], rt.clone(), false)?,
-                rt.clone()
-            );
-            let spot = set.inner.get(&hash_key);
-            match spot {
-                None => Ok(a0.clone().into()),
-                Some(candidates) => {
-                    let eq_func = to_primitive!(set.eq_func, Function);
-                    let Some(new_spot) = xraise!(bucket_without(candidates, eq_func, &a1, ns, &rt)?) else { return Ok(a0.clone().into()); };
-                    let mut new_table = HashMap::from([(hash_key, new_spot)]);
-                    for (k, v) in &set.inner {
-                        if *k != hash_key {
-                            new_table.insert(*k, v.clone());
-                        }
-                    }
-                    Ok(manage_native!(
-                        XSet::new(set.hash_func.clone(), set.eq_func.clone(), new_table, set.len-1),
-                        rt
-                    ))
-                }
-            }
+            let mut new_dict = HashMap::from_iter(set.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (k.clone(), b.clone())));
+            let old_bucket = &set.inner[&hash_key];
+            new_dict.insert(hash_key, old_bucket.iter().take(idx).chain(old_bucket.iter().skip(idx + 1)).cloned().collect());
+            Ok(manage_native!(
+                XSet::new(set.hash_func.clone(), set.eq_func.clone(), new_dict, set.len-1),
+                rt
+            ))
         }),
     )
 }
