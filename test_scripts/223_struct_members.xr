@@ -1,0 +1,13 @@
+struct A(x: int, y: float, z: str)
+
+fn main()->bool{
+    let a0 = A(-5, 3.0, "howdy");
+    let a1 = A(0,-6.1,"me");
+    let a2 = A(0,-6.2,"");
+    let a3 = A(0,1.9,"me");
+
+    assert(a0.members() == (-5, 3.0, "howdy"))
+    && assert(a1.members() == (0,-6.1,"me"))
+    && assert(a2.members() == (0,-6.2,""))
+    && assert(a3.members() == (0,1.9,"me"))
+}

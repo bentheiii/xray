@@ -11,12 +11,16 @@ use crate::{
 };
 use derivative::Derivative;
 use rc::Rc;
+use std::collections::hash_map::DefaultHasher;
 use std::fmt::Debug;
+use std::hash::Hasher;
 use std::io::Write;
 use std::iter::from_fn;
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
+use num_traits::ToPrimitive;
+use crate::util::lazy_bigint::LazyBigint;
 
 #[derive(Debug, Clone)]
 pub(super) struct XStackType {}
@@ -100,7 +104,7 @@ impl<W: Write + 'static> XStack<W> {
         vec
     }
 
-    pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue<W>>> + '_ {
+    pub(super) fn iter(&self) -> impl Iterator<Item=Rc<ManagedXValue<W>>> + '_ {
         let mut node = &self.head;
         from_fn(move || match &node {
             None => None,
@@ -323,6 +327,50 @@ pub(crate) fn add_stack_dyn_eq<W: Write + 'static>(
                         Ok(ManagedXValue::new(XValue::Bool(true), rt)?.into())
                     },
                 ))
+            },
+        ))
+    })
+}
+
+pub(crate) fn add_stack_dyn_hash<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let symbol = scope.identifier("hash");
+
+    scope.add_dyn_func("hash", "stacks", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+
+        let (a0, ) = unpack_types!(types, 0);
+        let [t0] = unpack_native(a0, "Stack")? else { unreachable!() };
+
+        let inner = get_func(ns, symbol, &[t0.clone()], &X_INT)?;
+
+
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[&XStackType::xtype(t0.clone())], X_INT.clone()),
+            move |ns, rt| {
+                let inner_value = forward_err!(ns.eval(&inner, rt, false)?.unwrap_value());
+
+
+                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                    let seq0 = to_native!(a0, XStack<W>);
+                    let mut hasher = DefaultHasher::new();
+                    let inner_func = to_primitive!(inner_value, Function);
+
+                    for x in seq0.iter() {
+                        let hash = xraise!(ns
+                        .eval_func_with_values(inner_func, vec![Ok(x)], rt.clone(), false)?
+                        .unwrap_value());
+                        let Some(f) = to_primitive!(hash, Int).to_u64() else { return xerr(ManagedXError::new("hash out of bounds", rt)?); };
+                        hasher.write_u64(f);
+                    }
+                    let ret = hasher.finish();
+
+                    Ok(ManagedXValue::new(XValue::Int(LazyBigint::from(ret)), rt)?.into())
+                }))
             },
         ))
     })

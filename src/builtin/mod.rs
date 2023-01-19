@@ -13,8 +13,9 @@ use std::io::Write;
 
 use crate::builtin::generators::*;
 use crate::builtin::include::INCLUDE;
-use crate::builtin::regex::{add_regex_match, add_regex_new, add_regex_type};
+use crate::builtin::regex::*;
 use crate::builtin::set::*;
+use crate::builtin::structs::*;
 use crate::builtin::tuple::*;
 use crate::root_compilation_scope::RootCompilationScope;
 
@@ -35,6 +36,7 @@ pub mod stack;
 pub mod str;
 pub mod tuple;
 pub mod unknown;
+pub mod structs;
 
 pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<W>) {
     add_int_type(scope).unwrap();
@@ -147,6 +149,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_stack_to_array(scope).unwrap();
     add_stack_to_array_reversed(scope).unwrap();
     add_stack_dyn_eq(scope).unwrap();
+    add_stack_dyn_hash(scope).unwrap();
 
     add_optional_type(scope).unwrap();
     add_optional_and(scope).unwrap();
@@ -189,7 +192,10 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_set_dyn_new(scope).unwrap();
 
     add_tuple_empty_and(scope).unwrap();
+    add_tuple_dyn_cmp(scope).unwrap();
     add_tuple_dyn_eq(scope).unwrap();
+    add_tuple_dyn_hash(scope).unwrap();
+    add_tuple_dyn_to_str(scope).unwrap();
 
     add_generator_type(scope).unwrap();
     add_generator_add(scope).unwrap();
@@ -226,6 +232,8 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_cmp_lt(scope).unwrap();
     add_ne(scope).unwrap();
     add_partial(scope).unwrap();
+
+    add_struct_members(scope).unwrap();
 
     scope.feed_file(INCLUDE).unwrap();
 }

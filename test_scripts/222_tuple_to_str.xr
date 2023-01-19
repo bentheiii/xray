@@ -1,0 +1,11 @@
+fn main()->bool{
+    let a0 = (-5, 3, "howdy");
+    let a1 = (0,-6,"me");
+    let a2 = (0,-6,"");
+    let a3 = (0,1,"me");
+
+    assert(a0.to_str() == "(-5, 3, howdy)")
+    && assert(a1.to_str() == "(0, -6, me)")
+    && assert(a2.to_str() == "(0, -6, )")
+    && assert(a3.to_str() == "(0, 1, me)")
+}

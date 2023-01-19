@@ -1,0 +1,18 @@
+fn main()->bool{
+
+    let a0 = (-5, 3, "howdy");
+    let a1 = (0,-6,"me");
+    let a2 = (0,-6,"");
+    let a3 = (0,1,"me");
+
+    let m = mapping<(int, int, str)>()
+        .set(a0, 0)
+        .set(a1, 10)
+        .set(a2, 20)
+        .set(a3, 30);
+
+    assert(m[a0] == 0)
+    && assert(m[a1] == 10)
+    && assert(m[a2] == 20)
+    && assert(m[a3] == 30)
+}

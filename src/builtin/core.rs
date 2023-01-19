@@ -98,7 +98,7 @@ macro_rules! to_native {
 macro_rules! to_primitive {
     ($x: expr, $v: ident) => {
         match &$x.value {
-            XValue::$v(__b) => __b,
+            $crate::xvalue::XValue::$v(__b) => __b,
             other => panic!(
                 "error when converting primitive, expected {}, got {:?}",
                 stringify!($v),

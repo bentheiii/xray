@@ -1408,8 +1408,8 @@ pub(crate) fn add_sequence_dyn_hash<W: Write + 'static>(
                         let hash = xraise!(ns
                         .eval_func_with_values(inner_func, vec![x?], rt.clone(), false)?
                         .unwrap_value());
-                        let Some(f) = to_primitive!(hash, Int).to_usize() else { return xerr(ManagedXError::new("hash out of bounds", rt)?); };
-                        hasher.write_usize(f);
+                        let Some(f) = to_primitive!(hash, Int).to_u64() else { return xerr(ManagedXError::new("hash out of bounds", rt)?); };
+                        hasher.write_u64(f);
                     }
                     let ret = hasher.finish();
 

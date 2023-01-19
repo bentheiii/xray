@@ -1,0 +1,19 @@
+fn main()->bool{
+    let a0 = stack();
+    let a1 = a0.push(10);
+    let a2 = stack().push(20);
+    let a3 = a1.push(20);
+    let a4 = stack().push(20);
+
+    let m = mapping<Stack<int>>()
+        .set(a0, 0)
+        .set(a1, 10)
+        .set(a2, 20)
+        .set(a3, 30);
+
+    assert(m[a0] == 0)
+    && assert(m[a1] == 10)
+    && assert(m[a2] == 20)
+    && assert(m[a3] == 30)
+    && assert(m[a4] == 20)
+}
