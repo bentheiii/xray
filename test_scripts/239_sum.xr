@@ -1,0 +1,9 @@
+fn main()->bool{
+    let a = range(10);
+    let b = a.map((x: int)->{x/5});
+
+    assert(a.sum() == 45)
+    && assert(b.sum() == 9.0)
+    && assert(a.to_generator().sum() == 45)
+    && assert(b.to_generator().sum() == 9.0)
+}

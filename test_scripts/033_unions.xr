@@ -3,7 +3,7 @@ union msg(
     y: float
 )
 
-fn sum(x: Sequence<int>) -> int {
+fn total(x: Sequence<int>) -> int {
     fn helper(i: int, ret: int) -> int {
         if(i == x.len(),
             ret,
@@ -13,7 +13,7 @@ fn sum(x: Sequence<int>) -> int {
 }
 
 fn do(m: msg) -> int {
-    m?:x.map(sum)
+    m?:x.map(total)
     || m?:y.map(floor).value()
 }
 

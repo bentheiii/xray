@@ -1,0 +1,9 @@
+fn main()->bool{
+    let a = range(10);
+    let b = a.map((x: int)->{x/5});
+
+    assert(a.mean() == 4.5)
+    && assert(b.mean() == 0.9)
+    && assert(a.to_generator().mean() == 4.5)
+    && assert(b.to_generator().mean() == 0.9)
+}

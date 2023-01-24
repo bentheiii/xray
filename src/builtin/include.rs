@@ -168,6 +168,24 @@ fn reduce<T>(g: Generator<T>, func: (T, T)->(T)) -> T{
     g.aggregate(func).last()
 }
 
+fn sum(g: Generator<int>)->int{
+    g.reduce(add{int, int})
+}
+
+fn sum(g: Generator<float>)->float{
+    g.reduce(add{float, float})
+}
+
+fn mean(g: Generator<int>)->float{
+    let v = g.reduce((0, 0), (a: (int, int), v:int) -> {(a::item0+v, a::item1+1)});
+    v::item0/v::item1
+}
+
+fn mean(g: Generator<float>)->float{
+    let v = g.reduce((0.0, 0), (a: (float, int), v:float) -> {(a::item0+v, a::item1+1)});
+    v::item0/v::item1.to_float()
+}
+
 // sets
 fn __std_xset_order_by_cardinality<T>(a: Set<T>, b: Set<T>) -> (Set<T>, Set<T>){
     if(a.len() < b.len(), (a,b), (b,a))
@@ -246,5 +264,21 @@ fn reduce<T0, T1>(g: Sequence<T0>, initial_state: T1, func: (T1, T0)->(T1)) -> T
 
 fn reduce<T>(g: Sequence<T>, func: (T, T)->(T)) -> T{
     g.to_generator().reduce(func)
+}
+
+fn sum(g: Sequence<int>)->int{
+    g.reduce(add{int, int})
+}
+
+fn sum(g: Sequence<float>)->float{
+    g.reduce(add{float, float})
+}
+
+fn mean(g: Sequence<int>)->float{
+    g.sum()/g.len()
+}
+
+fn mean(g: Sequence<float>)->float{
+    g.sum()/g.len().to_float()
 }
 "#;

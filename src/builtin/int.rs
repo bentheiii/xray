@@ -175,6 +175,21 @@ pub(crate) fn add_int_to_str<W: Write + 'static>(
     )
 }
 
+pub(crate) fn add_int_to_float<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "to_float",
+        XFuncSpec::new(&[&X_INT], X_FLOAT.clone()),
+        ufunc!(Int, |a: &LazyBigint, _rt: RTCell<W>| {
+            let Some(ret) = a.to_f64() else {return Ok(Err("value is too large to fit in a float".to_string()))};
+            Ok(Ok(XValue::Float(
+                ret
+            )))
+        }),
+    )
+}
+
 pub(crate) fn add_int_digits<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
