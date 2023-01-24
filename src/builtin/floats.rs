@@ -10,6 +10,7 @@ use crate::util::lazy_bigint::LazyBigint;
 use num_traits::{FromPrimitive, Zero};
 use rc::Rc;
 use std::cmp::max_by;
+use std::f64::consts::PI;
 
 use crate::util::fenced_string::FencedString;
 use std::io::Write;
@@ -190,6 +191,145 @@ pub(crate) fn add_float_cbrt<W: Write + 'static>(
         "cbrt",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
         ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.cbrt())))),
+    )
+}
+
+pub(crate) fn add_float_acos<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "acos",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(
+            if *a > 1.0 || *a < -1.0{
+                Err("acos argument must be within -1 and 1".to_string())
+            }
+            else {
+                Ok(XValue::Float(a.acos()))
+            }
+        )),
+    )
+}
+
+pub(crate) fn add_float_acosh<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "acosh",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(
+            if *a < 1.0{
+                Err("acosh argument must be above 1".to_string())
+            }
+            else {
+                Ok(XValue::Float(a.acosh()))
+            }
+        )),
+    )
+}
+
+pub(crate) fn add_float_acot<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "acot",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(
+                Ok(XValue::Float(PI/2.0 - a.atan()))
+        )),
+    )
+}
+
+pub(crate) fn add_float_acoth<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "acoth",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(
+                if *a < 1.0 && *a > -1.0{
+                Err("acoth argument must be above 1 or lower than -1".to_string())
+            }
+            else {
+                Ok(XValue::Float(
+                    0.5 * ((*a+1.0)/(*a-1.0)).ln()
+                ))
+            }
+        )),
+    )
+}
+
+pub(crate) fn add_float_asin<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "asin",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(
+            if *a > 1.0 || *a < -1.0{
+                Err("asin argument must be within -1 and 1".to_string())
+            }
+            else {
+                Ok(XValue::Float(a.asin()))
+            }
+        )),
+    )
+}
+
+pub(crate) fn add_float_asinh<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "asinh",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(
+                Ok(XValue::Float(a.asinh()))
+        )),
+    )
+}
+
+pub(crate) fn add_float_atan<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "atan",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(
+                Ok(XValue::Float(a.atan()))
+        )),
+    )
+}
+
+pub(crate) fn add_float_atan2<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "atan",
+        XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_FLOAT.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a = to_primitive!(a0, Float);
+            let b = to_primitive!(a1, Float);
+            Ok(ManagedXValue::new(XValue::Float(a.atan2(*b)), rt)?.into())
+        }),
+    )
+}
+
+pub(crate) fn add_float_atanh<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "atanh",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(
+            if *a >= 1.0 || *a <= -1.0{
+                Err("atanh argument must be within -1 and 1".to_string())
+            }
+            else {
+                Ok(XValue::Float(a.atanh()))
+            }
+        )),
     )
 }
 
