@@ -183,6 +183,16 @@ pub(crate) fn add_float_sqrt<W: Write + 'static>(
     )
 }
 
+pub(crate) fn add_float_cbrt<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "cbrt",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.cbrt())))),
+    )
+}
+
 pub(crate) fn add_float_to_str<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {

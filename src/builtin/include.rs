@@ -13,6 +13,11 @@ fn abs(f: float)->float{
     if(f < 0.0, -f, f)
 }
 
+// bool
+fn bit_xor(a: bool, b: bool)->bool{
+    a != b
+}
+
 // string
 fn mul(a: str, n: int)->str{
     fn helper(n: int, ret: str)->str{

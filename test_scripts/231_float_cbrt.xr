@@ -1,0 +1,5 @@
+fn main()->bool{
+    assert(1000.0.cbrt() == 10.0)
+    && assert(is_close(10.0.cbrt(), 2.1544346900318834))
+    && assert((-1.0).cbrt() == -1.0)
+}
