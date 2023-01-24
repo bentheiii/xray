@@ -659,33 +659,35 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             return Ok(XExpr::Call(Box::new(overload), args));
                         }
                         // special case: struct construction
-                        if let Some(XType::Compound(CompoundKind::Struct, spec, ..)) =
-                            self.get_type(name).as_deref()
-                        {
-                            let arg_types: Vec<_> = args
-                                .iter()
-                                .map(|a| self.type_of(a))
-                                .collect::<Result<_, _>>()?;
-                            if arg_types.len() != spec.fields.len() {
-                                return Err(CompilationError::StructParamsLengthMismatch {
-                                    struct_name: spec.name,
-                                    expected_count: spec.fields.len(),
-                                    actual_count: arg_types.len(),
-                                });
-                            };
-                            return if let Some(bind) = spec.bind(&arg_types[..]) {
-                                Ok(XExpr::Construct(spec.clone(), bind, args))
-                            } else {
-                                Err(CompilationError::StructFieldTypeMismatch {
-                                    struct_name: spec.name,
-                                    expected_types: spec
-                                        .fields
-                                        .iter()
-                                        .map(|x| x.type_.clone())
-                                        .collect(),
-                                    actual_types: arg_types,
-                                })
-                            };
+                        if let Some(struct_t) = self.get_type(name) {
+                            if let XType::Compound(CompoundKind::Struct, spec, binding) =
+                                struct_t.as_ref()
+                            {
+                                let arg_types: Vec<_> = args
+                                    .iter()
+                                    .map(|a| self.type_of(a))
+                                    .collect::<Result<_, _>>()?;
+                                if arg_types.len() != spec.fields.len() {
+                                    return Err(CompilationError::StructParamsLengthMismatch {
+                                        struct_name: spec.name,
+                                        expected_count: spec.fields.len(),
+                                        actual_count: arg_types.len(),
+                                    });
+                                };
+                                return if let Some(bind) = spec.bind(&arg_types[..], &struct_t, binding) {
+                                    Ok(XExpr::Construct(spec.clone(), bind, args))
+                                } else {
+                                    Err(CompilationError::StructFieldTypeMismatch {
+                                        struct_name: spec.name,
+                                        expected_types: spec
+                                            .fields
+                                            .iter()
+                                            .map(|x| x.type_.clone())
+                                            .collect(),
+                                        actual_types: arg_types,
+                                    })
+                                };
+                            }
                         }
                     }
                     XStaticExpr::SpecializedIdent(name, specialization) => {

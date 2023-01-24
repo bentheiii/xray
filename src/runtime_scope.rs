@@ -300,7 +300,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             XExpr::MemberValue(obj, idx) => {
                 let obj = xraise!(self.eval(obj, rt.clone(), false)?.unwrap_value());
                 match &obj.as_ref().value {
-                    XValue::UnionInstance(variant, item) => Ok(if variant == idx {
+                    XValue::UnionInstance((variant, item)) => Ok(if variant == idx {
                         Ok(item.clone())
                     } else {
                         Err(ManagedXError::new("value is of incorrect variant", rt)?)
@@ -311,7 +311,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             }
             XExpr::MemberOptValue(obj, idx) => {
                 let obj = xraise!(self.eval(obj, rt.clone(), false)?.unwrap_value());
-                let XValue::UnionInstance(variant, item) = &obj.as_ref().value else { panic!("Expected union, got {:?}", obj) };
+                let XValue::UnionInstance((variant, item)) = &obj.as_ref().value else { panic!("Expected union, got {:?}", obj) };
                 Ok(if variant == idx {
                     manage_native!(
                         XOptional {
@@ -340,7 +340,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             }
             XExpr::Variant(.., idx, expr) => {
                 let obj = xraise!(self.eval(expr, rt.clone(), false)?.unwrap_value());
-                Ok(ManagedXValue::new(XValue::UnionInstance(*idx, obj), rt)?.into())
+                Ok(ManagedXValue::new(XValue::UnionInstance((*idx, obj)), rt)?.into())
             }
             XExpr::Call(callee, args) => {
                 // special case: tca through recursion

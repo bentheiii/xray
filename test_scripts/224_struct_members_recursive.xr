@@ -1,0 +1,10 @@
+struct A(v: Sequence<A>)
+
+fn eq(self: A, other: A)->bool{
+    self.members() == other.members()
+}
+
+fn main()->bool{
+    assert(A([]) == A([]))
+    && assert(A([A([A([])]), A([])]) == A([A([A([])]), A([])]))
+}

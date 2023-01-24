@@ -16,6 +16,7 @@ use crate::builtin::include::INCLUDE;
 use crate::builtin::regex::*;
 use crate::builtin::set::*;
 use crate::builtin::structs::*;
+use crate::builtin::unions::*;
 use crate::builtin::tuple::*;
 use crate::root_compilation_scope::RootCompilationScope;
 
@@ -37,6 +38,7 @@ pub mod str;
 pub mod tuple;
 pub mod unknown;
 pub mod structs;
+pub mod unions;
 
 pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<W>) {
     add_int_type(scope).unwrap();
@@ -227,6 +229,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_cmp_gt(scope).unwrap();
     add_if(scope).unwrap();
     add_if_error(scope).unwrap();
+    add_if_error_specific(scope).unwrap();
     add_is_error(scope).unwrap();
     add_cmp_le(scope).unwrap();
     add_cmp_lt(scope).unwrap();
@@ -234,6 +237,8 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_partial(scope).unwrap();
 
     add_struct_members(scope).unwrap();
+
+    add_union_members(scope).unwrap();
 
     scope.feed_file(INCLUDE).unwrap();
 }

@@ -1,0 +1,11 @@
+union A(x: int, y: float, z: str)
+
+fn main()->bool{
+    let a0 = A::x(-5);
+    let a1 = A::y(-6.1);
+    let a2 = A::z("me");
+
+    assert(a0.members() == (some(-5), none(), none()))
+    && assert(a1.members() == (none(), some(-6.1), none()))
+    && assert(a2.members() == (none(), none(), some("me")))
+}

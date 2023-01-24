@@ -102,6 +102,27 @@ pub(crate) fn add_if_error<W: Write + 'static>(
     )
 }
 
+pub(crate) fn add_if_error_specific<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+    scope.add_func(
+        "if_error",
+        XFuncSpec::new(&[&t, &X_STRING, &t], t.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, tca, rt| {
+            let a0 = eval(&args[0], ns, &rt)?;
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let s1 = to_primitive!(a1, String);
+            if let Err(ref err) = a0 {
+                if err.error.contains(s1.as_str()) {
+                    return ns.eval(&args[2], rt, tca)
+                }
+            }
+            Ok(a0.into())
+        }),
+    )
+}
+
 pub(crate) fn add_ne<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {

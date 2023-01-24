@@ -17,6 +17,8 @@ use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
 
+pub(crate) type UnionInstance<W> = (usize, Rc<ManagedXValue<W>>);
+
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub enum XValue<W> {
@@ -26,7 +28,7 @@ pub enum XValue<W> {
     Bool(bool),
     Function(XFunction<W>),
     StructInstance(Vec<Rc<ManagedXValue<W>>>),
-    UnionInstance(usize, Rc<ManagedXValue<W>>),
+    UnionInstance(UnionInstance<W>),
     Native(Box<dyn XNativeValue>),
 }
 

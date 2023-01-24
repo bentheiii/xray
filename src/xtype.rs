@@ -75,7 +75,7 @@ impl Bind {
         self.bound_generics.get(id)
     }
 
-    fn iter(&self) -> impl Iterator<Item = (&Identifier, &Arc<XType>)> {
+    fn iter(&self) -> impl Iterator<Item=(&Identifier, &Arc<XType>)> {
         self.bound_generics.iter()
     }
 
@@ -85,10 +85,10 @@ impl Bind {
 }
 
 impl<I> FromIterator<I> for Bind
-where
-    HashMap<Identifier, Arc<XType>>: FromIterator<I>,
+    where
+        HashMap<Identifier, Arc<XType>>: FromIterator<I>,
 {
-    fn from_iter<T: IntoIterator<Item = I>>(iter: T) -> Self {
+    fn from_iter<T: IntoIterator<Item=I>>(iter: T) -> Self {
         Self {
             bound_generics: FromIterator::from_iter(iter),
         }
@@ -119,13 +119,14 @@ impl XCompoundSpec {
         }
     }
 
-    pub(crate) fn bind(&self, args: &[Arc<XType>]) -> Option<Bind> {
+    pub(crate) fn bind(&self, args: &[Arc<XType>], tail: &Arc<XType>, binding: &Bind) -> Option<Bind> {
         if args.len() != self.fields.len() {
             return None;
         }
-        let mut ret = Bind::new();
+        let mut ret = binding.clone();
         for (arg, param) in args.iter().zip(self.fields.iter()) {
-            ret = ret.mix(&param.type_.bind_in_assignment(arg)?)?;
+            let t = param.type_.resolve_bind(&ret, Some(tail));
+            ret = ret.mix(&t.bind_in_assignment(arg)?)?;
         }
         Some(ret)
     }
@@ -471,7 +472,7 @@ impl XType {
                         .cloned()
                         .collect(),
                 )
-                .into()
+                    .into()
             }
             Self::XGeneric(ref a) => bind.get(a).cloned().unwrap_or_else(|| self.clone()),
             Self::XTail(types) => match tail {
@@ -582,7 +583,7 @@ impl XType {
                     .join(", ")
             ),
             Self::XUnknown => "?".to_string(),
-            Self::XTail(_) => unreachable!(),
+            Self::XTail(_) => "TAIL".to_string(),
             Self::Auto => unreachable!(),
         }
     }
@@ -603,9 +604,9 @@ impl PartialEq<Self> for XType {
                 a.generic_params == b.generic_params
                     && a.params.len() == b.params.len()
                     && a.params
-                        .iter()
-                        .zip(b.params.iter())
-                        .all(|(a, b)| a.type_.eq(&b.type_))
+                    .iter()
+                    .zip(b.params.iter())
+                    .all(|(a, b)| a.type_.eq(&b.type_))
             }
             (Self::XCallable(ref a), Self::XFunc(ref b)) => {
                 b.generic_params.is_none()
@@ -633,7 +634,7 @@ lazy_static! {
     pub static ref X_UNKNOWN: Arc<XType> = Arc::new(XType::XUnknown);
 }
 
-pub(crate) fn common_type<T: Iterator<Item = Result<Arc<XType>, CompilationError>>>(
+pub(crate) fn common_type<T: Iterator<Item=Result<Arc<XType>, CompilationError>>>(
     mut values: T,
 ) -> Result<Arc<XType>, CompilationError> {
     let mut ret = match values.next() {

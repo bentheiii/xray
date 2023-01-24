@@ -1,0 +1,15 @@
+union Chain(
+    last: int,
+    next: Chain
+)
+
+fn eq(x: Chain, y: Chain)->bool {
+    x.members() == y.members()
+}
+
+fn main()->bool{
+    let x = Chain::next(Chain::next(Chain::last(5)));
+    let y = Chain::next(Chain::next(Chain::last(5)));
+
+    assert(x == y)
+}
