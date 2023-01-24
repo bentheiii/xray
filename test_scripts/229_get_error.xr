@@ -1,0 +1,5 @@
+fn main()->bool{
+    assert(get_error(error("im an error")) == some("im an error"))
+    && assert(get_error(1/0) == some("Division by zero"))
+    && assert(get_error(0) == none())
+}

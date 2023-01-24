@@ -2,6 +2,7 @@ use crate::builtin::core::{eval, get_func, unpack_native, xerr};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::runtime_scope::RuntimeScope;
+use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::XExpr;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
@@ -10,6 +11,7 @@ use crate::{
     RootCompilationScope, XStaticFunction, XType,
 };
 use derivative::Derivative;
+use num_traits::ToPrimitive;
 use rc::Rc;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::Debug;
@@ -19,8 +21,6 @@ use std::iter::from_fn;
 use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
-use num_traits::ToPrimitive;
-use crate::util::lazy_bigint::LazyBigint;
 
 #[derive(Debug, Clone)]
 pub(super) struct XStackType {}
@@ -104,7 +104,7 @@ impl<W: Write + 'static> XStack<W> {
         vec
     }
 
-    pub(super) fn iter(&self) -> impl Iterator<Item=Rc<ManagedXValue<W>>> + '_ {
+    pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue<W>>> + '_ {
         let mut node = &self.head;
         from_fn(move || match &node {
             None => None,

@@ -240,7 +240,10 @@ pub(crate) fn add_set_contains<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let set = to_native!(a0, XSet<W>);
-            let found = matches!(xraise!(set.locate(&a1, ns, rt.clone())?), KeyLocation::Found(_));
+            let found = matches!(
+                xraise!(set.locate(&a1, ns, rt.clone())?),
+                KeyLocation::Found(_)
+            );
             Ok(ManagedXValue::new(XValue::Bool(found), rt)?.into())
         }),
     )

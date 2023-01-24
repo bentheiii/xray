@@ -1,19 +1,19 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hasher;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::{
     forward_err, to_primitive, unpack_types, xraise, CompilationError, RootCompilationScope, XType,
 };
+use std::collections::hash_map::DefaultHasher;
+use std::hash::Hasher;
 
 use crate::builtin::core::{eval, get_func, xerr};
 use crate::runtime_scope::RuntimeScope;
-use crate::xexpr::{XExpr, XStaticFunction};
-use std::io::Write;
-use std::sync::Arc;
-use num_traits::{ToPrimitive, Zero};
 use crate::util::fenced_string::FencedString;
 use crate::util::lazy_bigint::LazyBigint;
+use crate::xexpr::{XExpr, XStaticFunction};
+use num_traits::{ToPrimitive, Zero};
+use std::io::Write;
+use std::sync::Arc;
 
 pub(crate) fn add_tuple_empty_and<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,

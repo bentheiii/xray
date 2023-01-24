@@ -674,7 +674,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                         actual_count: arg_types.len(),
                                     });
                                 };
-                                return if let Some(bind) = spec.bind(&arg_types[..], &struct_t, binding) {
+                                return if let Some(bind) =
+                                    spec.bind(&arg_types[..], &struct_t, binding)
+                                {
                                     Ok(XExpr::Construct(spec.clone(), bind, args))
                                 } else {
                                     Err(CompilationError::StructFieldTypeMismatch {

@@ -1,0 +1,5 @@
+fn main()->bool{
+    assert(is_error(error("im an error"), "im an error"))
+    && assert(is_error(1/0, "Division by zero"))
+    && assert(is_error(is_error([][1], "Division by zero")))
+}

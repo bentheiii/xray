@@ -2,13 +2,14 @@ use crate::xexpr::XExpr;
 use crate::xtype::{Bind, XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::{
-    forward_err, to_primitive, ufunc, unpack_types, xraise, xraise_opt, CompilationError,
-    RootCompilationScope, XStaticFunction, XType,
+    forward_err, manage_native, to_primitive, ufunc, unpack_types, xraise, xraise_opt,
+    CompilationError, RootCompilationScope, XStaticFunction, XType,
 };
 use rc::Rc;
 
 use crate::builtin::builtin_permissions;
 use crate::builtin::core::{eval, get_func};
+use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::runtime::RTCell;
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
@@ -76,10 +77,25 @@ pub(crate) fn add_is_error<W: Write + 'static>(
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "is_error",
-        XFuncSpec::new(&[&t], X_BOOL.clone()).generic(params),
+        XFuncSpec::new_with_optional(&[&t], &[&X_STRING], X_BOOL.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = eval(&args[0], ns, &rt)?;
-            Ok(ManagedXValue::new(XValue::Bool(a0.is_err()), rt)?.into())
+            let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
+            if let Some(a1) = a1 {
+                let s1 = to_primitive!(a1, String);
+
+                Ok(ManagedXValue::new(
+                    XValue::Bool(match &a0 {
+                        Ok(_) => false,
+                        Err(e) if e.error.contains(s1.as_str()) => true,
+                        _ => return Ok(a0.into()),
+                    }),
+                    rt,
+                )?
+                .into())
+            } else {
+                Ok(ManagedXValue::new(XValue::Bool(a0.is_err()), rt)?.into())
+            }
         }),
     )
 }
@@ -115,10 +131,35 @@ pub(crate) fn add_if_error_specific<W: Write + 'static>(
             let s1 = to_primitive!(a1, String);
             if let Err(ref err) = a0 {
                 if err.error.contains(s1.as_str()) {
-                    return ns.eval(&args[2], rt, tca)
+                    return ns.eval(&args[2], rt, tca);
                 }
             }
             Ok(a0.into())
+        }),
+    )
+}
+
+pub(crate) fn add_get_error<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "get_error",
+        XFuncSpec::new(&[&X_UNKNOWN], XOptionalType::xtype(X_STRING.clone())),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = eval(&args[0], ns, &rt)?;
+            Ok(manage_native!(
+                XOptional {
+                    value: if let Err(e) = a0 {
+                        Some(ManagedXValue::new(
+                            XValue::String(Box::new(FencedString::from_str(&e.error))),
+                            rt.clone(),
+                        )?)
+                    } else {
+                        None
+                    }
+                },
+                rt
+            ))
         }),
     )
 }
