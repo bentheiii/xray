@@ -1346,3 +1346,13 @@ fn test_script_234() {
 fn test_script_235() {
     run_script_from_name(function_name!())
 }
+
+#[test]
+fn test_script_236() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_237() {
+    run_script_from_name(function_name!())
+}

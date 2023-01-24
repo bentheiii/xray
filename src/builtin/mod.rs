@@ -122,8 +122,6 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_sequence_pop(scope).unwrap();
     add_sequence_push(scope).unwrap();
     add_sequence_range(scope).unwrap();
-    add_sequence_reduce2(scope).unwrap();
-    add_sequence_reduce3(scope).unwrap();
     add_sequence_rpush(scope).unwrap();
     add_sequence_set(scope).unwrap();
     add_sequence_skip(scope).unwrap();
@@ -206,6 +204,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_generator_filter(scope).unwrap();
     add_generator_get(scope).unwrap();
     add_generator_join(scope).unwrap();
+    add_generator_last(scope).unwrap();
     add_generator_len(scope).unwrap();
     add_generator_map(scope).unwrap();
     add_generator_nth(scope).unwrap();

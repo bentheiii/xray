@@ -160,6 +160,13 @@ fn aggregate<T>(g: Generator<T>, f: (T, T)->(T))->Generator<T>{
     ).skip(1).map(value{Optional<T>})
 }
 
+fn reduce<T0, T1>(g: Generator<T0>, initial_state: T1, func: (T1, T0)->(T1)) -> T1{
+    g.aggregate(initial_state, func).last()
+}
+
+fn reduce<T>(g: Generator<T>, func: (T, T)->(T)) -> T{
+    g.aggregate(func).last()
+}
 
 // sets
 fn __std_xset_order_by_cardinality<T>(a: Set<T>, b: Set<T>) -> (Set<T>, Set<T>){
@@ -231,5 +238,13 @@ fn values<K, V>(m: Mapping<K,V>)->Generator<V>{
 
 fn aggregate<T>(seq: Sequence<T>,  f: (T, T)->(T))->Generator<T>{
     seq.to_generator().aggregate(f)
+}
+
+fn reduce<T0, T1>(g: Sequence<T0>, initial_state: T1, func: (T1, T0)->(T1)) -> T1{
+    g.to_generator().reduce(initial_state, func)
+}
+
+fn reduce<T>(g: Sequence<T>, func: (T, T)->(T)) -> T{
+    g.to_generator().reduce(func)
 }
 "#;

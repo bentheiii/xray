@@ -705,6 +705,38 @@ pub(crate) fn add_generator_len<W: Write + 'static>(
     )
 }
 
+pub(crate) fn add_generator_last<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+    let t_arr = XGeneratorType::xtype(t.clone());
+
+    scope.add_func(
+        "last",
+        XFuncSpec::new(
+            &[
+                &t_arr,
+            ],
+            t.clone(),
+        )
+        .generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let gen0 = to_native!(a0, XGenerator<W>);
+            let mut ret = None;
+            for value in gen0.iter(ns, rt.clone()) {
+                let value = xraise!(value?);
+                ret = Some(value);
+            }
+            if let Some(ret) = ret{
+                Ok(ret.into())
+            } else {
+                xerr(ManagedXError::new("generator is empty", rt)?)
+            }
+        }),
+    )
+}
+
 pub(crate) fn add_generator_join<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
