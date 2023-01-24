@@ -1,0 +1,6 @@
+fn main()->bool{
+    let g = count(2).aggregate(1,mul{int, int}).take(5);
+    assert(
+        g.to_array() == [1,2,6,24,120]
+    )
+}

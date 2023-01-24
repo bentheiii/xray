@@ -125,6 +125,10 @@ fn bisect<T>(seq: Sequence<T>, left_predicate: (T)->(bool))->int{
     helper(seq, 0)
 }
 
+fn aggregate<T0, T1>(seq: Sequence<T0>, initial_state: T1, func: (T1, T0)->(T1))->Generator<T1>{
+    seq.to_generator().aggregate(initial_state, func)
+}
+
 //generators
 fn any<T>(a: Generator<T>, f: (T)->(bool))->bool{
     a.nth(0, f).has_value()
@@ -148,6 +152,12 @@ fn successors<T>(start: T, f: (T)->(T))->Generator<T>{
 
 fn count<T>(s: Generator<T>, f: (T)->(bool))->int{
     s.filter(f).len()
+}
+
+fn aggregate<T>(g: Generator<T>, f: (T, T)->(T))->Generator<T>{
+    g.aggregate(none(),
+        (prev: Optional<T>, next: T)->{if(prev.has_value(), some(f(prev.value(), next)), some(next))}
+    ).skip(1).map(value{Optional<T>})
 }
 
 
@@ -213,5 +223,13 @@ fn keys<K, V>(m: Mapping<K,V>)->Generator<K>{
 
 fn values<K, V>(m: Mapping<K,V>)->Generator<V>{
     m.to_generator().map((t: (K,V)) -> {t::item1})
+}
+
+
+// gen 2:
+// sequences
+
+fn aggregate<T>(seq: Sequence<T>,  f: (T, T)->(T))->Generator<T>{
+    seq.to_generator().aggregate(f)
 }
 "#;
