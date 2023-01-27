@@ -1,0 +1,13 @@
+fn main()->bool{
+    let d = beta(8.0,10.0);
+
+    assert(d.cdf(0.5).is_close(0.685470581054654))
+    && assert(d.cdf(-1.2) == 0.0)
+    && assert(d.cdf(1.2) == 1.0)
+    && assert(d.pdf(0.5).is_close(2.9675292968753038))
+    && assert(d.pdf(-1.2) == 0.0)
+    && assert(d.pdf(1.2) == 0.0)
+    && assert(d.quantile(0.685470581054654).is_close(0.5))
+    && assert(d.quantile(0.0) == 0.0)
+    && assert(d.quantile(1.0) == 1.0)
+}

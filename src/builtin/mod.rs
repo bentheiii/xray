@@ -18,6 +18,7 @@ use crate::builtin::set::*;
 use crate::builtin::structs::*;
 use crate::builtin::tuple::*;
 use crate::builtin::unions::*;
+use crate::builtin::cont_distributions::*;
 use crate::root_compilation_scope::RootCompilationScope;
 
 pub mod bool;
@@ -39,6 +40,7 @@ pub mod structs;
 pub mod tuple;
 pub mod unions;
 pub mod unknown;
+pub mod cont_distributions;
 
 pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<W>) {
     add_int_type(scope).unwrap();
@@ -231,6 +233,12 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_regex_type(scope).unwrap();
     add_regex_match(scope).unwrap();
     add_regex_new(scope).unwrap();
+
+    add_continuous_distribution_type(scope).unwrap();
+    add_contdist_beta(scope).unwrap();
+    add_contdist_cdf(scope).unwrap();
+    add_contdist_pdf(scope).unwrap();
+    add_contdist_quantile(scope).unwrap();
 
     add_cast(scope).unwrap();
     add_debug(scope).unwrap();
