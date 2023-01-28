@@ -1,4 +1,4 @@
-use crate::builtin::core::{eval, ufunc_ref, xcmp, xerr};
+use crate::builtin::core::{eval, search, ufunc_ref, xcmp, xerr};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
@@ -7,7 +7,7 @@ use crate::{
     XStaticFunction,
 };
 
-use num_traits::{Pow, Signed, ToPrimitive, Zero};
+use num_traits::{Pow, Signed, ToPrimitive, Zero, One};
 
 use rc::Rc;
 use std::cmp::max;
@@ -90,6 +90,15 @@ add_int_binop!(
         rt.borrow()
             .can_allocate(max(a.prospective_size(), b.prospective_size()))?;
         Ok(Ok(XValue::Int(a.clone() & b.clone())))
+    }
+);
+add_int_binop!(
+    add_int_bit_xor,
+    bit_xor,
+    |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W>| {
+        rt.borrow()
+            .can_allocate(max(a.prospective_size(), b.prospective_size()))?;
+        Ok(Ok(XValue::Int(a.clone() ^ b.clone())))
     }
 );
 add_binfunc!(
@@ -257,9 +266,31 @@ pub(crate) fn add_int_chr<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s = to_primitive!(a0, Int);
-            let Some(ord) = s.to_u32() else {return xerr(ManagedXError::new("number too large", rt)?)};
-            let Ok(chr) = char::try_from(ord) else {return xerr(ManagedXError::new("value is not a unicode char", rt)?)};
+            let Some(ord) = s.to_u32() else { return xerr(ManagedXError::new("number too large", rt)?); };
+            let Ok(chr) = char::try_from(ord) else { return xerr(ManagedXError::new("value is not a unicode char", rt)?); };
             Ok(ManagedXValue::new(XValue::String(Box::new(FencedString::from_string(chr.into()))), rt)?.into())
         }),
     )
 }
+
+add_int_binop!(
+    add_int_binom,
+    binom,
+    |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W>| {
+        if b > a{
+            return Ok(Err("argument 2 must be less than argument 1".to_string()))
+        }
+        if b.is_negative(){
+            return Ok(Err("argument 2 must be non-negative".to_string()))
+        }
+        let mut num = LazyBigint::one();
+        let mut denum = LazyBigint::one();
+        for (i, s) in search(b.range(), rt.clone()){
+            s?;
+            num = num * (a-&i);
+            denum = denum * (&i + &LazyBigint::one());
+            rt.borrow().can_allocate_by(|| Some(num.prospective_size() + denum.prospective_size()))?;
+        }
+        Ok(Ok(XValue::Int(num/denum)))
+    }
+);

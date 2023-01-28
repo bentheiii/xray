@@ -1,0 +1,13 @@
+fn main()->bool{
+    let d = binomial_distribution(10,0.5);
+
+    assert(d.cdf(7).is_close(0.9453125))
+    && assert(d.cdf(-11) == 0.0)
+    && assert(d.cdf(11) == 1.0)
+    && assert(d.pmf(7).is_close(0.1171875))
+    && assert(d.pmf(-11) == 0.0)
+    && assert(d.pmf(11) == 0.0)
+    && assert(d.quantile(0.9453125) == 7)
+    //&& assert(d.quantile(0.0) == 0)
+    //&& assert(d.quantile(1.0) == 10)
+}

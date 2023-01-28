@@ -12,6 +12,7 @@ use crate::builtin::unknown::*;
 use std::io::Write;
 
 use crate::builtin::cont_distributions::*;
+use crate::builtin::disc_distributions::*;
 use crate::builtin::generators::*;
 use crate::builtin::include::INCLUDE;
 use crate::builtin::regex::*;
@@ -41,10 +42,12 @@ pub mod structs;
 pub mod tuple;
 pub mod unions;
 pub mod unknown;
+pub mod disc_distributions;
 
 pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<W>) {
     add_int_type(scope).unwrap();
     add_int_add(scope).unwrap();
+    add_int_binom(scope).unwrap();
     add_int_bit_and(scope).unwrap();
     add_int_bit_or(scope).unwrap();
     add_int_chr(scope).unwrap();
@@ -65,6 +68,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_int_sub(scope).unwrap();
     add_int_to_float(scope).unwrap();
     add_int_to_str(scope).unwrap();
+    add_int_bit_xor(scope).unwrap();
 
     add_float_type(scope).unwrap();
     add_float_acos(scope).unwrap();
@@ -238,8 +242,15 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_continuous_distribution_type(scope).unwrap();
     add_contdist_beta(scope).unwrap();
     add_contdist_cdf(scope).unwrap();
+    add_contdist_chisq(scope).unwrap();
     add_contdist_pdf(scope).unwrap();
     add_contdist_quantile(scope).unwrap();
+
+    add_discrete_distribution_type(scope).unwrap();
+    add_discdist_binomial(scope).unwrap();
+    add_discdist_cdf(scope).unwrap();
+    add_discdist_pmf(scope).unwrap();
+    add_discdist_quantile(scope).unwrap();
 
     add_cast(scope).unwrap();
     add_debug(scope).unwrap();

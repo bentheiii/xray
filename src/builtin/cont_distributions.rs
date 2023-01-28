@@ -7,7 +7,7 @@ use crate::{
     XStaticFunction, XType,
 };
 use num_traits::Float;
-use statrs::distribution::{Beta, Continuous, ContinuousCDF, Uniform};
+use statrs::distribution::{Beta, Continuous, ContinuousCDF, Gamma, Uniform};
 use statrs::statistics::{Max, Min};
 use std::fmt::Debug;
 use std::io::Write;
@@ -65,6 +65,7 @@ lazy_static! {
 #[derive(Debug)]
 pub(crate) enum XContinuousDistribution {
     Beta(Beta),
+    Gamma(Gamma),
     Uniform(Uniform),
 }
 
@@ -72,6 +73,7 @@ impl XContinuousDistribution {
     fn cdf(&self, x: f64) -> f64 {
         match self {
             Self::Beta(i) => i.cdf(x),
+            Self::Gamma(i)=>i.cdf(x),
             Self::Uniform(i) => i.cdf(x),
         }
     }
@@ -79,6 +81,7 @@ impl XContinuousDistribution {
     fn pdf(&self, x: f64) -> f64 {
         match self {
             Self::Beta(i) => i.pdf(x),
+            Self::Gamma(i)=>i.pdf(x),
             Self::Uniform(i) => i.pdf(x),
         }
     }
@@ -86,6 +89,7 @@ impl XContinuousDistribution {
     fn quantile(&self, x: f64) -> f64 {
         match self {
             Self::Beta(i) => deep_inverse_cdf(i, x),
+            Self::Gamma(i) => deep_inverse_cdf(i, x),
             Self::Uniform(i) => x * (i.max() - i.min()) + i.min(),
         }
     }
@@ -107,7 +111,7 @@ pub(crate) fn add_contdist_beta<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
-        "beta",
+        "beta_distribution",
         XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_CONTDIST.clone()),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
@@ -171,7 +175,31 @@ pub(crate) fn add_contdist_quantile<W: Write + 'static>(
             if *f1 > 1.0 || *f1 < 0.0 {
                 return xerr(ManagedXError::new("quantile must be between 0 and 1", rt)?);
             }
-            Ok(ManagedXValue::new(XValue::Float(d0.quantile(*f1)), rt)?.into())
+            let ret = d0.quantile(*f1);
+            if !ret.is_finite(){
+                return xerr(ManagedXError::new("value out of bounds", rt)?);
+            }
+            Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+        }),
+    )
+}
+
+pub(crate) fn add_contdist_chisq<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "chisq_distribution",
+        XFuncSpec::new(&[&X_FLOAT], X_CONTDIST.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let f0 = to_primitive!(a0, Float);
+            let ret = match Gamma::new(*f0/2.0, 0.5) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
+                }
+            };
+            Ok(manage_native!(XContinuousDistribution::Gamma(ret), rt))
         }),
     )
 }

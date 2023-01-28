@@ -5,9 +5,10 @@ use num_traits::{FromPrimitive, Inv, Num, One, Pow, Signed, ToPrimitive, Zero};
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Display, Formatter};
+use std::iter;
 use std::mem::size_of;
 use std::num::{IntErrorKind, ParseIntError};
-use std::ops::{Add, BitAnd, BitOr, Div, Mul, Neg, Rem, Sub};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Rem, Sub};
 
 type SmallInt = i64;
 
@@ -68,6 +69,10 @@ impl LazyBigint {
             },
         }
     }
+
+    pub(crate) fn range<'a>(&'a self) -> impl IntoIterator<Item=Self> + 'a {
+        iter::successors(Some(Self::zero()), |p| Some(p + &Self::one())).take_while(|i| i < self)
+    }
 }
 
 impl Inv for LazyBigint {
@@ -104,8 +109,8 @@ impl One for LazyBigint {
     }
 
     fn is_one(&self) -> bool
-    where
-        Self: PartialEq,
+        where
+            Self: PartialEq,
     {
         matches!(self, Self::Short(1))
     }
@@ -117,8 +122,8 @@ impl Zero for LazyBigint {
     }
 
     fn is_zero(&self) -> bool
-    where
-        Self: PartialEq,
+        where
+            Self: PartialEq,
     {
         matches!(self, Self::Short(0))
     }
@@ -215,14 +220,22 @@ impl Sub for LazyBigint {
     type Output = Self;
 
     fn sub(self, rhs: Self) -> Self::Output {
+        &self - &rhs
+    }
+}
+
+impl Sub for &LazyBigint {
+    type Output = LazyBigint;
+
+    fn sub(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (a, Self::Short(0)) => a,
-            (Self::Short(s1), Self::Short(s2)) => s1.checked_sub(s2).map_or_else(
-                || Self::Long(assert_is_long(BigInt::from(s1) - s2)),
-                Self::Short,
+            (a, LazyBigint::Short(0)) => a.clone(),
+            (LazyBigint::Short(s1), LazyBigint::Short(s2)) => s1.checked_sub(*s2).map_or_else(
+                || LazyBigint::Long(assert_is_long(BigInt::from(*s1) - s2)),
+                LazyBigint::Short,
             ),
-            (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => Self::from(b - s),
-            (Self::Long(b0), Self::Long(b1)) => Self::from(b0 - b1),
+            (LazyBigint::Short(s), LazyBigint::Long(b)) | (LazyBigint::Long(b), LazyBigint::Short(s)) => LazyBigint::from(b - s),
+            (LazyBigint::Long(b0), LazyBigint::Long(b1)) => LazyBigint::from(b0 - b1),
         }
     }
 }
@@ -280,6 +293,20 @@ impl BitOr for LazyBigint {
                 Self::from(b | BigInt::from(s))
             }
             (Self::Long(b0), Self::Long(b1)) => Self::from(b0 | b1),
+        }
+    }
+}
+
+impl BitXor for LazyBigint {
+    type Output = Self;
+
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Self::Short(s1), Self::Short(s2)) => Self::Short(s1 ^ s2),
+            (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => {
+                Self::from(b ^ BigInt::from(s))
+            }
+            (Self::Long(b0), Self::Long(b1)) => Self::from(b0 ^ b1),
         }
     }
 }
