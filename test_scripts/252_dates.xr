@@ -1,0 +1,5 @@
+fn main()->bool{
+    assert(julian_day(Date(123,1,28)) == 1766012)
+    && assert(julian_day(Date(2023,1,28)) == 2459973)
+    && assert(julian_day(Date(1601,3,29)) == 2305901)
+}

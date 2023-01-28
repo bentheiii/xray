@@ -9,8 +9,14 @@ fn count(start: int, offset: int ?= 1)->Sequence<int>{
 }
 
 // float
+let pi = 3.1415926535897932384626433832795028841971693;
+
 fn abs(f: float)->float{
     if(f < 0.0, -f, f)
+}
+
+fn div(f: float, i: int)->float{
+    f/i.to_float()
 }
 
 // bool
@@ -252,6 +258,15 @@ fn values<K, V>(m: Mapping<K,V>)->Generator<V>{
 
 
 // gen 2:
+// floats
+fn covariance(s: Generator<(float, float)>)->float{
+    let agg = (n: (int,float,float), i: (float, float))->{(n::item0+1, n::item1+i::item0, n::item2+i::item1)};
+    let agg = s.reduce((0,0.0,0.0), agg);
+    let mean_x = agg::item1/agg::item0;
+    let mean_y = agg::item2/agg::item0;
+    s.map((t:(float, float))->{(t::item0-mean_x)*(t::item1-mean_y)}).mean()
+}
+
 // sequences
 
 fn aggregate<T>(seq: Sequence<T>,  f: (T, T)->(T))->Generator<T>{
@@ -280,5 +295,19 @@ fn mean(g: Sequence<int>)->float{
 
 fn mean(g: Sequence<float>)->float{
     g.sum()/g.len().to_float()
+}
+
+// dates
+struct Date(year: int, month: int, day: int)
+
+fn julian_day(date: Date)->int{
+    let year = date::year;
+    let month = date::month;
+    let day = date::day;
+
+    let a = trunc((14 - month) / 12);
+    let y = year + 4800 - a;
+    let m = month + 12 * a - 3;
+    day + trunc((153 * m + 2)/5) + y*365 + trunc(y/4) - trunc(y/100) + trunc(y/400) - 32045
 }
 "#;

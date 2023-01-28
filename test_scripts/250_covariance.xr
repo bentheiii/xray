@@ -1,0 +1,6 @@
+fn main()->bool{
+    let x = [3.0,2.0,4.0,5.0,6.0];
+    let y = [9.0,7.0,12.0,15.0,17.0];
+
+    assert(x.zip(y).to_generator().covariance().is_close(5.2))
+}

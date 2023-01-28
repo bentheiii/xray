@@ -10,7 +10,6 @@ use crate::util::lazy_bigint::LazyBigint;
 use num_traits::{FromPrimitive, Zero};
 use rc::Rc;
 use std::cmp::max_by;
-use std::f64::consts::PI;
 
 use crate::util::fenced_string::FencedString;
 use std::io::Write;
@@ -222,32 +221,6 @@ pub(crate) fn add_float_acosh<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_float_acot<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError> {
-    scope.add_func(
-        "acot",
-        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(
-            PI / 2.0 - a.atan()
-        )))),
-    )
-}
-
-pub(crate) fn add_float_acoth<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError> {
-    scope.add_func(
-        "acoth",
-        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(if *a < 1.0 && *a > -1.0 {
-            Err("acoth argument must be above 1 or lower than -1".to_string())
-        } else {
-            Ok(XValue::Float(0.5 * ((*a + 1.0) / (*a - 1.0)).ln()))
-        })),
-    )
-}
-
 pub(crate) fn add_float_asin<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
@@ -309,6 +282,30 @@ pub(crate) fn add_float_atanh<W: Write + 'static>(
         } else {
             Ok(XValue::Float(a.atanh()))
         })),
+    )
+}
+
+pub(crate) fn add_float_cos<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "cos",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(
+            a.cos()
+        )))),
+    )
+}
+
+pub(crate) fn add_float_cosh<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "cosh",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(
+            a.cosh()
+        )))),
     )
 }
 

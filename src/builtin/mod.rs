@@ -73,8 +73,6 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_float_type(scope).unwrap();
     add_float_acos(scope).unwrap();
     add_float_acosh(scope).unwrap();
-    add_float_acot(scope).unwrap();
-    add_float_acoth(scope).unwrap();
     add_float_add(scope).unwrap();
     add_float_asin(scope).unwrap();
     add_float_asinh(scope).unwrap();
@@ -84,6 +82,8 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_float_cbrt(scope).unwrap();
     add_float_ceil(scope).unwrap();
     add_float_cmp(scope).unwrap();
+    add_float_cos(scope).unwrap();
+    add_float_cosh(scope).unwrap();
     add_float_div(scope).unwrap();
     add_float_eq(scope).unwrap();
     add_float_floor(scope).unwrap();

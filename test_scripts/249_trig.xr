@@ -1,0 +1,7 @@
+fn main()->bool{
+    assert((2.5).cos().is_close(-0.8011436155469337))
+    && assert((pi/3.0).cos().is_close(0.5))
+    && assert((2.5).cosh().is_close(6.13228947966368611))
+    && assert((pi/3.0).cosh().is_close(1.6002868577023862325))
+
+}
