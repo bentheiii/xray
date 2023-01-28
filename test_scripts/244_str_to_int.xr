@@ -1,0 +1,7 @@
+fn main()->bool{
+    assert("15".to_int() == 15)
+    && assert("deadbeef".to_int(16) == 3735928559)
+    && assert("-deadbeef".to_int(16) == -3735928559)
+    && assert("1Y2P0IJ32E8E7".to_int(36) == 9223372036854775807)
+    && assert("5ENHHFH0INK000".to_int(36) == 922337203685477612544)
+}

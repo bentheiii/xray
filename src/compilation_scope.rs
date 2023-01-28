@@ -130,7 +130,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
     pub(crate) fn from_parent_lambda(
         parent: &'p CompilationScope<'p, W>,
-        parameters: impl IntoIterator<Item=(Identifier, Arc<XType>)>,
+        parameters: impl IntoIterator<Item = (Identifier, Arc<XType>)>,
     ) -> Result<Self, CompilationError> {
         let mut ret = Self {
             parent: Some(parent),
@@ -146,7 +146,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
     pub(crate) fn from_parent(
         parent: &'p CompilationScope<'p, W>,
-        parameter_names: impl IntoIterator<Item=Identifier>,
+        parameter_names: impl IntoIterator<Item = Identifier>,
         recourse_name: Identifier,
         recourse_spec: XFuncSpec,
     ) -> Result<Self, CompilationError> {
@@ -230,12 +230,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         name: Identifier,
         description: &'static str,
         func: impl Fn(
-            Option<&[XExpr<W>]>,
-            Option<&[Arc<XType>]>,
-            &mut CompilationScope<'_, W>,
-            Option<&[Arc<XType>]>,
-        ) -> Result<XFunctionFactoryOutput<W>, String>
-        + 'static,
+                Option<&[XExpr<W>]>,
+                Option<&[Arc<XType>]>,
+                &mut CompilationScope<'_, W>,
+                Option<&[Arc<XType>]>,
+            ) -> Result<XFunctionFactoryOutput<W>, String>
+            + 'static,
     ) -> Result<(), CompilationError> {
         if self._has_variable(&name) {
             return Err(CompilationError::IllegalShadowing {
@@ -454,7 +454,9 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         } else if let Some(overloads) = self.functions.get(name) {
             let my_height = self.height;
             let mut ret: Vec<_> = overloads.iter().map(|ov| (my_height, ov.clone())).collect();
-            if let Some(CompilationItem::Overload(parent_overloads)) = self.parent.and_then(|p| p.get_item(name)) {
+            if let Some(CompilationItem::Overload(parent_overloads)) =
+                self.parent.and_then(|p| p.get_item(name))
+            {
                 ret.extend(parent_overloads)
             }
             Some(CompilationItem::Overload(ret))
@@ -476,7 +478,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     fn _has_type(&self, name: &Identifier) -> bool {
         self.types.contains_key(name)
     }
-
 
     pub(crate) fn compile(
         &mut self,
@@ -552,14 +553,18 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     .collect::<Result<_, _>>()?,
             )),
             XStaticExpr::Lambda(spec, func) => self.add_anonymous_func(spec, *func),
-            XStaticExpr::SpecializedIdent(name, specialization) => {
-                match self.get_item(&name) {
-                    Some(CompilationItem::Overload(overloads)) => self.resolve_overload(overloads, None, specialization.borrow(), name),
-                    Some(CompilationItem::Type(t)) => Err(CompilationError::SpecializationOfType { name, type_: t }),
-                    Some(CompilationItem::Value(..)) => Err(CompilationError::SpecializationOfVariable { name }),
-                    None => Err(CompilationError::ValueNotFound { name })
+            XStaticExpr::SpecializedIdent(name, specialization) => match self.get_item(&name) {
+                Some(CompilationItem::Overload(overloads)) => {
+                    self.resolve_overload(overloads, None, specialization.borrow(), name)
                 }
-            }
+                Some(CompilationItem::Type(t)) => {
+                    Err(CompilationError::SpecializationOfType { name, type_: t })
+                }
+                Some(CompilationItem::Value(..)) => {
+                    Err(CompilationError::SpecializationOfVariable { name })
+                }
+                None => Err(CompilationError::ValueNotFound { name }),
+            },
             XStaticExpr::Ident(name) => {
                 let (height, cell_idx) = match self.get_item(&name) {
                     Some(CompilationItem::Value(trace)) => trace,
@@ -574,8 +579,10 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             return Err(CompilationError::OverloadedFunctionAsVariable { name });
                         }
                     }
-                    Some(CompilationItem::Type(t)) => return Err(CompilationError::TypeAsVariable { type_: t }),
-                    None => return Err(CompilationError::ValueNotFound { name })
+                    Some(CompilationItem::Type(t)) => {
+                        return Err(CompilationError::TypeAsVariable { type_: t })
+                    }
+                    None => return Err(CompilationError::ValueNotFound { name }),
                 };
                 let new_cell_idx = if height == self.height {
                     cell_idx
@@ -613,8 +620,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                         let var_type = spec.fields[index]
                                             .type_
                                             .resolve_bind(&Bind::new(), Some(&com_type));
-                                        if let Some(bind) =
-                                            var_type.bind_in_assignment(&self.type_of(&compiled_arg)?)
+                                        if let Some(bind) = var_type
+                                            .bind_in_assignment(&self.type_of(&compiled_arg)?)
                                         {
                                             return Ok(XExpr::Variant(
                                                 spec.clone(),
@@ -840,7 +847,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         name: &Identifier,
         arg_types: &[Arc<XType>],
     ) -> Result<XExpr<W>, CompilationError> {
-        let Some(CompilationItem::Overload(overloads)) = self.get_item(name) else { return Err(CompilationError::NoOverload { name: name.clone(), param_types: Some(arg_types.iter().cloned().collect()), dynamic_failures: Vec::new() }); };
+        let Some(CompilationItem::Overload(overloads)) = self.get_item(name) else { return Err(CompilationError::NoOverload { name: *name, param_types: Some(arg_types.to_vec()), dynamic_failures: Vec::new() }); };
         self.resolve_overload(
             overloads,
             None,
@@ -851,7 +858,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
     pub(crate) fn resolve_overload(
         &mut self,
-        overloads: impl IntoIterator<Item=TracedOverload<W>>,
+        overloads: impl IntoIterator<Item = TracedOverload<W>>,
         args: Option<&[XExpr<W>]>,
         specialization: OverloadSpecializationBorrowed<'_>,
         name: Identifier,
@@ -964,7 +971,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 } else {
                     &mut exact_matches
                 }
-                    .push(considered);
+                .push(considered);
             }
         }
         if exact_matches.len() == 1 {

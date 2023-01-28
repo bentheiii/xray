@@ -42,7 +42,7 @@ impl<'a> OverloadSpecialization {
 #[derivative(Debug(bound = ""))]
 pub(crate) enum XStaticExpr<W> {
     LiteralBool(bool),
-    LiteralInt(i64),
+    LiteralInt(i128),
     LiteralFloat(f64),
     LiteralString(String),
     Array(Vec<XStaticExpr<W>>),
@@ -73,7 +73,7 @@ impl<W: Write + 'static> XStaticExpr<W> {
 #[derivative(Clone(bound = ""), Debug(bound = ""))]
 pub enum XExpr<W> {
     LiteralBool(bool),
-    LiteralInt(i64),
+    LiteralInt(i128),
     LiteralFloat(f64),
     LiteralString(String),
     Array(Vec<XExpr<W>>),

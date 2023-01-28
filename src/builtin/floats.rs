@@ -200,14 +200,11 @@ pub(crate) fn add_float_acos<W: Write + 'static>(
     scope.add_func(
         "acos",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(
-            if *a > 1.0 || *a < -1.0{
-                Err("acos argument must be within -1 and 1".to_string())
-            }
-            else {
-                Ok(XValue::Float(a.acos()))
-            }
-        )),
+        ufunc!(Float, |a: &f64, _rt| Ok(if *a > 1.0 || *a < -1.0 {
+            Err("acos argument must be within -1 and 1".to_string())
+        } else {
+            Ok(XValue::Float(a.acos()))
+        })),
     )
 }
 
@@ -217,14 +214,11 @@ pub(crate) fn add_float_acosh<W: Write + 'static>(
     scope.add_func(
         "acosh",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(
-            if *a < 1.0{
-                Err("acosh argument must be above 1".to_string())
-            }
-            else {
-                Ok(XValue::Float(a.acosh()))
-            }
-        )),
+        ufunc!(Float, |a: &f64, _rt| Ok(if *a < 1.0 {
+            Err("acosh argument must be above 1".to_string())
+        } else {
+            Ok(XValue::Float(a.acosh()))
+        })),
     )
 }
 
@@ -234,9 +228,9 @@ pub(crate) fn add_float_acot<W: Write + 'static>(
     scope.add_func(
         "acot",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(
-                Ok(XValue::Float(PI/2.0 - a.atan()))
-        )),
+        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(
+            PI / 2.0 - a.atan()
+        )))),
     )
 }
 
@@ -246,16 +240,11 @@ pub(crate) fn add_float_acoth<W: Write + 'static>(
     scope.add_func(
         "acoth",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(
-                if *a < 1.0 && *a > -1.0{
-                Err("acoth argument must be above 1 or lower than -1".to_string())
-            }
-            else {
-                Ok(XValue::Float(
-                    0.5 * ((*a+1.0)/(*a-1.0)).ln()
-                ))
-            }
-        )),
+        ufunc!(Float, |a: &f64, _rt| Ok(if *a < 1.0 && *a > -1.0 {
+            Err("acoth argument must be above 1 or lower than -1".to_string())
+        } else {
+            Ok(XValue::Float(0.5 * ((*a + 1.0) / (*a - 1.0)).ln()))
+        })),
     )
 }
 
@@ -265,14 +254,11 @@ pub(crate) fn add_float_asin<W: Write + 'static>(
     scope.add_func(
         "asin",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(
-            if *a > 1.0 || *a < -1.0{
-                Err("asin argument must be within -1 and 1".to_string())
-            }
-            else {
-                Ok(XValue::Float(a.asin()))
-            }
-        )),
+        ufunc!(Float, |a: &f64, _rt| Ok(if *a > 1.0 || *a < -1.0 {
+            Err("asin argument must be within -1 and 1".to_string())
+        } else {
+            Ok(XValue::Float(a.asin()))
+        })),
     )
 }
 
@@ -282,9 +268,7 @@ pub(crate) fn add_float_asinh<W: Write + 'static>(
     scope.add_func(
         "asinh",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(
-                Ok(XValue::Float(a.asinh()))
-        )),
+        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.asinh())))),
     )
 }
 
@@ -294,9 +278,7 @@ pub(crate) fn add_float_atan<W: Write + 'static>(
     scope.add_func(
         "atan",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(
-                Ok(XValue::Float(a.atan()))
-        )),
+        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.atan())))),
     )
 }
 
@@ -322,14 +304,11 @@ pub(crate) fn add_float_atanh<W: Write + 'static>(
     scope.add_func(
         "atanh",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(
-            if *a >= 1.0 || *a <= -1.0{
-                Err("atanh argument must be within -1 and 1".to_string())
-            }
-            else {
-                Ok(XValue::Float(a.atanh()))
-            }
-        )),
+        ufunc!(Float, |a: &f64, _rt| Ok(if *a >= 1.0 || *a <= -1.0 {
+            Err("atanh argument must be within -1 and 1".to_string())
+        } else {
+            Ok(XValue::Float(a.atanh()))
+        })),
     )
 }
 

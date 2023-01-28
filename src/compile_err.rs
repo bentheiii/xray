@@ -155,12 +155,12 @@ pub enum CompilationError {
         got: Arc<XType>,
     },
     CallableBindingFailed,
-    VariableAsType{
-        name:Identifier,
+    VariableAsType {
+        name: Identifier,
     },
-    OverloadAsType{
-        name:Identifier,
-    }
+    OverloadAsType {
+        name: Identifier,
+    },
 }
 
 trait Resolve {
@@ -332,12 +332,8 @@ impl Resolve for CompilationError {
             },
             InvalidArgumentType { expected, got },
             CallableBindingFailed {},
-            VariableAsType{
-                name,
-            },
-            OverloadAsType{
-                name,
-            }
+            VariableAsType { name },
+            OverloadAsType { name }
         )
     }
 }
@@ -487,12 +483,12 @@ pub enum ResolvedCompilationError {
         got: ResolvedType,
     },
     CallableBindingFailed,
-    VariableAsType{
-        name:String,
+    VariableAsType {
+        name: String,
     },
-    OverloadAsType{
-        name:String,
-    }
+    OverloadAsType {
+        name: String,
+    },
 }
 
 impl Display for ResolvedCompilationError {
@@ -710,10 +706,10 @@ impl Display for ResolvedCompilationError {
             Self::CallableBindingFailed => {
                 write!(f, "callable finding failed")
             }
-            Self::VariableAsType {name} =>{
+            Self::VariableAsType { name } => {
                 write!(f, "variable {name} cannot be used as a type")
             }
-            Self::OverloadAsType {name} =>{
+            Self::OverloadAsType { name } => {
                 write!(f, "overload {name} cannot be used as a type")
             }
         }

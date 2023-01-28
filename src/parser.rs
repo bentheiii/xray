@@ -420,8 +420,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                 }
                                 _ => Ok(t),
                             },
-                            Some(CompilationItem::Value(..)) => Err(CompilationError::VariableAsType {name: symbol}.trace(&input)),
-                            Some(CompilationItem::Overload(..)) => Err(CompilationError::OverloadAsType {name: symbol}.trace(&input)),
+                            Some(CompilationItem::Value(..)) => {
+                                Err(CompilationError::VariableAsType { name: symbol }.trace(&input))
+                            }
+                            Some(CompilationItem::Overload(..)) => {
+                                Err(CompilationError::OverloadAsType { name: symbol }.trace(&input))
+                            }
                         }
                     }
                 }
@@ -589,17 +593,17 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     to_parse = Cow::Owned(to_parse.replace('_', ""));
                 }
                 if let Some(whole) = to_parse
-                    .parse::<i64>()
+                    .parse::<i128>()
                     .ok()
                     .or_else(|| {
                         to_parse
                             .strip_prefix("0x")
-                            .and_then(|s| i64::from_str_radix(s, 16).ok())
+                            .and_then(|s| i128::from_str_radix(s, 16).ok())
                     })
                     .or_else(|| {
                         to_parse
                             .strip_prefix("0b")
-                            .and_then(|s| i64::from_str_radix(s, 2).ok())
+                            .and_then(|s| i128::from_str_radix(s, 2).ok())
                     })
                 {
                     return Ok(XStaticExpr::LiteralInt(whole));

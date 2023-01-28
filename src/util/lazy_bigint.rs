@@ -1,10 +1,12 @@
-use num_bigint::{BigInt, BigUint};
+use either::Either;
+use num_bigint::{BigInt, BigUint, ParseBigIntError};
 use num_rational::BigRational;
 use num_traits::{FromPrimitive, Inv, Num, One, Pow, Signed, ToPrimitive, Zero};
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Display, Formatter};
 use std::mem::size_of;
+use std::num::{IntErrorKind, ParseIntError};
 use std::ops::{Add, BitAnd, BitOr, Div, Mul, Neg, Rem, Sub};
 
 type SmallInt = i64;
@@ -48,6 +50,22 @@ impl LazyBigint {
         match self {
             Self::Short(_) => 0,
             Self::Long(b) => size_of::<BigInt>() + b.iter_u64_digits().count() * 8,
+        }
+    }
+
+    pub(crate) fn from_str_radix(
+        s: &str,
+        radix: u32,
+    ) -> Result<Self, Either<ParseIntError, ParseBigIntError>> {
+        match i128::from_str_radix(s, radix) {
+            // shortcut, if std will work we use that
+            Ok(v) => Ok(LazyBigint::from(v)),
+            Err(e) => match e.kind() {
+                IntErrorKind::PosOverflow | IntErrorKind::NegOverflow => Ok(LazyBigint::from(
+                    BigInt::from_str_radix(s, radix).map_err(Either::Right)?,
+                )),
+                _ => Err(Either::Left(e)),
+            },
         }
     }
 }
@@ -127,16 +145,27 @@ impl Mul for LazyBigint {
     type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
+        &self * &rhs
+    }
+}
+
+impl Mul for &LazyBigint {
+    type Output = LazyBigint;
+
+    fn mul(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
-            (Self::Short(0), _) | (_, Self::Short(0)) => Self::zero(),
-            (Self::Short(s1), Self::Short(s2)) => s1.checked_mul(s2).map_or_else(
-                || Self::Long(assert_is_long(BigInt::from(s1) * s2)),
-                Self::Short,
+            (LazyBigint::Short(0), _) | (_, LazyBigint::Short(0)) => LazyBigint::zero(),
+            (LazyBigint::Short(s1), LazyBigint::Short(s2)) => s1.checked_mul(*s2).map_or_else(
+                || LazyBigint::Long(assert_is_long(BigInt::from(*s1) * s2)),
+                LazyBigint::Short,
             ),
-            (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => {
-                Self::Long(assert_is_long(b * s))
+            (LazyBigint::Short(s), LazyBigint::Long(b))
+            | (LazyBigint::Long(b), LazyBigint::Short(s)) => {
+                LazyBigint::Long(assert_is_long(b * s))
             }
-            (Self::Long(b0), Self::Long(b1)) => Self::Long(assert_is_long(b0 * b1)),
+            (LazyBigint::Long(b0), LazyBigint::Long(b1)) => {
+                LazyBigint::Long(assert_is_long(b0 * b1))
+            }
         }
     }
 }
@@ -145,15 +174,7 @@ impl Add for LazyBigint {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        match (self, rhs) {
-            (Self::Short(0), a) | (a, Self::Short(0)) => a,
-            (Self::Short(s1), Self::Short(s2)) => s1.checked_add(s2).map_or_else(
-                || Self::Long(assert_is_long(BigInt::from(s1) + s2)),
-                Self::Short,
-            ),
-            (Self::Short(s), Self::Long(b)) | (Self::Long(b), Self::Short(s)) => Self::from(b + s),
-            (Self::Long(b0), Self::Long(b1)) => Self::from(b0 + b1),
-        }
+        &self + &rhs
     }
 }
 

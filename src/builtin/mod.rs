@@ -11,6 +11,7 @@ use crate::builtin::unknown::*;
 
 use std::io::Write;
 
+use crate::builtin::cont_distributions::*;
 use crate::builtin::generators::*;
 use crate::builtin::include::INCLUDE;
 use crate::builtin::regex::*;
@@ -18,11 +19,11 @@ use crate::builtin::set::*;
 use crate::builtin::structs::*;
 use crate::builtin::tuple::*;
 use crate::builtin::unions::*;
-use crate::builtin::cont_distributions::*;
 use crate::root_compilation_scope::RootCompilationScope;
 
 pub mod bool;
 pub mod builtin_permissions;
+pub mod cont_distributions;
 mod core;
 pub mod floats;
 pub mod generators;
@@ -40,7 +41,6 @@ pub mod structs;
 pub mod tuple;
 pub mod unions;
 pub mod unknown;
-pub mod cont_distributions;
 
 pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<W>) {
     add_int_type(scope).unwrap();
@@ -104,6 +104,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_str_hash(scope).unwrap();
     add_str_len(scope).unwrap();
     add_str_substring(scope).unwrap();
+    add_str_to_int(scope).unwrap();
     add_str_to_str(scope).unwrap();
 
     add_bool_type(scope).unwrap();

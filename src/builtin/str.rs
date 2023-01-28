@@ -119,8 +119,8 @@ pub(crate) fn add_str_get<W: Write + 'static>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let s = to_primitive!(a0, String);
             let i = to_primitive!(a1, Int);
-            let Some(i) = if i.is_negative() {Cow::Owned(i+s.len())} else {Cow::Borrowed(i)}.to_usize() else {xraise!(Err(ManagedXError::new("index too large",rt)?))};
-            Ok(ManagedXValue::new(XValue::String(Box::new(s.substring(i,Some(i+1)))), rt)?.into())
+            let Some(i) = if i.is_negative() { Cow::Owned(i + s.len()) } else { Cow::Borrowed(i) }.to_usize() else { xraise!(Err(ManagedXError::new("index too large",rt)?)) };
+            Ok(ManagedXValue::new(XValue::String(Box::new(s.substring(i, Some(i + 1)))), rt)?.into())
         }),
     )
 }
@@ -195,6 +195,36 @@ pub(crate) fn add_str_code_point<W: Write + 'static>(
             let s = to_primitive!(a0, String);
             let Ok(chr) = s.iter().exactly_one() else { xraise!(Err(ManagedXError::new("cannot get code_point a string without exactly one char",rt)?)) };
             Ok(ManagedXValue::new(XValue::Int(LazyBigint::from_u64(chr.into()).unwrap()), rt)?.into())
+        }),
+    )
+}
+
+pub(crate) fn add_str_to_int<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "to_int",
+        XFuncSpec::new_with_optional(&[&X_STRING], &[&X_INT], X_INT.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
+            let s0 = to_primitive!(a0, String);
+            let i1 = match a1 {
+                Some(ref a1) => Cow::Borrowed(to_primitive!(a1, Int)),
+                None => Cow::Owned(LazyBigint::from(10)),
+            };
+            if i1.as_ref() <= &LazyBigint::from(1) {
+                return xerr(ManagedXError::new("base must be larger than 1", rt)?);
+            }
+            if i1.as_ref() > &LazyBigint::from(36) {
+                return xerr(ManagedXError::new("base must be lower than 36", rt)?);
+            }
+            let radix = i1.to_u32().unwrap();
+            let ret = match LazyBigint::from_str_radix(s0.as_str(), radix) {
+                Ok(lz) => lz,
+                Err(e) => return xerr(ManagedXError::new(format!("{e}"), rt)?),
+            };
+            Ok(ManagedXValue::new(XValue::Int(ret), rt)?.into())
         }),
     )
 }
