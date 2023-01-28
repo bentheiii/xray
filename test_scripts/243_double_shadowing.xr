@@ -1,10 +1,14 @@
 fn main()->bool{
-    fn a(x: int)->int{
+    fn a()->int{
         error("waah")
     }
     fn foo()->int{
         let a = 5;
-        a
+        fn bar()->int{
+            fn a()->int{5}
+            a()
+        }
+        bar()
     }
     assert(foo() == 5)
 }
