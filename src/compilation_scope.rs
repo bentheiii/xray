@@ -4,8 +4,7 @@ use std::io::Write;
 
 use crate::builtin::optional::XOptionalType;
 use crate::builtin::sequence::XSequenceType;
-use crate::compile_err::CompilationError;
-use crate::compile_err::CompilationItemCategory;
+use crate::compile_err::{CompilationError, CompilationItemCategory};
 use crate::root_compilation_scope::Declaration;
 use crate::units::ScopeDepth;
 use crate::util::ipush::IPush;
@@ -131,7 +130,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
     pub(crate) fn from_parent_lambda(
         parent: &'p CompilationScope<'p, W>,
-        parameters: impl IntoIterator<Item = (Identifier, Arc<XType>)>,
+        parameters: impl IntoIterator<Item=(Identifier, Arc<XType>)>,
     ) -> Result<Self, CompilationError> {
         let mut ret = Self {
             parent: Some(parent),
@@ -147,7 +146,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
     pub(crate) fn from_parent(
         parent: &'p CompilationScope<'p, W>,
-        parameter_names: impl IntoIterator<Item = Identifier>,
+        parameter_names: impl IntoIterator<Item=Identifier>,
         recourse_name: Identifier,
         recourse_spec: XFuncSpec,
     ) -> Result<Self, CompilationError> {
@@ -162,14 +161,14 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     }
 
     fn add_recourse(&mut self, name: Identifier, spec: XFuncSpec) -> Result<(), CompilationError> {
-        if self.get_variable(&name).is_some() {
+        if self._has_variable(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Value,
                 new_category: CompilationItemCategory::Overload,
             });
         }
-        if self.get_type(&name).is_some() {
+        if self._has_type(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
@@ -191,14 +190,14 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         spec: XFuncSpec,
         func: XStaticFunction<W>,
     ) -> Result<(), CompilationError> {
-        if self.get_variable(&name).is_some() {
+        if self._has_variable(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Value,
                 new_category: CompilationItemCategory::Overload,
             });
         }
-        if self.get_type(&name).is_some() {
+        if self._has_type(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
@@ -231,21 +230,21 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         name: Identifier,
         description: &'static str,
         func: impl Fn(
-                Option<&[XExpr<W>]>,
-                Option<&[Arc<XType>]>,
-                &mut CompilationScope<'_, W>,
-                Option<&[Arc<XType>]>,
-            ) -> Result<XFunctionFactoryOutput<W>, String>
-            + 'static,
+            Option<&[XExpr<W>]>,
+            Option<&[Arc<XType>]>,
+            &mut CompilationScope<'_, W>,
+            Option<&[Arc<XType>]>,
+        ) -> Result<XFunctionFactoryOutput<W>, String>
+        + 'static,
     ) -> Result<(), CompilationError> {
-        if self.get_variable(&name).is_some() {
+        if self._has_variable(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Value,
                 new_category: CompilationItemCategory::Overload,
             });
         }
-        if self.get_type(&name).is_some() {
+        if self._has_type(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
@@ -265,14 +264,14 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         expr: XExpr<W>,
         xtype: Arc<XType>,
     ) -> Result<(), CompilationError> {
-        if !self.get_overloads(&name).is_empty() {
+        if self._has_overloads(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Overload,
                 new_category: CompilationItemCategory::Value,
             });
         }
-        if self.get_type(&name).is_some() {
+        if self._has_type(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
@@ -292,14 +291,14 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         arg_idx: usize,
         xtype: Arc<XType>,
     ) -> Result<(), CompilationError> {
-        if !self.get_overloads(&name).is_empty() {
+        if self._has_overloads(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Overload,
                 new_category: CompilationItemCategory::Value,
             });
         }
-        if self.get_type(&name).is_some() {
+        if self._has_type(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
@@ -320,21 +319,21 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         name: Identifier,
         type_: Arc<XType>,
     ) -> Result<(), CompilationError> {
-        if !self.get_overloads(&name).is_empty() {
+        if self._has_overloads(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Overload,
                 new_category: CompilationItemCategory::Type,
             });
         }
-        if self.get_variable(&name).is_some() {
+        if self._has_variable(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
                 new_category: CompilationItemCategory::Value,
             });
         }
-        if self.get_type(&name).is_some() {
+        if self._has_type(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
@@ -351,21 +350,21 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         kind: CompoundKind,
         struct_spec: XCompoundSpec,
     ) -> Result<(), CompilationError> {
-        if !self.get_overloads(&name).is_empty() {
+        if self._has_overloads(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Overload,
                 new_category: CompilationItemCategory::Type,
             });
         }
-        if self.get_variable(&name).is_some() {
+        if self._has_variable(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
                 new_category: CompilationItemCategory::Value,
             });
         }
-        if self.get_type(&name).is_some() {
+        if self._has_type(&name) {
             return Err(CompilationError::IllegalShadowing {
                 name,
                 current_category: CompilationItemCategory::Type,
@@ -447,28 +446,37 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         )
     }
 
-    fn get_overloads(&self, name: &Identifier) -> Vec<TracedOverload<W>> {
-        let mut parent = self.parent.map_or_else(Vec::new, |p| p.get_overloads(name));
-        if let Some(my_overloads) = self.functions.get(name) {
+    pub(crate) fn get_item(&self, name: &Identifier) -> Option<CompilationItem<W>> {
+        if let Some(&cell_idx) = self.variables.get(name) {
+            Some(CompilationItem::Value((self.height, cell_idx)))
+        } else if let Some(t) = self.types.get(name) {
+            Some(CompilationItem::Type(t.clone()))
+        } else if let Some(overloads) = self.functions.get(name) {
             let my_height = self.height;
-            parent.extend(my_overloads.iter().map(move |ov| (my_height, ov.clone())))
+            let mut ret: Vec<_> = overloads.iter().map(|ov| (my_height, ov.clone())).collect();
+            if let Some(CompilationItem::Overload(parent_overloads)) = self.parent.and_then(|p| p.get_item(name)) {
+                ret.extend(parent_overloads)
+            }
+            Some(CompilationItem::Overload(ret))
+        } else if let Some(parent) = self.parent {
+            parent.get_item(name)
+        } else {
+            None
         }
-        parent
     }
 
-    fn get_variable(&self, name: &Identifier) -> Option<TracedValue> {
-        self.variables
-            .get(name)
-            .map(|&cell_idx| (self.height, cell_idx))
-            .or_else(|| self.parent.and_then(|p| p.get_variable(name)))
+    fn _has_overloads(&self, name: &Identifier) -> bool {
+        self.functions.contains_key(name)
     }
 
-    pub(crate) fn get_type(&self, name: &Identifier) -> Option<Arc<XType>> {
-        self.types
-            .get(name)
-            .cloned()
-            .or_else(|| self.parent.and_then(|p| p.get_type(name)))
+    fn _has_variable(&self, name: &Identifier) -> bool {
+        self.variables.contains_key(name)
     }
+
+    fn _has_type(&self, name: &Identifier) -> bool {
+        self.types.contains_key(name)
+    }
+
 
     pub(crate) fn compile(
         &mut self,
@@ -545,39 +553,29 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             )),
             XStaticExpr::Lambda(spec, func) => self.add_anonymous_func(spec, *func),
             XStaticExpr::SpecializedIdent(name, specialization) => {
-                let overloads = self.get_overloads(&name);
-                if overloads.is_empty() {
-                    return Err(if let Some(t) = self.get_type(&name) {
-                        CompilationError::SpecializationOfType { name, type_: t }
-                    } else if let Some(..) = self.get_variable(&name) {
-                        CompilationError::SpecializationOfVariable { name }
-                    } else {
-                        CompilationError::ValueNotFound { name }
-                    });
+                match self.get_item(&name) {
+                    Some(CompilationItem::Overload(overloads)) => self.resolve_overload(overloads, None, specialization.borrow(), name),
+                    Some(CompilationItem::Type(t)) => Err(CompilationError::SpecializationOfType { name, type_: t }),
+                    Some(CompilationItem::Value(..)) => Err(CompilationError::SpecializationOfVariable { name }),
+                    None => Err(CompilationError::ValueNotFound { name })
                 }
-                self.resolve_overload(overloads, None, specialization.borrow(), name)
             }
             XStaticExpr::Ident(name) => {
-                let (height, cell_idx) = if let Some((height, cell_idx)) = self.get_variable(&name)
-                {
-                    (height, cell_idx)
-                } else {
-                    let mut overloads = self.get_overloads(&name);
-                    if overloads.is_empty() {
-                        return Err(if let Some(t) = self.get_type(&name) {
-                            CompilationError::TypeAsVariable { type_: t }
+                let (height, cell_idx) = match self.get_item(&name) {
+                    Some(CompilationItem::Value(trace)) => trace,
+                    Some(CompilationItem::Overload(overloads)) => {
+                        if overloads.len() > 1 {
+                            return Err(CompilationError::OverloadedFunctionAsVariable { name });
+                        }
+                        if let (height, Overload::Static { cell_idx, .. }) = &overloads[0] {
+                            (*height, *cell_idx)
                         } else {
-                            CompilationError::ValueNotFound { name }
-                        });
+                            // this happens if the function is dynamic
+                            return Err(CompilationError::OverloadedFunctionAsVariable { name });
+                        }
                     }
-                    if overloads.len() > 1 {
-                        return Err(CompilationError::OverloadedFunctionAsVariable { name });
-                    }
-                    if let (height, Overload::Static { cell_idx, .. }) = overloads.swap_remove(0) {
-                        (height, cell_idx)
-                    } else {
-                        return Err(CompilationError::OverloadedFunctionAsVariable { name });
-                    }
+                    Some(CompilationItem::Type(t)) => return Err(CompilationError::TypeAsVariable { type_: t }),
+                    None => return Err(CompilationError::ValueNotFound { name })
                 };
                 let new_cell_idx = if height == self.height {
                     cell_idx
@@ -600,102 +598,103 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     XStaticExpr::Member(obj, member_name) => {
                         // special case: union variant constructor
                         if let XStaticExpr::Ident(name) = obj.as_ref() {
-                            if let Some(XType::Compound(CompoundKind::Union, spec, ..)) =
-                                self.get_type(name).as_deref()
-                            {
-                                return if let Some(&index) = spec.indices.get(member_name) {
-                                    if args.len() != 1 {
-                                        return Err(CompilationError::VariantConstructorOneArg);
-                                    }
-                                    let compiled_arg = args.into_iter().next().unwrap();
-                                    let com_type = Arc::new(XType::Compound(
-                                        CompoundKind::Union,
-                                        spec.clone(),
-                                        Bind::new(),
-                                    ));
-                                    let var_type = spec.fields[index]
-                                        .type_
-                                        .resolve_bind(&Bind::new(), Some(&com_type));
-                                    if let Some(bind) =
-                                        var_type.bind_in_assignment(&self.type_of(&compiled_arg)?)
-                                    {
-                                        return Ok(XExpr::Variant(
+                            if let Some(CompilationItem::Type(t)) = self.get_item(name) {
+                                if let XType::Compound(CompoundKind::Union, spec, ..) = t.as_ref() {
+                                    return if let Some(&index) = spec.indices.get(member_name) {
+                                        if args.len() != 1 {
+                                            return Err(CompilationError::VariantConstructorOneArg);
+                                        }
+                                        let compiled_arg = args.into_iter().next().unwrap();
+                                        let com_type = Arc::new(XType::Compound(
+                                            CompoundKind::Union,
                                             spec.clone(),
-                                            bind,
-                                            index,
-                                            Box::new(compiled_arg),
+                                            Bind::new(),
                                         ));
+                                        let var_type = spec.fields[index]
+                                            .type_
+                                            .resolve_bind(&Bind::new(), Some(&com_type));
+                                        if let Some(bind) =
+                                            var_type.bind_in_assignment(&self.type_of(&compiled_arg)?)
+                                        {
+                                            return Ok(XExpr::Variant(
+                                                spec.clone(),
+                                                bind,
+                                                index,
+                                                Box::new(compiled_arg),
+                                            ));
+                                        } else {
+                                            Err(CompilationError::VariantConstructorTypeArgMismatch {
+                                                union_name: spec.name,
+                                                variant_name: *member_name,
+                                                expected_type: spec.fields[index].type_.clone(),
+                                                actual_type: self.type_of(&compiled_arg)?,
+                                            })
+                                        }
                                     } else {
-                                        Err(CompilationError::VariantConstructorTypeArgMismatch {
-                                            union_name: spec.name,
-                                            variant_name: *member_name,
-                                            expected_type: spec.fields[index].type_.clone(),
-                                            actual_type: self.type_of(&compiled_arg)?,
+                                        Err(CompilationError::MemberNotFound {
+                                            spec: spec.clone(),
+                                            name: *member_name,
                                         })
-                                    }
-                                } else {
-                                    Err(CompilationError::MemberNotFound {
-                                        spec: spec.clone(),
-                                        name: *member_name,
-                                    })
-                                };
+                                    };
+                                }
                             }
                         }
                     }
                     XStaticExpr::Ident(name) => {
-                        // special case: overloaded function
-                        let overloads = self.get_overloads(name);
-                        if !overloads.is_empty() {
-                            let arg_types: Vec<_> = args
-                                .iter()
-                                .map(|a| self.type_of(a))
-                                .collect::<Result<_, _>>()?;
-                            let overload = self.resolve_overload(
-                                overloads,
-                                Some(&args),
-                                OverloadSpecializationBorrowed::ParamTypes(arg_types.borrow()),
-                                *name,
-                            )?;
-                            return Ok(XExpr::Call(Box::new(overload), args));
-                        }
-                        // special case: struct construction
-                        if let Some(struct_t) = self.get_type(name) {
-                            if let XType::Compound(CompoundKind::Struct, spec, binding) =
-                                struct_t.as_ref()
-                            {
+                        match self.get_item(name) {
+                            Some(CompilationItem::Overload(overloads)) => {
+                                // special case: overloaded function
                                 let arg_types: Vec<_> = args
                                     .iter()
                                     .map(|a| self.type_of(a))
                                     .collect::<Result<_, _>>()?;
-                                if arg_types.len() != spec.fields.len() {
-                                    return Err(CompilationError::StructParamsLengthMismatch {
-                                        struct_name: spec.name,
-                                        expected_count: spec.fields.len(),
-                                        actual_count: arg_types.len(),
-                                    });
-                                };
-                                return if let Some(bind) =
-                                    spec.bind(&arg_types[..], &struct_t, binding)
-                                {
-                                    Ok(XExpr::Construct(spec.clone(), bind, args))
-                                } else {
-                                    Err(CompilationError::StructFieldTypeMismatch {
-                                        struct_name: spec.name,
-                                        expected_types: spec
-                                            .fields
-                                            .iter()
-                                            .map(|x| x.type_.clone())
-                                            .collect(),
-                                        actual_types: arg_types,
-                                    })
-                                };
+                                let overload = self.resolve_overload(
+                                    overloads,
+                                    Some(&args),
+                                    OverloadSpecializationBorrowed::ParamTypes(arg_types.borrow()),
+                                    *name,
+                                )?;
+                                return Ok(XExpr::Call(Box::new(overload), args));
                             }
+                            Some(CompilationItem::Type(struct_t)) => {
+                                // special case: struct construction
+                                if let XType::Compound(CompoundKind::Struct, spec, binding) =
+                                    struct_t.as_ref()
+                                {
+                                    let arg_types: Vec<_> = args
+                                        .iter()
+                                        .map(|a| self.type_of(a))
+                                        .collect::<Result<_, _>>()?;
+                                    if arg_types.len() != spec.fields.len() {
+                                        return Err(CompilationError::StructParamsLengthMismatch {
+                                            struct_name: spec.name,
+                                            expected_count: spec.fields.len(),
+                                            actual_count: arg_types.len(),
+                                        });
+                                    };
+                                    return if let Some(bind) =
+                                        spec.bind(&arg_types[..], &struct_t, binding)
+                                    {
+                                        Ok(XExpr::Construct(spec.clone(), bind, args))
+                                    } else {
+                                        Err(CompilationError::StructFieldTypeMismatch {
+                                            struct_name: spec.name,
+                                            expected_types: spec
+                                                .fields
+                                                .iter()
+                                                .map(|x| x.type_.clone())
+                                                .collect(),
+                                            actual_types: arg_types,
+                                        })
+                                    };
+                                }
+                            }
+                            _ => {}
                         }
                     }
                     XStaticExpr::SpecializedIdent(name, specialization) => {
                         // special case, call to specialized function
-                        let overloads = self.get_overloads(name);
-                        if !overloads.is_empty() {
+                        if let Some(CompilationItem::Overload(overloads)) = self.get_item(name) {
                             let overload = self.resolve_overload(
                                 overloads,
                                 Some(&args),
@@ -841,7 +840,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         name: &Identifier,
         arg_types: &[Arc<XType>],
     ) -> Result<XExpr<W>, CompilationError> {
-        let overloads = self.get_overloads(name);
+        let Some(CompilationItem::Overload(overloads)) = self.get_item(name) else { return Err(CompilationError::NoOverload { name: name.clone(), param_types: Some(arg_types.iter().cloned().collect()), dynamic_failures: Vec::new() }); };
         self.resolve_overload(
             overloads,
             None,
@@ -852,7 +851,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
     pub(crate) fn resolve_overload(
         &mut self,
-        overloads: impl IntoIterator<Item = TracedOverload<W>>,
+        overloads: impl IntoIterator<Item=TracedOverload<W>>,
         args: Option<&[XExpr<W>]>,
         specialization: OverloadSpecializationBorrowed<'_>,
         name: Identifier,
@@ -965,7 +964,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 } else {
                     &mut exact_matches
                 }
-                .push(considered);
+                    .push(considered);
             }
         }
         if exact_matches.len() == 1 {
@@ -1021,3 +1020,10 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
 type TracedOverload<W> = (ScopeDepth, Overload<W>);
 type TracedValue = (ScopeDepth, usize);
+
+pub(crate) enum CompilationItem<W> {
+    Value(TracedValue),
+    /// guaranteed to never be empty
+    Overload(Vec<TracedOverload<W>>),
+    Type(Arc<XType>),
+}

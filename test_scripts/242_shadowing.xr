@@ -1,0 +1,6 @@
+fn main()->bool{
+    fn a(x: int)->int{
+        error("waah")
+    }
+    let a =
+}

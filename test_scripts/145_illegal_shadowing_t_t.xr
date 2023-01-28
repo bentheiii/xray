@@ -1,6 +1,5 @@
-struct foo(x: int)
-
 fn main()->bool{
+    struct foo(x: int)
     struct foo(x: int)
     true
 }

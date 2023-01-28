@@ -1,6 +1,5 @@
-fn foo()->int {1}
-
 fn main()->bool{
+    fn foo()->int {1}
     let foo = ()->{1};
     true
 }

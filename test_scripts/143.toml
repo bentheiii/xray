@@ -1,1 +1,1 @@
-expected_compilation_error='^cannot shadow value foo with a overload \{4\| .*\} \[IllegalShadowing\]$'
+expected_compilation_error='^cannot shadow value foo with a overload \{3\| .*\} \[IllegalShadowing\]$'

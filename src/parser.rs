@@ -1,4 +1,4 @@
-use crate::compilation_scope::CompilationScope;
+use crate::compilation_scope::{CompilationItem, CompilationScope};
 use crate::{
     Bind, CompilationError, Identifier, TracedCompilationError, XCallableSpec, XCompoundFieldSpec,
     XCompoundSpec, XFuncSpec, XStaticExpr, XStaticFunction, XType,
@@ -380,7 +380,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             }
                         }
                         let symbol = interner.get_or_intern(name);
-                        let t = self.get_type(&symbol);
+
+                        let t = self.get_item(&symbol);
                         match t {
                             None => {
                                 if generic_param_names.contains(name) {
@@ -391,7 +392,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                 }
                                 .trace(&input))
                             }
-                            Some(t) => match t.as_ref() {
+                            Some(CompilationItem::Type(t)) => match t.as_ref() {
                                 XType::XNative(t, ..) => {
                                     if gen_params.len() != t.generic_names().len() {
                                         return Err(CompilationError::GenericParamCountMismatch {
@@ -419,6 +420,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                 }
                                 _ => Ok(t),
                             },
+                            Some(CompilationItem::Value(..)) => Err(CompilationError::VariableAsType {name: symbol}.trace(&input)),
+                            Some(CompilationItem::Overload(..)) => Err(CompilationError::OverloadAsType {name: symbol}.trace(&input)),
                         }
                     }
                 }
