@@ -1,0 +1,7 @@
+fn main()->bool{
+    assert(5.factorial() == 120)
+    && assert(1.factorial() == 1)
+    && assert(0.factorial() == 1)
+    && assert(6.factorial(2) == 48)
+    && assert(7.factorial(2) == 105)
+}

@@ -1,0 +1,11 @@
+fn main()->bool{
+    let d = exp_distribution(10.0);
+
+    assert(d.cdf(0.2).is_close(0.8646647167633873))
+    && assert(d.cdf(-1.2) == 0.0)
+    && assert(d.pdf(0.2).is_close(1.353352832366127))
+    && assert(d.pdf(-1.2) == 0.0)
+    && assert(d.quantile(0.8646647167633873).is_close(0.2))
+    && assert(d.quantile(0.0) == 0.0)
+    && assert(is_error(d.quantile(1.0)))
+}

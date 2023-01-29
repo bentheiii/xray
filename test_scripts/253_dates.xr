@@ -1,0 +1,5 @@
+fn main()->bool{
+    assert(Date(123,1,28) == date(1766012))
+    && assert(Date(2023,1,28) == date(2459973))
+    && assert(Date(1601,3,29) == date(2305901))
+}

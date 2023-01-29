@@ -1,0 +1,11 @@
+fn main()->bool{
+    let d = gamma_distribution(9.0, 0.5);
+
+    assert(d.cdf(10.00001131).is_close(0.06809400386978612))
+    && assert(d.cdf(-1.2) == 0.0)
+    && assert(d.pdf(10.00001131).is_close(0.03263913041829346))
+    && assert(d.pdf(-1.2) == 0.0)
+    && assert(d.quantile(0.06809400386978612).is_close(10.00001131))
+    && assert(d.quantile(0.0) == 0.0)
+    && assert(is_error(d.quantile(1.0)))
+}

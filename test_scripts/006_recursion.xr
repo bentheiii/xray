@@ -1,11 +1,11 @@
-fn factorial(x: int) -> int {
+fn my_factorial(x: int) -> int {
     if(x == 0, 1, x * factorial(x - 1))
 }
 
 fn main() -> bool {
-    assert(factorial(0) == 1)
-    && assert(factorial(1) == 1)
-    && assert(factorial(2) == 2)
-    && assert(factorial(3) == 6)
-    && assert(factorial(4) == 24)
+    assert(my_factorial(0) == 1)
+    && assert(my_factorial(1) == 1)
+    && assert(my_factorial(2) == 2)
+    && assert(my_factorial(3) == 6)
+    && assert(my_factorial(4) == 24)
 }

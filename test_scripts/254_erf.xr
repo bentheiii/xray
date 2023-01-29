@@ -1,0 +1,6 @@
+fn main()->bool{
+    assert(erf(0.745).is_close(0.70792892))
+    && assert(erf(1.0).is_close(0.8427007929427149))
+    && assert(erfc(0.745).is_close(0.292071079928697))
+    && assert(erfc(1.0).is_close(0.15729920705728503))
+}

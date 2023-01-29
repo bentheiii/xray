@@ -8,8 +8,23 @@ fn count(start: int, offset: int ?= 1)->Sequence<int>{
     count().map((x:int)->{x*offset+start})
 }
 
+fn gcd(a: int, b: int)->int{
+    fn helper(a: int, b: int)->int{
+        if(a == 0, b, helper(b % a, a))
+    }
+    let a = abs(a);
+    let b = abs(b);
+    if(a<b, helper(a,b), helper(b,a))
+}
+
+fn lcm(a: int, b: int)->int{
+    let g = gcd(a,b);
+    trunc(a.abs()/g)*b.abs()
+}
+
 // float
 let pi = 3.1415926535897932384626433832795028841971693;
+let e = 2.7182818284590452353602874713526624977572;
 
 fn abs(f: float)->float{
     if(f < 0.0, -f, f)
@@ -55,6 +70,44 @@ fn split(s: str, n: str)->Generator<str>{
 
 fn join(s: Sequence<str>, delimiter: str ?= "")->str{
     s.to_generator().join(delimiter)
+}
+
+// cont distributions
+fn chisq_distribution(d: int)->ContinuousDistribution{
+    gamma_distribution(d/2, 0.5)
+}
+
+// dates
+struct Date(year: int, month: int, day: int)
+
+fn date(jd: int)->Date{
+    let f = jd + 1401 + trunc((trunc((4*jd + 274277)/146097) * 3)/4) - 38;
+    let e = 4*f+3;
+    let g = trunc((e % 1461)/4);
+    let h = 5*g+2;
+    let days = trunc((h % 153) / 5) + 1;
+    let months = (trunc(h/153) + 2)%12 + 1;
+    let years = trunc(e/1461) - 4716 + trunc((14 - months)/12);
+    Date(years, months, days)
+}
+
+fn julian_day(date: Date)->int{
+    let year = date::year;
+    let month = date::month;
+    let day = date::day;
+
+    let a = trunc((14 - month) / 12);
+    let y = year + 4800 - a;
+    let m = month + 12 * a - 3;
+    day + trunc((153 * m + 2)/5) + y*365 + trunc(y/4) - trunc(y/100) + trunc(y/400) - 32045
+}
+
+fn eq(d0: Date, d1: Date)->bool{
+    d0.julian_day() == d1.julian_day()
+}
+
+fn cmp(d0: Date, d1: Date)->int{
+    cmp(d0.julian_day(), d1.julian_day())
 }
 
 //sequences
@@ -267,6 +320,11 @@ fn covariance(s: Generator<(float, float)>)->float{
     s.map((t:(float, float))->{(t::item0-mean_x)*(t::item1-mean_y)}).mean()
 }
 
+fn factorial(n: int, step: int ?= 1)->int{
+    if(n < 0, error("cannot get factorial of negative number"),
+        range(n,0,-step).to_generator().reduce(1, mul{int, int}))
+}
+
 // sequences
 
 fn aggregate<T>(seq: Sequence<T>,  f: (T, T)->(T))->Generator<T>{
@@ -295,19 +353,5 @@ fn mean(g: Sequence<int>)->float{
 
 fn mean(g: Sequence<float>)->float{
     g.sum()/g.len().to_float()
-}
-
-// dates
-struct Date(year: int, month: int, day: int)
-
-fn julian_day(date: Date)->int{
-    let year = date::year;
-    let month = date::month;
-    let day = date::day;
-
-    let a = trunc((14 - month) / 12);
-    let y = year + 4800 - a;
-    let m = month + 12 * a - 3;
-    day + trunc((153 * m + 2)/5) + y*365 + trunc(y/4) - trunc(y/100) + trunc(y/400) - 32045
 }
 "#;

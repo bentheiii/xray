@@ -1,5 +1,5 @@
 fn main()->bool{
-    let d = chisq_distribution(8.0);
+    let d = chisq_distribution(8);
 
     assert(d.cdf(3.0).is_close(0.06564245437845023))
     && assert(d.cdf(-1.2) == 0.0)

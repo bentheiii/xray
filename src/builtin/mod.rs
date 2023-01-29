@@ -86,7 +86,11 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_float_cosh(scope).unwrap();
     add_float_div(scope).unwrap();
     add_float_eq(scope).unwrap();
+    add_float_erf(scope).unwrap();
+    add_float_erfc(scope).unwrap();
     add_float_floor(scope).unwrap();
+    add_float_gamma(scope).unwrap();
+    add_float_gammaln(scope).unwrap();
     add_float_is_close(scope).unwrap();
     add_float_mod(scope).unwrap();
     add_float_mul(scope).unwrap();
@@ -242,7 +246,9 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_continuous_distribution_type(scope).unwrap();
     add_contdist_beta(scope).unwrap();
     add_contdist_cdf(scope).unwrap();
-    add_contdist_chisq(scope).unwrap();
+    add_contdist_exp(scope).unwrap();
+    add_contdist_fs(scope).unwrap();
+    add_contdist_gamma(scope).unwrap();
     add_contdist_pdf(scope).unwrap();
     add_contdist_quantile(scope).unwrap();
 

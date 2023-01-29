@@ -1,0 +1,11 @@
+fn main()->bool{
+    let d = fisher_snedecor_distribution(6.0, 4.0);
+
+    assert(d.cdf(15.2069).is_close(0.9900000430027627))
+    && assert(d.cdf(-1.2) == 0.0)
+    && assert(d.pdf(15.2069).is_close(0.0012237917087831742))
+    && assert(d.pdf(-1.2) == 0.0)
+    && assert(d.quantile(0.9900000430027627).is_close(15.2069))
+    && assert(d.quantile(0.0) == 0.0)
+    && assert(is_error(d.quantile(1.0)))
+}

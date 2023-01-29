@@ -1,0 +1,7 @@
+fn main()->bool{
+    assert(60.lcm(9) == 180)
+    && assert(1071.lcm(462) == 23562)
+    && assert(1071.lcm(-462) == 23562)
+    && assert(60.lcm(1) == 60)
+    && assert(0.lcm(11) == 0)
+}

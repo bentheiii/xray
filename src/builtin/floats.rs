@@ -14,6 +14,8 @@ use std::cmp::max_by;
 use crate::util::fenced_string::FencedString;
 use std::io::Write;
 use std::rc;
+use statrs::function::erf::{erf, erfc};
+use statrs::function::gamma::{gamma, ln_gamma};
 
 pub(crate) fn add_float_type<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -306,6 +308,64 @@ pub(crate) fn add_float_cosh<W: Write + 'static>(
         ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(
             a.cosh()
         )))),
+    )
+}
+
+pub(crate) fn add_float_erf<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "erf",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(
+            erf(*a)
+        )))),
+    )
+}
+
+pub(crate) fn add_float_erfc<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "erfc",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(
+            erfc(*a)
+        )))),
+    )
+}
+
+pub(crate) fn add_float_gamma<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "gamma",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt|{
+            Ok(if a <= &0.0 && *a % 1.0 == 0.0{
+                Err("cannot get gamma of non-positive whole".to_string())
+            } else {
+                Ok(XValue::Float(gamma(*a)))
+            })
+        }
+        ),
+    )
+}
+
+pub(crate) fn add_float_gammaln<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "gammaln",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt|{
+            Ok(if a <= &0.0 && *a % 2.0 >= 1.0{
+                Err("invalid value".to_string())
+            } else {
+                Ok(XValue::Float(ln_gamma(*a)))
+            })
+        }
+        ),
     )
 }
 

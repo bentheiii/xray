@@ -1431,3 +1431,53 @@ fn test_script_251() {
 fn test_script_252() {
     run_script_from_name(function_name!())
 }
+
+#[test]
+fn test_script_253() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_254() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_255() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_256() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_257() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_258() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_259() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_260() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_261() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_262() {
+    run_script_from_name(function_name!())
+}

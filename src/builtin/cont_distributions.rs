@@ -7,7 +7,7 @@ use crate::{
     XStaticFunction, XType,
 };
 use num_traits::Float;
-use statrs::distribution::{Beta, Continuous, ContinuousCDF, Gamma, Uniform};
+use statrs::distribution::{Beta, Continuous, ContinuousCDF, Gamma, Uniform, Exp, FisherSnedecor};
 use statrs::statistics::{Max, Min};
 use std::fmt::Debug;
 use std::io::Write;
@@ -65,6 +65,8 @@ lazy_static! {
 #[derive(Debug)]
 pub(crate) enum XContinuousDistribution {
     Beta(Beta),
+    Exponential(Exp),
+    FisherSnedecor(FisherSnedecor),
     Gamma(Gamma),
     Uniform(Uniform),
 }
@@ -73,6 +75,8 @@ impl XContinuousDistribution {
     fn cdf(&self, x: f64) -> f64 {
         match self {
             Self::Beta(i) => i.cdf(x),
+            Self::Exponential(i) => i.cdf(x),
+            Self::FisherSnedecor(i) => i.cdf(x),
             Self::Gamma(i)=>i.cdf(x),
             Self::Uniform(i) => i.cdf(x),
         }
@@ -81,6 +85,8 @@ impl XContinuousDistribution {
     fn pdf(&self, x: f64) -> f64 {
         match self {
             Self::Beta(i) => i.pdf(x),
+            Self::Exponential(i) => i.pdf(x),
+            Self::FisherSnedecor(i) => i.pdf(x),
             Self::Gamma(i)=>i.pdf(x),
             Self::Uniform(i) => i.pdf(x),
         }
@@ -89,6 +95,8 @@ impl XContinuousDistribution {
     fn quantile(&self, x: f64) -> f64 {
         match self {
             Self::Beta(i) => deep_inverse_cdf(i, x),
+            Self::Exponential(i) => -(1.0-x).ln()/i.rate(),
+            Self::FisherSnedecor(i) => deep_inverse_cdf(i, x),
             Self::Gamma(i) => deep_inverse_cdf(i, x),
             Self::Uniform(i) => x * (i.max() - i.min()) + i.min(),
         }
@@ -125,6 +133,48 @@ pub(crate) fn add_contdist_beta<W: Write + 'static>(
                 }
             };
             Ok(manage_native!(XContinuousDistribution::Beta(ret), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_contdist_exp<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "exp_distribution",
+        XFuncSpec::new(&[&X_FLOAT], X_CONTDIST.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let f0 = to_primitive!(a0, Float);
+            let ret = match Exp::new(*f0) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
+                }
+            };
+            Ok(manage_native!(XContinuousDistribution::Exponential(ret), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_contdist_fs<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "fisher_snedecor_distribution",
+        XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_CONTDIST.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let f0 = to_primitive!(a0, Float);
+            let f1 = to_primitive!(a1, Float);
+            let ret = match FisherSnedecor::new(*f0, *f1) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
+                }
+            };
+            Ok(manage_native!(XContinuousDistribution::FisherSnedecor(ret), rt))
         }),
     )
 }
@@ -184,16 +234,18 @@ pub(crate) fn add_contdist_quantile<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_contdist_chisq<W: Write + 'static>(
+pub(crate) fn add_contdist_gamma<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
-        "chisq_distribution",
-        XFuncSpec::new(&[&X_FLOAT], X_CONTDIST.clone()),
+        "gamma_distribution",
+        XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_CONTDIST.clone()),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let f0 = to_primitive!(a0, Float);
-            let ret = match Gamma::new(*f0/2.0, 0.5) {
+            let f1 = to_primitive!(a1, Float);
+            let ret = match Gamma::new(*f0, *f1) {
                 Ok(ret) => ret,
                 Err(e) => {
                     return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
