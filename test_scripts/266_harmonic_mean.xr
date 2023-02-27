@@ -1,0 +1,4 @@
+fn main()->bool{
+    assert(3.harmonic_mean(4).is_close(3.428571428571429))
+    && assert((3.9).harmonic_mean(4.1).is_close(3.997499999999999))
+}

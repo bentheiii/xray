@@ -1,0 +1,13 @@
+fn main()->bool{
+    let d = hypergeometric_distribution(20,8,4);
+
+    assert(d.cdf(1).is_close(0.46542827657378827))
+    && assert(d.cdf(-11) == 0.0)
+    && assert(d.cdf(11) == 1.0)
+    && assert(d.pmf(1).is_close(0.3632610939112487))
+    && assert(d.pmf(-11) == 0.0)
+    && assert(d.pmf(11) == 0.0)
+    && assert(d.quantile(0.5) == 1)
+    && assert(d.quantile(0.0) == 0)
+    && assert(d.quantile(1.0) == 4)
+}

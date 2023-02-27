@@ -1,0 +1,4 @@
+fn main()->bool{
+    assert((9.0).ln().is_close(2.19722457734))
+    && assert((e**6.5).ln().is_close(6.5))
+}

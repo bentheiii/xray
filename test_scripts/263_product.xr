@@ -1,0 +1,9 @@
+fn main()->bool{
+    let a = range(1,10);
+    let b = a.map((x: int)->{x/5});
+
+    assert(a.product() == 362_880)
+    && assert(b.product().is_close(0.18579456))
+    && assert(a.to_generator().product() == 362_880)
+    && assert(b.to_generator().product().is_close(0.18579456))
+}

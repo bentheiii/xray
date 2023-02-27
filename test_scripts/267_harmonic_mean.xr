@@ -1,0 +1,9 @@
+fn main()->bool{
+    let a = range(1,10);
+    let b = a.map((x: int)->{x/5});
+
+    assert(a.harmonic_mean().is_close(3.181371861))
+    && assert(b.harmonic_mean().is_close(0.636274372))
+    && assert(a.to_generator().harmonic_mean().is_close(3.181371861))
+    && assert(b.to_generator().harmonic_mean().is_close(0.636274372))
+}

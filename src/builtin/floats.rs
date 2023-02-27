@@ -311,6 +311,30 @@ pub(crate) fn add_float_cosh<W: Write + 'static>(
     )
 }
 
+pub(crate) fn add_float_sin<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "sin",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(
+            a.sin()
+        )))),
+    )
+}
+
+pub(crate) fn add_float_ln<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "ln",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(
+            a.ln()
+        )))),
+    )
+}
+
 pub(crate) fn add_float_erf<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {

@@ -1,0 +1,6 @@
+fn main()->bool{
+    let a = [6,8,12,3,4,2,11,8];
+    assert(a.n_largest(3) == [12, 11, 8])
+    && assert(a.n_largest(6) == [12, 11, 8, 8, 6, 4])
+    && assert(a.n_largest(20) == a.sort((a: int, b: int)->{b.cmp(a)}))
+}

@@ -1,0 +1,14 @@
+fn main()->bool{
+    let a = Complex(1.0,1.0);
+    let b = 10.complex();
+    let j = Complex(0.0,1.0);
+
+    assert(a::r == 1.0)
+    && assert(a::i == 1.0)
+    && assert((a+b) == Complex(11.0, 1.0))
+    && assert(-(a+b) == Complex(-11.0, -1.0))
+    && assert((j**3).is_close(-j))
+    && assert(a.abs().is_close(sqrt(2.0)))
+    && assert(a.arg().is_close(pi/4))
+    && assert(a.conjugate() == Complex(1.0,-1.0))
+}

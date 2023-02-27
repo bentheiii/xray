@@ -22,6 +22,10 @@ fn lcm(a: int, b: int)->int{
     trunc(a.abs()/g)*b.abs()
 }
 
+fn harmonic_mean(a: int, b:int)->float{
+    2.0/(1/a + 1/b)
+}
+
 // float
 let pi = 3.1415926535897932384626433832795028841971693;
 let e = 2.7182818284590452353602874713526624977572;
@@ -34,9 +38,162 @@ fn div(f: float, i: int)->float{
     f/i.to_float()
 }
 
+fn div(a: int, b: float)->float{
+    a.to_float()/b
+}
+
+fn pow(a: int, b: float)->float{
+    a.to_float()**b
+}
+
+fn pow(b: float, a: int)->float{
+    b**a.to_float()
+}
+
+fn harmonic_mean(a: float, b:float)->float{
+    2.0/(1.0/a + 1.0/b)
+}
+
+fn log(a: float, base: float)->float{
+    a.ln() / base.ln()
+}
+
+// complex
+struct Complex(r: float, i: float)
+
+fn eq(a: Complex, b: Complex)->bool{
+    a::r == b::r && a::i == b::i
+}
+
+fn complex(r: float)->Complex{
+    Complex(r, 0.0)
+}
+
+fn complex(r: int)->Complex{
+    complex(r.to_float())
+}
+
+fn complex_from_polar(r: float, a: float)->Complex{
+    Complex(a.cos() * r, a.sin() * r)
+}
+
+fn neg(a: Complex)->Complex{
+    Complex(-a::r, -a::i)
+}
+
+fn abs(a: Complex) -> float{
+    sqrt(a::r**2 + a::i**2)
+}
+
+fn arg(a: Complex) -> float{
+    atan(a::i, a::r)
+}
+
+fn add(a: Complex,b: Complex)->Complex{
+    Complex(a::r+b::r, a::i+b::i)
+}
+
+fn add(a: Complex,b: float)->Complex{
+    a + complex(b)
+}
+
+fn add(b: float, a: Complex)->Complex{
+    a + complex(b)
+}
+
+fn add(a: Complex,b: int)->Complex{
+    a + complex(b)
+}
+
+fn add(b: int, a: Complex)->Complex{
+    a + complex(b)
+}
+
+fn sub(a: Complex,b: Complex)->Complex{
+    a + (-b)
+}
+
+fn sub(a: Complex,b: float)->Complex{
+    a - complex(b)
+}
+
+fn sub(b: float, a: Complex)->Complex{
+    complex(b) - a
+}
+
+fn sub(a: Complex,b: int)->Complex{
+    a - complex(b)
+}
+
+fn sub(b: int, a: Complex)->Complex{
+    complex(b) - a
+}
+
+fn mul(a: Complex, b: Complex)->Complex{
+    Complex(a::r*b::r-a::i*b::i, a::r*b::i+a::i*b::r)
+}
+
+fn mul(a: Complex,b: float)->Complex{
+    a * complex(b)
+}
+
+fn mul(b: float, a: Complex)->Complex{
+    a * complex(b)
+}
+
+fn mul(a: Complex,b: int)->Complex{
+    a * complex(b)
+}
+
+fn mul(b: int, a: Complex)->Complex{
+    a * complex(b)
+}
+
+fn div(a: Complex, b: Complex)->Complex{
+    let denom = b::r**2 + b::i**2;
+    Complex((a::r*b::r+a::i*b::i)/denom, (a::i*b::r-a::r*b::i)/denom)
+}
+
+fn div(a: float, b: Complex)->Complex{
+    complex(a) / b
+}
+
+fn div(a: int, b: Complex)->Complex{
+    complex(a) / b
+}
+
+fn div(a: Complex, b: float)->Complex{
+    a / complex(b)
+}
+
+fn div(a: Complex, b: int)->Complex{
+    a / complex(b)
+}
+
+fn pow(a: Complex, b: float)->Complex{
+    complex_from_polar(a.abs() ** b, a.arg() * b)
+}
+
+fn pow(a: Complex, b: int)->Complex{
+    a**b.to_float()
+}
+
+fn conjugate(a: Complex) -> Complex{
+    Complex(a::r, -a::i)
+}
+
+fn is_close(a: Complex, b: Complex, rel_tol: float ?= 1e-9, abs_tol: float ?= 1e-9)->bool{
+    let diff = a-b;
+    diff.abs().is_close(0.0, rel_tol, abs_tol)
+}
+
 // bool
 fn bit_xor(a: bool, b: bool)->bool{
     a != b
+}
+
+fn indicator(a: bool)->int{
+    a.if(1,0)
 }
 
 // string
@@ -245,6 +402,34 @@ fn mean(g: Generator<float>)->float{
     v::item0/v::item1.to_float()
 }
 
+fn product(g: Generator<int>)->int{
+    g.reduce(mul{int, int})
+}
+
+fn product(g: Generator<float>)->float{
+    g.reduce(mul{float, float})
+}
+
+fn geo_mean(g: Generator<int>)->float{
+    let v = g.reduce((1, 0), (a: (int, int), v:int) -> {(a::item0*v, a::item1+1)});
+    v::item0.to_float() ** (1/v::item1)
+}
+
+fn geo_mean(g: Generator<float>)->float{
+    let v = g.reduce((1.0, 0), (a: (float, int), v:float) -> {(a::item0*v, a::item1+1)});
+    v::item0 ** (1/v::item1)
+}
+
+fn harmonic_mean(g: Generator<int>)->float{
+    let v = g.reduce((0.0, 0), (a: (float, int), v:int) -> {(a::item0+1/v, a::item1+1)});
+    v::item1/v::item0
+}
+
+fn harmonic_mean(g: Generator<float>)->float{
+    let v = g.reduce((0.0, 0), (a: (float, int), v:float) -> {(a::item0+1.0/v, a::item1+1)});
+    v::item1/v::item0
+}
+
 // sets
 fn __std_xset_order_by_cardinality<T>(a: Set<T>, b: Set<T>) -> (Set<T>, Set<T>){
     if(a.len() < b.len(), (a,b), (b,a))
@@ -353,5 +538,29 @@ fn mean(g: Sequence<int>)->float{
 
 fn mean(g: Sequence<float>)->float{
     g.sum()/g.len().to_float()
+}
+
+fn product(g: Sequence<int>)->int{
+    g.reduce(mul{int, int})
+}
+
+fn product(g: Sequence<float>)->float{
+    g.reduce(mul{float, float})
+}
+
+fn geo_mean(g: Sequence<int>)->float{
+    g.product().to_float()**(1/g.len())
+}
+
+fn geo_mean(g: Sequence<float>)->float{
+    g.product() ** (1/g.len())
+}
+
+fn harmonic_mean(g: Sequence<int>)->float{
+    g.len() / g.map((a: int)->{1/a}).sum()
+}
+
+fn harmonic_mean(g: Sequence<float>)->float{
+    g.len() / g.map((a: float)->{1.0/a}).sum()
 }
 "#;

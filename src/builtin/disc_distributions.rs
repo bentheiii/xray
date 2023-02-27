@@ -7,7 +7,7 @@ use crate::{
     XStaticFunction, XType,
 };
 use num_traits::{Bounded, Float, Num, Signed, ToPrimitive};
-use statrs::distribution::{Discrete, DiscreteCDF, Binomial, DiscreteUniform};
+use statrs::distribution::{Discrete, DiscreteCDF, Binomial, DiscreteUniform, Hypergeometric};
 use statrs::statistics::{Max, Min};
 use std::fmt::Debug;
 use std::io::Write;
@@ -62,6 +62,7 @@ lazy_static! {
 #[derive(Debug)]
 pub(crate) enum XDiscreteDistribution {
     Binomial(Binomial),
+    Hypergeometric(Hypergeometric),
     Uniform(DiscreteUniform),
 }
 
@@ -69,6 +70,16 @@ impl XDiscreteDistribution {
     fn cdf(&self, x: &LazyBigint) -> f64 {
         match self {
             Self::Binomial(i) => {
+                x.to_u64().map_or_else(
+                    || if x.is_negative() {
+                        0.0
+                    } else {
+                        1.0
+                    },
+                    |x| i.cdf(x)
+                )
+            }
+            Self::Hypergeometric(i) => {
                 x.to_u64().map_or_else(
                     || if x.is_negative() {
                         0.0
@@ -99,6 +110,12 @@ impl XDiscreteDistribution {
                     |x| i.pmf(x),
                 )
             }
+            Self::Hypergeometric(i) => {
+                x.to_u64().map_or(
+                    0.0,
+                    |x| i.pmf(x),
+                )
+            }
             Self::Uniform(i) => {
                 x.to_i64().map_or(
                     0.0,
@@ -111,6 +128,7 @@ impl XDiscreteDistribution {
     fn quantile(&self, x: f64) -> LazyBigint {
         match self {
             Self::Binomial(i) => inverse_cdf(i, x).into(),
+            Self::Hypergeometric(i) => inverse_cdf(i, x).into(),
             Self::Uniform(i) => (x * ((i.max() - i.min() + 1) as f64) + (i.min() - 1) as f64).floor().to_i64().unwrap().into(),
         }
     }
@@ -148,6 +166,36 @@ pub(crate) fn add_discdist_binomial<W: Write + 'static>(
                 }
             };
             Ok(manage_native!(XDiscreteDistribution::Binomial(ret), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_discdist_hypergeometric<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "hypergeometric_distribution",
+        XFuncSpec::new(&[&X_INT, &X_INT, &X_INT], X_DISCDIST.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise!(eval(&args[2], ns, &rt)?);
+            let Some(i0) = to_primitive!(a0, Int).to_u64() else {
+                return xerr(ManagedXError::new("N out of bounds", rt)?);
+            };
+            let Some(i1) = to_primitive!(a1, Int).to_u64() else {
+                return xerr(ManagedXError::new("K out of bounds", rt)?);
+            };
+            let Some(i2) = to_primitive!(a2, Int).to_u64() else {
+                return xerr(ManagedXError::new("n out of bounds", rt)?);
+            };
+            let ret = match Hypergeometric::new(i0,i1,i2) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
+                }
+            };
+            Ok(manage_native!(XDiscreteDistribution::Hypergeometric(ret), rt))
         }),
     )
 }

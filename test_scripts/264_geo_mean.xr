@@ -1,0 +1,9 @@
+fn main()->bool{
+    let a = range(1,10);
+    let b = a.map((x: int)->{x/5});
+
+    assert(a.geo_mean().is_close(4.147166274396913))
+    && assert(b.geo_mean().is_close(0.8294332548793826))
+    && assert(a.to_generator().geo_mean().is_close(4.147166274396913))
+    && assert(b.to_generator().geo_mean().is_close(0.8294332548793826))
+}

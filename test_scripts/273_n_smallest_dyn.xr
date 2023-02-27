@@ -1,0 +1,6 @@
+fn main()->bool{
+    let a = [6,8,12,3,4,2,11,8];
+    assert(a.n_smallest(3) == [2,3,4])
+    && assert(a.n_smallest(6) == [2,3,4,6,8,8])
+    && assert(a.n_smallest(20) == a.sort())
+}

@@ -8,6 +8,6 @@ fn main()->bool{
     && assert(d.pmf(-11) == 0.0)
     && assert(d.pmf(11) == 0.0)
     && assert(d.quantile(0.9453125) == 7)
-    //&& assert(d.quantile(0.0) == 0)
-    //&& assert(d.quantile(1.0) == 10)
+    && assert(d.quantile(0.0) == 0)
+    && assert(d.quantile(1.0) == 10)
 }

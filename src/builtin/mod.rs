@@ -92,10 +92,12 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_float_gamma(scope).unwrap();
     add_float_gammaln(scope).unwrap();
     add_float_is_close(scope).unwrap();
+    add_float_ln(scope).unwrap();
     add_float_mod(scope).unwrap();
     add_float_mul(scope).unwrap();
     add_float_neg(scope).unwrap();
     add_float_pow(scope).unwrap();
+    add_float_sin(scope).unwrap();
     add_float_sqrt(scope).unwrap();
     add_float_sub(scope).unwrap();
     add_float_to_str(scope).unwrap();
@@ -157,6 +159,8 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_sequence_dyn_cmp(scope).unwrap();
     add_sequence_dyn_eq(scope).unwrap();
     add_sequence_dyn_hash(scope).unwrap();
+    add_sequence_dyn_n_largest(scope).unwrap();
+    add_sequence_dyn_n_smallest(scope).unwrap();
     add_sequence_dyn_sort(scope).unwrap();
     add_sequence_dyn_to_str(scope).unwrap();
     add_sequence_dyn_unzip(scope).unwrap();
@@ -255,6 +259,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_discrete_distribution_type(scope).unwrap();
     add_discdist_binomial(scope).unwrap();
     add_discdist_cdf(scope).unwrap();
+    add_discdist_hypergeometric(scope).unwrap();
     add_discdist_pmf(scope).unwrap();
     add_discdist_quantile(scope).unwrap();
 

@@ -17,6 +17,8 @@ use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
 
+const VERBOSE_ALLOC: bool = false;
+
 pub(crate) type UnionInstance<W> = (usize, Rc<ManagedXValue<W>>);
 
 #[derive(Derivative)]
@@ -177,7 +179,7 @@ impl<W: Write + 'static> ManagedXValue<W> {
             if let Some(max_size) = size_limit {
                 size = value.size();
                 runtime.borrow_mut().size += size;
-                if cfg!(vebose_alloc) {
+                if VERBOSE_ALLOC {
                     println!(
                         "Allocated {size} bytes (total {}) for {value:?}",
                         runtime.borrow().size
@@ -253,3 +255,5 @@ impl<W: Write + 'static> ManagedXError<W> {
         }))
     }
 }
+
+pub type XResult<T, W> = Result<Result<T, Rc<ManagedXError<W>>>, RuntimeViolation>;

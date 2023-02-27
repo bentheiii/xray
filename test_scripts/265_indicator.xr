@@ -1,0 +1,4 @@
+fn main()->bool{
+    assert(indicator(true) == 1)
+    && assert(indicator(false) == 0)
+}
