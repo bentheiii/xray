@@ -1,0 +1,7 @@
+fn main()->bool{
+    assert("HELLO" == "hello".upper())
+    && assert("" == "".upper())
+    && assert("HELLO".upper() == "HELLO")
+    && assert("ὈΔΥΣΣΕΎΣ" == "ὀδυσσεύς".upper())
+    && assert("TSCHÜSS" == "tschüß".upper())
+}

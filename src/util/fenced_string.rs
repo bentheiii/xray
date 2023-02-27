@@ -108,7 +108,7 @@ impl FencedString {
         &self.buffer
     }
 
-    pub(crate) fn iter(&self) -> impl DoubleEndedIterator<Item = char> + '_ {
+    pub(crate) fn iter(&self) -> impl DoubleEndedIterator<Item=char> + '_ {
         self.buffer.chars()
     }
 
@@ -151,6 +151,25 @@ impl FencedString {
     pub(crate) fn shrink_to_fit(&mut self) {
         self.buffer.shrink_to_fit();
         self.char_starts.shrink_to_fit();
+    }
+
+    pub(crate) fn to_lowercase(&self) -> Option<Self> {
+        if self.buffer.chars().all(char::is_lowercase) {
+            None
+        } else {
+            Some(Self {
+                buffer: self.buffer.to_lowercase(),
+                char_starts: self.char_starts.clone(),
+            })
+        }
+    }
+
+    pub(crate) fn to_uppercase(&self) -> Option<Self> {
+        if self.buffer.chars().all(char::is_uppercase) {
+            None
+        } else {
+            Some(Self::from_str(&self.buffer.to_uppercase()))
+        }
     }
 }
 

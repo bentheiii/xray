@@ -1,0 +1,11 @@
+fn main()->bool{
+    let d = lognormal_distribution(3.5,1.2);
+
+    assert(d.cdf(4.0).is_close(0.03908355570841964))
+    && assert(d.cdf(-1.2) == 0.0)
+    && assert(d.pdf(4.0).is_close(0.017617596681819225))
+    && assert(d.pdf(-1.2) == 0.0)
+    && assert(d.quantile(0.03908355570841964).is_close(4.0))
+    && assert(d.quantile(0.0) == 0.0)
+    && assert(is_error(d.quantile(1.0)))
+}

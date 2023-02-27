@@ -113,9 +113,11 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_str_get(scope).unwrap();
     add_str_hash(scope).unwrap();
     add_str_len(scope).unwrap();
+    add_str_lower(scope).unwrap();
     add_str_substring(scope).unwrap();
     add_str_to_int(scope).unwrap();
     add_str_to_str(scope).unwrap();
+    add_str_upper(scope).unwrap();
 
     add_bool_type(scope).unwrap();
     add_bool_and(scope).unwrap();
@@ -141,6 +143,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_sequence_insert(scope).unwrap();
     add_sequence_len(scope).unwrap();
     add_sequence_map(scope).unwrap();
+    add_sequence_n_smallest(scope).unwrap();
     add_sequence_nth(scope).unwrap();
     add_sequence_pop(scope).unwrap();
     add_sequence_push(scope).unwrap();
@@ -253,6 +256,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_contdist_exp(scope).unwrap();
     add_contdist_fs(scope).unwrap();
     add_contdist_gamma(scope).unwrap();
+    add_contdist_lognormal(scope).unwrap();
     add_contdist_pdf(scope).unwrap();
     add_contdist_quantile(scope).unwrap();
 

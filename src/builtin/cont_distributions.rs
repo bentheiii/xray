@@ -7,11 +7,12 @@ use crate::{
     XStaticFunction, XType,
 };
 use num_traits::Float;
-use statrs::distribution::{Beta, Continuous, ContinuousCDF, Gamma, Uniform, Exp, FisherSnedecor};
+use statrs::distribution::{Beta, Continuous, ContinuousCDF, Gamma, Uniform, Exp, FisherSnedecor, LogNormal};
 use statrs::statistics::{Max, Min};
 use std::fmt::Debug;
 use std::io::Write;
 use std::sync::Arc;
+use statrs::function::erf::{erf_inv};
 
 /// copy-paste of the inverse cdf algorithm from statrs, but with more precision
 fn deep_inverse_cdf<K: Float, T: Float, S: ContinuousCDF<K, T>>(s: &S, p: T) -> K {
@@ -68,6 +69,7 @@ pub(crate) enum XContinuousDistribution {
     Exponential(Exp),
     FisherSnedecor(FisherSnedecor),
     Gamma(Gamma),
+    LogNormal(LogNormal, f64, f64),
     Uniform(Uniform),
 }
 
@@ -78,6 +80,7 @@ impl XContinuousDistribution {
             Self::Exponential(i) => i.cdf(x),
             Self::FisherSnedecor(i) => i.cdf(x),
             Self::Gamma(i)=>i.cdf(x),
+            Self::LogNormal(i, ..)=>i.cdf(x),
             Self::Uniform(i) => i.cdf(x),
         }
     }
@@ -88,6 +91,7 @@ impl XContinuousDistribution {
             Self::Exponential(i) => i.pdf(x),
             Self::FisherSnedecor(i) => i.pdf(x),
             Self::Gamma(i)=>i.pdf(x),
+            Self::LogNormal(i, ..)=>i.pdf(x),
             Self::Uniform(i) => i.pdf(x),
         }
     }
@@ -98,6 +102,9 @@ impl XContinuousDistribution {
             Self::Exponential(i) => -(1.0-x).ln()/i.rate(),
             Self::FisherSnedecor(i) => deep_inverse_cdf(i, x),
             Self::Gamma(i) => deep_inverse_cdf(i, x),
+            Self::LogNormal(_, location, scale)=> {
+                (location+(2.0*scale*scale).sqrt() * erf_inv(2.0*x-1.0)).exp()
+            },
             Self::Uniform(i) => x * (i.max() - i.min()) + i.min(),
         }
     }
@@ -133,6 +140,28 @@ pub(crate) fn add_contdist_beta<W: Write + 'static>(
                 }
             };
             Ok(manage_native!(XContinuousDistribution::Beta(ret), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_contdist_lognormal<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "lognormal_distribution",
+        XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_CONTDIST.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let f0 = to_primitive!(a0, Float);
+            let f1 = to_primitive!(a1, Float);
+            let ret = match LogNormal::new(*f0, *f1) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
+                }
+            };
+            Ok(manage_native!(XContinuousDistribution::LogNormal(ret, *f0, *f1), rt))
         }),
     )
 }

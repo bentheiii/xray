@@ -1536,3 +1536,23 @@ fn test_script_272() {
 fn test_script_273() {
     run_script_from_name(function_name!())
 }
+
+#[test]
+fn test_script_274() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_275() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_276() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_277() {
+    run_script_from_name(function_name!())
+}

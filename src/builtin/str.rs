@@ -199,6 +199,44 @@ pub(crate) fn add_str_code_point<W: Write + 'static>(
     )
 }
 
+pub(crate) fn add_str_lower<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "lower",
+        XFuncSpec::new(&[&X_STRING], X_STRING.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let s = to_primitive!(a0, String);
+            let ret = if let Some(r) = s.to_lowercase(){
+                ManagedXValue::new(XValue::String(Box::new(r)), rt)?
+            } else {
+                a0.clone()
+            };
+            Ok(ret.into())
+        }),
+    )
+}
+
+pub(crate) fn add_str_upper<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "upper",
+        XFuncSpec::new(&[&X_STRING], X_STRING.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let s = to_primitive!(a0, String);
+            let ret = if let Some(r) = s.to_uppercase(){
+                ManagedXValue::new(XValue::String(Box::new(r)), rt)?
+            } else {
+                a0.clone()
+            };
+            Ok(ret.into())
+        }),
+    )
+}
+
 pub(crate) fn add_str_to_int<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {

@@ -831,6 +831,42 @@ pub(crate) fn add_sequence_sort<W: Write + 'static>(
     )
 }
 
+pub(crate) fn add_sequence_n_smallest<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+    let t_arr = XSequenceType::xtype(t.clone());
+
+    scope.add_func(
+        "n_smallest",
+        XFuncSpec::new(
+            &[
+                &t_arr,
+                &X_INT,
+                &Arc::new(XCallable(XCallableSpec {
+                    param_types: vec![t.clone(), t],
+                    return_type: X_INT.clone(),
+                })),
+            ],
+            t_arr.clone(),
+        )
+            .generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise!(eval(&args[2], ns, &rt)?);
+            let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
+            let seq0 = to_native!(a0, XSequence<W>);
+            let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
+            rt.as_ref().borrow().can_allocate(len0)?;
+            let f = to_primitive!(a2, Function);
+            let ret = xraise!(seq0.n_largest::<false>(i1, f, ns, rt.clone())?);
+            let ret_seq = XSequence::Array(ret);
+            Ok(manage_native!(ret_seq, rt))
+        }),
+    )
+}
+
 pub(crate) fn add_sequence_range<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {

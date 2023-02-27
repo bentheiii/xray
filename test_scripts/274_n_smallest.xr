@@ -1,0 +1,7 @@
+fn main()->bool{
+    let a = [6,8,12,3,4,2,11,8];
+    let f = (x: int, y: int)->{(x%10).cmp(y%10)};
+    assert(a.n_smallest(3, f) == [11, 12, 2])
+    && assert(a.n_smallest(6, f) == [11, 12, 2, 3, 4, 6])
+    && assert(a.n_smallest(20, f) == a.sort(f))
+}
