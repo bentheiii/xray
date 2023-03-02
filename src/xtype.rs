@@ -657,3 +657,39 @@ pub(crate) fn common_type<T: Iterator<Item = Result<Arc<XType>, CompilationError
     }
     Ok(ret)
 }
+
+pub(crate) struct CallbackType{t: Arc<XType>, bind: Bind}
+
+impl CallbackType {
+    pub(crate) fn new(t: Arc<XType>, args: &[Arc<XType>])->Self{
+        let spec = if let XType::XFunc(spec) = t.as_ref() {
+            spec
+        } else {
+            unreachable!()
+        };
+        let bind = spec.bind(args).unwrap();
+        Self{t, bind}
+    }
+
+    pub(crate) fn spec(&self)->&XFuncSpec{
+        if let XType::XFunc(spec) = self.t.as_ref() {
+            spec
+        } else {
+            unreachable!()
+        }
+    }
+
+    pub(crate) fn xtype(&self)->Arc<XType>{
+        let spec = self.spec();
+        Arc::new(
+            XType::XCallable(XCallableSpec{
+                param_types:spec.params.iter().map(|t| t.type_.resolve_bind(&self.bind, None)).collect(),
+                return_type:spec.ret.resolve_bind(&self.bind, None)
+            })
+        )
+    }
+
+    pub(crate) fn rtype(&self)->Arc<XType>{
+        self.spec().rtype(&self.bind)
+    }
+}

@@ -143,6 +143,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_sequence_insert(scope).unwrap();
     add_sequence_len(scope).unwrap();
     add_sequence_map(scope).unwrap();
+    add_sequence_n_largest(scope).unwrap();
     add_sequence_n_smallest(scope).unwrap();
     add_sequence_nth(scope).unwrap();
     add_sequence_pop(scope).unwrap();

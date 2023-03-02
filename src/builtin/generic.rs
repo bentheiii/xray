@@ -2,13 +2,13 @@ use crate::xexpr::XExpr;
 use crate::xtype::{Bind, XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::{
-    forward_err, manage_native, to_primitive, ufunc, unpack_types, xraise, xraise_opt,
+    forward_err, manage_native, to_primitive, ufunc, xraise, xraise_opt,
     CompilationError, RootCompilationScope, XStaticFunction, XType,
 };
 use rc::Rc;
 
 use crate::builtin::builtin_permissions;
-use crate::builtin::core::{eval, get_func};
+use crate::builtin::core::{eval, get_func, unpack_dyn_types, unpack_dyn_types_at_least, unpack_dyn_types_with_optional};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::runtime::RTCell;
 use crate::runtime_scope::RuntimeScope;
@@ -173,7 +173,7 @@ pub(crate) fn add_ne<W: Write + 'static>(
         if bind.is_some() {
             return Err("this dyn func has no bind".to_string());
         }
-        let (t0, t1) = unpack_types!(types, 0, 1);
+        let [t0, t1] = unpack_dyn_types(types)?;
 
         let eq_expr = get_func(ns, eq_symbol, &[t0.clone(), t1.clone()], &X_BOOL)?;
 
@@ -211,7 +211,7 @@ pub(crate) fn add_display<W: Write + 'static>(
                 return Err("this dyn func has no bind".to_string());
             }
 
-            let (t, t1) = unpack_types!(types, 0 | 1);
+            let ([t0], [t1]) = unpack_dyn_types_with_optional(types)?;
             if let Some(t1) = t1 {
                 if let XType::String = t1.as_ref() {
                 } else {
@@ -219,10 +219,10 @@ pub(crate) fn add_display<W: Write + 'static>(
                 }
             }
 
-            let inner_to_str = get_func(ns, to_str_symbol, &[t.clone()], &X_STRING)?;
+            let inner_to_str = get_func(ns, to_str_symbol, &[t0.clone()], &X_STRING)?;
 
             Ok(XFunctionFactoryOutput::from_delayed_native(
-                XFuncSpec::new_with_optional(&[&t.clone()], &[&X_STRING], t.clone()),
+                XFuncSpec::new_with_optional(&[&t0.clone()], &[&X_STRING], t0.clone()),
                 move |ns, rt| {
                     let inner_value =
                         forward_err!(ns.eval(&inner_to_str, rt, false)?.unwrap_value());
@@ -264,7 +264,7 @@ pub(crate) fn add_cmp_lt<W: Write + 'static>(
         if bind.is_some() {
             return Err("this dyn func has no bind".to_string());
         }
-        let (t0, t1) = unpack_types!(types, 0, 1);
+        let [t0, t1] = unpack_dyn_types(types)?;
 
         let inner_func = get_func(ns, cmp_symbol, &[t0.clone(), t1.clone()], &X_INT)?;
 
@@ -302,7 +302,7 @@ pub(crate) fn add_cmp_gt<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (t0, t1) = unpack_types!(types, 0, 1);
+        let [t0, t1] = unpack_dyn_types(types)?;
 
         let inner_func = get_func(ns, cmp_symbol, &[t0.clone(), t1.clone()], &X_INT)?;
 
@@ -339,7 +339,7 @@ pub(crate) fn add_cmp_ge<W: Write + 'static>(
         if bind.is_some() {
             return Err("this dyn func has no bind".to_string());
         }
-        let (t0, t1) = unpack_types!(types, 0, 1);
+        let [t0, t1] = unpack_dyn_types(types)?;
 
         let inner_func = get_func(ns, cmp_symbol, &[t0.clone(), t1.clone()], &X_INT)?;
 
@@ -377,7 +377,7 @@ pub(crate) fn add_cmp_le<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (t0, t1) = unpack_types!(types, 0, 1);
+        let [t0, t1] = unpack_dyn_types(types)?;
 
         let inner_func = get_func(ns, cmp_symbol, &[t0.clone(), t1.clone()], &X_INT)?;
 
@@ -432,9 +432,10 @@ pub(crate) fn add_partial<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (t0, ) = unpack_types!(types, 0);
+        let [t0] = unpack_dyn_types_at_least(types)?;
         let XType::XFunc(spec) = t0.as_ref() else { return Err("first argument must be a function".to_string()); };
         let mut binding = Bind::new();
+        // todo test with 0 star types
         let star_types = types.unwrap().iter().skip(1).collect::<Vec<_>>();
         if star_types.len() > spec.params.len() {
             return Err("function has less parameters than supplied".to_string());

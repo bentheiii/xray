@@ -1,4 +1,4 @@
-use crate::builtin::core::{eval, get_func, unpack_native, xerr};
+use crate::builtin::core::{eval, get_func, unpack_dyn_types, unpack_native, xerr};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::runtime_scope::RuntimeScope;
@@ -7,7 +7,7 @@ use crate::xexpr::XExpr;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::{
-    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, CompilationError,
+    forward_err, manage_native, to_native, to_primitive, xraise, CompilationError,
     RootCompilationScope, XStaticFunction, XType,
 };
 use derivative::Derivative;
@@ -283,7 +283,7 @@ pub(crate) fn add_stack_dyn_eq<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0, a1) = unpack_types!(types, 0, 1);
+        let [a0, a1] = unpack_dyn_types(types)?;
         let [t0] = unpack_native(a0, "Stack")? else { unreachable!() };
         let [t1] = unpack_native(a1, "Stack")? else { unreachable!() };
         let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t1.clone()], &X_BOOL)?;
@@ -342,7 +342,7 @@ pub(crate) fn add_stack_dyn_hash<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0, ) = unpack_types!(types, 0);
+        let [a0] = unpack_dyn_types(types)?;
         let [t0] = unpack_native(a0, "Stack")? else { unreachable!() };
 
         let inner = get_func(ns, symbol, &[t0.clone()], &X_INT)?;

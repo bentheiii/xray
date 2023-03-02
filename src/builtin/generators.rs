@@ -1,4 +1,4 @@
-use crate::builtin::core::{eval, unpack_native, xerr};
+use crate::builtin::core::{eval, unpack_dyn_types, unpack_native, xerr};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 
@@ -11,7 +11,7 @@ use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, xraise_opt,
+    forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt,
     CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
@@ -831,7 +831,7 @@ pub(crate) fn add_generator_dyn_unzip<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (t0, ) = unpack_types!(types, 0);
+        let [t0] = unpack_dyn_types(types)?;
         let [inner0] = unpack_native(t0, "Generator")? else { unreachable!() };
         let XType::Tuple(inner_types) = inner0.as_ref() else { return Err(format!("expected sequence of tuples, got {t0:?}")); };
         let t_len = inner_types.len();

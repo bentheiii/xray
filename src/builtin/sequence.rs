@@ -1,4 +1,4 @@
-use crate::builtin::core::{eval, get_func, search, unpack_native, xerr};
+use crate::builtin::core::{eval, get_func, get_func_with_type, search, unpack_dyn_types, unpack_native, xerr};
 use crate::builtin::generators::{XGenerator, XGeneratorType};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::stack::{XStack, XStackType};
@@ -12,7 +12,7 @@ use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XResult, XValue};
 use crate::XType::XCallable;
 use crate::{
-    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, xraise_opt,
+    forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt,
     CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
@@ -831,6 +831,42 @@ pub(crate) fn add_sequence_sort<W: Write + 'static>(
     )
 }
 
+pub(crate) fn add_sequence_n_largest<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+    let t_arr = XSequenceType::xtype(t.clone());
+
+    scope.add_func(
+        "n_largest",
+        XFuncSpec::new(
+            &[
+                &t_arr,
+                &X_INT,
+                &Arc::new(XCallable(XCallableSpec {
+                    param_types: vec![t.clone(), t],
+                    return_type: X_INT.clone(),
+                })),
+            ],
+            t_arr.clone(),
+        )
+            .generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise!(eval(&args[2], ns, &rt)?);
+            let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
+            let seq0 = to_native!(a0, XSequence<W>);
+            let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
+            rt.as_ref().borrow().can_allocate(len0)?;
+            let f = to_primitive!(a2, Function);
+            let ret = xraise!(seq0.n_largest::<true>(i1, f, ns, rt.clone())?);
+            let ret_seq = XSequence::Array(ret);
+            Ok(manage_native!(ret_seq, rt))
+        }),
+    )
+}
+
 pub(crate) fn add_sequence_n_smallest<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
@@ -1134,7 +1170,7 @@ pub(crate) fn add_sequence_dyn_eq<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0, a1) = unpack_types!(types, 0, 1);
+        let [a0, a1] = unpack_dyn_types(types)?;
         let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
         let [t1] = unpack_native(a1, "Sequence")? else { unreachable!() };
 
@@ -1192,30 +1228,28 @@ pub(crate) fn add_sequence_dyn_sort<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
+    let cb_symbol = scope.identifier("sort");
 
     scope.add_dyn_func("sort", "sequences", move |_params, types, ns, bind| {
         if bind.is_some() {
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0, ) = unpack_types!(types, 0);
+        let [a0] = unpack_dyn_types(types)?;
         let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
 
-        let inner_eq = get_func(ns, cmp_symbol, &[t0.clone(), t0.clone()], &X_INT)?;
+        let (inner_cmp, cmp_t) = get_func_with_type(ns, cmp_symbol, &[t0.clone(), t0.clone()], Some(&X_INT))?;
+        let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[a0.clone(), cmp_t.xtype()], None)?;
 
         Ok(XFunctionFactoryOutput::from_delayed_native(
-            XFuncSpec::new(&[a0], a0.clone()),
+            XFuncSpec::new(&[a0], cb_t.rtype()),
             move |ns, rt| {
-                let inner_value =
-                    forward_err!(ns.eval(&inner_eq, rt, false)?.unwrap_value());
+                let inner_cmp_value = forward_err!(ns.eval(&inner_cmp, rt.clone(), false)?.unwrap_value());
+                let cb_value = forward_err!(ns.eval(&cb, rt, false)?.unwrap_value());
                 Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                    let seq0 = to_native!(a0, XSequence<W>);
-                    let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-                    rt.as_ref().borrow().can_allocate(len0)?;
-                    let f = to_primitive!(inner_value, Function);
-                    xraise!(seq0.sorted(f, ns, rt.clone())?)
-                        .map_or_else(|| Ok(a0.clone().into()), |s| Ok(manage_native!(s, rt)))
+                    let XValue::Function(cb_func) = &cb_value.value else {unreachable!()};
+                    ns.eval_func_with_values(cb_func, vec![Ok(a0), Ok(inner_cmp_value.clone())], rt, false)
                 }))
             },
         ))
@@ -1226,33 +1260,29 @@ pub(crate) fn add_sequence_dyn_n_largest<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
+    let cb_symbol = scope.identifier("n_largest");
 
     scope.add_dyn_func("n_largest", "sequences", move |_params, types, ns, bind| {
         if bind.is_some() {
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0, _) = unpack_types!(types, 0, 1);
+        let [a0, a1] = unpack_dyn_types(types)?;
         let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
 
-        let inner_eq = get_func(ns, cmp_symbol, &[t0.clone(), t0.clone()], &X_INT)?;
+        let (inner_cmp, cmp_t) = get_func_with_type(ns, cmp_symbol, &[t0.clone(), t0.clone()], Some(&X_INT))?;
+        let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[a0.clone(), a1.clone(), cmp_t.xtype()], None)?;
 
         Ok(XFunctionFactoryOutput::from_delayed_native(
-            XFuncSpec::new(&[a0, &X_INT], a0.clone()),
+            XFuncSpec::new(&[a0, a1], cb_t.rtype()),
             move |ns, rt| {
-                let inner_value =
-                    forward_err!(ns.eval(&inner_eq, rt, false)?.unwrap_value());
+                let inner_cmp_value = forward_err!(ns.eval(&inner_cmp, rt.clone(), false)?.unwrap_value());
+                let cb_value = forward_err!(ns.eval(&cb, rt, false)?.unwrap_value());
                 Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
                     let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                    let seq0 = to_native!(a0, XSequence<W>);
-                    let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
-                    let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-                    rt.as_ref().borrow().can_allocate(len0)?;
-                    let f = to_primitive!(inner_value, Function);
-                    let ret = xraise!(seq0.n_largest::<true>(i1, f, ns, rt.clone())?);
-                    let ret_seq = XSequence::Array(ret);
-                    Ok(manage_native!(ret_seq, rt))
+                    let XValue::Function(cb_func) = &cb_value.value else {unreachable!()};
+                    ns.eval_func_with_values(cb_func, vec![Ok(a0), Ok(a1), Ok(inner_cmp_value.clone())], rt, false)
                 }))
             },
         ))
@@ -1263,33 +1293,29 @@ pub(crate) fn add_sequence_dyn_n_smallest<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
+    let cb_symbol = scope.identifier("n_smallest");
 
     scope.add_dyn_func("n_smallest", "sequences", move |_params, types, ns, bind| {
         if bind.is_some() {
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0, _) = unpack_types!(types, 0, 1);
+        let [a0, a1] = unpack_dyn_types(types)?;
         let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
 
-        let inner_eq = get_func(ns, cmp_symbol, &[t0.clone(), t0.clone()], &X_INT)?;
+        let (inner_cmp, cmp_t) = get_func_with_type(ns, cmp_symbol, &[t0.clone(), t0.clone()], Some(&X_INT))?;
+        let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[a0.clone(), a1.clone(), cmp_t.xtype()], None)?;
 
         Ok(XFunctionFactoryOutput::from_delayed_native(
-            XFuncSpec::new(&[a0, &X_INT], a0.clone()),
+            XFuncSpec::new(&[a0, a1], cb_t.rtype()),
             move |ns, rt| {
-                let inner_value =
-                    forward_err!(ns.eval(&inner_eq, rt, false)?.unwrap_value());
+                let inner_cmp_value = forward_err!(ns.eval(&inner_cmp, rt.clone(), false)?.unwrap_value());
+                let cb_value = forward_err!(ns.eval(&cb, rt, false)?.unwrap_value());
                 Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
                     let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                    let seq0 = to_native!(a0, XSequence<W>);
-                    let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
-                    let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-                    rt.as_ref().borrow().can_allocate(len0)?;
-                    let f = to_primitive!(inner_value, Function);
-                    let ret = xraise!(seq0.n_largest::<false>(i1, f, ns, rt.clone())?);
-                    let ret_seq = XSequence::Array(ret);
-                    Ok(manage_native!(ret_seq, rt))
+                    let XValue::Function(cb_func) = &cb_value.value else {unreachable!()};
+                    ns.eval_func_with_values(cb_func, vec![Ok(a0), Ok(a1), Ok(inner_cmp_value.clone())], rt, false)
                 }))
             },
         ))
@@ -1343,7 +1369,7 @@ pub(crate) fn add_sequence_dyn_unzip<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (t0, ) = unpack_types!(types, 0);
+        let [t0] = unpack_dyn_types(types)?;
         let [inner0] = unpack_native(t0, "Sequence")? else { unreachable!() };
         let XType::Tuple(inner_types) = inner0.as_ref() else { return Err(format!("expected sequence of tuples, got {t0:?}")); };
         let t_len = inner_types.len();
@@ -1388,7 +1414,7 @@ pub(crate) fn add_sequence_dyn_to_str<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0, ) = unpack_types!(types, 0);
+        let [a0] = unpack_dyn_types(types)?;
         let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
 
         let inner = get_func(ns, symbol, &[t0.clone()], &X_STRING)?;
@@ -1445,7 +1471,7 @@ pub(crate) fn add_sequence_dyn_hash<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0, ) = unpack_types!(types, 0);
+        let [a0] = unpack_dyn_types(types)?;
         let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
 
         let inner = get_func(ns, symbol, &[t0.clone()], &X_INT)?;
@@ -1494,7 +1520,7 @@ pub(crate) fn add_sequence_dyn_cmp<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0, a1) = unpack_types!(types, 0, 1);
+        let [a0, a1] = unpack_dyn_types(types)?;
         let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
         let [t1] = unpack_native(a1, "Sequence")? else { unreachable!() };
 

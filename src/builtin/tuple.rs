@@ -1,12 +1,12 @@
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::{
-    forward_err, to_primitive, unpack_types, xraise, CompilationError, RootCompilationScope, XType,
+    forward_err, to_primitive, xraise, CompilationError, RootCompilationScope, XType,
 };
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 
-use crate::builtin::core::{eval, get_func, xerr};
+use crate::builtin::core::{eval, get_func, unpack_dyn_types, xerr};
 use crate::runtime_scope::RuntimeScope;
 use crate::util::fenced_string::FencedString;
 use crate::util::lazy_bigint::LazyBigint;
@@ -40,7 +40,7 @@ pub(crate) fn add_tuple_dyn_eq<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (t0, t1) = unpack_types!(types, 0, 1);
+        let [t0, t1] = unpack_dyn_types(types)?;
         let XType::Tuple(subtypes0) = t0.as_ref() else { return Err("argument 1 is not a tuple".to_string()); };
         let XType::Tuple(subtypes1) = t1.as_ref() else { return Err("argument 2 is not a tuple".to_string()); };
         if subtypes0.len() != subtypes1.len() {
@@ -93,7 +93,7 @@ pub(crate) fn add_tuple_dyn_cmp<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (t0, t1) = unpack_types!(types, 0, 1);
+        let [t0, t1] = unpack_dyn_types(types)?;
         let XType::Tuple(subtypes0) = t0.as_ref() else { return Err("argument 1 is not a tuple".to_string()); };
         let XType::Tuple(subtypes1) = t1.as_ref() else { return Err("argument 2 is not a tuple".to_string()); };
 
@@ -145,7 +145,7 @@ pub(crate) fn add_tuple_dyn_hash<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (t0,) = unpack_types!(types, 0);
+        let [t0] = unpack_dyn_types(types)?;
         let XType::Tuple(subtypes0) = t0.as_ref() else { return Err("argument 1 is not a tuple".to_string()); };
 
         let inner_funcs: Vec<_> = subtypes0.iter().map(|s0| get_func(ns, eq_symbol, &[s0.clone()], &X_INT)).collect::<Result<_, _>>()?;
@@ -191,7 +191,7 @@ pub(crate) fn add_tuple_dyn_to_str<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (t0,) = unpack_types!(types, 0);
+        let [t0] = unpack_dyn_types(types)?;
         let XType::Tuple(subtypes0) = t0.as_ref() else { return Err("argument 1 is not a tuple".to_string()); };
 
         let inner_funcs: Vec<_> = subtypes0.iter().map(|s0| get_func(ns, eq_symbol, &[s0.clone()], &X_STRING)).collect::<Result<_, _>>()?;

@@ -1,10 +1,10 @@
 use crate::compile_err::CompilationError;
 use crate::root_compilation_scope::RootCompilationScope;
-use crate::unpack_types;
 use crate::xtype::{CompoundKind, XFuncSpec, XType};
 use crate::xvalue::XFunctionFactoryOutput;
 use std::io::Write;
 use std::sync::Arc;
+use crate::builtin::core::unpack_dyn_types;
 
 pub(crate) fn add_struct_members<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -14,7 +14,7 @@ pub(crate) fn add_struct_members<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (t0, ) = unpack_types!(types, 0);
+        let [t0] = unpack_dyn_types(types)?;
         let XType::Compound(CompoundKind::Struct, spec, bind) = t0.as_ref() else { return Err("argument 1 is not a struct".to_string()); };
         let ret_type = Arc::new(XType::Tuple(spec.fields.iter().map(|t| t.type_.resolve_bind(bind, Some(t0))).collect()));
 

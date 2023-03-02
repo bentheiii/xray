@@ -1,7 +1,7 @@
 use crate::xtype::{X_BOOL, X_STRING, X_UNKNOWN};
-use crate::{unpack_types, CompilationError, RootCompilationScope, XFuncSpec};
+use crate::{CompilationError, RootCompilationScope, XFuncSpec};
 
-use crate::builtin::core::xerr;
+use crate::builtin::core::{unpack_dyn_types, xerr};
 use crate::xvalue::{ManagedXError, XFunctionFactoryOutput};
 use std::io::Write;
 
@@ -13,7 +13,7 @@ pub(crate) fn add_unknown_eq<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0, a1) = unpack_types!(types, 0, 1);
+        let [a0, a1] = unpack_dyn_types(types)?;
 
         if a0 != &X_UNKNOWN.clone() && a1 != &X_UNKNOWN.clone() {
             return Err(format!(
@@ -36,7 +36,7 @@ pub(crate) fn add_unknown_to_str<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0,) = unpack_types!(types, 0);
+        let [a0] = unpack_dyn_types(types)?;
 
         if a0 != &X_UNKNOWN.clone() {
             return Err(format!("expected at unknown, got {a0:?}"));
@@ -57,7 +57,7 @@ pub(crate) fn add_unknown_hash<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0,) = unpack_types!(types, 0);
+        let [a0] = unpack_dyn_types(types)?;
 
         if a0 != &X_UNKNOWN.clone() {
             return Err(format!("expected at unknown, got {a0:?}"));

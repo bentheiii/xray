@@ -3,11 +3,12 @@ use crate::compile_err::CompilationError;
 use crate::root_compilation_scope::RootCompilationScope;
 use crate::xtype::{CompoundKind, XFuncSpec, XType};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
-use crate::{manage_native, to_primitive, unpack_types, xraise};
+use crate::{manage_native, to_primitive, xraise};
 use std::io::Write;
 use std::iter;
 use std::rc::Rc;
 use std::sync::Arc;
+use crate::builtin::core::unpack_dyn_types;
 
 pub(crate) fn add_union_members<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -17,7 +18,7 @@ pub(crate) fn add_union_members<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (t0, ) = unpack_types!(types, 0);
+        let [t0] = unpack_dyn_types(types)?;
         let XType::Compound(CompoundKind::Union, spec, bind) = t0.as_ref() else { return Err("argument 1 is not a union".to_string()); };
         let n_fields = spec.fields.len();
         let ret_type = Arc::new(XType::Tuple(spec.fields.iter().map(|t| XOptionalType::xtype(t.type_.resolve_bind(bind, Some(t0)))).collect()));

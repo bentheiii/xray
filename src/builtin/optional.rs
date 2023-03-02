@@ -1,4 +1,4 @@
-use crate::builtin::core::{eval, get_func, unpack_native, xerr};
+use crate::builtin::core::{eval, get_func, unpack_dyn_types, unpack_native, xerr};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::runtime_scope::RuntimeScope;
 use crate::util::fenced_string::FencedString;
@@ -8,7 +8,7 @@ use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    forward_err, manage_native, to_native, to_primitive, unpack_types, xraise, xraise_opt,
+    forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt,
     CompilationError, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
@@ -260,7 +260,7 @@ pub(crate) fn add_optional_dyn_eq<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0, a1) = unpack_types!(types, 0, 1);
+        let [a0, a1] = unpack_dyn_types(types)?;
         let [t0] = unpack_native(a0, "Optional")? else { unreachable!() };
         let [t1] = unpack_native(a1, "Optional")? else { unreachable!() };
         let inner_eq = get_func(ns, eq_symbol, &[t0.clone(), t1.clone()], &X_BOOL)?;
@@ -313,7 +313,7 @@ pub(crate) fn add_optional_dyn_hash<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0,) = unpack_types!(types, 0);
+        let [a0] = unpack_dyn_types(types)?;
         let [t0] = unpack_native(a0, "Optional")? else { unreachable!() };
         let inner = get_func(ns, symbol, &[t0.clone()], &X_INT)?;
 
@@ -351,7 +351,7 @@ pub(crate) fn add_optional_dyn_to_string<W: Write + 'static>(
             return Err("this dyn func has no bind".to_string());
         }
 
-        let (a0,) = unpack_types!(types, 0);
+        let [a0] = unpack_dyn_types(types)?;
         let [t0] = unpack_native(a0, "Optional")? else { unreachable!() };
         let inner = get_func(ns, symbol, &[t0.clone()], &X_STRING)?;
 
