@@ -7,12 +7,14 @@ use crate::{
     XStaticFunction, XType,
 };
 use num_traits::Float;
-use statrs::distribution::{Beta, Continuous, ContinuousCDF, Gamma, Uniform, Exp, FisherSnedecor, LogNormal};
+use statrs::distribution::{
+    Beta, Continuous, ContinuousCDF, Exp, FisherSnedecor, Gamma, LogNormal, Uniform,
+};
+use statrs::function::erf::erf_inv;
 use statrs::statistics::{Max, Min};
 use std::fmt::Debug;
 use std::io::Write;
 use std::sync::Arc;
-use statrs::function::erf::{erf_inv};
 
 /// copy-paste of the inverse cdf algorithm from statrs, but with more precision
 fn deep_inverse_cdf<K: Float, T: Float, S: ContinuousCDF<K, T>>(s: &S, p: T) -> K {
@@ -79,8 +81,8 @@ impl XContinuousDistribution {
             Self::Beta(i) => i.cdf(x),
             Self::Exponential(i) => i.cdf(x),
             Self::FisherSnedecor(i) => i.cdf(x),
-            Self::Gamma(i)=>i.cdf(x),
-            Self::LogNormal(i, ..)=>i.cdf(x),
+            Self::Gamma(i) => i.cdf(x),
+            Self::LogNormal(i, ..) => i.cdf(x),
             Self::Uniform(i) => i.cdf(x),
         }
     }
@@ -90,8 +92,8 @@ impl XContinuousDistribution {
             Self::Beta(i) => i.pdf(x),
             Self::Exponential(i) => i.pdf(x),
             Self::FisherSnedecor(i) => i.pdf(x),
-            Self::Gamma(i)=>i.pdf(x),
-            Self::LogNormal(i, ..)=>i.pdf(x),
+            Self::Gamma(i) => i.pdf(x),
+            Self::LogNormal(i, ..) => i.pdf(x),
             Self::Uniform(i) => i.pdf(x),
         }
     }
@@ -99,12 +101,12 @@ impl XContinuousDistribution {
     fn quantile(&self, x: f64) -> f64 {
         match self {
             Self::Beta(i) => deep_inverse_cdf(i, x),
-            Self::Exponential(i) => -(1.0-x).ln()/i.rate(),
+            Self::Exponential(i) => -(1.0 - x).ln() / i.rate(),
             Self::FisherSnedecor(i) => deep_inverse_cdf(i, x),
             Self::Gamma(i) => deep_inverse_cdf(i, x),
-            Self::LogNormal(_, location, scale)=> {
-                (location+(2.0*scale*scale).sqrt() * erf_inv(2.0*x-1.0)).exp()
-            },
+            Self::LogNormal(_, location, scale) => {
+                (location + (2.0 * scale * scale).sqrt() * erf_inv(2.0 * x - 1.0)).exp()
+            }
             Self::Uniform(i) => x * (i.max() - i.min()) + i.min(),
         }
     }
@@ -161,7 +163,10 @@ pub(crate) fn add_contdist_lognormal<W: Write + 'static>(
                     return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
                 }
             };
-            Ok(manage_native!(XContinuousDistribution::LogNormal(ret, *f0, *f1), rt))
+            Ok(manage_native!(
+                XContinuousDistribution::LogNormal(ret, *f0, *f1),
+                rt
+            ))
         }),
     )
 }
@@ -181,7 +186,10 @@ pub(crate) fn add_contdist_exp<W: Write + 'static>(
                     return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
                 }
             };
-            Ok(manage_native!(XContinuousDistribution::Exponential(ret), rt))
+            Ok(manage_native!(
+                XContinuousDistribution::Exponential(ret),
+                rt
+            ))
         }),
     )
 }
@@ -203,7 +211,10 @@ pub(crate) fn add_contdist_fs<W: Write + 'static>(
                     return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
                 }
             };
-            Ok(manage_native!(XContinuousDistribution::FisherSnedecor(ret), rt))
+            Ok(manage_native!(
+                XContinuousDistribution::FisherSnedecor(ret),
+                rt
+            ))
         }),
     )
 }
@@ -255,7 +266,7 @@ pub(crate) fn add_contdist_quantile<W: Write + 'static>(
                 return xerr(ManagedXError::new("quantile must be between 0 and 1", rt)?);
             }
             let ret = d0.quantile(*f1);
-            if !ret.is_finite(){
+            if !ret.is_finite() {
                 return xerr(ManagedXError::new("value out of bounds", rt)?);
             }
             Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())

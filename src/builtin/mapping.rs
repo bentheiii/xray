@@ -1,4 +1,6 @@
-use crate::builtin::core::{eval, get_func, get_func_with_type, unpack_dyn_types, unpack_native, xerr};
+use crate::builtin::core::{
+    eval, get_func, get_func_with_type, unpack_dyn_types, unpack_native, xerr,
+};
 use crate::builtin::generators::{XGenerator, XGeneratorType};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::native_types::{NativeType, XNativeValue};
@@ -9,8 +11,8 @@ use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    forward_err, manage_native, to_native, to_primitive, xraise, CompilationError,
-    RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
+    forward_err, manage_native, to_native, to_primitive, xraise, CompilationError, RTCell,
+    RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
 use num_traits::ToPrimitive;
@@ -515,10 +517,12 @@ pub(crate) fn add_mapping_dyn_new<W: Write + 'static>(
         move |_params, _types, ns, bind| {
             let [a0] = unpack_dyn_types(bind)?;
 
-            let (inner_hash, hash_t) = get_func_with_type(ns, hash_symbol, &[a0.clone()], Some(&X_INT))?;
-            let (inner_eq, eq_t) = get_func_with_type(ns, eq_symbol, &[a0.clone(), a0.clone()], Some(&X_BOOL))?;
-            let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[hash_t.xtype(),eq_t.xtype()], None)?;
-
+            let (inner_hash, hash_t) =
+                get_func_with_type(ns, hash_symbol, &[a0.clone()], Some(&X_INT))?;
+            let (inner_eq, eq_t) =
+                get_func_with_type(ns, eq_symbol, &[a0.clone(), a0.clone()], Some(&X_BOOL))?;
+            let (cb, cb_t) =
+                get_func_with_type(ns, cb_symbol, &[hash_t.xtype(), eq_t.xtype()], None)?;
 
             Ok(XFunctionFactoryOutput::from_delayed_native(
                 XFuncSpec::new(&[], cb_t.rtype()),
@@ -527,12 +531,16 @@ pub(crate) fn add_mapping_dyn_new<W: Write + 'static>(
                         forward_err!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
                     let inner_equal_value =
                         forward_err!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
-                    let cb_value =
-                        forward_err!(ns.eval(&cb, rt, false)?.unwrap_value());
+                    let cb_value = forward_err!(ns.eval(&cb, rt, false)?.unwrap_value());
                     Ok(Ok(
                         move |_args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
                             let XValue::Function(cb_func) = &cb_value.value else {unreachable!()};
-                            ns.eval_func_with_values(cb_func, vec![Ok(inner_hash_value.clone()), Ok(inner_equal_value.clone())], rt, false)
+                            ns.eval_func_with_values(
+                                cb_func,
+                                vec![Ok(inner_hash_value.clone()), Ok(inner_equal_value.clone())],
+                                rt,
+                                false,
+                            )
                         },
                     ))
                 },

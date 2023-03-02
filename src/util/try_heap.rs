@@ -1,6 +1,6 @@
-use std::mem::{ManuallyDrop, swap};
+use crate::xvalue::XResult;
+use std::mem::{swap, ManuallyDrop};
 use std::ptr;
-use crate::xvalue::{XResult};
 
 struct Hole<'a, T: 'a> {
     data: &'a mut [T],
@@ -17,7 +17,11 @@ impl<'a, T> Hole<'a, T> {
         debug_assert!(pos < data.len());
         // SAFE: pos should be inside the slice
         let elt = unsafe { ptr::read(data.get_unchecked(pos)) };
-        Hole { data, elt: ManuallyDrop::new(elt), pos }
+        Hole {
+            data,
+            elt: ManuallyDrop::new(elt),
+            pos,
+        }
     }
 
     #[inline]
@@ -68,13 +72,16 @@ impl<T> Drop for Hole<'_, T> {
 
 pub(crate) struct TryHeap<T, F> {
     data: Vec<T>,
-    is_le: F
+    is_le: F,
 }
 
-impl<T, W, F: FnMut(&T, &T)->XResult<bool, W>> TryHeap<T, F>{
+impl<T, W, F: FnMut(&T, &T) -> XResult<bool, W>> TryHeap<T, F> {
     #[must_use]
     pub fn with_capacity(capacity: usize, is_le: F) -> Self {
-        Self { data: Vec::with_capacity(capacity), is_le }
+        Self {
+            data: Vec::with_capacity(capacity),
+            is_le,
+        }
     }
 
     unsafe fn sift_up(&mut self, start: usize, pos: usize) -> XResult<usize, W> {
@@ -101,7 +108,7 @@ impl<T, W, F: FnMut(&T, &T)->XResult<bool, W>> TryHeap<T, F>{
         Ok(Ok(hole.pos()))
     }
 
-    unsafe fn sift_down_to_bottom(&mut self, mut pos: usize)->XResult<(), W> {
+    unsafe fn sift_down_to_bottom(&mut self, mut pos: usize) -> XResult<(), W> {
         let end = self.len();
         let start = pos;
 
@@ -117,8 +124,8 @@ impl<T, W, F: FnMut(&T, &T)->XResult<bool, W>> TryHeap<T, F>{
             //  child + 1 == 2 * hole.pos() + 2 != hole.pos().
             // FIXME: 2 * hole.pos() + 1 or 2 * hole.pos() + 2 could overflow
             //  if T is a ZST
-            let rhs = unsafe { hole.get(child)};
-            let lhs = unsafe { hole.get(child+1)};
+            let rhs = unsafe { hole.get(child) };
+            let lhs = unsafe { hole.get(child + 1) };
             let cmp = forward_err!((self.is_le)(rhs, lhs)?);
             child += cmp as usize;
 
@@ -149,24 +156,28 @@ impl<T, W, F: FnMut(&T, &T)->XResult<bool, W>> TryHeap<T, F>{
         self.len() == 0
     }
 
-    pub(crate) fn push(&mut self, item: T)->XResult<(), W> {
+    pub(crate) fn push(&mut self, item: T) -> XResult<(), W> {
         let old_len = self.len();
         self.data.push(item);
         // SAFETY: Since we pushed a new item it means that
         //  old_len = self.len() - 1 < self.len()
         forward_err!(unsafe { self.sift_up(0, old_len) }?);
         Ok(Ok(()))
-
     }
 
     pub(crate) fn pop(&mut self) -> XResult<Option<T>, W> {
-        Ok(Ok(forward_err!(self.data.pop().map(|mut item| {
-            if !self.is_empty() {
-                swap(&mut item, &mut self.data[0]);
-                // SAFETY: !self.is_empty() means that self.len() > 0
-                forward_err!(unsafe { self.sift_down_to_bottom(0) }?);
-            }
-            Ok(Ok(item))
-        }).transpose()?.transpose())))
+        Ok(Ok(forward_err!(self
+            .data
+            .pop()
+            .map(|mut item| {
+                if !self.is_empty() {
+                    swap(&mut item, &mut self.data[0]);
+                    // SAFETY: !self.is_empty() means that self.len() > 0
+                    forward_err!(unsafe { self.sift_down_to_bottom(0) }?);
+                }
+                Ok(Ok(item))
+            })
+            .transpose()?
+            .transpose())))
     }
 }

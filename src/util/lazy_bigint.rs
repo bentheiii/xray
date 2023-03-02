@@ -70,7 +70,7 @@ impl LazyBigint {
         }
     }
 
-    pub(crate) fn range<'a>(&'a self) -> impl IntoIterator<Item=Self> + 'a {
+    pub(crate) fn range(&'_ self) -> impl IntoIterator<Item = Self> + '_ {
         iter::successors(Some(Self::zero()), |p| Some(p + &Self::one())).take_while(|i| i < self)
     }
 }
@@ -109,8 +109,8 @@ impl One for LazyBigint {
     }
 
     fn is_one(&self) -> bool
-        where
-            Self: PartialEq,
+    where
+        Self: PartialEq,
     {
         matches!(self, Self::Short(1))
     }
@@ -122,8 +122,8 @@ impl Zero for LazyBigint {
     }
 
     fn is_zero(&self) -> bool
-        where
-            Self: PartialEq,
+    where
+        Self: PartialEq,
     {
         matches!(self, Self::Short(0))
     }
@@ -234,7 +234,8 @@ impl Sub for &LazyBigint {
                 || LazyBigint::Long(assert_is_long(BigInt::from(*s1) - s2)),
                 LazyBigint::Short,
             ),
-            (LazyBigint::Short(s), LazyBigint::Long(b)) | (LazyBigint::Long(b), LazyBigint::Short(s)) => LazyBigint::from(b - s),
+            (LazyBigint::Short(s), LazyBigint::Long(b))
+            | (LazyBigint::Long(b), LazyBigint::Short(s)) => LazyBigint::from(b - s),
             (LazyBigint::Long(b0), LazyBigint::Long(b1)) => LazyBigint::from(b0 - b1),
         }
     }

@@ -785,7 +785,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 ))
             }
             _ => {
-                panic!("not an expression {:?}", input);
+                panic!("not an expression {input:?}");
             }
         }
     }

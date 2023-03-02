@@ -9,12 +9,12 @@ use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::{TailedEvalResult, XExpr};
+use crate::xtype::CallbackType;
 use crate::{Identifier, RTCell, XStaticFunction, XType};
+use itertools::Itertools;
 use std::ops::Neg;
 use std::rc::Rc;
 use std::sync::Arc;
-use itertools::Itertools;
-use crate::xtype::{CallbackType};
 
 #[macro_export]
 macro_rules! xraise {
@@ -152,9 +152,11 @@ pub(super) fn xcmp<W: Write + 'static, T: PartialOrd>(rhs: T, lhs: T) -> XValue<
     })
 }
 
-pub(crate) fn unpack_dyn_types<const N: usize>(dyn_types: Option<&[Arc<XType>]>)->Result<[&Arc<XType>;N], String>{
-    if let Some(dyn_types) = dyn_types{
-        if dyn_types.len() != N{
+pub(crate) fn unpack_dyn_types<const N: usize>(
+    dyn_types: Option<&[Arc<XType>]>,
+) -> Result<[&Arc<XType>; N], String> {
+    if let Some(dyn_types) = dyn_types {
+        if dyn_types.len() != N {
             Err(format!("expected {N} arguments, got {}", dyn_types.len()))
         } else {
             Ok(dyn_types.iter().collect_vec().try_into().unwrap())
@@ -164,14 +166,27 @@ pub(crate) fn unpack_dyn_types<const N: usize>(dyn_types: Option<&[Arc<XType>]>)
     }
 }
 
-pub(crate) fn unpack_dyn_types_with_optional<const N: usize, const P: usize>(dyn_types: Option<&[Arc<XType>]>)->Result<([&Arc<XType>;N], [Option<&Arc<XType>>;P]), String>{
-    if let Some(dyn_types) = dyn_types{
-        if dyn_types.len() < N || dyn_types.len() > (N+P){
-            Err(format!("expected between {N} and {P} arguments, got {}", dyn_types.len()))
+#[allow(clippy::type_complexity)]
+pub(crate) fn unpack_dyn_types_with_optional<const N: usize, const P: usize>(
+    dyn_types: Option<&[Arc<XType>]>,
+) -> Result<([&Arc<XType>; N], [Option<&Arc<XType>>; P]), String> {
+    if let Some(dyn_types) = dyn_types {
+        if dyn_types.len() < N || dyn_types.len() > (N + P) {
+            Err(format!(
+                "expected between {N} and {P} arguments, got {}",
+                dyn_types.len()
+            ))
         } else {
             Ok((
                 (dyn_types.iter().take(N).collect_vec().try_into().unwrap()),
-                (dyn_types.iter().skip(N).map(Some).pad_using(P, |_| None).collect_vec().try_into().unwrap()),
+                (dyn_types
+                    .iter()
+                    .skip(N)
+                    .map(Some)
+                    .pad_using(P, |_| None)
+                    .collect_vec()
+                    .try_into()
+                    .unwrap()),
             ))
         }
     } else {
@@ -179,10 +194,15 @@ pub(crate) fn unpack_dyn_types_with_optional<const N: usize, const P: usize>(dyn
     }
 }
 
-pub(crate) fn unpack_dyn_types_at_least<const N: usize>(dyn_types: Option<&[Arc<XType>]>)->Result<[&Arc<XType>;N], String>{
-    if let Some(dyn_types) = dyn_types{
-        if dyn_types.len() < N{
-            Err(format!("expected at least {N} arguments, got {}", dyn_types.len()))
+pub(crate) fn unpack_dyn_types_at_least<const N: usize>(
+    dyn_types: Option<&[Arc<XType>]>,
+) -> Result<[&Arc<XType>; N], String> {
+    if let Some(dyn_types) = dyn_types {
+        if dyn_types.len() < N {
+            Err(format!(
+                "expected at least {N} arguments, got {}",
+                dyn_types.len()
+            ))
         } else {
             Ok(dyn_types.iter().take(N).collect_vec().try_into().unwrap())
         }
@@ -204,7 +224,7 @@ pub(super) fn get_func<W: Write + 'static>(
     arguments: &[Arc<XType>],
     expected_return_type: &Arc<XType>,
 ) -> Result<XExpr<W>, String> {
-    get_func_with_type(scope, symbol,arguments,Some(expected_return_type)).map(|x| x.0)
+    get_func_with_type(scope, symbol, arguments, Some(expected_return_type)).map(|x| x.0)
 }
 
 pub(super) fn get_func_with_type<W: Write + 'static>(
@@ -225,7 +245,7 @@ pub(super) fn get_func_with_type<W: Write + 'static>(
     if expected_return_type.map_or_else(|| false, |ert| &func_spec.ret != ert) {
         return Err(format!("expected {symbol:?}{{{arguments:?}}} to return {expected_return_type:?}, got {:?} instead", func_spec.ret));
     }
-    Ok((ret,CallbackType::new(ret_xtype, arguments)))
+    Ok((ret, CallbackType::new(ret_xtype, arguments)))
 }
 
 #[macro_export]

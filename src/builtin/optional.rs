@@ -8,8 +8,8 @@ use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt,
-    CompilationError, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
+    forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt, CompilationError,
+    RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
 use num_traits::Zero;

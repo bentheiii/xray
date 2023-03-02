@@ -26,6 +26,7 @@ pub mod bool;
 pub mod builtin_permissions;
 pub mod cont_distributions;
 mod core;
+pub mod disc_distributions;
 pub mod floats;
 pub mod generators;
 pub mod generic;
@@ -42,7 +43,6 @@ pub mod structs;
 pub mod tuple;
 pub mod unions;
 pub mod unknown;
-pub mod disc_distributions;
 
 pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<W>) {
     add_int_type(scope).unwrap();

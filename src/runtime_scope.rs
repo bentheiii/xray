@@ -53,8 +53,8 @@ pub(crate) enum EvaluationCell<W> {
 }
 
 impl<W: Write + 'static> EvaluationCell<W> {
-    fn from_spec<'a>(
-        cell: &'a CellSpec,
+    fn from_spec(
+        cell: &CellSpec,
         parent: Option<&RuntimeScope<W>>,
     ) -> Result<Self, RuntimeViolation> {
         // todo I'm pretty sure this function always returns OK
@@ -294,7 +294,7 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             }
             XExpr::Member(obj, idx) => {
                 let obj = xraise!(self.eval(obj, rt, false)?.unwrap_value());
-                let XValue::StructInstance(items) = &obj.as_ref().value else { panic!("Expected struct, got {:?}", obj) };
+                let XValue::StructInstance(items) = &obj.as_ref().value else { panic!("Expected struct, got {obj:?}") };
                 Ok(TailedEvalResult::from(items[*idx].clone()))
             }
             XExpr::MemberValue(obj, idx) => {
@@ -306,12 +306,12 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                         Err(ManagedXError::new("value is of incorrect variant", rt)?)
                     }
                     .into()),
-                    _ => panic!("Expected union, got {:?}", obj),
+                    _ => panic!("Expected union, got {obj:?}"),
                 }
             }
             XExpr::MemberOptValue(obj, idx) => {
                 let obj = xraise!(self.eval(obj, rt.clone(), false)?.unwrap_value());
-                let XValue::UnionInstance((variant, item)) = &obj.as_ref().value else { panic!("Expected union, got {:?}", obj) };
+                let XValue::UnionInstance((variant, item)) = &obj.as_ref().value else { panic!("Expected union, got {obj:?}") };
                 Ok(if variant == idx {
                     manage_native!(
                         XOptional {

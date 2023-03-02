@@ -9,8 +9,8 @@ use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    forward_err, manage_native, to_native, to_primitive, xraise, CompilationError,
-    RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
+    forward_err, manage_native, to_native, to_primitive, xraise, CompilationError, RTCell,
+    RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;
 use num_traits::ToPrimitive;
@@ -77,7 +77,7 @@ impl<W: Write + 'static> XSet<W> {
 
     fn with_update(
         &self,
-        items: impl Iterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>>,
+        items: impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>>,
         ns: &RuntimeScope<W>,
         rt: RTCell<W>,
     ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
@@ -139,7 +139,7 @@ impl<W: Write + 'static> XSet<W> {
         Ok(Ok(KeyLocation::Missing(hash_key)))
     }
 
-    pub(super) fn iter(&self) -> impl Iterator<Item=Rc<ManagedXValue<W>>> + '_ {
+    pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue<W>>> + '_ {
         self.inner.iter().flat_map(|(_, b)| b.iter()).cloned()
     }
 }
@@ -177,7 +177,7 @@ pub(crate) fn add_set_new<W: Write + 'static>(
             ],
             XSetType::xtype(t),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let hash_func = xraise!(eval(&args[0], ns, &rt)?);
             let eq_func = xraise!(eval(&args[1], ns, &rt)?);
@@ -405,26 +405,32 @@ pub(crate) fn add_set_dyn_new<W: Write + 'static>(
     scope.add_dyn_func("set", "default-funcs", move |_params, _types, ns, bind| {
         let [a0] = unpack_dyn_types(bind)?;
 
-        let (inner_hash, hash_t) = get_func_with_type(ns, hash_symbol, &[a0.clone()], Some(&X_INT))?;
-        let (inner_eq, eq_t) = get_func_with_type(ns, eq_symbol, &[a0.clone(), a0.clone()], Some(&X_BOOL))?;
-        let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[hash_t.xtype(),eq_t.xtype()], None)?;
+        let (inner_hash, hash_t) =
+            get_func_with_type(ns, hash_symbol, &[a0.clone()], Some(&X_INT))?;
+        let (inner_eq, eq_t) =
+            get_func_with_type(ns, eq_symbol, &[a0.clone(), a0.clone()], Some(&X_BOOL))?;
+        let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[hash_t.xtype(), eq_t.xtype()], None)?;
 
         Ok(XFunctionFactoryOutput::from_delayed_native(
-                XFuncSpec::new(&[], cb_t.rtype()),
-                move |ns, rt| {
-                    let inner_hash_value =
-                        forward_err!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
-                    let inner_equal_value =
-                        forward_err!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
-                    let cb_value =
-                        forward_err!(ns.eval(&cb, rt, false)?.unwrap_value());
-                    Ok(Ok(
-                        move |_args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
-                            let XValue::Function(cb_func) = &cb_value.value else {unreachable!()};
-                            ns.eval_func_with_values(cb_func, vec![Ok(inner_hash_value.clone()), Ok(inner_equal_value.clone())], rt, false)
-                        },
-                    ))
-                },
-            ))
+            XFuncSpec::new(&[], cb_t.rtype()),
+            move |ns, rt| {
+                let inner_hash_value =
+                    forward_err!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
+                let inner_equal_value =
+                    forward_err!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
+                let cb_value = forward_err!(ns.eval(&cb, rt, false)?.unwrap_value());
+                Ok(Ok(
+                    move |_args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                        let XValue::Function(cb_func) = &cb_value.value else {unreachable!()};
+                        ns.eval_func_with_values(
+                            cb_func,
+                            vec![Ok(inner_hash_value.clone()), Ok(inner_equal_value.clone())],
+                            rt,
+                            false,
+                        )
+                    },
+                ))
+            },
+        ))
     })
 }

@@ -7,7 +7,7 @@ use crate::{
     XStaticFunction,
 };
 
-use num_traits::{Pow, Signed, ToPrimitive, Zero, One};
+use num_traits::{One, Pow, Signed, ToPrimitive, Zero};
 
 use rc::Rc;
 use std::cmp::max;
@@ -277,20 +277,21 @@ add_int_binop!(
     add_int_binom,
     binom,
     |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W>| {
-        if b > a{
-            return Ok(Err("argument 2 must be less than argument 1".to_string()))
+        if b > a {
+            return Ok(Err("argument 2 must be less than argument 1".to_string()));
         }
-        if b.is_negative(){
-            return Ok(Err("argument 2 must be non-negative".to_string()))
+        if b.is_negative() {
+            return Ok(Err("argument 2 must be non-negative".to_string()));
         }
         let mut num = LazyBigint::one();
         let mut denum = LazyBigint::one();
-        for (i, s) in search(b.range(), rt.clone()){
+        for (i, s) in search(b.range(), rt.clone()) {
             s?;
-            num = num * (a-&i);
+            num = num * (a - &i);
             denum = denum * (&i + &LazyBigint::one());
-            rt.borrow().can_allocate_by(|| Some(num.prospective_size() + denum.prospective_size()))?;
+            rt.borrow()
+                .can_allocate_by(|| Some(num.prospective_size() + denum.prospective_size()))?;
         }
-        Ok(Ok(XValue::Int(num/denum)))
+        Ok(Ok(XValue::Int(num / denum)))
     }
 );

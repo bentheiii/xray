@@ -1,5 +1,6 @@
 use crate::builtin::core::{eval, xerr};
 use crate::native_types::{NativeType, XNativeValue};
+use crate::util::lazy_bigint::LazyBigint;
 use crate::xtype::{XFuncSpec, X_FLOAT, X_INT};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use crate::{
@@ -7,12 +8,11 @@ use crate::{
     XStaticFunction, XType,
 };
 use num_traits::{Bounded, Float, Num, Signed, ToPrimitive};
-use statrs::distribution::{Discrete, DiscreteCDF, Binomial, DiscreteUniform, Hypergeometric};
+use statrs::distribution::{Binomial, Discrete, DiscreteCDF, DiscreteUniform, Hypergeometric};
 use statrs::statistics::{Max, Min};
 use std::fmt::Debug;
 use std::io::Write;
 use std::sync::Arc;
-use crate::util::lazy_bigint::LazyBigint;
 
 fn inverse_cdf<K: Bounded + Clone + Num + Debug, T: Float>(s: &impl DiscreteCDF<K, T>, p: T) -> K {
     if p == T::zero() {
@@ -31,8 +31,8 @@ fn inverse_cdf<K: Bounded + Clone + Num + Debug, T: Float>(s: &impl DiscreteCDF<
         let mid = (high.clone() + low.clone()) / two.clone();
         if s.cdf(mid.clone()) >= p {
             high = mid;
-        } else if low==mid{
-            return mid
+        } else if low == mid {
+            return mid;
         } else {
             low = mid;
         }
@@ -53,10 +53,8 @@ impl NativeType for XDiscreteDistributionType {
 }
 
 lazy_static! {
-    static ref X_DISCDIST: Arc<XType> = Arc::new(XType::XNative(
-        Box::new(XDiscreteDistributionType),
-        vec![]
-    ));
+    static ref X_DISCDIST: Arc<XType> =
+        Arc::new(XType::XNative(Box::new(XDiscreteDistributionType), vec![]));
 }
 
 #[derive(Debug)]
@@ -69,59 +67,23 @@ pub(crate) enum XDiscreteDistribution {
 impl XDiscreteDistribution {
     fn cdf(&self, x: &LazyBigint) -> f64 {
         match self {
-            Self::Binomial(i) => {
-                x.to_u64().map_or_else(
-                    || if x.is_negative() {
-                        0.0
-                    } else {
-                        1.0
-                    },
-                    |x| i.cdf(x)
-                )
-            }
-            Self::Hypergeometric(i) => {
-                x.to_u64().map_or_else(
-                    || if x.is_negative() {
-                        0.0
-                    } else {
-                        1.0
-                    },
-                    |x| i.cdf(x)
-                )
-            }
-            Self::Uniform(i) => {
-                x.to_i64().map_or_else(
-                    || if x.is_negative() {
-                        0.0
-                    } else {
-                        1.0
-                    },
-                    |x| i.cdf(x)
-                )
-            }
+            Self::Binomial(i) => x
+                .to_u64()
+                .map_or_else(|| if x.is_negative() { 0.0 } else { 1.0 }, |x| i.cdf(x)),
+            Self::Hypergeometric(i) => x
+                .to_u64()
+                .map_or_else(|| if x.is_negative() { 0.0 } else { 1.0 }, |x| i.cdf(x)),
+            Self::Uniform(i) => x
+                .to_i64()
+                .map_or_else(|| if x.is_negative() { 0.0 } else { 1.0 }, |x| i.cdf(x)),
         }
     }
 
     fn pmf(&self, x: &LazyBigint) -> f64 {
         match self {
-            Self::Binomial(i) => {
-                x.to_u64().map_or(
-                    0.0,
-                    |x| i.pmf(x),
-                )
-            }
-            Self::Hypergeometric(i) => {
-                x.to_u64().map_or(
-                    0.0,
-                    |x| i.pmf(x),
-                )
-            }
-            Self::Uniform(i) => {
-                x.to_i64().map_or(
-                    0.0,
-                    |x| i.pmf(x),
-                )
-            }
+            Self::Binomial(i) => x.to_u64().map_or(0.0, |x| i.pmf(x)),
+            Self::Hypergeometric(i) => x.to_u64().map_or(0.0, |x| i.pmf(x)),
+            Self::Uniform(i) => x.to_i64().map_or(0.0, |x| i.pmf(x)),
         }
     }
 
@@ -129,7 +91,11 @@ impl XDiscreteDistribution {
         match self {
             Self::Binomial(i) => inverse_cdf(i, x).into(),
             Self::Hypergeometric(i) => inverse_cdf(i, x).into(),
-            Self::Uniform(i) => (x * ((i.max() - i.min() + 1) as f64) + (i.min() - 1) as f64).floor().to_i64().unwrap().into(),
+            Self::Uniform(i) => (x * ((i.max() - i.min() + 1) as f64) + (i.min() - 1) as f64)
+                .floor()
+                .to_i64()
+                .unwrap()
+                .into(),
         }
     }
 }
@@ -189,13 +155,16 @@ pub(crate) fn add_discdist_hypergeometric<W: Write + 'static>(
             let Some(i2) = to_primitive!(a2, Int).to_u64() else {
                 return xerr(ManagedXError::new("n out of bounds", rt)?);
             };
-            let ret = match Hypergeometric::new(i0,i1,i2) {
+            let ret = match Hypergeometric::new(i0, i1, i2) {
                 Ok(ret) => ret,
                 Err(e) => {
                     return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
                 }
             };
-            Ok(manage_native!(XDiscreteDistribution::Hypergeometric(ret), rt))
+            Ok(manage_native!(
+                XDiscreteDistribution::Hypergeometric(ret),
+                rt
+            ))
         }),
     )
 }

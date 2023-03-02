@@ -123,7 +123,7 @@ impl ScriptConfig {
             .unwrap()
             .value;
         if !matches!(main_output, XValue::Bool(true)) {
-            panic!("main returned {:?}, expected true", main_output)
+            panic!("main returned {main_output:?}, expected true")
         }
 
         if let Some(expected_output) = &self.expected_stdout {
@@ -161,7 +161,7 @@ fn test_script(script_number: usize) {
             Ok(content) => toml::from_str(&content).unwrap(),
             Err(e) => match e.kind() {
                 std::io::ErrorKind::NotFound => Default::default(),
-                _ => panic!("{:?}", e),
+                _ => panic!("{e:?}"),
             },
         };
 

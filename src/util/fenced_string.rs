@@ -108,7 +108,7 @@ impl FencedString {
         &self.buffer
     }
 
-    pub(crate) fn iter(&self) -> impl DoubleEndedIterator<Item=char> + '_ {
+    pub(crate) fn iter(&self) -> impl DoubleEndedIterator<Item = char> + '_ {
         self.buffer.chars()
     }
 

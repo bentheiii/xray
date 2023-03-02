@@ -1,3 +1,4 @@
+use crate::builtin::core::unpack_dyn_types;
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::compile_err::CompilationError;
 use crate::root_compilation_scope::RootCompilationScope;
@@ -8,7 +9,6 @@ use std::io::Write;
 use std::iter;
 use std::rc::Rc;
 use std::sync::Arc;
-use crate::builtin::core::unpack_dyn_types;
 
 pub(crate) fn add_union_members<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,

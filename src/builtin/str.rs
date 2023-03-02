@@ -208,7 +208,7 @@ pub(crate) fn add_str_lower<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s = to_primitive!(a0, String);
-            let ret = if let Some(r) = s.to_lowercase(){
+            let ret = if let Some(r) = s.to_lowercase() {
                 ManagedXValue::new(XValue::String(Box::new(r)), rt)?
             } else {
                 a0.clone()
@@ -227,7 +227,7 @@ pub(crate) fn add_str_upper<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s = to_primitive!(a0, String);
-            let ret = if let Some(r) = s.to_uppercase(){
+            let ret = if let Some(r) = s.to_uppercase() {
                 ManagedXValue::new(XValue::String(Box::new(r)), rt)?
             } else {
                 a0.clone()

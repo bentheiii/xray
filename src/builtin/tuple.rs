@@ -1,8 +1,6 @@
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
-use crate::{
-    forward_err, to_primitive, xraise, CompilationError, RootCompilationScope, XType,
-};
+use crate::{forward_err, to_primitive, xraise, CompilationError, RootCompilationScope, XType};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::Hasher;
 

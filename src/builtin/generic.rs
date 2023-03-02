@@ -2,13 +2,15 @@ use crate::xexpr::XExpr;
 use crate::xtype::{Bind, XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::{
-    forward_err, manage_native, to_primitive, ufunc, xraise, xraise_opt,
-    CompilationError, RootCompilationScope, XStaticFunction, XType,
+    forward_err, manage_native, to_primitive, ufunc, xraise, xraise_opt, CompilationError,
+    RootCompilationScope, XStaticFunction, XType,
 };
 use rc::Rc;
 
 use crate::builtin::builtin_permissions;
-use crate::builtin::core::{eval, get_func, unpack_dyn_types, unpack_dyn_types_at_least, unpack_dyn_types_with_optional};
+use crate::builtin::core::{
+    eval, get_func, unpack_dyn_types, unpack_dyn_types_at_least, unpack_dyn_types_with_optional,
+};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::runtime::RTCell;
 use crate::runtime_scope::RuntimeScope;
