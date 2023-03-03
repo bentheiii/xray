@@ -13,6 +13,7 @@ use std::sync::Arc;
 
 use crate::root_compilation_scope::Interner;
 use strum::IntoStaticStr;
+use crate::xtype::XFuncSpec;
 
 #[derive(Copy, Clone, Debug)]
 pub enum CompilationItemCategory {
@@ -161,6 +162,10 @@ pub enum CompilationError {
     OverloadAsType {
         name: Identifier,
     },
+    MissingForwardImplementation {
+        name: Identifier,
+        spec: XFuncSpec,
+    },
 }
 
 trait Resolve {
@@ -186,6 +191,27 @@ impl Resolve for XCompoundSpec {
     type Output = String;
     fn resolve(&self, interner: &Interner) -> Self::Output {
         interner.resolve(self.name).unwrap().to_string()
+    }
+}
+
+impl Resolve for XFuncSpec {
+    type Output = String;
+    fn resolve(&self, interner: &Interner) -> Self::Output {
+        format!("{}({})->{}",
+                if let Some(generic_params) = &self.generic_params{
+                    generic_params.iter().map(|i| i.resolve(interner)).join(", ")
+                } else {
+                    "".to_string()
+                },
+                self.params.iter().map(|p| {
+                    if p.required{
+                        p.type_.resolve(interner).0
+                    } else {
+                        format!("{} ?= ...", p.type_.resolve(interner))
+                    }
+                }).join(", "),
+                self.ret.resolve(interner)
+        )
     }
 }
 
@@ -333,7 +359,8 @@ impl Resolve for CompilationError {
             InvalidArgumentType { expected, got },
             CallableBindingFailed {},
             VariableAsType { name },
-            OverloadAsType { name }
+            OverloadAsType { name },
+            MissingForwardImplementation{ name, spec }
         )
     }
 }
@@ -489,6 +516,10 @@ pub enum ResolvedCompilationError {
     OverloadAsType {
         name: String,
     },
+    MissingForwardImplementation {
+        name: String,
+        spec: String,
+    },
 }
 
 impl Display for ResolvedCompilationError {
@@ -574,9 +605,9 @@ impl Display for ResolvedCompilationError {
                     } else {
                         ": dynamic failures: ".to_owned()
                             + &dynamic_failures
-                                .iter()
-                                .map(|(a, b)| format!("{a}: {b}"))
-                                .join(", ")
+                            .iter()
+                            .map(|(a, b)| format!("{a}: {b}"))
+                            .join(", ")
                     },
                 )
             }
@@ -711,6 +742,9 @@ impl Display for ResolvedCompilationError {
             }
             Self::OverloadAsType { name } => {
                 write!(f, "overload {name} cannot be used as a type")
+            }
+            Self::MissingForwardImplementation { name, spec } => {
+                write!(f, "forward-function {name}{spec} used before implementation")
             }
         }
     }

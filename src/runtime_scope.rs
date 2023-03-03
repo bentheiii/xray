@@ -45,6 +45,11 @@ pub(crate) enum EvaluationCell<W> {
     #[default]
     Uninitialized,
     Value(EvaluatedValue<W>),
+    // this will happen for forward functions from an outer scope
+    PendingCapture{
+        depth: ScopeDepth,
+        cell: usize,
+    },
     LocalRecourse,
     Recourse {
         depth: ScopeDepth,
@@ -71,7 +76,17 @@ impl<W: Write + 'static> EvaluationCell<W> {
                     .scope_ancestor_and_cell(*ancestor_depth - 1, *cell_idx);
                 match cell.as_ref(ancestor.template.as_ref()) {
                     Self::Uninitialized => {
-                        panic!("cannot capture uninitialized data")
+                        if let TemplatedEvaluationCell::Owned(..) = cell{
+                            Ok(Self::PendingCapture {
+                                depth: *ancestor_depth,
+                                cell: *cell_idx
+                            })
+                        } else {
+                            panic!("cannot capture uninitialized data")
+                        }
+                    },
+                    Self::PendingCapture { .. } => {
+                        panic!("I don't think this happens")
                     }
                     Self::Value(v) => Ok(Self::Value(v.clone())),
                     Self::LocalRecourse => Ok(Self::Recourse {
@@ -324,18 +339,26 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
                 })
             }
             XExpr::Value(cell_idx) => {
-                let raw_value = self.get_cell_value(*cell_idx);
-                match raw_value {
-                    EvaluationCell::Value(v) => Ok(v.clone().into()),
-                    EvaluationCell::Uninitialized => panic!("access to uninitialized cell"),
-                    EvaluationCell::Recourse { scope, .. } => {
-                        ManagedXValue::new(XValue::Function(scope.clone()), rt).map(|v| v.into())
+                let mut raw_value = self.get_cell_value(*cell_idx);
+                loop{
+                    break match raw_value {
+                        EvaluationCell::Value(v) => Ok(v.clone().into()),
+                        EvaluationCell::Uninitialized => panic!("access to uninitialized cell"),
+                        EvaluationCell::Recourse { scope, .. } => {
+                            ManagedXValue::new(XValue::Function(scope.clone()), rt).map(|v| v.into())
+                        }
+                        EvaluationCell::LocalRecourse => ManagedXValue::new(
+                            XValue::Function(self.template.clone().to_function()),
+                            rt,
+                        )
+                        .map(|v| v.into()),
+                        EvaluationCell::PendingCapture {depth, cell} => {
+                            let (_, templated_cell) = self.scope_ancestor_and_cell(*depth, *cell);
+                            let TemplatedEvaluationCell::Owned(c) = templated_cell else {unreachable!()};
+                            raw_value = c;
+                            continue
+                        }
                     }
-                    EvaluationCell::LocalRecourse => ManagedXValue::new(
-                        XValue::Function(self.template.clone().to_function()),
-                        rt,
-                    )
-                    .map(|v| v.into()),
                 }
             }
             XExpr::Variant(.., idx, expr) => {

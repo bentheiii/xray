@@ -63,6 +63,73 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 }
                 Ok(())
             }
+            Rule::forward_ref =>{
+                let mut inners = input.clone().into_inner();
+                let fn_name = inners.next().unwrap().as_str();
+                let fn_symbol = interner.get_or_intern(fn_name);
+                let gen_params = inners.next().unwrap();
+                let mut gen_param_names = parent_gen_param_names.clone();
+                let specific_gen_params = gen_params.into_inner().next().map(|gen_params| {
+                    let mut names = vec![];
+                    for param in gen_params.into_inner() {
+                        names.push(interner.get_or_intern(param.as_str()));
+                        // todo this is necessary because the subscope is built all-at once, but maybe we can change that?
+                        gen_param_names.insert(param.as_str().to_string());
+                    }
+                    names
+                });
+                let params_pair = inners.next().unwrap();
+                let params = match params_pair.clone().into_inner().next() {
+                    None => vec![],
+                    Some(param_pairs) => self.parse_param_specs(
+                        param_pairs,
+                        &gen_param_names,
+                        interner,
+                        Some(fn_symbol),
+                    )?,
+                };
+                let rtype = self.get_complete_type(
+                    inners.next().unwrap(),
+                    &gen_param_names,
+                    interner,
+                    None,
+                    false,
+                )?;
+                let (param_names, param_specs, param_static_defaults): (Vec<_>, Vec<_>, Vec<_>) =
+                    params
+                        .into_iter()
+                        .map(|(name, xtype, default)| {
+                            (
+                                name,
+                                XFuncParamSpec {
+                                    type_: xtype,
+                                    required: default.is_none(),
+                                },
+                                default,
+                            )
+                        })
+                        .multiunzip();
+                let spec = XFuncSpec {
+                    generic_params: specific_gen_params.clone(),
+                    params: param_specs,
+                    ret: rtype,
+                    short_circuit_overloads: false,
+                };
+                let mut subscope =
+                    CompilationScope::from_parent(self, param_names, fn_symbol, spec.clone())
+                        .map_err(|e| e.trace(&params_pair))?;
+                for gen_param in specific_gen_params.unwrap_or_default() {
+                    subscope
+                        .add_type(gen_param, Arc::new(XType::XGeneric(gen_param)))
+                        .map_err(|e| e.trace(&params_pair))?;
+                }
+                self.add_forward_func(
+                    fn_symbol,
+                    spec,
+                )
+                .map_err(|e| e.trace(&input))?;
+                Ok(())
+            }
             Rule::value => {
                 let mut inners = input.clone().into_inner();
                 let var_name = inners.next().unwrap().as_str();

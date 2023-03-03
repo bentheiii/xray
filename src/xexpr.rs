@@ -4,10 +4,11 @@ use crate::xtype::{Bind, XCompoundSpec, XFuncSpec, XType};
 use crate::xvalue::{ManagedXValue, NativeCallable, XFunction};
 use crate::{Declaration, Identifier};
 use std::borrow::Borrow;
+use std::collections::{HashSet};
 
 use derivative::Derivative;
 
-use crate::compilation_scope::CellSpec;
+use crate::compilation_scope::{CellSpec, ForwardRefRequirement};
 use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
 use crate::runtime_violation::RuntimeViolation;
 use std::fmt::{Debug, Error, Formatter};
@@ -108,6 +109,7 @@ pub struct StaticUserFunction<W> {
     pub(crate) output: Box<XExpr<W>>,
     pub(crate) id: usize,
     pub(crate) parent_id: usize,
+    pub(crate) forward_requirements: HashSet<ForwardRefRequirement>,
 }
 
 impl<W: Write + 'static> XStaticFunction<W> {

@@ -2,7 +2,7 @@ header = {SOI ~ execution ~ EOI}
 eval = {SOI ~ expression ~ EOI}
 
 execution = {declaration*}
-declaration = {value | function | compound_def | type_def}
+declaration = {value | forward_ref | function | compound_def | type_def}
 expression = {
     expression1 ~ (BINARY_OP ~ expression1)*
 }
@@ -81,6 +81,8 @@ BINARY_OP = _{BINARY_POW | BINARY_ADD | BINARY_SUB | BINARY_MUL | BINARY_DIV | B
 value = { "let " ~ CNAME ~ explicit_type_opt ~ "=" ~ expression ~ ";"}
  explicit_type_opt = {explicit_type?}
  explicit_type = _{":" ~ complete_type}
+
+forward_ref = { "forward fn " ~ CNAME ~ generic_signature_opt ~ "(" ~ function_parameters_opt ~ ","? ~ ")" ~ "->" ~ complete_type ~ ";"}
 
 function = { "fn " ~ CNAME ~ generic_signature_opt ~ "(" ~ function_parameters_opt ~ ","? ~ ")" ~ "->" ~ complete_type ~ function_body}
  generic_signature_opt = { generic_signature? }

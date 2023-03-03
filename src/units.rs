@@ -1,7 +1,7 @@
 use num_traits::Zero;
 use std::ops::{Add, Sub};
 
-#[derive(Eq, PartialEq, Debug, Ord, PartialOrd, Copy, Clone)]
+#[derive(Eq, PartialEq, Debug, Ord, PartialOrd, Copy, Clone, Hash)]
 pub(crate) struct ScopeDepth(pub usize);
 
 #[derive(Eq, PartialEq, Debug, Ord, PartialOrd, Copy, Clone)]
