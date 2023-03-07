@@ -1,0 +1,4 @@
+fn main()->bool{
+    forward fn foo(i: int)->int;
+    assert(foo(1000) == 15)
+}

@@ -90,11 +90,11 @@ pub(crate) enum Overload<W> {
     Factory(&'static str, DynBind<W>),
 }
 
-struct ForwardRef {
-    name: Identifier,
+pub(crate) struct ForwardRef {
+    pub(crate) name: Identifier,
     spec: XFuncSpec,
     cell_idx: usize,
-    fulfilled: bool,
+    pub(crate) fulfilled: bool,
 }
 
 pub struct CompilationScope<'p, W> {
@@ -442,10 +442,14 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         Ok(())
     }
 
+    pub(crate) fn forward_ref(&self, freq: &ForwardRefRequirement)->&ForwardRef{
+        let depth = self.height - freq.ancestor_height;
+        &self.ancestor_at_depth(depth).forwards[freq.ref_idx]
+    }
+
     fn require_forwards(&mut self, refs: impl IntoIterator<Item=ForwardRefRequirement>) -> Result<(), CompilationError> {
         for freq in refs {
-            let depth = self.height - freq.ancestor_height;
-            let fref = &self.ancestor_at_depth(depth).forwards[freq.ref_idx];
+            let fref = &self.forward_ref(&freq);
             if !fref.fulfilled {
                 if freq.ancestor_height == self.height {
                     return Err(CompilationError::MissingForwardImplementation { name: fref.name, spec: fref.spec.clone() });
@@ -534,7 +538,19 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             if let Some(CompilationItem::Overload(parent_overloads)) =
                 self.parent.and_then(|p| p.get_item(name))
             {
-                ret.extend(parent_overloads)
+                if let Some(recourse_xtype) = self.recourse_xtype.clone(){
+                    // we need to discard forward references that are fulfilled by the current scope
+                    for overload in parent_overloads{
+                        if let Overload::Static {forward_requirements, spec, ..} = &overload.1{
+                            if spec.xtype() == recourse_xtype && forward_requirements.iter().any(|freq| !self.forward_ref(freq).fulfilled){
+                                continue
+                            }
+                        }
+                        ret.push(overload)
+                    }
+                } else {
+                    ret.extend(parent_overloads)
+                }
             }
             Some(CompilationItem::Overload(ret))
         } else if let Some(parent) = self.parent {
@@ -926,6 +942,13 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         arg_types: &[Arc<XType>],
     ) -> Result<XExpr<W>, CompilationError> {
         let Some(CompilationItem::Overload(overloads)) = self.get_item(name) else { return Err(CompilationError::NoOverload { name: *name, param_types: Some(arg_types.to_vec()), dynamic_failures: Vec::new() }); };
+        let overloads = overloads.into_iter().filter(|cand| {
+            if let Overload::Static { forward_requirements, .. } = &cand.1 {
+                forward_requirements.iter().all(|r|self.forward_ref(r).fulfilled)
+            } else {
+                true
+            }
+        }).collect::<Vec<_>>();
         self.resolve_overload(
             overloads,
             None,

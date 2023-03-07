@@ -1,0 +1,9 @@
+forward fn foo()->int;
+
+fn main()->bool{
+    assert(foo() == 15)
+}
+
+fn foo()->int{
+    15
+}

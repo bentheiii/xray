@@ -1,0 +1,1 @@
+expected_compilation_error='^No overload for sort found for param types \(Sequence<A>\): dynamic failures: sequences: NoOverload .* \{6\| .*\} \[NoOverload\]$'

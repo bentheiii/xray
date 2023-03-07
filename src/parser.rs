@@ -95,7 +95,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     None,
                     false,
                 )?;
-                let (param_names, param_specs, param_static_defaults): (Vec<_>, Vec<_>, Vec<_>) =
+                let (param_names, param_specs): (Vec<_>, Vec<_>) =
                     params
                         .into_iter()
                         .map(|(name, xtype, default)| {
@@ -105,7 +105,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                                     type_: xtype,
                                     required: default.is_none(),
                                 },
-                                default,
                             )
                         })
                         .multiunzip();

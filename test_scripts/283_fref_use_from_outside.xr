@@ -1,0 +1,11 @@
+forward fn foo(i: int)->int;
+fn main()->bool{
+    fn bar()->int{
+        foo(10)
+    }
+
+    assert(bar() == 0)
+}
+fn foo(i: int)->int{
+    0
+}

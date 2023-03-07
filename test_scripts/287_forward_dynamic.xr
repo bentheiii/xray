@@ -1,0 +1,13 @@
+struct A(i: int)
+
+forward fn cmp(a: A, b: A)->int;
+fn cmp(a: A, b: A)->int{
+    cmp(a::i, b::i)
+}
+
+fn main()->bool{
+    let s = [A(1), A(0)].sort();
+
+    assert(s[0]::i == 0)
+}
+

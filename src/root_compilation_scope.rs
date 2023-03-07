@@ -49,7 +49,7 @@ pub(crate) type Interner = StringInterner<SpecialPrefixBackend<DefaultBackend<De
 
 pub struct RootCompilationScope<W: 'static> {
     pub(crate) scope: CompilationScope<'static, W>,
-    interner: Interner,
+    pub(crate) interner: Interner,
 }
 
 impl<W: Write + 'static> RootCompilationScope<W> {

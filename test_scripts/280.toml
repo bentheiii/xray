@@ -1,0 +1,1 @@
+expected_compilation_error='^forward-function foo\(int\)->int used before implementation \{3\| .*\} \[MissingForwardImplementation\]$'
