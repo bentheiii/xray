@@ -101,7 +101,6 @@ pub enum XStaticFunction<W> {
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
 pub struct StaticUserFunction<W> {
-    pub(crate) name: Option<String>,
     pub(crate) param_len: usize,
     pub(crate) defaults: Vec<XExpr<W>>,
     pub(crate) cell_specs: Vec<CellSpec>,
@@ -123,7 +122,6 @@ impl<W: Write + 'static> XStaticFunction<W> {
             Self::UserFunction(uf) => XFunction::UserFunction {
                 template: RuntimeScopeTemplate::from_specs(
                     uf.id,
-                    uf.name.clone(),
                     uf.param_len,
                     &uf.cell_specs,
                     Some(closure),
@@ -157,11 +155,10 @@ impl<W> Debug for XStaticFunction<W> {
             Self::Native(..) => {
                 write!(f, "Native(..)")
             }
-            Self::UserFunction(template, ..) => {
+            Self::UserFunction(..) => {
                 write!(
                     f,
-                    "UserFunction({})",
-                    template.name.as_deref().unwrap_or("..")
+                    "UserFunction(..)",
                 )
             }
         }

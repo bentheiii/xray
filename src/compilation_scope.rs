@@ -494,7 +494,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
     pub(crate) fn into_static_ud(
         self,
-        name: Option<String>,
         defaults: Vec<XExpr<W>>,
         param_len: usize,
         output: Box<XExpr<W>>,
@@ -543,7 +542,6 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         }
         (
             StaticUserFunction {
-                name,
                 defaults,
                 param_len,
                 cell_specs,

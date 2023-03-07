@@ -125,11 +125,10 @@ impl<W> Debug for XFunction<W> {
             Self::Native(..) => {
                 write!(f, "Native(..)")
             }
-            Self::UserFunction { template, .. } => {
+            Self::UserFunction { .. } => {
                 write!(
                     f,
-                    "UserFunction({})",
-                    template.name.as_deref().unwrap_or("..")
+                    "UserFunction(..)",
                 )
             }
         }

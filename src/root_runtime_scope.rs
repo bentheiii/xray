@@ -46,7 +46,6 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
             .collect::<Vec<_>>();
         let template = RuntimeScopeTemplate::from_specs(
             comp_scope.scope.id,
-            None,
             0,
             &cell_specs,
             None,

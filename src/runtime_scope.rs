@@ -97,7 +97,6 @@ impl<W: Write + 'static> EvaluationCell<W> {
 
 pub struct RuntimeScopeTemplate<W> {
     pub(crate) id: usize,
-    pub(crate) name: Option<String>,
     pub(crate) cells: Vec<EvaluationCell<W>>,
     pub(crate) declarations: Vec<Declaration<W>>,
     pub(crate) scope_parent_id: Option<usize>,
@@ -117,7 +116,6 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn from_specs(
         id: usize,
-        name: Option<String>,
         param_count: usize,
         cell_specs: &[CellSpec],
         stack_parent: Option<&RuntimeScope<W>>,
@@ -158,7 +156,6 @@ impl<W: Write + 'static> RuntimeScopeTemplate<W> {
             .collect::<Result<_, _>>()?;
 
         let ret = Rc::new(Self {
-            name,
             cells,
             declarations,
             defaults,
