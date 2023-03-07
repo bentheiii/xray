@@ -5,7 +5,7 @@ use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XValue};
 use std::io::Write;
 use std::rc::Rc;
 
-use crate::compilation_scope::{CellSpec, Overload};
+use crate::compilation_scope::{CellSpec, OverloadWithForwardReq};
 use crate::runtime_scope::{EvaluationCell, RuntimeScope, RuntimeScopeTemplate};
 use crate::runtime_violation::RuntimeViolation;
 use crate::RootCompilationScope;
@@ -97,9 +97,9 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
                 .map_err(|_| GetUniqueFunctionError::OverloadedFunction)?
                 .ok_or(GetUniqueFunctionError::NotFound)?;
             match overload {
-                Overload::Factory(..) => Err(GetUniqueFunctionError::FactoryFunction),
-                Overload::Static { cell_idx, forward_requirements, .. } => {
-                    let v = self.scope.get_cell_value(*cell_idx);
+                OverloadWithForwardReq::Factory(..) => Err(GetUniqueFunctionError::FactoryFunction),
+                OverloadWithForwardReq::Static { cell_idx, forward_requirements, .. } => {
+                    let v = self.scope.get_cell_value(cell_idx);
                     if let EvaluationCell::Value(v) = v {
                         let unmet_freq: Vec<_> = forward_requirements.iter().filter_map(|freq| {
                             let fref = self.compilation_scope.scope.forward_ref(freq);

@@ -85,9 +85,42 @@ pub(crate) enum Overload<W> {
     Static {
         cell_idx: usize,
         spec: XFuncSpec,
+    },
+    Factory(&'static str, DynBind<W>),
+}
+
+#[derive(Derivative)]
+#[derivative(Clone(bound = ""))]
+pub(crate) enum OverloadWithForwardReq<W> {
+    /// will lead to one of:
+    ///  * Cell::Recourse
+    ///  * Variable
+    Static {
+        cell_idx: usize,
+        spec: XFuncSpec,
         forward_requirements: Vec<ForwardRefRequirement>,
     },
     Factory(&'static str, DynBind<W>),
+}
+
+impl<W> OverloadWithForwardReq<W>{
+    fn from_overload(ov: &Overload<W>, scope: &CompilationScope<W>) -> Self {
+        match ov.clone(){
+            Overload::Static {cell_idx, spec} => {
+                let forward_requirements = match &scope.cells[cell_idx]{
+                    Cell::Variable {forward_requirements, ..} => forward_requirements.clone(),
+                    Cell::Recourse => Default::default(),
+                    _ => panic!("{:?}", scope.cells[cell_idx])
+                };
+                Self::Static {
+                    cell_idx,
+                    spec,
+                    forward_requirements,
+                }
+            },
+            Overload::Factory(desc, bind) => Self::Factory(desc, bind)
+        }
+    }
 }
 
 pub(crate) struct ForwardRef {
@@ -116,7 +149,7 @@ pub struct CompilationScope<'p, W> {
 
     parent: Option<&'p CompilationScope<'p, W>>,
     // will be none for root or lambda
-    recourse_xtype: Option<Arc<XType>>,
+    recourse_xtype: Option<(Identifier, Arc<XType>)>,
     height: ScopeDepth,
     pub(crate) id: usize,
 }
@@ -194,11 +227,11 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             });
         }
         let cell_idx = self.cells.ipush(Cell::Recourse);
-        self.recourse_xtype = Some(spec.xtype());
+        self.recourse_xtype = Some((name, spec.xtype()));
         self.functions
             .entry(name)
             .or_default()
-            .push(Overload::Static { cell_idx, spec, forward_requirements: Default::default() });
+            .push(Overload::Static { cell_idx, spec });
         Ok(())
     }
 
@@ -234,8 +267,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             fref.cell_idx
         } else {
             let cell_idx = self.cells.ipush(Cell::Variable { t: spec.xtype(), forward_requirements: forward_requirements.clone() });
-            // todo we put this twice can we avoid that?
-            self.functions.entry(name).or_default().push(Overload::Static { cell_idx, spec: spec.clone(), forward_requirements });
+            self.functions.entry(name).or_default().push(Overload::Static { cell_idx, spec: spec.clone() });
             cell_idx
         };
 
@@ -437,8 +469,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         self.functions
             .entry(name)
             .or_default()
-            // todo we currently store the requirements twice, can we avoid that?
-            .push(Overload::Static { cell_idx, spec, forward_requirements: vec![requirement] });
+            .push(Overload::Static { cell_idx, spec });
         Ok(())
     }
 
@@ -534,22 +565,24 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             Some(CompilationItem::Type(t.clone()))
         } else if let Some(overloads) = self.functions.get(name) {
             let my_height = self.height;
-            let mut ret: Vec<_> = overloads.iter().map(|ov| (my_height, ov.clone())).collect();
-            if let Some(CompilationItem::Overload(parent_overloads)) =
-                self.parent.and_then(|p| p.get_item(name))
+            let mut ret: Vec<_> = overloads.iter().map(|ov| (my_height, OverloadWithForwardReq::from_overload(ov, self))).collect();
+            if let Some(CompilationItem::Overload(parent_overloads)) = self.parent.and_then(|p| p.get_item(name))
             {
-                if let Some(recourse_xtype) = self.recourse_xtype.clone(){
-                    // we need to discard forward references that are fulfilled by the current scope
-                    for overload in parent_overloads{
-                        if let Overload::Static {forward_requirements, spec, ..} = &overload.1{
-                            if spec.xtype() == recourse_xtype && forward_requirements.iter().any(|freq| !self.forward_ref(freq).fulfilled){
-                                continue
+                match self.recourse_xtype.as_ref() {
+                    Some((recourse_name, recourse_xtype)) if recourse_name == name => {
+                        for overload in parent_overloads{
+                            if let OverloadWithForwardReq::Static {forward_requirements, spec, ..} = &overload.1{
+                                // we need to discard forward references that are fulfilled by the current scope
+                                if &spec.xtype() == recourse_xtype && forward_requirements.iter().any(|freq| !self.forward_ref(freq).fulfilled){
+                                    continue
+                                }
                             }
+                            ret.push(overload)
                         }
-                        ret.push(overload)
                     }
-                } else {
-                    ret.extend(parent_overloads)
+                    _ => {
+                        ret.extend(parent_overloads)
+                    }
                 }
             }
             Some(CompilationItem::Overload(ret))
@@ -665,7 +698,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         if overloads.len() > 1 {
                             return Err(CompilationError::OverloadedFunctionAsVariable { name });
                         }
-                        if let (height, Overload::Static { cell_idx, forward_requirements, .. }) = &overloads[0] {
+                        if let (height, OverloadWithForwardReq::Static { cell_idx, forward_requirements, .. }) = &overloads[0] {
                             (*height, *cell_idx, forward_requirements.clone())
                         } else {
                             // this happens if the function is dynamic
@@ -928,7 +961,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                             scope = scope.ancestor_at_depth(*ancestor_depth);
                             cell_idx = *new_idx
                         }
-                        Cell::Recourse => break Ok(scope.recourse_xtype.clone().unwrap()),
+                        Cell::Recourse => break Ok(scope.recourse_xtype.clone().unwrap().1),
                     }
                 }
             }
@@ -943,7 +976,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     ) -> Result<XExpr<W>, CompilationError> {
         let Some(CompilationItem::Overload(overloads)) = self.get_item(name) else { return Err(CompilationError::NoOverload { name: *name, param_types: Some(arg_types.to_vec()), dynamic_failures: Vec::new() }); };
         let overloads = overloads.into_iter().filter(|cand| {
-            if let Overload::Static { forward_requirements, .. } = &cand.1 {
+            if let OverloadWithForwardReq::Static { forward_requirements, .. } = &cand.1 {
                 forward_requirements.iter().all(|r|self.forward_ref(r).fulfilled)
             } else {
                 true
@@ -1033,7 +1066,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             .map_or(true, |t| t.iter().any(|t| t.is_unknown()));
         for (height, overload) in overloads {
             let (spec, considered, is_generic) = match &overload {
-                Overload::Static { spec, cell_idx, forward_requirements } => {
+                OverloadWithForwardReq::Static { spec, cell_idx, forward_requirements } => {
                     if dynamic_bind_types.is_some() {
                         continue;
                     }
@@ -1043,7 +1076,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         spec.is_generic(),
                     )
                 }
-                Overload::Factory(desc, dyn_func) => {
+                OverloadWithForwardReq::Factory(desc, dyn_func) => {
                     match dyn_func(args, arg_types.as_deref(), self, dynamic_bind_types) {
                         Ok(overload) => {
                             let xtype = overload.spec.xtype();
@@ -1108,10 +1141,11 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     pub(crate) fn get_unique_function<'a>(
         &'a self,
         name: &Identifier,
-    ) -> Result<Option<&Overload<W>>, ExactlyOneError<impl Iterator + 'a>> {
-        self.functions
+    ) -> Result<Option<OverloadWithForwardReq<W>>, ExactlyOneError<impl Iterator + 'a>> {
+        Ok(self.functions
             .get(name)
-            .map_or(Ok(None), |lst| lst.iter().exactly_one().map(Some))
+            .map_or(Ok(None), |lst| lst.iter().exactly_one().map(Some))?
+            .map(|ov| OverloadWithForwardReq::from_overload(ov, self)))
     }
 
     pub(crate) fn get_variable_cell(&self, name: &Identifier) -> Option<&usize> {
@@ -1127,7 +1161,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     }
 }
 
-type TracedOverload<W> = (ScopeDepth, Overload<W>);
+type TracedOverload<W> = (ScopeDepth, OverloadWithForwardReq<W>);
 type TracedValue = (ScopeDepth, usize, Vec<ForwardRefRequirement>);
 
 pub(crate) enum CompilationItem<W> {
