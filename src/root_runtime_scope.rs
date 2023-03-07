@@ -97,20 +97,28 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
                 .ok_or(GetUniqueFunctionError::NotFound)?;
             match overload {
                 OverloadWithForwardReq::Factory(..) => Err(GetUniqueFunctionError::FactoryFunction),
-                OverloadWithForwardReq::Static { cell_idx, forward_requirements, .. } => {
+                OverloadWithForwardReq::Static {
+                    cell_idx,
+                    forward_requirements,
+                    ..
+                } => {
                     let v = self.scope.get_cell_value(cell_idx);
                     if let EvaluationCell::Value(v) = v {
-                        let unmet_freq: Vec<_> = forward_requirements.iter().filter_map(|freq| {
-                            let fref = self.compilation_scope.scope.forward_ref(freq);
-                            if fref.fulfilled{
-                                None
-                            } else {
-                                let name = self.compilation_scope.interner.resolve(fref.name).unwrap();
-                                Some(name.to_string())
-                            }
-                        }).collect();
-                        if !unmet_freq.is_empty(){
-                            return Err(GetUniqueFunctionError::ForwardRefFunction(unmet_freq))
+                        let unmet_freq: Vec<_> = forward_requirements
+                            .iter()
+                            .filter_map(|freq| {
+                                let fref = self.compilation_scope.scope.forward_ref(freq);
+                                if fref.fulfilled {
+                                    None
+                                } else {
+                                    let name =
+                                        self.compilation_scope.interner.resolve(fref.name).unwrap();
+                                    Some(name.to_string())
+                                }
+                            })
+                            .collect();
+                        if !unmet_freq.is_empty() {
+                            return Err(GetUniqueFunctionError::ForwardRefFunction(unmet_freq));
                         }
                         let XValue::Function(func) = &v.as_ref().unwrap().value else {unreachable!()};
                         Ok(func)

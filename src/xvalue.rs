@@ -126,10 +126,7 @@ impl<W> Debug for XFunction<W> {
                 write!(f, "Native(..)")
             }
             Self::UserFunction { .. } => {
-                write!(
-                    f,
-                    "UserFunction(..)",
-                )
+                write!(f, "UserFunction(..)",)
             }
         }
     }

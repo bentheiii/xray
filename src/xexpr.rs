@@ -4,7 +4,7 @@ use crate::xtype::{Bind, XCompoundSpec, XFuncSpec, XType};
 use crate::xvalue::{ManagedXValue, NativeCallable, XFunction};
 use crate::{Declaration, Identifier};
 use std::borrow::Borrow;
-use std::collections::{HashSet};
+use std::collections::HashSet;
 
 use derivative::Derivative;
 
@@ -156,10 +156,7 @@ impl<W> Debug for XStaticFunction<W> {
                 write!(f, "Native(..)")
             }
             Self::UserFunction(..) => {
-                write!(
-                    f,
-                    "UserFunction(..)",
-                )
+                write!(f, "UserFunction(..)",)
             }
         }
     }

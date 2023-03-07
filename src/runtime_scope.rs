@@ -46,7 +46,7 @@ pub(crate) enum EvaluationCell<W> {
     Uninitialized,
     Value(EvaluatedValue<W>),
     // this will happen for forward functions from an outer scope
-    PendingCapture{
+    PendingCapture {
         depth: ScopeDepth,
         cell: usize,
     },
@@ -74,13 +74,11 @@ impl<W: Write + 'static> EvaluationCell<W> {
                 let (ancestor, cell) = parent
                     .unwrap()
                     .scope_ancestor_and_cell(*ancestor_depth - 1, *cell_idx);
-                 match cell.as_ref(ancestor.template.as_ref()) {
-                    Self::Uninitialized | Self::PendingCapture {..} => {
-                        Ok(Self::PendingCapture {
-                            depth: *ancestor_depth,
-                            cell: *cell_idx
-                        })
-                    },
+                match cell.as_ref(ancestor.template.as_ref()) {
+                    Self::Uninitialized | Self::PendingCapture { .. } => Ok(Self::PendingCapture {
+                        depth: *ancestor_depth,
+                        cell: *cell_idx,
+                    }),
                     Self::Value(v) => Ok(Self::Value(v.clone())),
                     Self::LocalRecourse => Ok(Self::Recourse {
                         depth: *ancestor_depth,
@@ -331,25 +329,27 @@ impl<'a, W: Write + 'static> RuntimeScope<'a, W> {
             XExpr::Value(cell_idx) => {
                 let mut raw_value = self.get_cell_value(*cell_idx);
                 let mut ancestor = self;
-                loop{
+                loop {
                     break match raw_value {
                         EvaluationCell::Value(v) => Ok(v.clone().into()),
                         EvaluationCell::Uninitialized => panic!("access to uninitialized cell"),
                         EvaluationCell::Recourse { scope, .. } => {
-                            ManagedXValue::new(XValue::Function(scope.clone()), rt).map(|v| v.into())
+                            ManagedXValue::new(XValue::Function(scope.clone()), rt)
+                                .map(|v| v.into())
                         }
                         EvaluationCell::LocalRecourse => ManagedXValue::new(
                             XValue::Function(self.template.clone().to_function()),
                             rt,
                         )
                         .map(|v| v.into()),
-                        EvaluationCell::PendingCapture { depth, cell} => {
-                            let (new_ancestor, templated_cell) = ancestor.scope_ancestor_and_cell(*depth, *cell);
+                        EvaluationCell::PendingCapture { depth, cell } => {
+                            let (new_ancestor, templated_cell) =
+                                ancestor.scope_ancestor_and_cell(*depth, *cell);
                             ancestor = new_ancestor;
                             raw_value = templated_cell.as_ref(&ancestor.template);
-                            continue
+                            continue;
                         }
-                    }
+                    };
                 }
             }
             XExpr::Variant(.., idx, expr) => {

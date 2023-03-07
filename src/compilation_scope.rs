@@ -30,7 +30,10 @@ use std::sync::Arc;
 pub(crate) enum Cell {
     Recourse,
     /// this can also be a parameter
-    Variable { t: Arc<XType>, forward_requirements: Vec<ForwardRefRequirement> },
+    Variable {
+        t: Arc<XType>,
+        forward_requirements: Vec<ForwardRefRequirement>,
+    },
     /// will never lead to another capture
     /// ancestor depth will never be zero
     Capture {
@@ -103,22 +106,25 @@ pub(crate) enum OverloadWithForwardReq<W> {
     Factory(&'static str, DynBind<W>),
 }
 
-impl<W> OverloadWithForwardReq<W>{
+impl<W> OverloadWithForwardReq<W> {
     fn from_overload(ov: &Overload<W>, scope: &CompilationScope<W>) -> Self {
-        match ov.clone(){
-            Overload::Static {cell_idx, spec} => {
-                let forward_requirements = match &scope.cells[cell_idx]{
-                    Cell::Variable {forward_requirements, ..} => forward_requirements.clone(),
+        match ov.clone() {
+            Overload::Static { cell_idx, spec } => {
+                let forward_requirements = match &scope.cells[cell_idx] {
+                    Cell::Variable {
+                        forward_requirements,
+                        ..
+                    } => forward_requirements.clone(),
                     Cell::Recourse => Default::default(),
-                    _ => panic!("{:?}", scope.cells[cell_idx])
+                    _ => panic!("{:?}", scope.cells[cell_idx]),
                 };
                 Self::Static {
                     cell_idx,
                     spec,
                     forward_requirements,
                 }
-            },
-            Overload::Factory(desc, bind) => Self::Factory(desc, bind)
+            }
+            Overload::Factory(desc, bind) => Self::Factory(desc, bind),
         }
     }
 }
@@ -181,7 +187,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
     pub(crate) fn from_parent_lambda(
         parent: &'p CompilationScope<'p, W>,
-        parameters: impl IntoIterator<Item=(Identifier, Arc<XType>)>,
+        parameters: impl IntoIterator<Item = (Identifier, Arc<XType>)>,
     ) -> Result<Self, CompilationError> {
         let mut ret = Self {
             parent: Some(parent),
@@ -197,7 +203,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
     pub(crate) fn from_parent(
         parent: &'p CompilationScope<'p, W>,
-        parameter_names: impl IntoIterator<Item=Identifier>,
+        parameter_names: impl IntoIterator<Item = Identifier>,
         recourse_name: Identifier,
         recourse_spec: XFuncSpec,
     ) -> Result<Self, CompilationError> {
@@ -261,17 +267,31 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             Default::default()
         };
 
-        let cell_idx = if let Some(fref) = self.forwards.iter_mut().find(|f| !f.fulfilled && f.name == name && f.spec == spec) {
+        let cell_idx = if let Some(fref) = self
+            .forwards
+            .iter_mut()
+            .find(|f| !f.fulfilled && f.name == name && f.spec == spec)
+        {
             // todo check what happens if the fulfillment has a reference as well
             fref.fulfilled = true;
             fref.cell_idx
         } else {
-            let cell_idx = self.cells.ipush(Cell::Variable { t: spec.xtype(), forward_requirements: forward_requirements.clone() });
-            self.functions.entry(name).or_default().push(Overload::Static { cell_idx, spec: spec.clone() });
+            let cell_idx = self.cells.ipush(Cell::Variable {
+                t: spec.xtype(),
+                forward_requirements,
+            });
+            self.functions
+                .entry(name)
+                .or_default()
+                .push(Overload::Static {
+                    cell_idx,
+                    spec: spec.clone(),
+                });
             cell_idx
         };
 
-        self.declarations.push(Declaration::Function { cell_idx, func });
+        self.declarations
+            .push(Declaration::Function { cell_idx, func });
         Ok(())
     }
 
@@ -280,7 +300,10 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         spec: XFuncSpec,
         func: XStaticFunction<W>,
     ) -> Result<XExpr<W>, CompilationError> {
-        let cell_idx = self.cells.ipush(Cell::Variable { t: spec.xtype(), forward_requirements: Default::default() });
+        let cell_idx = self.cells.ipush(Cell::Variable {
+            t: spec.xtype(),
+            forward_requirements: Default::default(),
+        });
         self.declarations
             .push(Declaration::Function { cell_idx, func });
         Ok(XExpr::Value(cell_idx))
@@ -291,12 +314,12 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         name: Identifier,
         description: &'static str,
         func: impl Fn(
-            Option<&[XExpr<W>]>,
-            Option<&[Arc<XType>]>,
-            &mut CompilationScope<'_, W>,
-            Option<&[Arc<XType>]>,
-        ) -> Result<XFunctionFactoryOutput<W>, String>
-        + 'static,
+                Option<&[XExpr<W>]>,
+                Option<&[Arc<XType>]>,
+                &mut CompilationScope<'_, W>,
+                Option<&[Arc<XType>]>,
+            ) -> Result<XFunctionFactoryOutput<W>, String>
+            + 'static,
     ) -> Result<(), CompilationError> {
         if self._has_variable(&name) {
             return Err(CompilationError::IllegalShadowing {
@@ -339,7 +362,10 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 new_category: CompilationItemCategory::Value,
             });
         }
-        let cell_idx = self.cells.ipush(Cell::Variable { t: xtype, forward_requirements: Default::default() });
+        let cell_idx = self.cells.ipush(Cell::Variable {
+            t: xtype,
+            forward_requirements: Default::default(),
+        });
         self.variables.insert(name, cell_idx);
         self.declarations
             .push(Declaration::Value { cell_idx, expr });
@@ -366,7 +392,10 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 new_category: CompilationItemCategory::Value,
             });
         }
-        let cell_idx = self.cells.ipush(Cell::Variable { t: xtype, forward_requirements: Default::default() });
+        let cell_idx = self.cells.ipush(Cell::Variable {
+            t: xtype,
+            forward_requirements: Default::default(),
+        });
         self.variables.insert(name, cell_idx);
         self.declarations.push(Declaration::Parameter {
             cell_idx,
@@ -462,9 +491,20 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 new_category: CompilationItemCategory::Overload,
             });
         }
-        let requirement = ForwardRefRequirement { ancestor_height: self.height, ref_idx: self.forwards.len() };
-        let cell_idx = self.cells.ipush(Cell::Variable { t: spec.xtype(), forward_requirements: vec![requirement] });
-        let fref = ForwardRef { name, spec: spec.clone(), cell_idx, fulfilled: false };
+        let requirement = ForwardRefRequirement {
+            ancestor_height: self.height,
+            ref_idx: self.forwards.len(),
+        };
+        let cell_idx = self.cells.ipush(Cell::Variable {
+            t: spec.xtype(),
+            forward_requirements: vec![requirement],
+        });
+        let fref = ForwardRef {
+            name,
+            spec: spec.clone(),
+            cell_idx,
+            fulfilled: false,
+        };
         self.forwards.push(fref);
         self.functions
             .entry(name)
@@ -473,17 +513,23 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         Ok(())
     }
 
-    pub(crate) fn forward_ref(&self, freq: &ForwardRefRequirement)->&ForwardRef{
+    pub(crate) fn forward_ref(&self, freq: &ForwardRefRequirement) -> &ForwardRef {
         let depth = self.height - freq.ancestor_height;
         &self.ancestor_at_depth(depth).forwards[freq.ref_idx]
     }
 
-    fn require_forwards(&mut self, refs: impl IntoIterator<Item=ForwardRefRequirement>) -> Result<(), CompilationError> {
+    fn require_forwards(
+        &mut self,
+        refs: impl IntoIterator<Item = ForwardRefRequirement>,
+    ) -> Result<(), CompilationError> {
         for freq in refs {
             let fref = &self.forward_ref(&freq);
             if !fref.fulfilled {
                 if freq.ancestor_height == self.height {
-                    return Err(CompilationError::MissingForwardImplementation { name: fref.name, spec: fref.spec.clone() });
+                    return Err(CompilationError::MissingForwardImplementation {
+                        name: fref.name,
+                        spec: fref.spec.clone(),
+                    });
                 } else {
                     self.forward_requirements.insert(freq);
                 }
@@ -558,29 +604,44 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
     pub(crate) fn get_item(&self, name: &Identifier) -> Option<CompilationItem<W>> {
         if let Some(&cell_idx) = self.variables.get(name) {
             let Cell::Variable { forward_requirements, .. } = &self.cells[cell_idx] else { unreachable!() };
-            Some(CompilationItem::Value((self.height, cell_idx, forward_requirements.clone())))
+            Some(CompilationItem::Value((
+                self.height,
+                cell_idx,
+                forward_requirements.clone(),
+            )))
         } else if let Some(t) = self.types.get(name) {
             Some(CompilationItem::Type(t.clone()))
         } else if let Some(overloads) = self.functions.get(name) {
             let my_height = self.height;
-            let mut ret: Vec<_> = overloads.iter().map(|ov| (my_height, OverloadWithForwardReq::from_overload(ov, self))).collect();
-            if let Some(CompilationItem::Overload(parent_overloads)) = self.parent.and_then(|p| p.get_item(name))
+            let mut ret: Vec<_> = overloads
+                .iter()
+                .map(|ov| (my_height, OverloadWithForwardReq::from_overload(ov, self)))
+                .collect();
+            if let Some(CompilationItem::Overload(parent_overloads)) =
+                self.parent.and_then(|p| p.get_item(name))
             {
                 match self.recourse_xtype.as_ref() {
                     Some((recourse_name, recourse_xtype)) if recourse_name == name => {
-                        for overload in parent_overloads{
-                            if let OverloadWithForwardReq::Static {forward_requirements, spec, ..} = &overload.1{
+                        for overload in parent_overloads {
+                            if let OverloadWithForwardReq::Static {
+                                forward_requirements,
+                                spec,
+                                ..
+                            } = &overload.1
+                            {
                                 // we need to discard forward references that are fulfilled by the current scope
-                                if &spec.xtype() == recourse_xtype && forward_requirements.iter().any(|freq| !self.forward_ref(freq).fulfilled){
-                                    continue
+                                if &spec.xtype() == recourse_xtype
+                                    && forward_requirements
+                                        .iter()
+                                        .any(|freq| !self.forward_ref(freq).fulfilled)
+                                {
+                                    continue;
                                 }
                             }
                             ret.push(overload)
                         }
                     }
-                    _ => {
-                        ret.extend(parent_overloads)
-                    }
+                    _ => ret.extend(parent_overloads),
                 }
             }
             Some(CompilationItem::Overload(ret))
@@ -696,7 +757,15 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                         if overloads.len() > 1 {
                             return Err(CompilationError::OverloadedFunctionAsVariable { name });
                         }
-                        if let (height, OverloadWithForwardReq::Static { cell_idx, forward_requirements, .. }) = &overloads[0] {
+                        if let (
+                            height,
+                            OverloadWithForwardReq::Static {
+                                cell_idx,
+                                forward_requirements,
+                                ..
+                            },
+                        ) = &overloads[0]
+                        {
                             (*height, *cell_idx, forward_requirements.clone())
                         } else {
                             // this happens if the function is dynamic
@@ -973,13 +1042,22 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         arg_types: &[Arc<XType>],
     ) -> Result<XExpr<W>, CompilationError> {
         let Some(CompilationItem::Overload(overloads)) = self.get_item(name) else { return Err(CompilationError::NoOverload { name: *name, param_types: Some(arg_types.to_vec()), dynamic_failures: Vec::new() }); };
-        let overloads = overloads.into_iter().filter(|cand| {
-            if let OverloadWithForwardReq::Static { forward_requirements, .. } = &cand.1 {
-                forward_requirements.iter().all(|r|self.forward_ref(r).fulfilled)
-            } else {
-                true
-            }
-        }).collect::<Vec<_>>();
+        let overloads = overloads
+            .into_iter()
+            .filter(|cand| {
+                if let OverloadWithForwardReq::Static {
+                    forward_requirements,
+                    ..
+                } = &cand.1
+                {
+                    forward_requirements
+                        .iter()
+                        .all(|r| self.forward_ref(r).fulfilled)
+                } else {
+                    true
+                }
+            })
+            .collect::<Vec<_>>();
         self.resolve_overload(
             overloads,
             None,
@@ -990,7 +1068,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
 
     pub(crate) fn resolve_overload(
         &mut self,
-        overloads: impl IntoIterator<Item=TracedOverload<W>>,
+        overloads: impl IntoIterator<Item = TracedOverload<W>>,
         args: Option<&[XExpr<W>]>,
         specialization: OverloadSpecializationBorrowed<'_>,
         name: Identifier,
@@ -1022,7 +1100,10 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                     }
                 }
                 OverloadToConsider::FromFactory(t, f) => {
-                    let cell_idx = namespace.cells.ipush(Cell::Variable { t, forward_requirements: Default::default() });
+                    let cell_idx = namespace.cells.ipush(Cell::Variable {
+                        t,
+                        forward_requirements: Default::default(),
+                    });
                     namespace
                         .declarations
                         .push(Declaration::FactoryFunction { cell_idx, cb: f });
@@ -1064,13 +1145,21 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
             .map_or(true, |t| t.iter().any(|t| t.is_unknown()));
         for (height, overload) in overloads {
             let (spec, considered, is_generic) = match &overload {
-                OverloadWithForwardReq::Static { spec, cell_idx, forward_requirements } => {
+                OverloadWithForwardReq::Static {
+                    spec,
+                    cell_idx,
+                    forward_requirements,
+                } => {
                     if dynamic_bind_types.is_some() {
                         continue;
                     }
                     (
                         spec.clone(),
-                        OverloadToConsider::FromCell(height, *cell_idx, forward_requirements.clone()),
+                        OverloadToConsider::FromCell(
+                            height,
+                            *cell_idx,
+                            forward_requirements.clone(),
+                        ),
                         spec.is_generic(),
                     )
                 }
@@ -1104,7 +1193,7 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
                 } else {
                     &mut exact_matches
                 }
-                    .push(considered);
+                .push(considered);
             }
         }
         if exact_matches.len() == 1 {
@@ -1140,7 +1229,8 @@ impl<'p, W: Write + 'static> CompilationScope<'p, W> {
         &'a self,
         name: &Identifier,
     ) -> Result<Option<OverloadWithForwardReq<W>>, ExactlyOneError<impl Iterator + 'a>> {
-        Ok(self.functions
+        Ok(self
+            .functions
             .get(name)
             .map_or(Ok(None), |lst| lst.iter().exactly_one().map(Some))?
             .map(|ov| OverloadWithForwardReq::from_overload(ov, self)))
