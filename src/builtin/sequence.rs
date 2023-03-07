@@ -15,10 +15,7 @@ use crate::xvalue::{
     ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XResult, XValue,
 };
 use crate::XType::XCallable;
-use crate::{
-    forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt, CompilationError,
-    RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
-};
+use crate::{forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt, CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType, delegate};
 use derivative::Derivative;
 use either::Either;
 use num_traits::{One, Signed, ToPrimitive, Zero};
@@ -151,10 +148,10 @@ impl<W: Write + 'static> XSequence<W> {
                 let part_idx = midpoint_lengths.partition_point(|x| *x <= idx);
                 let internal_idx = idx
                     - if part_idx == 0 {
-                        0
-                    } else {
-                        midpoint_lengths[part_idx - 1]
-                    };
+                    0
+                } else {
+                    midpoint_lengths[part_idx - 1]
+                };
                 to_native!(parts[part_idx], Self).get(internal_idx, ns, rt)
             }
         }
@@ -164,7 +161,7 @@ impl<W: Write + 'static> XSequence<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> Option<impl DoubleEndedIterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a>
+    ) -> Option<impl DoubleEndedIterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a>
     {
         Some(match self {
             XSequence::Array(arr) => Either::Left(arr.iter().cloned().map(|i| Ok(Ok(i)))),
@@ -176,7 +173,7 @@ impl<W: Write + 'static> XSequence<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
+    ) -> impl Iterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
         self.diter(ns, rt.clone()).map_or_else(
             || Either::Left((0..).map(move |idx| self.get(idx, ns, rt.clone()))),
             Either::Right,
@@ -320,7 +317,7 @@ impl<W: Write + 'static> XSequence<W> {
                 },
                 Int
             )
-            .is_positive()
+                .is_positive()
             {
                 is_sorted = false;
                 break;
@@ -772,7 +769,7 @@ pub(crate) fn add_sequence_map<W: Write + 'static>(
             ],
             XSequenceType::xtype(output_t),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -1020,7 +1017,7 @@ pub(crate) fn add_sequence_take_while<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -1067,7 +1064,7 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -1251,23 +1248,11 @@ pub(crate) fn add_sequence_dyn_sort<W: Write + 'static>(
 
         Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[a0], cb_t.rtype()),
-            move |ns, rt| {
-                let inner_cmp_value =
-                    forward_err!(ns.eval(&inner_cmp, rt.clone(), false)?.unwrap_value());
-                let cb_value = forward_err!(ns.eval(&cb, rt, false)?.unwrap_value());
-                Ok(Ok(
-                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
-                        let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                        let XValue::Function(cb_func) = &cb_value.value else {unreachable!()};
-                        ns.eval_func_with_values(
-                            cb_func,
-                            vec![Ok(a0), Ok(inner_cmp_value.clone())],
-                            rt,
-                            false,
-                        )
-                    },
-                ))
-            },
+            delegate!(
+                with [inner_cmp, cb],
+                args [0->a0],
+                cb(a0, inner_cmp)
+            ),
         ))
     })
 }
@@ -1297,24 +1282,11 @@ pub(crate) fn add_sequence_dyn_n_largest<W: Write + 'static>(
 
         Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[a0, a1], cb_t.rtype()),
-            move |ns, rt| {
-                let inner_cmp_value =
-                    forward_err!(ns.eval(&inner_cmp, rt.clone(), false)?.unwrap_value());
-                let cb_value = forward_err!(ns.eval(&cb, rt, false)?.unwrap_value());
-                Ok(Ok(
-                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
-                        let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                        let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                        let XValue::Function(cb_func) = &cb_value.value else {unreachable!()};
-                        ns.eval_func_with_values(
-                            cb_func,
-                            vec![Ok(a0), Ok(a1), Ok(inner_cmp_value.clone())],
-                            rt,
-                            false,
-                        )
-                    },
-                ))
-            },
+            delegate!(
+                with [inner_cmp, cb],
+                args [0->a0, 1->a1],
+                cb(a0, a1, inner_cmp)
+            ),
         ))
     })
 }
@@ -1347,24 +1319,11 @@ pub(crate) fn add_sequence_dyn_n_smallest<W: Write + 'static>(
 
             Ok(XFunctionFactoryOutput::from_delayed_native(
                 XFuncSpec::new(&[a0, a1], cb_t.rtype()),
-                move |ns, rt| {
-                    let inner_cmp_value =
-                        forward_err!(ns.eval(&inner_cmp, rt.clone(), false)?.unwrap_value());
-                    let cb_value = forward_err!(ns.eval(&cb, rt, false)?.unwrap_value());
-                    Ok(Ok(
-                        move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
-                            let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                            let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                            let XValue::Function(cb_func) = &cb_value.value else {unreachable!()};
-                            ns.eval_func_with_values(
-                                cb_func,
-                                vec![Ok(a0), Ok(a1), Ok(inner_cmp_value.clone())],
-                                rt,
-                                false,
-                            )
-                        },
-                    ))
-                },
+                delegate!(
+                    with [inner_cmp, cb],
+                    args [0->a0, 1->a1],
+                    cb(a0, a1, inner_cmp)
+                ),
             ))
         },
     )

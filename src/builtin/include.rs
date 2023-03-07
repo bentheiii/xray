@@ -384,14 +384,6 @@ fn reduce<T>(g: Generator<T>, func: (T, T)->(T)) -> T{
     g.aggregate(func).last()
 }
 
-fn sum(g: Generator<int>)->int{
-    g.reduce(add{int, int})
-}
-
-fn sum(g: Generator<float>)->float{
-    g.reduce(add{float, float})
-}
-
 fn mean(g: Generator<int>)->float{
     let v = g.reduce((0, 0), (a: (int, int), v:int) -> {(a::item0+v, a::item1+1)});
     v::item0/v::item1

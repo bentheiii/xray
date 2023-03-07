@@ -260,10 +260,47 @@ macro_rules! parse_hash {
     }};
 }
 
-pub(crate) fn search<W: Write + 'static, I: IntoIterator>(
+pub(crate) fn search<W, I: IntoIterator>(
     other: I,
     rt: RTCell<W>,
 ) -> impl Iterator<Item = (I::Item, Result<(), RuntimeViolation>)> {
     let s = rt.borrow().limits.search_iter();
     other.into_iter().zip(s)
+}
+
+#[macro_export]
+macro_rules! delegate {
+    (
+        with[$($func: ident),*],
+        args[$($idx:literal -> $arg: ident),*],
+        $call:ident($($param: ident),*)
+    ) => {
+        move |ns, rt| {
+            $(
+                let $func = forward_err!(ns.eval(&$func, rt.clone(), false)?.unwrap_value());
+            )*
+            Ok(Ok(
+                #[allow(unused_variables)]
+                move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
+                    $(
+                        let $arg = xraise!(eval(&args[$idx], ns, &rt.clone())?);
+                    )*
+                    $(
+                        let $func = $func.clone();
+                    )*
+                    let XValue::Function($call) = &$call.value else {unreachable!()};
+                    ns.eval_func_with_values(
+                        $call,
+                        vec![
+                            $(
+                            Ok($param)
+                            ),*
+                        ],
+                        rt,
+                        false,
+                    )
+                },
+            ))
+        }
+    };
 }

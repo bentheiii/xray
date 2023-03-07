@@ -244,8 +244,9 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_generator_take(scope).unwrap();
     add_generator_take_while(scope).unwrap();
     add_generator_to_array(scope).unwrap();
-    add_generator_dyn_zip(scope).unwrap();
+    add_generator_dyn_sum(scope).unwrap();
     add_generator_dyn_unzip(scope).unwrap();
+    add_generator_dyn_zip(scope).unwrap();
 
     add_regex_type(scope).unwrap();
     add_regex_match(scope).unwrap();

@@ -10,10 +10,7 @@ use crate::util::lazy_bigint::LazyBigint;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
-use crate::{
-    forward_err, manage_native, to_native, to_primitive, xraise, CompilationError, RTCell,
-    RootCompilationScope, XCallableSpec, XStaticFunction, XType,
-};
+use crate::{forward_err, manage_native, to_native, to_primitive, xraise, CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType, delegate};
 use derivative::Derivative;
 use num_traits::ToPrimitive;
 use rc::Rc;
@@ -526,24 +523,11 @@ pub(crate) fn add_mapping_dyn_new<W: Write + 'static>(
 
             Ok(XFunctionFactoryOutput::from_delayed_native(
                 XFuncSpec::new(&[], cb_t.rtype()),
-                move |ns, rt| {
-                    let inner_hash_value =
-                        forward_err!(ns.eval(&inner_hash, rt.clone(), false)?.unwrap_value());
-                    let inner_equal_value =
-                        forward_err!(ns.eval(&inner_eq, rt.clone(), false)?.unwrap_value());
-                    let cb_value = forward_err!(ns.eval(&cb, rt, false)?.unwrap_value());
-                    Ok(Ok(
-                        move |_args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
-                            let XValue::Function(cb_func) = &cb_value.value else {unreachable!()};
-                            ns.eval_func_with_values(
-                                cb_func,
-                                vec![Ok(inner_hash_value.clone()), Ok(inner_equal_value.clone())],
-                                rt,
-                                false,
-                            )
-                        },
-                    ))
-                },
+                delegate!(
+                    with [inner_hash, inner_eq, cb],
+                    args [],
+                    cb(inner_hash, inner_eq)
+                )
             ))
         },
     )
