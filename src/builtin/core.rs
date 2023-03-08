@@ -237,15 +237,13 @@ pub(super) fn get_func_with_type<W: Write + 'static>(
         .get_func(&symbol, arguments)
         .map_err(|e| format!("{e:?}"))?;
     let ret_xtype = scope.type_of(&ret).unwrap();
-    let func_spec = if let XType::XFunc(spec) = ret_xtype.as_ref() {
-        spec
-    } else {
-        return Err(format!("expected {symbol:?} function, got {ret_xtype:?}"));
-    };
-    if expected_return_type.map_or_else(|| false, |ert| &func_spec.ret != ert) {
-        return Err(format!("expected {symbol:?}{{{arguments:?}}} to return {expected_return_type:?}, got {:?} instead", func_spec.ret));
+    let cb = CallbackType::new(ret_xtype, arguments);
+    if let Some(ert) = expected_return_type{
+        if &cb.rtype() != ert{
+            return Err(format!("expected {symbol:?}{{{arguments:?}}} to return {ert:?}, got {:?} instead", cb.rtype()));
+        }
     }
-    Ok((ret, CallbackType::new(ret_xtype, arguments)))
+    Ok((ret, cb))
 }
 
 #[macro_export]

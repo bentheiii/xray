@@ -198,10 +198,7 @@ fn indicator(a: bool)->int{
 
 // string
 fn mul(a: str, n: int)->str{
-    fn helper(n: int, ret: str)->str{
-        if(n==0, ret, helper(n-1, ret+a))
-    }
-    helper(n, "")
+    repeat([a].to_generator()).take(n).join()
 }
 
 fn substring<T>(s: str, start: int, end: Optional<int> ?= none())->str{
@@ -384,14 +381,12 @@ fn reduce<T>(g: Generator<T>, func: (T, T)->(T)) -> T{
     g.aggregate(func).last()
 }
 
-fn mean(g: Generator<int>)->float{
-    let v = g.reduce((0, 0), (a: (int, int), v:int) -> {(a::item0+v, a::item1+1)});
-    v::item0/v::item1
+fn sum(g: Generator<int>)->int{
+    g.sum(0)
 }
 
-fn mean(g: Generator<float>)->float{
-    let v = g.reduce((0.0, 0), (a: (float, int), v:float) -> {(a::item0+v, a::item1+1)});
-    v::item0/v::item1.to_float()
+fn sum(g: Generator<float>)->float{
+    g.sum(0.0)
 }
 
 fn product(g: Generator<int>)->int{
@@ -516,20 +511,13 @@ fn reduce<T>(g: Sequence<T>, func: (T, T)->(T)) -> T{
     g.to_generator().reduce(func)
 }
 
+
 fn sum(g: Sequence<int>)->int{
-    g.reduce(add{int, int})
+    g.sum(0)
 }
 
 fn sum(g: Sequence<float>)->float{
-    g.reduce(add{float, float})
-}
-
-fn mean(g: Sequence<int>)->float{
-    g.sum()/g.len()
-}
-
-fn mean(g: Sequence<float>)->float{
-    g.sum()/g.len().to_float()
+    g.sum(0.0)
 }
 
 fn product(g: Sequence<int>)->int{

@@ -1585,3 +1585,92 @@ pub(crate) fn add_sequence_dyn_cmp<W: Write + 'static>(
         ))
     })
 }
+
+pub(crate) fn add_sequence_dyn_sum<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let f_symbol = scope.identifier("add");
+    let cb_symbol = scope.identifier("reduce");
+
+    scope.add_dyn_func(
+        "sum",
+        "sequence-reduce",
+        move |_params, types, ns, bind| {
+            if bind.is_some() {
+                return Err("this dyn func has no bind".to_string());
+            }
+
+            let [t0, t1] = unpack_dyn_types(types)?;
+            let [inner0] = unpack_native(t0, "Sequence")? else { unreachable!() };
+
+            let (inner_f, f_t) =
+                get_func_with_type(ns, f_symbol, &[t1.clone(), inner0.clone()], Some(t1))?;
+            let (cb, cb_t) =
+                get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
+
+            Ok(XFunctionFactoryOutput::from_delayed_native(
+                XFuncSpec::new(&[t0, t1], cb_t.rtype()),
+                delegate!(
+                    with [inner_f, cb],
+                    args [0->a0, 1->a1],
+                    cb(a0, a1, inner_f)
+                ),
+            ))
+        },
+    )
+}
+
+pub(crate) fn add_sequence_dyn_mean<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let sum_symbol = scope.identifier("sum");
+    let len_symbol = scope.identifier("len");
+    let div_symbol = scope.identifier("div");
+
+    scope.add_dyn_func(
+        "mean",
+        "sequence",
+        move |_params, types, ns, bind| {
+            if bind.is_some() {
+                return Err("this dyn func has no bind".to_string());
+            }
+
+            let [t0] = unpack_dyn_types(types)?;
+            unpack_native(t0, "Sequence")?;
+
+            let (inner_sum, sum_t) =
+                get_func_with_type(ns, sum_symbol, &[t0.clone()], None)?;
+            let (inner_len, len_t) =
+                get_func_with_type(ns, len_symbol, &[t0.clone()], None)?;
+            let (inner_div, div_t) =
+                get_func_with_type(ns, div_symbol, &[sum_t.rtype(), len_t.rtype()], None)?;
+
+            Ok(XFunctionFactoryOutput::from_delayed_native(
+                XFuncSpec::new(&[t0], div_t.rtype()),
+                move |ns, rt| {
+                    let inner_sum = forward_err!(ns.eval(&inner_sum, rt.clone(), false)?.unwrap_value());
+                    let inner_len = forward_err!(ns.eval(&inner_len, rt.clone(), false)?.unwrap_value());
+                    let inner_div = forward_err!(ns.eval(&inner_div, rt.clone(), false)?.unwrap_value());
+                    Ok(Ok(
+                        move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
+                            let a0 = xraise!(eval(&args[0], ns, &rt.clone())?);
+                            let XValue::Function(inner_sum) = &inner_sum.value else { unreachable!() };
+                            let XValue::Function(inner_len) = &inner_len.value else { unreachable!() };
+                            let XValue::Function(inner_div) = &inner_div.value else { unreachable!() };
+                            let aggregated = xraise!(ns.eval_func_with_values(inner_sum, vec![
+                        Ok(a0.clone()),
+                    ], rt.clone(), false)?.unwrap_value());
+                            let enumerated = xraise!(ns.eval_func_with_values(inner_len, vec![
+                        Ok(a0),
+                    ], rt.clone(), false)?.unwrap_value());
+                            ns.eval_func_with_values(inner_div, vec![
+                                Ok(aggregated),
+                                Ok(enumerated),
+                            ], rt.clone(), false)
+                        },
+                    ))
+                },
+            ))
+        },
+    )
+}
