@@ -1,4 +1,4 @@
-use crate::builtin::core::{eval, get_func_with_type, unpack_dyn_types, unpack_dyn_types_with_optional, unpack_native, unpack_natives, xerr};
+use crate::builtin::core::{eval, get_func_with_type, unpack_dyn_types, unpack_native, xerr};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 
@@ -7,11 +7,11 @@ use crate::root_runtime_scope::EvaluatedValue;
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 
-use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
+use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
 use crate::{
-    delegate, forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt,
+    forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt,
     CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
 };
 use derivative::Derivative;

@@ -1,0 +1,8 @@
+fn main()->bool{
+    let arr = range(10);
+
+    assert(arr.min() == 0)
+    && assert(arr.to_generator().min() == 0)
+    && assert(arr.max() == 9)
+    && assert(arr.to_generator().max() == 9)
+}

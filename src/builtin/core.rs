@@ -1,4 +1,3 @@
-use std::fmt::Debug;
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use num_traits::{One, Zero};
 

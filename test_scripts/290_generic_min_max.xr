@@ -1,0 +1,9 @@
+fn main()->bool{
+    let key = (a: int)->{(a%3, a%5)};
+    let f = (a: int, b: int)->{key(a) < key(b)};
+
+    assert(min(10, 30, f) == 30)
+    && assert(min(6, 33, f) == 6)
+    && assert(max(10, 30, f) == 10)
+    && assert(max(6, 33, f) == 33)
+}

@@ -1,0 +1,10 @@
+fn main()->bool{
+    let key = (a: int)->{(a%3, a%5)};
+    let f = (a: int, b: int)->{key(a) < key(b)};
+    let arr = range(10);
+
+    assert(arr.min(f) == 0)
+    && assert(arr.to_generator().min(f) == 0)
+    && assert(arr.max(f) == 8)
+    && assert(arr.to_generator().max(f) == 8)
+}

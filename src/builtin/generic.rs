@@ -510,7 +510,7 @@ pub(crate) fn add_generic_dyn_harmonic_mean<W: Write + 'static>(
 
                     let one = ManagedXValue::new(XValue::Int(LazyBigint::from(1)), rt.clone())?;
                     let one_to_inv = one.clone();
-                    let inv = ManagedXValue::new(XValue::Function(XFunction::Native(Rc::new(move |args, ns, tca, rt| {
+                    let inv = ManagedXValue::new(XValue::Function(XFunction::Native(Rc::new(move |args, ns, _tca, rt| {
                         let a0 = xraise!(eval(&args[0], ns, &rt)?);
                         let XValue::Function(internal_div) = &internal_div.value else { unreachable!() };
                         ns.eval_func_with_values(&internal_div, vec![Ok(one_to_inv.clone()), Ok(a0)], rt, false)
@@ -603,6 +603,136 @@ pub(crate) fn add_generic_dyn_sum<W: Write + 'static>(
                     with [inner_f, cb],
                     args [0->a0, 1->a1],
                     cb(a0, a1, inner_f)
+                ),
+            ))
+        },
+    )
+}
+
+pub(crate) fn add_generic_dyn_max<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let f_symbol = scope.identifier("lt");
+    let cb_symbol = scope.identifier("max");
+
+    scope.add_dyn_func(
+        "max",
+        "lt",
+        move |_params, types, ns, bind| {
+            if bind.is_some() {
+                return Err("this dyn func has no bind".to_string());
+            }
+            let [t0, t1] = unpack_dyn_types(types)?;
+
+            let (inner_f, f_t) =
+                get_func_with_type(ns, f_symbol, &[t0.clone(), t1.clone()], None)?;
+            let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
+
+
+            Ok(XFunctionFactoryOutput::from_delayed_native(
+                XFuncSpec::new(&[t0, t1], cb_t.rtype()),
+                delegate!(
+                    with [inner_f, cb],
+                    args [0->a0, 1->a1],
+                    cb(a0, a1, inner_f)
+                ),
+            ))
+        },
+    )
+}
+
+pub(crate) fn add_generic_dyn_min<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let f_symbol = scope.identifier("lt");
+    let cb_symbol = scope.identifier("min");
+
+    scope.add_dyn_func(
+        "min",
+        "lt",
+        move |_params, types, ns, bind| {
+            if bind.is_some() {
+                return Err("this dyn func has no bind".to_string());
+            }
+            let [t0, t1] = unpack_dyn_types(types)?;
+
+            let (inner_f, f_t) =
+                get_func_with_type(ns, f_symbol, &[t0.clone(), t1.clone()], None)?;
+            let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
+
+
+            Ok(XFunctionFactoryOutput::from_delayed_native(
+                XFuncSpec::new(&[t0, t1], cb_t.rtype()),
+                delegate!(
+                    with [inner_f, cb],
+                    args [0->a0, 1->a1],
+                    cb(a0, a1, inner_f)
+                ),
+            ))
+        },
+    )
+}
+
+pub(crate) fn add_generic_dyn_max_iter<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let f_symbol = scope.identifier("lt");
+    let cb_symbol = scope.identifier("max");
+
+    scope.add_dyn_func(
+        "max",
+        "lt-iter",
+        move |_params, types, ns, bind| {
+            if bind.is_some() {
+                return Err("this dyn func has no bind".to_string());
+            }
+            let [t0] = unpack_dyn_types(types)?;
+            let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
+
+            let (inner_f, f_t) =
+                get_func_with_type(ns, f_symbol, &[inner0.clone(), inner0.clone()], None)?;
+            let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
+
+
+            Ok(XFunctionFactoryOutput::from_delayed_native(
+                XFuncSpec::new(&[t0], cb_t.rtype()),
+                delegate!(
+                    with [inner_f, cb],
+                    args [0->a0],
+                    cb(a0, inner_f)
+                ),
+            ))
+        },
+    )
+}
+
+pub(crate) fn add_generic_dyn_min_iter<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let f_symbol = scope.identifier("lt");
+    let cb_symbol = scope.identifier("min");
+
+    scope.add_dyn_func(
+        "min",
+        "lt-iter",
+        move |_params, types, ns, bind| {
+            if bind.is_some() {
+                return Err("this dyn func has no bind".to_string());
+            }
+            let [t0] = unpack_dyn_types(types)?;
+            let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
+
+            let (inner_f, f_t) =
+                get_func_with_type(ns, f_symbol, &[inner0.clone(), inner0.clone()], None)?;
+            let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
+
+
+            Ok(XFunctionFactoryOutput::from_delayed_native(
+                XFuncSpec::new(&[t0], cb_t.rtype()),
+                delegate!(
+                    with [inner_f, cb],
+                    args [0->a0],
+                    cb(a0, inner_f)
                 ),
             ))
         },

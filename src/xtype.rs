@@ -639,9 +639,10 @@ lazy_static! {
     pub static ref X_UNKNOWN: Arc<XType> = Arc::new(XType::XUnknown);
 }
 
-pub(crate) fn common_type<T: Iterator<Item = Result<Arc<XType>, CompilationError>>>(
-    mut values: T,
+pub(crate) fn common_type(
+    values: impl IntoIterator<Item = Result<Arc<XType>, CompilationError>>,
 ) -> Result<Arc<XType>, CompilationError> {
+    let mut values = values.into_iter();
     let mut ret = match values.next() {
         None => return Ok(X_UNKNOWN.clone()),
         Some(v) => v?,

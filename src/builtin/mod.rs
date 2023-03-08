@@ -289,6 +289,10 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_partial(scope).unwrap();
 
     add_generic_dyn_harmonic_mean(scope).unwrap();
+    add_generic_dyn_max(scope).unwrap();
+    add_generic_dyn_min(scope).unwrap();
+    add_generic_dyn_max_iter(scope).unwrap();
+    add_generic_dyn_min_iter(scope).unwrap();
     add_generic_dyn_product(scope).unwrap();
     add_generic_dyn_sum(scope).unwrap();
 

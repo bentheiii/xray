@@ -1616,3 +1616,23 @@ fn test_script_288() {
 fn test_script_289() {
     run_script_from_name(function_name!())
 }
+
+#[test]
+fn test_script_290() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_291() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_292() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_293() {
+    run_script_from_name(function_name!())
+}

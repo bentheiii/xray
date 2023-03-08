@@ -1,4 +1,13 @@
 pub const INCLUDE: &str = r#"
+// generic
+fn min<T>(a: T, b: T, lt: (T,T)->(bool))->T{
+    if(lt(a,b), a, b)
+}
+
+fn max<T>(a: T, b: T, lt: (T,T)->(bool))->T{
+    if(lt(a,b), b, a)
+}
+
 // int
 fn abs(i: int)->int{
     if(i < 0, -i, i)
@@ -381,6 +390,14 @@ fn reduce<T>(g: Generator<T>, func: (T, T)->(T)) -> T{
     g.aggregate(func).last()
 }
 
+fn min<T>(g: Generator<T>, lt: (T,T)->(bool)) -> T {
+    g.reduce((a: T, b: T)->{min(a,b,lt)})
+}
+
+fn max<T>(g: Generator<T>, lt: (T,T)->(bool)) -> T {
+    g.reduce((a: T, b: T)->{max(a,b,lt)})
+}
+
 fn sum(g: Generator<int>)->int{
     g.sum(0)
 }
@@ -489,6 +506,14 @@ fn reduce<T0, T1>(g: Sequence<T0>, initial_state: T1, func: (T1, T0)->(T1)) -> T
 
 fn reduce<T>(g: Sequence<T>, func: (T, T)->(T)) -> T{
     g.to_generator().reduce(func)
+}
+
+fn min<T>(g: Sequence<T>, lt: (T,T)->(bool)) -> T {
+    g.reduce((a: T, b: T)->{min(a,b,lt)})
+}
+
+fn max<T>(g: Sequence<T>, lt: (T,T)->(bool)) -> T {
+    g.reduce((a: T, b: T)->{max(a,b,lt)})
 }
 
 fn sum(g: Sequence<int>)->int{
