@@ -15,7 +15,10 @@ use crate::xvalue::{
     ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XResult, XValue,
 };
 use crate::XType::XCallable;
-use crate::{forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt, CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType, delegate};
+use crate::{
+    delegate, forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt,
+    CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
+};
 use derivative::Derivative;
 use either::Either;
 use num_traits::{One, Signed, ToPrimitive, Zero};
@@ -148,10 +151,10 @@ impl<W: Write + 'static> XSequence<W> {
                 let part_idx = midpoint_lengths.partition_point(|x| *x <= idx);
                 let internal_idx = idx
                     - if part_idx == 0 {
-                    0
-                } else {
-                    midpoint_lengths[part_idx - 1]
-                };
+                        0
+                    } else {
+                        midpoint_lengths[part_idx - 1]
+                    };
                 to_native!(parts[part_idx], Self).get(internal_idx, ns, rt)
             }
         }
@@ -161,7 +164,7 @@ impl<W: Write + 'static> XSequence<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> Option<impl DoubleEndedIterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a>
+    ) -> Option<impl DoubleEndedIterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a>
     {
         Some(match self {
             XSequence::Array(arr) => Either::Left(arr.iter().cloned().map(|i| Ok(Ok(i)))),
@@ -173,7 +176,7 @@ impl<W: Write + 'static> XSequence<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> impl Iterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
+    ) -> impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
         self.diter(ns, rt.clone()).map_or_else(
             || Either::Left((0..).map(move |idx| self.get(idx, ns, rt.clone()))),
             Either::Right,
@@ -317,7 +320,7 @@ impl<W: Write + 'static> XSequence<W> {
                 },
                 Int
             )
-                .is_positive()
+            .is_positive()
             {
                 is_sorted = false;
                 break;
@@ -769,7 +772,7 @@ pub(crate) fn add_sequence_map<W: Write + 'static>(
             ],
             XSequenceType::xtype(output_t),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -1017,7 +1020,7 @@ pub(crate) fn add_sequence_take_while<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -1064,7 +1067,7 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -1586,40 +1589,6 @@ pub(crate) fn add_sequence_dyn_cmp<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_sum<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError> {
-    let f_symbol = scope.identifier("add");
-    let cb_symbol = scope.identifier("reduce");
-
-    scope.add_dyn_func(
-        "sum",
-        "sequence-reduce",
-        move |_params, types, ns, bind| {
-            if bind.is_some() {
-                return Err("this dyn func has no bind".to_string());
-            }
-
-            let [t0, t1] = unpack_dyn_types(types)?;
-            let [inner0] = unpack_native(t0, "Sequence")? else { unreachable!() };
-
-            let (inner_f, f_t) =
-                get_func_with_type(ns, f_symbol, &[t1.clone(), inner0.clone()], Some(t1))?;
-            let (cb, cb_t) =
-                get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
-
-            Ok(XFunctionFactoryOutput::from_delayed_native(
-                XFuncSpec::new(&[t0, t1], cb_t.rtype()),
-                delegate!(
-                    with [inner_f, cb],
-                    args [0->a0, 1->a1],
-                    cb(a0, a1, inner_f)
-                ),
-            ))
-        },
-    )
-}
-
 pub(crate) fn add_sequence_dyn_mean<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
@@ -1627,50 +1596,123 @@ pub(crate) fn add_sequence_dyn_mean<W: Write + 'static>(
     let len_symbol = scope.identifier("len");
     let div_symbol = scope.identifier("div");
 
-    scope.add_dyn_func(
-        "mean",
-        "sequence",
-        move |_params, types, ns, bind| {
-            if bind.is_some() {
-                return Err("this dyn func has no bind".to_string());
-            }
+    scope.add_dyn_func("mean", "sequence", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
 
-            let [t0] = unpack_dyn_types(types)?;
-            unpack_native(t0, "Sequence")?;
+        let [t0] = unpack_dyn_types(types)?;
+        unpack_native(t0, "Sequence")?;
 
-            let (inner_sum, sum_t) =
-                get_func_with_type(ns, sum_symbol, &[t0.clone()], None)?;
-            let (inner_len, len_t) =
-                get_func_with_type(ns, len_symbol, &[t0.clone()], None)?;
-            let (inner_div, div_t) =
-                get_func_with_type(ns, div_symbol, &[sum_t.rtype(), len_t.rtype()], None)?;
+        let (inner_sum, sum_t) = get_func_with_type(ns, sum_symbol, &[t0.clone()], None)?;
+        let (inner_len, len_t) = get_func_with_type(ns, len_symbol, &[t0.clone()], None)?;
+        let (inner_div, div_t) =
+            get_func_with_type(ns, div_symbol, &[sum_t.rtype(), len_t.rtype()], None)?;
 
-            Ok(XFunctionFactoryOutput::from_delayed_native(
-                XFuncSpec::new(&[t0], div_t.rtype()),
-                move |ns, rt| {
-                    let inner_sum = forward_err!(ns.eval(&inner_sum, rt.clone(), false)?.unwrap_value());
-                    let inner_len = forward_err!(ns.eval(&inner_len, rt.clone(), false)?.unwrap_value());
-                    let inner_div = forward_err!(ns.eval(&inner_div, rt.clone(), false)?.unwrap_value());
-                    Ok(Ok(
-                        move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
-                            let a0 = xraise!(eval(&args[0], ns, &rt.clone())?);
-                            let XValue::Function(inner_sum) = &inner_sum.value else { unreachable!() };
-                            let XValue::Function(inner_len) = &inner_len.value else { unreachable!() };
-                            let XValue::Function(inner_div) = &inner_div.value else { unreachable!() };
-                            let aggregated = xraise!(ns.eval_func_with_values(inner_sum, vec![
-                        Ok(a0.clone()),
-                    ], rt.clone(), false)?.unwrap_value());
-                            let enumerated = xraise!(ns.eval_func_with_values(inner_len, vec![
-                        Ok(a0),
-                    ], rt.clone(), false)?.unwrap_value());
-                            ns.eval_func_with_values(inner_div, vec![
-                                Ok(aggregated),
-                                Ok(enumerated),
-                            ], rt.clone(), false)
-                        },
-                    ))
-                },
-            ))
-        },
-    )
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[t0], div_t.rtype()),
+            move |ns, rt| {
+                let inner_sum =
+                    forward_err!(ns.eval(&inner_sum, rt.clone(), false)?.unwrap_value());
+                let inner_len =
+                    forward_err!(ns.eval(&inner_len, rt.clone(), false)?.unwrap_value());
+                let inner_div =
+                    forward_err!(ns.eval(&inner_div, rt.clone(), false)?.unwrap_value());
+                Ok(Ok(
+                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
+                        let a0 = xraise!(eval(&args[0], ns, &rt.clone())?);
+                        let XValue::Function(inner_sum) = &inner_sum.value else { unreachable!() };
+                        let XValue::Function(inner_len) = &inner_len.value else { unreachable!() };
+                        let XValue::Function(inner_div) = &inner_div.value else { unreachable!() };
+                        let total = xraise!(ns
+                            .eval_func_with_values(
+                                inner_sum,
+                                vec![Ok(a0.clone()),],
+                                rt.clone(),
+                                false
+                            )?
+                            .unwrap_value());
+                        let len = xraise!(ns
+                            .eval_func_with_values(inner_len, vec![Ok(a0),], rt.clone(), false)?
+                            .unwrap_value());
+                        ns.eval_func_with_values(
+                            inner_div,
+                            vec![Ok(total), Ok(len)],
+                            rt.clone(),
+                            false,
+                        )
+                    },
+                ))
+            },
+        ))
+    })
+}
+
+
+pub(crate) fn add_sequence_dyn_geo_mean<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let prod_symbol = scope.identifier("product");
+    let len_symbol = scope.identifier("len");
+    let div_symbol = scope.identifier("div");
+    let pow_symbol = scope.identifier("pow");
+
+    scope.add_dyn_func("geo_mean", "sequence", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+
+        let [t0] = unpack_dyn_types(types)?;
+        unpack_native(t0, "Sequence")?;
+
+        let (inner_prod, prod_t) = get_func_with_type(ns, prod_symbol, &[t0.clone()], None)?;
+        let (inner_len, len_t) = get_func_with_type(ns, len_symbol, &[t0.clone()], None)?;
+        let (inner_div, div_t) = get_func_with_type(ns, div_symbol, &[X_INT.clone(), len_t.rtype()], None)?;
+        let (inner_pow, pow_t) = get_func_with_type(ns, pow_symbol, &[prod_t.rtype(), div_t.rtype()], None)?;
+
+
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[t0], pow_t.rtype()),
+            move |ns, rt| {
+                let inner_prod =
+                    forward_err!(ns.eval(&inner_prod, rt.clone(), false)?.unwrap_value());
+                let inner_len =
+                    forward_err!(ns.eval(&inner_len, rt.clone(), false)?.unwrap_value());
+                let inner_div =
+                    forward_err!(ns.eval(&inner_div, rt.clone(), false)?.unwrap_value());
+                let inner_pow =
+                    forward_err!(ns.eval(&inner_pow, rt.clone(), false)?.unwrap_value());
+                let one = ManagedXValue::new(XValue::Int(LazyBigint::from(1)), rt)?;
+                Ok(Ok(
+                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
+                        let a0 = xraise!(eval(&args[0], ns, &rt.clone())?);
+                        let XValue::Function(inner_prod) = &inner_prod.value else { unreachable!() };
+                        let XValue::Function(inner_len) = &inner_len.value else { unreachable!() };
+                        let XValue::Function(inner_div) = &inner_div.value else { unreachable!() };
+                        let XValue::Function(inner_pow) = &inner_pow.value else { unreachable!() };
+                        let total = xraise!(ns
+                            .eval_func_with_values(
+                                inner_prod,
+                                vec![Ok(a0.clone()),],
+                                rt.clone(),
+                                false
+                            )?
+                            .unwrap_value());
+                        let len = xraise!(ns
+                            .eval_func_with_values(inner_len, vec![Ok(a0),], rt.clone(), false)?
+                            .unwrap_value());
+                        let exponent = xraise!(ns
+                            .eval_func_with_values(inner_div, vec![Ok(one.clone()), Ok(len),], rt.clone(), false)?
+                            .unwrap_value());
+                         ns.eval_func_with_values(
+                            inner_pow,
+                            vec![Ok(total), Ok(exponent)],
+                            rt.clone(),
+                            false,
+                        )
+                    },
+                ))
+            },
+        ))
+    })
 }

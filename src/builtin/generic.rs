@@ -1,16 +1,11 @@
 use crate::xexpr::XExpr;
 use crate::xtype::{Bind, XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
-use crate::{
-    forward_err, manage_native, to_primitive, ufunc, xraise, xraise_opt, CompilationError,
-    RootCompilationScope, XStaticFunction, XType,
-};
+use crate::{forward_err, manage_native, to_primitive, ufunc, xraise, xraise_opt, CompilationError, RootCompilationScope, XStaticFunction, XType, delegate};
 use rc::Rc;
 
 use crate::builtin::builtin_permissions;
-use crate::builtin::core::{
-    eval, get_func, unpack_dyn_types, unpack_dyn_types_at_least, unpack_dyn_types_with_optional,
-};
+use crate::builtin::core::{eval, get_func, get_func_with_type, unpack_dyn_types, unpack_dyn_types_at_least, unpack_dyn_types_with_optional, unpack_natives};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::runtime::RTCell;
 use crate::runtime_scope::RuntimeScope;
@@ -20,6 +15,7 @@ use num_traits::Signed;
 use std::io::Write;
 use std::sync::Arc;
 use std::{iter, rc};
+use crate::util::lazy_bigint::LazyBigint;
 
 pub(crate) fn add_if<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -477,4 +473,138 @@ pub(crate) fn add_partial<W: Write + 'static>(
             },
         ))
     })
+}
+
+pub(crate) fn add_generic_dyn_harmonic_mean<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let mean_symbol = scope.identifier("mean");
+    let div_symbol = scope.identifier("div");
+    let map_symbol = scope.identifier("map");
+
+    scope.add_dyn_func(
+        "harmonic_mean",
+        "mean",
+        move |_params, types, ns, bind| {
+            if bind.is_some() {
+                return Err("this dyn func has no bind".to_string());
+            }
+
+            let [t0] = unpack_dyn_types(types)?;
+            let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
+
+            let (internal_div, idiv_t) = get_func_with_type(ns, div_symbol, &[X_INT.clone(), inner0.clone()], None)?;
+            let internal_inv_type = Arc::new(XType::XFunc(XFuncSpec::new(&[inner0], idiv_t.rtype())));
+            let (inner_map, map_t) = get_func_with_type(ns, map_symbol, &[t0.clone(), internal_inv_type], None)?;
+            let (inner_mean, mean_t) = get_func_with_type(ns, mean_symbol, &[map_t.rtype()], None)?;
+            let (external_div, ediv_t) = get_func_with_type(ns, div_symbol, &[X_INT.clone(), mean_t.rtype()], None)?;
+
+            Ok(XFunctionFactoryOutput::from_delayed_native(
+                XFuncSpec::new(&[t0], ediv_t.rtype()),
+                move |ns, rt| {
+                    let internal_div = forward_err!(ns.eval(&internal_div, rt.clone(), false)?.unwrap_value());
+
+                    let inner_map = forward_err!(ns.eval(&inner_map, rt.clone(), false)?.unwrap_value());
+                    let inner_mean = forward_err!(ns.eval(&inner_mean, rt.clone(), false)?.unwrap_value());
+                    let external_div = forward_err!(ns.eval(&external_div, rt.clone(), false)?.unwrap_value());
+
+                    let one = ManagedXValue::new(XValue::Int(LazyBigint::from(1)), rt.clone())?;
+                    let one_to_inv = one.clone();
+                    let inv = ManagedXValue::new(XValue::Function(XFunction::Native(Rc::new(move |args, ns, tca, rt| {
+                        let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                        let XValue::Function(internal_div) = &internal_div.value else { unreachable!() };
+                        ns.eval_func_with_values(&internal_div, vec![Ok(one_to_inv.clone()), Ok(a0)], rt, false)
+                    }))), rt)?;
+
+                    Ok(Ok(
+                        move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
+                            let a0 = xraise!(eval(&args[0], ns, &rt.clone())?);
+                            let XValue::Function(inner_map) = &inner_map.value else { unreachable!() };
+                            let XValue::Function(inner_mean) = &inner_mean.value else { unreachable!() };
+                            let XValue::Function(external_div) = &external_div.value else { unreachable!() };
+                            let map = xraise!(ns.eval_func_with_values(inner_map, vec![
+                                Ok(a0),
+                                Ok(inv.clone()),
+                            ], rt.clone(), false)?.unwrap_value());
+                            let mean = xraise!(ns.eval_func_with_values(inner_mean, vec![
+                                Ok(map),
+                            ], rt.clone(), false)?.unwrap_value());
+                            ns.eval_func_with_values(external_div, vec![
+                                Ok(one.clone()),
+                                Ok(mean),
+                            ], rt.clone(), false)
+                        },
+                    ))
+                },
+            ))
+        },
+    )
+}
+
+pub(crate) fn add_generic_dyn_product<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let f_symbol = scope.identifier("mul");
+    let cb_symbol = scope.identifier("reduce");
+
+    scope.add_dyn_func(
+        "product",
+        "reduce",
+        move |_params, types, ns, bind| {
+            if bind.is_some() {
+                return Err("this dyn func has no bind".to_string());
+            }
+
+            let [t0, t1] = unpack_dyn_types(types)?;
+            let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
+
+            let (inner_f, f_t) =
+                get_func_with_type(ns, f_symbol, &[t1.clone(), inner0.clone()], Some(t1))?;
+            let (cb, cb_t) =
+                get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
+
+            Ok(XFunctionFactoryOutput::from_delayed_native(
+                XFuncSpec::new(&[t0, t1], cb_t.rtype()),
+                delegate!(
+                    with [inner_f, cb],
+                    args [0->a0, 1->a1],
+                    cb(a0, a1, inner_f)
+                ),
+            ))
+        },
+    )
+}
+
+pub(crate) fn add_generic_dyn_sum<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let f_symbol = scope.identifier("add");
+    let cb_symbol = scope.identifier("reduce");
+
+    scope.add_dyn_func(
+        "sum",
+        "reduce",
+        move |_params, types, ns, bind| {
+            if bind.is_some() {
+                return Err("this dyn func has no bind".to_string());
+            }
+
+            let [t0, t1] = unpack_dyn_types(types)?;
+            let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
+
+            let (inner_f, f_t) =
+                get_func_with_type(ns, f_symbol, &[t1.clone(), inner0.clone()], Some(t1))?;
+            let (cb, cb_t) =
+                get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
+
+            Ok(XFunctionFactoryOutput::from_delayed_native(
+                XFuncSpec::new(&[t0, t1], cb_t.rtype()),
+                delegate!(
+                    with [inner_f, cb],
+                    args [0->a0, 1->a1],
+                    cb(a0, a1, inner_f)
+                ),
+            ))
+        },
+    )
 }

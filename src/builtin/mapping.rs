@@ -10,7 +10,10 @@ use crate::util::lazy_bigint::LazyBigint;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::XType::XCallable;
-use crate::{forward_err, manage_native, to_native, to_primitive, xraise, CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType, delegate};
+use crate::{
+    delegate, forward_err, manage_native, to_native, to_primitive, xraise, CompilationError,
+    RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
+};
 use derivative::Derivative;
 use num_traits::ToPrimitive;
 use rc::Rc;
@@ -527,7 +530,7 @@ pub(crate) fn add_mapping_dyn_new<W: Write + 'static>(
                     with [inner_hash, inner_eq, cb],
                     args [],
                     cb(inner_hash, inner_eq)
-                )
+                ),
             ))
         },
     )

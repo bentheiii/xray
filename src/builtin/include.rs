@@ -390,31 +390,11 @@ fn sum(g: Generator<float>)->float{
 }
 
 fn product(g: Generator<int>)->int{
-    g.reduce(mul{int, int})
+    g.product(1)
 }
 
 fn product(g: Generator<float>)->float{
-    g.reduce(mul{float, float})
-}
-
-fn geo_mean(g: Generator<int>)->float{
-    let v = g.reduce((1, 0), (a: (int, int), v:int) -> {(a::item0*v, a::item1+1)});
-    v::item0.to_float() ** (1/v::item1)
-}
-
-fn geo_mean(g: Generator<float>)->float{
-    let v = g.reduce((1.0, 0), (a: (float, int), v:float) -> {(a::item0*v, a::item1+1)});
-    v::item0 ** (1/v::item1)
-}
-
-fn harmonic_mean(g: Generator<int>)->float{
-    let v = g.reduce((0.0, 0), (a: (float, int), v:int) -> {(a::item0+1/v, a::item1+1)});
-    v::item1/v::item0
-}
-
-fn harmonic_mean(g: Generator<float>)->float{
-    let v = g.reduce((0.0, 0), (a: (float, int), v:float) -> {(a::item0+1.0/v, a::item1+1)});
-    v::item1/v::item0
+    g.product(1.0)
 }
 
 // sets
@@ -511,7 +491,6 @@ fn reduce<T>(g: Sequence<T>, func: (T, T)->(T)) -> T{
     g.to_generator().reduce(func)
 }
 
-
 fn sum(g: Sequence<int>)->int{
     g.sum(0)
 }
@@ -521,26 +500,10 @@ fn sum(g: Sequence<float>)->float{
 }
 
 fn product(g: Sequence<int>)->int{
-    g.reduce(mul{int, int})
+    g.product(1)
 }
 
 fn product(g: Sequence<float>)->float{
-    g.reduce(mul{float, float})
-}
-
-fn geo_mean(g: Sequence<int>)->float{
-    g.product().to_float()**(1/g.len())
-}
-
-fn geo_mean(g: Sequence<float>)->float{
-    g.product() ** (1/g.len())
-}
-
-fn harmonic_mean(g: Sequence<int>)->float{
-    g.len() / g.map((a: int)->{1/a}).sum()
-}
-
-fn harmonic_mean(g: Sequence<float>)->float{
-    g.len() / g.map((a: float)->{1.0/a}).sum()
+    g.product(1.0)
 }
 "#;

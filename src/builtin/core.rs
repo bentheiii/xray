@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use num_traits::{One, Zero};
 
@@ -211,10 +212,14 @@ pub(crate) fn unpack_dyn_types_at_least<const N: usize>(
     }
 }
 
-pub(crate) fn unpack_native<'a>(t: &'a Arc<XType>, name: &str) -> Result<&'a [Arc<XType>], String> {
+pub(crate) fn unpack_native<'a>(t: &'a Arc<XType>, name: &'static str) -> Result<&'a [Arc<XType>], String> {
+    unpack_natives(t, &[name])
+}
+
+pub(crate) fn unpack_natives<'a>(t: &'a Arc<XType>, names: &[&'static str]) -> Result<&'a [Arc<XType>], String> {
     match t.as_ref() {
-        XType::XNative(nt0, bind) if nt0.name() == name => Ok(&bind[..]),
-        _ => Err(format!("Expected {name} type, got {t:?}")),
+        XType::XNative(nt0, bind) if names.iter().any(|n| *n == nt0.name()) => Ok(&bind[..]),
+        _ => Err(format!("Expected one of {names:?} type, got {t:?}")),
     }
 }
 
@@ -238,9 +243,12 @@ pub(super) fn get_func_with_type<W: Write + 'static>(
         .map_err(|e| format!("{e:?}"))?;
     let ret_xtype = scope.type_of(&ret).unwrap();
     let cb = CallbackType::new(ret_xtype, arguments);
-    if let Some(ert) = expected_return_type{
-        if &cb.rtype() != ert{
-            return Err(format!("expected {symbol:?}{{{arguments:?}}} to return {ert:?}, got {:?} instead", cb.rtype()));
+    if let Some(ert) = expected_return_type {
+        if &cb.rtype() != ert {
+            return Err(format!(
+                "expected {symbol:?}{{{arguments:?}}} to return {ert:?}, got {:?} instead",
+                cb.rtype()
+            ));
         }
     }
     Ok((ret, cb))

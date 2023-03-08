@@ -164,10 +164,10 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_sequence_dyn_eq(scope).unwrap();
     add_sequence_dyn_hash(scope).unwrap();
     add_sequence_dyn_mean(scope).unwrap();
+    add_sequence_dyn_geo_mean(scope).unwrap();
     add_sequence_dyn_n_largest(scope).unwrap();
     add_sequence_dyn_n_smallest(scope).unwrap();
     add_sequence_dyn_sort(scope).unwrap();
-    add_sequence_dyn_sum(scope).unwrap();
     add_sequence_dyn_to_str(scope).unwrap();
     add_sequence_dyn_unzip(scope).unwrap();
     add_sequence_dyn_zip(scope).unwrap();
@@ -247,7 +247,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_generator_take_while(scope).unwrap();
     add_generator_to_array(scope).unwrap();
     add_generator_dyn_mean(scope).unwrap();
-    add_generator_dyn_sum(scope).unwrap();
+    add_generator_dyn_geo_mean(scope).unwrap();
     add_generator_dyn_unzip(scope).unwrap();
     add_generator_dyn_zip(scope).unwrap();
 
@@ -287,6 +287,10 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_cmp_lt(scope).unwrap();
     add_ne(scope).unwrap();
     add_partial(scope).unwrap();
+
+    add_generic_dyn_harmonic_mean(scope).unwrap();
+    add_generic_dyn_product(scope).unwrap();
+    add_generic_dyn_sum(scope).unwrap();
 
     add_struct_members(scope).unwrap();
 
