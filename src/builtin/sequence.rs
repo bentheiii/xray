@@ -1428,6 +1428,38 @@ fn add_delegate_1arg_cmp<W: Write + 'static>(name: &'static str, scope: &mut Roo
     })
 }
 
+fn add_delegate_cmp<W: Write + 'static>(name: &'static str, scope: &mut RootCompilationScope<W>)-> Result<(), CompilationError>{
+    let cmp_symbol = scope.identifier("cmp");
+    let cb_symbol = scope.identifier(name);
+
+    scope.add_dyn_func(name, "sequences", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+
+        let [a0] = unpack_dyn_types(types)?;
+        let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
+
+        let (inner_cmp, cmp_t) =
+            get_func_with_type(ns, cmp_symbol, &[t0.clone(), t0.clone()], None)?;
+        let (cb, cb_t) = get_func_with_type(
+            ns,
+            cb_symbol,
+            &[a0.clone(), cmp_t.xtype()],
+            None,
+        )?;
+
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[a0], cb_t.rtype()),
+            delegate!(
+                with [inner_cmp, cb],
+                args [0->a0],
+                cb(a0, inner_cmp)
+            ),
+        ))
+    })
+}
+
 pub(crate) fn add_sequence_dyn_n_largest<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
@@ -1450,6 +1482,12 @@ pub(crate) fn add_sequence_dyn_nth_smallest<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
     add_delegate_1arg_cmp("nth_smallest", scope)
+}
+
+pub(crate) fn add_sequence_dyn_median<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    add_delegate_cmp("median", scope)
 }
 
 pub(crate) fn add_sequence_dyn_zip<W: Write + 'static>(

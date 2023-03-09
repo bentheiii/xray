@@ -167,6 +167,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_sequence_dyn_hash(scope).unwrap();
     add_sequence_dyn_mean(scope).unwrap();
     add_sequence_dyn_geo_mean(scope).unwrap();
+    add_sequence_dyn_median(scope).unwrap();
     add_sequence_dyn_n_largest(scope).unwrap();
     add_sequence_dyn_n_smallest(scope).unwrap();
     add_sequence_dyn_nth_largest(scope).unwrap();

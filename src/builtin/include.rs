@@ -290,6 +290,10 @@ fn last<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{
      a.nth(-1, f)
 }
 
+fn median<T>(a: Sequence<T>, f: (T, T)->(int))->T{
+    a.nth_smallest((a.len()/2).floor(), f)
+}
+
 fn enumerate<T>(a: Sequence<T>, start: int ?= 0, offset: int ?= 1)->Sequence<(int, T)>{
     count(start, offset).zip(a)
 }

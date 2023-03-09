@@ -12,4 +12,5 @@ fn main()->bool{
     && assert(arr.nth_smallest(9, f) == 9)
     && assert(is_error(arr.nth_smallest(-1, f)))
     && assert(is_error(arr.nth_smallest(11, f)))
+    && assert(arr.median(f) == 5)
 }
