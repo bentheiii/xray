@@ -1,0 +1,6 @@
+fn main()->bool{
+    let m = mapping<str>().update([("hi", "there")])
+        .update_from_keys(["hi", "mua", "hi", "mue", "mua"], (x:str)->{x}, (x:str, v:str)->{v+"!"});
+
+    assert(m == mapping<str>().update([("hi", "there!!"), ("mua", "mua!"), ("mue", "mue")]))
+}

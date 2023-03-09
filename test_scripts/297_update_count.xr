@@ -1,0 +1,6 @@
+fn main()->bool{
+    let m = mapping<str>().update([("hi", 6)])
+        .update_counter(["hi", "mua", "hi", "mue", "mua"].to_generator());
+
+    assert(m == mapping<str>().update([("hi", 8), ("mua", 2), ("mue", 1)]))
+}

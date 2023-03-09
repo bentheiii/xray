@@ -1,0 +1,12 @@
+fn main()->bool{
+    let m0 = mapping<str>().update([("hi", 6)])
+        .update_counter(["hi", "mua", "hi", "mue", "mua"].to_generator());
+
+    let m1 = mapping<str>().update([("hi", 6), ("mue", 7)])
+        .update_counter(["hi", "mua", "hi", "mue", "mua"].to_generator());
+    let m1c = m1.counter_mode();
+    let m1c = (m1c::item0.sort(), m1c::item1);
+
+    assert(m0.counter_mode() == (["hi"], 8))
+    && assert(m1c == (["hi", "mue"], 8))
+}

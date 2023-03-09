@@ -211,6 +211,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_mapping_set(scope).unwrap();
     add_mapping_to_generator(scope).unwrap();
     add_mapping_update(scope).unwrap();
+    add_mapping_update_from_keys(scope).unwrap();
     add_mapping_dyn_eq(scope).unwrap();
     add_mapping_dyn_hash(scope).unwrap();
     add_mapping_dyn_new(scope).unwrap();

@@ -56,6 +56,7 @@ pub(super) struct XMapping<W> {
     eq_func: Rc<ManagedXValue<W>>,
 }
 
+#[derive(Debug)]
 enum KeyLocation {
     Missing(u64),
     Vacant(u64),
@@ -264,6 +265,73 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(
                 Ok(Ok((tup[0].clone(), tup[1].clone())))
             });
             mapping.with_update(items, ns, rt)
+        }),
+    )
+}
+
+pub(crate) fn add_mapping_update_from_keys<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
+    let mp = XMappingType::xtype(k.clone(), v.clone());
+
+    scope.add_func(
+        "update_from_keys",
+        XFuncSpec::new(
+            &[
+                &mp,
+                &XGeneratorType::xtype(k.clone()),
+                &Arc::new(XCallable(XCallableSpec {
+                    param_types: vec![k.clone()],
+                    return_type: v.clone(),
+                })),
+                &Arc::new(XCallable(XCallableSpec {
+                    param_types: vec![k, v.clone()],
+                    return_type: v,
+                })),
+            ],
+            mp.clone(),
+        )
+        .generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise!(eval(&args[2], ns, &rt)?);
+            let a3 = xraise!(eval(&args[3], ns, &rt)?);
+            let mapping = to_native!(a0, XMapping<W>);
+            let gen0 = to_native!(a1, XGenerator<W>);
+            let on_empty = to_primitive!(a2, Function);
+            let on_occupied = to_primitive!(a3, Function);
+
+            let mut ret =  XMapping::new(
+                mapping.hash_func.clone(),
+                mapping.eq_func.clone(),
+                mapping.inner.clone(),
+                mapping.len,
+            );
+            for item in gen0.iter(ns, rt.clone()){
+                let item = xraise!(item?);
+                let loc = xraise!(ret.locate(&item, ns, rt.clone())?);
+                match loc {
+                    KeyLocation::Found((hash_key, idx)) => {
+                        let prev_v = ret.inner.get_mut(&hash_key).unwrap()[idx].1.clone();
+                        let v = xraise!(ns.eval_func_with_values(on_occupied, vec![Ok(item.clone()), Ok(prev_v)], rt.clone(), false)?.unwrap_value());
+                        ret.inner.get_mut(&hash_key).unwrap()[idx].1 = v;
+                    }
+                    KeyLocation::Missing(hash_key) => {
+                        let v = xraise!(ns.eval_func_with_values(on_empty, vec![Ok(item.clone())], rt.clone(), false)?.unwrap_value());
+                        ret.inner.get_mut(&hash_key).unwrap().push((item, v));
+                        ret.len += 1;
+                    }
+                    KeyLocation::Vacant(hash_key) => {
+                        let v = xraise!(ns.eval_func_with_values(on_empty, vec![Ok(item.clone())], rt.clone(), false)?.unwrap_value());
+                        ret.inner.insert(hash_key, vec![(item, v)]);
+                        ret.len += 1;
+                    }
+                }
+            }
+
+            Ok(manage_native!(ret, rt))
         }),
     )
 }

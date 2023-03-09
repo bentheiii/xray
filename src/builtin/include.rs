@@ -466,6 +466,25 @@ fn update<K,V>(m: Mapping<K,V>, s: Sequence<(K,V)>)->Mapping<K,V>{
     m.update(s.to_generator())
 }
 
+fn update_from_keys<K,V>(m: Mapping<K,V>, s: Sequence<K>, on_empty: (K)->(V), on_occupied: (K,V)->(V))->Mapping<K,V>{
+    m.update_from_keys(s.to_generator(), on_empty, on_occupied)
+}
+
+fn update_counter<K>(m: Mapping<K, int>, g: Generator<K>)->Mapping<K, int>{
+    m.update_from_keys(g, (_: K)->{1}, (_: K, v: int)->{v+1})
+}
+
+fn counter_mode<K>(m: Mapping<K, int>)->(Sequence<K>, int){
+    let agg = m.to_generator().reduce((stack(), 0), (agg: (Stack<K>, int), next: (K, int))->{
+        if(
+        next::item1 > agg::item1,
+        (stack().push(next::item0), next::item1),
+        if(next::item1 == agg::item1, (agg::item0.push(next::item0), next::item1), agg)
+        )
+    });
+    (agg::item0.to_array(), agg::item1)
+}
+
 fn get<K,V>(m: Mapping<K,V>, k: K)->V{
     m.lookup(k).value("key not found")
 }
