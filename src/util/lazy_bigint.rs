@@ -73,6 +73,16 @@ impl LazyBigint {
     pub(crate) fn range(&'_ self) -> impl IntoIterator<Item = Self> + '_ {
         iter::successors(Some(Self::zero()), |p| Some(p + &Self::one())).take_while(|i| i < self)
     }
+    
+    pub(crate) fn sign(&self)->i8{
+        if self.is_positive() {
+            1
+        } else if self.is_negative() {
+            -1
+        } else {
+            0
+        }
+    }
 }
 
 impl Inv for LazyBigint {

@@ -1,0 +1,15 @@
+fn main()->bool{
+    let arr = range(10);
+    let f = cmp{int, int};
+
+    assert(arr.nth_largest(0, f) == 9)
+    && assert(arr.nth_largest(3, f) == 6)
+    && assert(arr.nth_largest(9, f) == 0)
+    && assert(is_error(arr.nth_largest(-1, f)))
+    && assert(is_error(arr.nth_largest(11, f)))
+    && assert(arr.nth_smallest(0, f) == 0)
+    && assert(arr.nth_smallest(3, f) == 3)
+    && assert(arr.nth_smallest(9, f) == 9)
+    && assert(is_error(arr.nth_smallest(-1, f)))
+    && assert(is_error(arr.nth_smallest(11, f)))
+}

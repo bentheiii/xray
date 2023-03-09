@@ -144,7 +144,9 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_sequence_len(scope).unwrap();
     add_sequence_map(scope).unwrap();
     add_sequence_n_largest(scope).unwrap();
+    add_sequence_nth_largest(scope).unwrap();
     add_sequence_n_smallest(scope).unwrap();
+    add_sequence_nth_smallest(scope).unwrap();
     add_sequence_nth(scope).unwrap();
     add_sequence_pop(scope).unwrap();
     add_sequence_push(scope).unwrap();
@@ -167,6 +169,8 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_sequence_dyn_geo_mean(scope).unwrap();
     add_sequence_dyn_n_largest(scope).unwrap();
     add_sequence_dyn_n_smallest(scope).unwrap();
+    add_sequence_dyn_nth_largest(scope).unwrap();
+    add_sequence_dyn_nth_smallest(scope).unwrap();
     add_sequence_dyn_sort(scope).unwrap();
     add_sequence_dyn_to_str(scope).unwrap();
     add_sequence_dyn_unzip(scope).unwrap();

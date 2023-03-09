@@ -28,10 +28,11 @@ use std::collections::hash_map::DefaultHasher;
 use std::fmt::Debug;
 use std::hash::Hasher;
 use std::io::Write;
-use std::mem::size_of;
+use std::mem::{size_of};
 use std::ops::Neg;
 use std::sync::Arc;
 use std::{iter, rc};
+use std::cmp::Ordering;
 
 use crate::util::lazy_bigint::LazyBigint;
 use crate::util::try_extend::TryExtend;
@@ -151,10 +152,10 @@ impl<W: Write + 'static> XSequence<W> {
                 let part_idx = midpoint_lengths.partition_point(|x| *x <= idx);
                 let internal_idx = idx
                     - if part_idx == 0 {
-                        0
-                    } else {
-                        midpoint_lengths[part_idx - 1]
-                    };
+                    0
+                } else {
+                    midpoint_lengths[part_idx - 1]
+                };
                 to_native!(parts[part_idx], Self).get(internal_idx, ns, rt)
             }
         }
@@ -164,7 +165,7 @@ impl<W: Write + 'static> XSequence<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> Option<impl DoubleEndedIterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a>
+    ) -> Option<impl DoubleEndedIterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a>
     {
         Some(match self {
             XSequence::Array(arr) => Either::Left(arr.iter().cloned().map(|i| Ok(Ok(i)))),
@@ -176,7 +177,7 @@ impl<W: Write + 'static> XSequence<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
+    ) -> impl Iterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
         self.diter(ns, rt.clone()).map_or_else(
             || Either::Left((0..).map(move |idx| self.get(idx, ns, rt.clone()))),
             Either::Right,
@@ -320,7 +321,7 @@ impl<W: Write + 'static> XSequence<W> {
                 },
                 Int
             )
-            .is_positive()
+                .is_positive()
             {
                 is_sorted = false;
                 break;
@@ -388,6 +389,65 @@ impl<W: Write + 'static> XSequence<W> {
             }
         }
         Ok(Ok(ret))
+    }
+
+    fn quickselect(&self, n: usize, cmp_func: &XFunction<W>, ns: &RuntimeScope<W>, rt: RTCell<W>) -> XResult<Rc<ManagedXValue<W>>, W> {
+        let cmp = |a, b| -> XResult<i8, W> {
+            Ok(Ok(to_primitive!(
+                forward_err!(ns.eval_func_with_values(cmp_func, vec![Ok(a), Ok(b)], rt.clone(), false)?.unwrap_value()),
+                Int
+            ).sign()))
+        };
+
+        let mut arr = forward_err!(self.diter(ns, rt.clone()).unwrap().collect::<XResult<Vec<_>, _>>()?);
+        let mut left = 0usize;
+        let mut right = arr.len() - 1;
+
+        fn partition<W>(items: &mut [Rc<ManagedXValue<W>>], left: usize, right: usize, cmp: &impl Fn(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>) -> XResult<i8, W>) -> XResult<usize, W> {
+            if left==right{
+                return Ok(Ok(left));
+            }
+            let mut ret = left;
+            // we pick a pivot from three candidates
+            let pivot = {
+                let a = &items[left];
+                let b = &items[right];
+                let mid = (left + right) / 2;
+                let c = &items[mid];
+                let a_b = forward_err!(cmp(a.clone(),b.clone())?);
+                let a_c = forward_err!(cmp(a.clone(),c.clone())?);
+                let piv_idx = if a_b * a_c == -1 {
+                    left
+                } else {
+                    let b_c = forward_err!(cmp(b.clone(),c.clone())?);
+                    if b_c * (-a_b) == -1 {
+                        right
+                    } else {
+                        mid
+                    }
+                };
+                items.swap(piv_idx, right);
+                items[right].clone()
+            };
+            for j in left..=right {
+                let c = forward_err!(cmp(items[j].clone(),pivot.clone())?);
+                if c == -1 {
+                    items.swap(j, ret);
+                    ret += 1;
+                }
+            }
+            items.swap(ret, right);
+            Ok(Ok(ret))
+        }
+
+        loop {
+            let pivot_idx = forward_err!(partition(&mut arr, left, right, &cmp)?);
+            match pivot_idx.cmp(&n){
+                Ordering::Equal => {break Ok(Ok(arr.swap_remove(pivot_idx)))}
+                Ordering::Greater => {right = pivot_idx - 1},
+                Ordering::Less => {left = pivot_idx + 1},
+            }
+        }
     }
 
     fn value_to_idx(
@@ -772,7 +832,7 @@ pub(crate) fn add_sequence_map<W: Write + 'static>(
             ],
             XSequenceType::xtype(output_t),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -910,6 +970,82 @@ pub(crate) fn add_sequence_n_smallest<W: Write + 'static>(
     )
 }
 
+pub(crate) fn add_sequence_nth_largest<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+    let t_arr = XSequenceType::xtype(t.clone());
+
+    scope.add_func(
+        "nth_largest",
+        XFuncSpec::new(
+            &[
+                &t_arr,
+                &X_INT,
+                &Arc::new(XCallable(XCallableSpec {
+                    param_types: vec![t.clone(), t.clone()],
+                    return_type: X_INT.clone(),
+                })),
+            ],
+            t,
+        )
+            .generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise!(eval(&args[2], ns, &rt)?);
+            let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
+            let seq0 = to_native!(a0, XSequence<W>);
+            let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
+            if i1 >= len0{
+                return xerr(ManagedXError::new("index out of bounds", rt)?);
+            }
+            rt.as_ref().borrow().can_allocate(len0)?;
+            let f = to_primitive!(a2, Function);
+            let ret = xraise!(seq0.quickselect(seq0.len().unwrap()-i1-1, f, ns, rt)?);
+            Ok(ret.into())
+        }),
+    )
+}
+
+pub(crate) fn add_sequence_nth_smallest<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+    let t_arr = XSequenceType::xtype(t.clone());
+
+    scope.add_func(
+        "nth_smallest",
+        XFuncSpec::new(
+            &[
+                &t_arr,
+                &X_INT,
+                &Arc::new(XCallable(XCallableSpec {
+                    param_types: vec![t.clone(), t.clone()],
+                    return_type: X_INT.clone(),
+                })),
+            ],
+            t,
+        )
+            .generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise!(eval(&args[2], ns, &rt)?);
+            let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
+            let seq0 = to_native!(a0, XSequence<W>);
+            let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
+            if i1 >= len0{
+                return xerr(ManagedXError::new("index out of bounds", rt)?);
+            }
+            rt.as_ref().borrow().can_allocate(len0)?;
+            let f = to_primitive!(a2, Function);
+            let ret = xraise!(seq0.quickselect(i1, f, ns, rt)?);
+            Ok(ret.into())
+        }),
+    )
+}
+
 pub(crate) fn add_sequence_range<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
@@ -1020,7 +1156,7 @@ pub(crate) fn add_sequence_take_while<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -1067,7 +1203,7 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -1260,13 +1396,11 @@ pub(crate) fn add_sequence_dyn_sort<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_n_largest<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
-) -> Result<(), CompilationError> {
+fn add_delegate_1arg_cmp<W: Write + 'static>(name: &'static str, scope: &mut RootCompilationScope<W>)-> Result<(), CompilationError>{
     let cmp_symbol = scope.identifier("cmp");
-    let cb_symbol = scope.identifier("n_largest");
+    let cb_symbol = scope.identifier(name);
 
-    scope.add_dyn_func("n_largest", "sequences", move |_params, types, ns, bind| {
+    scope.add_dyn_func(name, "sequences", move |_params, types, ns, bind| {
         if bind.is_some() {
             return Err("this dyn func has no bind".to_string());
         }
@@ -1275,7 +1409,7 @@ pub(crate) fn add_sequence_dyn_n_largest<W: Write + 'static>(
         let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
 
         let (inner_cmp, cmp_t) =
-            get_func_with_type(ns, cmp_symbol, &[t0.clone(), t0.clone()], Some(&X_INT))?;
+            get_func_with_type(ns, cmp_symbol, &[t0.clone(), t0.clone()], None)?;
         let (cb, cb_t) = get_func_with_type(
             ns,
             cb_symbol,
@@ -1294,42 +1428,28 @@ pub(crate) fn add_sequence_dyn_n_largest<W: Write + 'static>(
     })
 }
 
+pub(crate) fn add_sequence_dyn_n_largest<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    add_delegate_1arg_cmp("n_largest", scope)
+}
+
 pub(crate) fn add_sequence_dyn_n_smallest<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
 ) -> Result<(), CompilationError> {
-    let cmp_symbol = scope.identifier("cmp");
-    let cb_symbol = scope.identifier("n_smallest");
+    add_delegate_1arg_cmp("n_smallest", scope)
+}
 
-    scope.add_dyn_func(
-        "n_smallest",
-        "sequences",
-        move |_params, types, ns, bind| {
-            if bind.is_some() {
-                return Err("this dyn func has no bind".to_string());
-            }
+pub(crate) fn add_sequence_dyn_nth_largest<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    add_delegate_1arg_cmp("nth_largest", scope)
+}
 
-            let [a0, a1] = unpack_dyn_types(types)?;
-            let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
-
-            let (inner_cmp, cmp_t) =
-                get_func_with_type(ns, cmp_symbol, &[t0.clone(), t0.clone()], Some(&X_INT))?;
-            let (cb, cb_t) = get_func_with_type(
-                ns,
-                cb_symbol,
-                &[a0.clone(), a1.clone(), cmp_t.xtype()],
-                None,
-            )?;
-
-            Ok(XFunctionFactoryOutput::from_delayed_native(
-                XFuncSpec::new(&[a0, a1], cb_t.rtype()),
-                delegate!(
-                    with [inner_cmp, cb],
-                    args [0->a0, 1->a1],
-                    cb(a0, a1, inner_cmp)
-                ),
-            ))
-        },
-    )
+pub(crate) fn add_sequence_dyn_nth_smallest<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    add_delegate_1arg_cmp("nth_smallest", scope)
 }
 
 pub(crate) fn add_sequence_dyn_zip<W: Write + 'static>(
@@ -1704,7 +1824,7 @@ pub(crate) fn add_sequence_dyn_geo_mean<W: Write + 'static>(
                         let exponent = xraise!(ns
                             .eval_func_with_values(inner_div, vec![Ok(one.clone()), Ok(len),], rt.clone(), false)?
                             .unwrap_value());
-                         ns.eval_func_with_values(
+                        ns.eval_func_with_values(
                             inner_pow,
                             vec![Ok(total), Ok(exponent)],
                             rt.clone(),
