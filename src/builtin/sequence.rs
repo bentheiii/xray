@@ -1793,10 +1793,10 @@ pub(crate) fn add_sequence_dyn_mean<W: Write + 'static>(
                 let inner_len =
                     forward_err!(ns.eval(&inner_len, rt.clone(), false)?.unwrap_value());
                 let inner_div =
-                    forward_err!(ns.eval(&inner_div, rt.clone(), false)?.unwrap_value());
+                    forward_err!(ns.eval(&inner_div, rt, false)?.unwrap_value());
                 Ok(Ok(
                     move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
-                        let a0 = xraise!(eval(&args[0], ns, &rt.clone())?);
+                        let a0 = xraise!(eval(&args[0], ns, &rt)?);
                         let XValue::Function(inner_sum) = &inner_sum.value else { unreachable!() };
                         let XValue::Function(inner_len) = &inner_len.value else { unreachable!() };
                         let XValue::Function(inner_div) = &inner_div.value else { unreachable!() };
@@ -1814,7 +1814,7 @@ pub(crate) fn add_sequence_dyn_mean<W: Write + 'static>(
                         ns.eval_func_with_values(
                             inner_div,
                             vec![Ok(total), Ok(len)],
-                            rt.clone(),
+                            rt,
                             false,
                         )
                     },
@@ -1860,7 +1860,7 @@ pub(crate) fn add_sequence_dyn_geo_mean<W: Write + 'static>(
                 let one = ManagedXValue::new(XValue::Int(LazyBigint::from(1)), rt)?;
                 Ok(Ok(
                     move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
-                        let a0 = xraise!(eval(&args[0], ns, &rt.clone())?);
+                        let a0 = xraise!(eval(&args[0], ns, &rt)?);
                         let XValue::Function(inner_prod) = &inner_prod.value else { unreachable!() };
                         let XValue::Function(inner_len) = &inner_len.value else { unreachable!() };
                         let XValue::Function(inner_div) = &inner_div.value else { unreachable!() };
@@ -1882,7 +1882,7 @@ pub(crate) fn add_sequence_dyn_geo_mean<W: Write + 'static>(
                         ns.eval_func_with_values(
                             inner_pow,
                             vec![Ok(total), Ok(exponent)],
-                            rt.clone(),
+                            rt,
                             false,
                         )
                     },

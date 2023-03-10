@@ -294,7 +294,7 @@ macro_rules! delegate {
                 #[allow(unused_variables)]
                 move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
                     $(
-                        let $arg = xraise!(eval(&args[$idx], ns, &rt.clone())?);
+                        let $arg = xraise!(eval(&args[$idx], ns, &rt)?);
                     )*
                     $(
                         let $func = $func.clone();

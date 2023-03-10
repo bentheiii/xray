@@ -519,12 +519,12 @@ pub(crate) fn add_generic_dyn_harmonic_mean<W: Write + 'static>(
                     let inv = ManagedXValue::new(XValue::Function(XFunction::Native(Rc::new(move |args, ns, _tca, rt| {
                         let a0 = xraise!(eval(&args[0], ns, &rt)?);
                         let XValue::Function(internal_div) = &internal_div.value else { unreachable!() };
-                        ns.eval_func_with_values(&internal_div, vec![Ok(one_to_inv.clone()), Ok(a0)], rt, false)
+                        ns.eval_func_with_values(internal_div, vec![Ok(one_to_inv.clone()), Ok(a0)], rt, false)
                     }))), rt)?;
 
                     Ok(Ok(
                         move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
-                            let a0 = xraise!(eval(&args[0], ns, &rt.clone())?);
+                            let a0 = xraise!(eval(&args[0], ns, &rt)?);
                             let XValue::Function(inner_map) = &inner_map.value else { unreachable!() };
                             let XValue::Function(inner_mean) = &inner_mean.value else { unreachable!() };
                             let XValue::Function(external_div) = &external_div.value else { unreachable!() };
@@ -538,7 +538,7 @@ pub(crate) fn add_generic_dyn_harmonic_mean<W: Write + 'static>(
                             ns.eval_func_with_values(external_div, vec![
                                 Ok(one.clone()),
                                 Ok(mean),
-                            ], rt.clone(), false)
+                            ], rt, false)
                         },
                     ))
                 },

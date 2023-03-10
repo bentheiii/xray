@@ -799,7 +799,7 @@ pub(crate) fn add_generator_dyn_mean<W: Write + 'static>(
                 get_func_with_type(ns, agg_symbol, &[t0.clone(), f_t.xtype()], None)?;
             let (inner_enumerate, enumerate_t) =
                 get_func_with_type(ns, enumerate_symbol, &[agg_t.rtype(), X_INT.clone()], None)?;
-            let (inner_last, last_t) = get_func_with_type(ns, last_symbol, &[enumerate_t.rtype()], Some(&Arc::new(XType::Tuple(vec![X_INT.clone(), inner0.clone()]))))?;
+            let (inner_last, _) = get_func_with_type(ns, last_symbol, &[enumerate_t.rtype()], Some(&Arc::new(XType::Tuple(vec![X_INT.clone(), inner0.clone()]))))?;
             let (inner_div, div_t) = get_func_with_type(ns, div_symbol, &[inner0.clone(), X_INT.clone()], None)?;
 
             Ok(XFunctionFactoryOutput::from_delayed_native(
@@ -813,7 +813,7 @@ pub(crate) fn add_generator_dyn_mean<W: Write + 'static>(
                     let one = ManagedXValue::new(XValue::Int(LazyBigint::from(1)), rt)?;
                     Ok(Ok(
                         move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
-                            let a0 = xraise!(eval(&args[0], ns, &rt.clone())?);
+                            let a0 = xraise!(eval(&args[0], ns, &rt)?);
                             let XValue::Function(inner_agg) = &inner_agg.value else { unreachable!() };
                             let XValue::Function(inner_enumerate) = &inner_enumerate.value else { unreachable!() };
                             let XValue::Function(inner_last) = &inner_last.value else { unreachable!() };
@@ -833,7 +833,7 @@ pub(crate) fn add_generator_dyn_mean<W: Write + 'static>(
                             ns.eval_func_with_values(inner_div, vec![
                                 Ok(vals[1].clone()),
                                 Ok(vals[0].clone()),
-                            ], rt.clone(), false)
+                            ], rt, false)
                         },
                     ))
                 },
@@ -869,7 +869,7 @@ pub(crate) fn add_generator_dyn_geo_mean<W: Write + 'static>(
                 get_func_with_type(ns, agg_symbol, &[t0.clone(), f_t.xtype()], None)?;
             let (inner_enumerate, enumerate_t) =
                 get_func_with_type(ns, enumerate_symbol, &[agg_t.rtype(), X_INT.clone()], None)?;
-            let (inner_last, last_t) = get_func_with_type(ns, last_symbol, &[enumerate_t.rtype()], Some(&Arc::new(XType::Tuple(vec![X_INT.clone(), inner0.clone()]))))?;
+            let (inner_last, _) = get_func_with_type(ns, last_symbol, &[enumerate_t.rtype()], Some(&Arc::new(XType::Tuple(vec![X_INT.clone(), inner0.clone()]))))?;
             let (inner_div, div_t) = get_func_with_type(ns, div_symbol, &[X_INT.clone(), X_INT.clone()], None)?;
             let (inner_pow, pow_t) = get_func_with_type(ns, pow_symbol, &[inner0.clone(), div_t.rtype()], None)?;
 
@@ -885,7 +885,7 @@ pub(crate) fn add_generator_dyn_geo_mean<W: Write + 'static>(
                     let one = ManagedXValue::new(XValue::Int(LazyBigint::from(1)), rt)?;
                     Ok(Ok(
                         move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
-                            let a0 = xraise!(eval(&args[0], ns, &rt.clone())?);
+                            let a0 = xraise!(eval(&args[0], ns, &rt)?);
                             let XValue::Function(inner_agg) = &inner_agg.value else { unreachable!() };
                             let XValue::Function(inner_enumerate) = &inner_enumerate.value else { unreachable!() };
                             let XValue::Function(inner_last) = &inner_last.value else { unreachable!() };
@@ -910,7 +910,7 @@ pub(crate) fn add_generator_dyn_geo_mean<W: Write + 'static>(
                             ns.eval_func_with_values(inner_pow, vec![
                                 Ok(vals[1].clone()),
                                 Ok(exponent),
-                            ], rt.clone(), false)
+                            ], rt, false)
                         },
                     ))
                 },
