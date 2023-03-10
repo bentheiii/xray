@@ -482,6 +482,33 @@ impl ToPrimitive for LazyBigint {
     }
 }
 
+macro_rules! impl_try_from {
+    ($t: ty) => {
+        impl TryFrom<LazyBigint> for $t{
+            type Error = ();
+            fn try_from(value: LazyBigint) -> Result<Self, Self::Error> {
+                match value {
+                    LazyBigint::Short(s) => Self::try_from(s).map_err(|_| ()),
+                    LazyBigint::Long(b) => Self::try_from(b).map_err(|_| ()),
+                }
+            }
+        }
+
+        impl TryFrom<&LazyBigint> for $t{
+            type Error = ();
+            fn try_from(value: &LazyBigint) -> Result<Self, Self::Error> {
+                match value {
+                    LazyBigint::Short(s) => Self::try_from(*s).map_err(|_| ()),
+                    LazyBigint::Long(b) => Self::try_from(b).map_err(|_| ()),
+                }
+            }
+        }
+    };
+}
+
+impl_try_from!{u64}
+impl_try_from!{i64}
+
 impl PartialOrd for LazyBigint {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))

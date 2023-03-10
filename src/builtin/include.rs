@@ -235,6 +235,11 @@ fn join(s: Sequence<str>, delimiter: str ?= "")->str{
     s.to_generator().join(delimiter)
 }
 
+// disc distributions
+fn geometric_distribution(p: float)->DiscreteDistribution{
+    negative_binomial_distribution(1.0, p)
+}
+
 // cont distributions
 fn chisq_distribution(d: int)->ContinuousDistribution{
     gamma_distribution(d/2, 0.5)

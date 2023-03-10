@@ -8,7 +8,7 @@ use crate::{
     XStaticFunction, XType,
 };
 use num_traits::{Bounded, Float, Num, Signed, ToPrimitive};
-use statrs::distribution::{Binomial, Discrete, DiscreteCDF, DiscreteUniform, Hypergeometric};
+use statrs::distribution::{Binomial, Discrete, DiscreteCDF, DiscreteUniform, Hypergeometric, NegativeBinomial};
 use statrs::statistics::{Max, Min};
 use std::fmt::Debug;
 use std::io::Write;
@@ -61,29 +61,40 @@ lazy_static! {
 pub(crate) enum XDiscreteDistribution {
     Binomial(Binomial),
     Hypergeometric(Hypergeometric),
+    NegativeBinomial(NegativeBinomial),
     Uniform(DiscreteUniform),
+}
+
+fn big_int_cdf<'a, K: Bounded + Clone + Num, T: Float>(c: &impl DiscreteCDF<K,T>, x: &'a LazyBigint) ->T where K: TryFrom<&'a LazyBigint>{
+    let Ok(x) = x.try_into() else {
+        return if x.is_negative() { T::zero() } else { T::one() }
+    };
+    c.cdf(x)
+}
+
+fn big_int_pdf<'a, K: Bounded + Clone + Num, T: Float>(c: &impl Discrete<K,T>, x: &'a LazyBigint) ->T where K: TryFrom<&'a LazyBigint>{
+    let Ok(x) = x.try_into() else {
+        return T::zero()
+    };
+    c.pmf(x)
 }
 
 impl XDiscreteDistribution {
     fn cdf(&self, x: &LazyBigint) -> f64 {
         match self {
-            Self::Binomial(i) => x
-                .to_u64()
-                .map_or_else(|| if x.is_negative() { 0.0 } else { 1.0 }, |x| i.cdf(x)),
-            Self::Hypergeometric(i) => x
-                .to_u64()
-                .map_or_else(|| if x.is_negative() { 0.0 } else { 1.0 }, |x| i.cdf(x)),
-            Self::Uniform(i) => x
-                .to_i64()
-                .map_or_else(|| if x.is_negative() { 0.0 } else { 1.0 }, |x| i.cdf(x)),
+            Self::Binomial(i) => big_int_cdf(i,x),
+            Self::Hypergeometric(i) => big_int_cdf(i,x),
+            Self::NegativeBinomial(i) => big_int_cdf(i,x),
+            Self::Uniform(i) => big_int_cdf(i,x),
         }
     }
 
     fn pmf(&self, x: &LazyBigint) -> f64 {
         match self {
-            Self::Binomial(i) => x.to_u64().map_or(0.0, |x| i.pmf(x)),
-            Self::Hypergeometric(i) => x.to_u64().map_or(0.0, |x| i.pmf(x)),
-            Self::Uniform(i) => x.to_i64().map_or(0.0, |x| i.pmf(x)),
+            Self::Binomial(i) => big_int_pdf(i, x),
+            Self::Hypergeometric(i) => big_int_pdf(i, x),
+            Self::NegativeBinomial(i) => big_int_pdf(i, x),
+            Self::Uniform(i) => big_int_pdf(i, x),
         }
     }
 
@@ -91,6 +102,7 @@ impl XDiscreteDistribution {
         match self {
             Self::Binomial(i) => inverse_cdf(i, x).into(),
             Self::Hypergeometric(i) => inverse_cdf(i, x).into(),
+            Self::NegativeBinomial(i) => inverse_cdf(i, x).into(),
             Self::Uniform(i) => (x * ((i.max() - i.min() + 1) as f64) + (i.min() - 1) as f64)
                 .floor()
                 .to_i64()
@@ -163,6 +175,31 @@ pub(crate) fn add_discdist_hypergeometric<W: Write + 'static>(
             };
             Ok(manage_native!(
                 XDiscreteDistribution::Hypergeometric(ret),
+                rt
+            ))
+        }),
+    )
+}
+
+pub(crate) fn add_discdist_negative_binomial<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "negative_binomial_distribution",
+        XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_DISCDIST.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let i0 = to_primitive!(a0, Float);
+            let i1 = to_primitive!(a1, Float);
+            let ret = match NegativeBinomial::new(*i0, *i1) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
+                }
+            };
+            Ok(manage_native!(
+                XDiscreteDistribution::NegativeBinomial(ret),
                 rt
             ))
         }),
