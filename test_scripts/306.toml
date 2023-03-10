@@ -1,0 +1,4 @@
+expected_violation="PermissionError(\"now\")"
+
+[limits]
+forbidden_permissions=["now"]

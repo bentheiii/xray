@@ -12,6 +12,7 @@ use crate::builtin::unknown::*;
 use std::io::Write;
 
 use crate::builtin::cont_distributions::*;
+use crate::builtin::datetime::*;
 use crate::builtin::disc_distributions::*;
 use crate::builtin::generators::*;
 use crate::builtin::include::INCLUDE;
@@ -43,6 +44,7 @@ pub mod structs;
 pub mod tuple;
 pub mod unions;
 pub mod unknown;
+pub mod datetime;
 
 pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<W>) {
     add_int_type(scope).unwrap();
@@ -304,6 +306,8 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_generic_dyn_min_iter(scope).unwrap();
     add_generic_dyn_product(scope).unwrap();
     add_generic_dyn_sum(scope).unwrap();
+
+    add_datetime_now(scope).unwrap();
 
     add_struct_members(scope).unwrap();
 

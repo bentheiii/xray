@@ -305,6 +305,10 @@ fn datetime(unix: float)->Datetime{
     Datetime(days, hours, minutes, seconds)
 }
 
+fn now()->Datetime{
+    datetime(__std_unix_now())
+}
+
 fn eq(d0: Datetime, d1: Datetime)->bool{
     eq(d0.members(), d1.members())
 }

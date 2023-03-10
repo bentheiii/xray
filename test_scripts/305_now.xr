@@ -1,0 +1,5 @@
+fn main()->bool{
+    let d0 = now();
+
+    assert(d0::date::year >= 2023)
+}

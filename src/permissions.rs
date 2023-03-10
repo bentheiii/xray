@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::ops::Index;
+use crate::builtin::builtin_permissions::{REGEX, SLEEP};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 pub struct Permission(pub &'static str);
@@ -14,7 +15,10 @@ impl Default for PermissionSet {
     fn default() -> Self {
         Self {
             default: true,
-            specific: Default::default(),
+            specific: HashMap::from([
+                (REGEX, false),
+                (SLEEP, false)
+            ]),
         }
     }
 }

@@ -30,6 +30,7 @@ pub struct RuntimeLimitsConfig {
     maximum_search: Option<usize>,
     time_limit: Option<Duration>,
     forbidden_permissions: Vec<String>,
+    allowed_permissions: Vec<String>,
 }
 
 impl RuntimeLimitsConfig {
@@ -39,18 +40,27 @@ impl RuntimeLimitsConfig {
             .iter()
             .map(|s| s.borrow())
             .collect();
+        let allowed: HashSet<_> = self
+            .allowed_permissions
+            .iter()
+            .map(|s| s.borrow())
+            .collect();
         let mut permission_set = PermissionSet::default();
-        if forbidden.contains("sleep") {
-            permission_set.forbid(&builtin_permissions::SLEEP)
+        if allowed.contains("regex") {
+            permission_set.allow(&builtin_permissions::REGEX)
         }
+        if allowed.contains("sleep") {
+            permission_set.allow(&builtin_permissions::SLEEP)
+        }
+
         if forbidden.contains("print_debug") {
             permission_set.forbid(&builtin_permissions::PRINT_DEBUG)
         }
-        if forbidden.contains("regex") {
-            permission_set.forbid(&builtin_permissions::REGEX)
-        }
         if forbidden.contains("print") {
             permission_set.forbid(&builtin_permissions::PRINT)
+        }
+        if forbidden.contains("now") {
+            permission_set.forbid(&builtin_permissions::NOW)
         }
         RuntimeLimits {
             size_limit: self.size_limit,
@@ -1689,5 +1699,15 @@ fn test_script_303() {
 
 #[test]
 fn test_script_304() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_305() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_306() {
     run_script_from_name(function_name!())
 }
