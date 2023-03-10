@@ -1,0 +1,6 @@
+fn main()->bool{
+    assert([2,3,4].multinom() == 1260)
+    && assert([].multinom() == 1)
+    && assert([6].multinom() == 1)
+    && assert([8,2,0,3,1].multinom() == 180180)
+}

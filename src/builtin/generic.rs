@@ -1,21 +1,27 @@
 use crate::xexpr::XExpr;
 use crate::xtype::{Bind, XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
 use crate::xvalue::{ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
-use crate::{forward_err, manage_native, to_primitive, ufunc, xraise, xraise_opt, CompilationError, RootCompilationScope, XStaticFunction, XType, delegate};
+use crate::{
+    delegate, forward_err, manage_native, to_primitive, ufunc, xraise, xraise_opt,
+    CompilationError, RootCompilationScope, XStaticFunction, XType,
+};
 use rc::Rc;
 
 use crate::builtin::builtin_permissions;
-use crate::builtin::core::{eval, get_func, get_func_with_type, unpack_dyn_types, unpack_dyn_types_at_least, unpack_dyn_types_with_optional, unpack_natives};
+use crate::builtin::core::{
+    eval, get_func, get_func_with_type, unpack_dyn_types, unpack_dyn_types_at_least,
+    unpack_dyn_types_with_optional, unpack_natives,
+};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::runtime::RTCell;
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::fenced_string::FencedString;
+use crate::util::lazy_bigint::LazyBigint;
 use num_traits::Signed;
 use std::io::Write;
 use std::sync::Arc;
 use std::{iter, rc};
-use crate::util::lazy_bigint::LazyBigint;
 
 pub(crate) fn add_if<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,
@@ -547,32 +553,28 @@ pub(crate) fn add_generic_dyn_product<W: Write + 'static>(
     let f_symbol = scope.identifier("mul");
     let cb_symbol = scope.identifier("reduce");
 
-    scope.add_dyn_func(
-        "product",
-        "reduce",
-        move |_params, types, ns, bind| {
-            if bind.is_some() {
-                return Err("this dyn func has no bind".to_string());
-            }
+    scope.add_dyn_func("product", "reduce", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
 
-            let [t0, t1] = unpack_dyn_types(types)?;
-            let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
+        let [t0, t1] = unpack_dyn_types(types)?;
+        let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
 
-            let (inner_f, f_t) =
-                get_func_with_type(ns, f_symbol, &[t1.clone(), inner0.clone()], Some(t1))?;
-            let (cb, cb_t) =
-                get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
+        let (inner_f, f_t) =
+            get_func_with_type(ns, f_symbol, &[t1.clone(), inner0.clone()], Some(t1))?;
+        let (cb, cb_t) =
+            get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
 
-            Ok(XFunctionFactoryOutput::from_delayed_native(
-                XFuncSpec::new(&[t0, t1], cb_t.rtype()),
-                delegate!(
-                    with [inner_f, cb],
-                    args [0->a0, 1->a1],
-                    cb(a0, a1, inner_f)
-                ),
-            ))
-        },
-    )
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[t0, t1], cb_t.rtype()),
+            delegate!(
+                with [inner_f, cb],
+                args [0->a0, 1->a1],
+                cb(a0, a1, inner_f)
+            ),
+        ))
+    })
 }
 
 pub(crate) fn add_generic_dyn_sum<W: Write + 'static>(
@@ -581,32 +583,28 @@ pub(crate) fn add_generic_dyn_sum<W: Write + 'static>(
     let f_symbol = scope.identifier("add");
     let cb_symbol = scope.identifier("reduce");
 
-    scope.add_dyn_func(
-        "sum",
-        "reduce",
-        move |_params, types, ns, bind| {
-            if bind.is_some() {
-                return Err("this dyn func has no bind".to_string());
-            }
+    scope.add_dyn_func("sum", "reduce", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
 
-            let [t0, t1] = unpack_dyn_types(types)?;
-            let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
+        let [t0, t1] = unpack_dyn_types(types)?;
+        let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
 
-            let (inner_f, f_t) =
-                get_func_with_type(ns, f_symbol, &[t1.clone(), inner0.clone()], Some(t1))?;
-            let (cb, cb_t) =
-                get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
+        let (inner_f, f_t) =
+            get_func_with_type(ns, f_symbol, &[t1.clone(), inner0.clone()], Some(t1))?;
+        let (cb, cb_t) =
+            get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
 
-            Ok(XFunctionFactoryOutput::from_delayed_native(
-                XFuncSpec::new(&[t0, t1], cb_t.rtype()),
-                delegate!(
-                    with [inner_f, cb],
-                    args [0->a0, 1->a1],
-                    cb(a0, a1, inner_f)
-                ),
-            ))
-        },
-    )
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[t0, t1], cb_t.rtype()),
+            delegate!(
+                with [inner_f, cb],
+                args [0->a0, 1->a1],
+                cb(a0, a1, inner_f)
+            ),
+        ))
+    })
 }
 
 pub(crate) fn add_generic_dyn_max<W: Write + 'static>(
@@ -615,30 +613,25 @@ pub(crate) fn add_generic_dyn_max<W: Write + 'static>(
     let f_symbol = scope.identifier("lt");
     let cb_symbol = scope.identifier("max");
 
-    scope.add_dyn_func(
-        "max",
-        "lt",
-        move |_params, types, ns, bind| {
-            if bind.is_some() {
-                return Err("this dyn func has no bind".to_string());
-            }
-            let [t0, t1] = unpack_dyn_types(types)?;
+    scope.add_dyn_func("max", "lt", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+        let [t0, t1] = unpack_dyn_types(types)?;
 
-            let (inner_f, f_t) =
-                get_func_with_type(ns, f_symbol, &[t0.clone(), t1.clone()], None)?;
-            let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
+        let (inner_f, f_t) = get_func_with_type(ns, f_symbol, &[t0.clone(), t1.clone()], None)?;
+        let (cb, cb_t) =
+            get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
 
-
-            Ok(XFunctionFactoryOutput::from_delayed_native(
-                XFuncSpec::new(&[t0, t1], cb_t.rtype()),
-                delegate!(
-                    with [inner_f, cb],
-                    args [0->a0, 1->a1],
-                    cb(a0, a1, inner_f)
-                ),
-            ))
-        },
-    )
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[t0, t1], cb_t.rtype()),
+            delegate!(
+                with [inner_f, cb],
+                args [0->a0, 1->a1],
+                cb(a0, a1, inner_f)
+            ),
+        ))
+    })
 }
 
 pub(crate) fn add_generic_dyn_min<W: Write + 'static>(
@@ -647,30 +640,25 @@ pub(crate) fn add_generic_dyn_min<W: Write + 'static>(
     let f_symbol = scope.identifier("lt");
     let cb_symbol = scope.identifier("min");
 
-    scope.add_dyn_func(
-        "min",
-        "lt",
-        move |_params, types, ns, bind| {
-            if bind.is_some() {
-                return Err("this dyn func has no bind".to_string());
-            }
-            let [t0, t1] = unpack_dyn_types(types)?;
+    scope.add_dyn_func("min", "lt", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+        let [t0, t1] = unpack_dyn_types(types)?;
 
-            let (inner_f, f_t) =
-                get_func_with_type(ns, f_symbol, &[t0.clone(), t1.clone()], None)?;
-            let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
+        let (inner_f, f_t) = get_func_with_type(ns, f_symbol, &[t0.clone(), t1.clone()], None)?;
+        let (cb, cb_t) =
+            get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
 
-
-            Ok(XFunctionFactoryOutput::from_delayed_native(
-                XFuncSpec::new(&[t0, t1], cb_t.rtype()),
-                delegate!(
-                    with [inner_f, cb],
-                    args [0->a0, 1->a1],
-                    cb(a0, a1, inner_f)
-                ),
-            ))
-        },
-    )
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[t0, t1], cb_t.rtype()),
+            delegate!(
+                with [inner_f, cb],
+                args [0->a0, 1->a1],
+                cb(a0, a1, inner_f)
+            ),
+        ))
+    })
 }
 
 pub(crate) fn add_generic_dyn_max_iter<W: Write + 'static>(
@@ -679,31 +667,26 @@ pub(crate) fn add_generic_dyn_max_iter<W: Write + 'static>(
     let f_symbol = scope.identifier("lt");
     let cb_symbol = scope.identifier("max");
 
-    scope.add_dyn_func(
-        "max",
-        "lt-iter",
-        move |_params, types, ns, bind| {
-            if bind.is_some() {
-                return Err("this dyn func has no bind".to_string());
-            }
-            let [t0] = unpack_dyn_types(types)?;
-            let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
+    scope.add_dyn_func("max", "lt-iter", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+        let [t0] = unpack_dyn_types(types)?;
+        let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
 
-            let (inner_f, f_t) =
-                get_func_with_type(ns, f_symbol, &[inner0.clone(), inner0.clone()], None)?;
-            let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
+        let (inner_f, f_t) =
+            get_func_with_type(ns, f_symbol, &[inner0.clone(), inner0.clone()], None)?;
+        let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
 
-
-            Ok(XFunctionFactoryOutput::from_delayed_native(
-                XFuncSpec::new(&[t0], cb_t.rtype()),
-                delegate!(
-                    with [inner_f, cb],
-                    args [0->a0],
-                    cb(a0, inner_f)
-                ),
-            ))
-        },
-    )
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[t0], cb_t.rtype()),
+            delegate!(
+                with [inner_f, cb],
+                args [0->a0],
+                cb(a0, inner_f)
+            ),
+        ))
+    })
 }
 
 pub(crate) fn add_generic_dyn_min_iter<W: Write + 'static>(
@@ -712,29 +695,24 @@ pub(crate) fn add_generic_dyn_min_iter<W: Write + 'static>(
     let f_symbol = scope.identifier("lt");
     let cb_symbol = scope.identifier("min");
 
-    scope.add_dyn_func(
-        "min",
-        "lt-iter",
-        move |_params, types, ns, bind| {
-            if bind.is_some() {
-                return Err("this dyn func has no bind".to_string());
-            }
-            let [t0] = unpack_dyn_types(types)?;
-            let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
+    scope.add_dyn_func("min", "lt-iter", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+        let [t0] = unpack_dyn_types(types)?;
+        let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
 
-            let (inner_f, f_t) =
-                get_func_with_type(ns, f_symbol, &[inner0.clone(), inner0.clone()], None)?;
-            let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
+        let (inner_f, f_t) =
+            get_func_with_type(ns, f_symbol, &[inner0.clone(), inner0.clone()], None)?;
+        let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
 
-
-            Ok(XFunctionFactoryOutput::from_delayed_native(
-                XFuncSpec::new(&[t0], cb_t.rtype()),
-                delegate!(
-                    with [inner_f, cb],
-                    args [0->a0],
-                    cb(a0, inner_f)
-                ),
-            ))
-        },
-    )
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[t0], cb_t.rtype()),
+            delegate!(
+                with [inner_f, cb],
+                args [0->a0],
+                cb(a0, inner_f)
+            ),
+        ))
+    })
 }

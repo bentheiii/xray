@@ -303,28 +303,49 @@ pub(crate) fn add_mapping_update_from_keys<W: Write + 'static>(
             let on_empty = to_primitive!(a2, Function);
             let on_occupied = to_primitive!(a3, Function);
 
-            let mut ret =  XMapping::new(
+            let mut ret = XMapping::new(
                 mapping.hash_func.clone(),
                 mapping.eq_func.clone(),
                 mapping.inner.clone(),
                 mapping.len,
             );
-            for item in gen0.iter(ns, rt.clone()){
+            for item in gen0.iter(ns, rt.clone()) {
                 let item = xraise!(item?);
                 let loc = xraise!(ret.locate(&item, ns, rt.clone())?);
                 match loc {
                     KeyLocation::Found((hash_key, idx)) => {
                         let prev_v = ret.inner.get_mut(&hash_key).unwrap()[idx].1.clone();
-                        let v = xraise!(ns.eval_func_with_values(on_occupied, vec![Ok(item.clone()), Ok(prev_v)], rt.clone(), false)?.unwrap_value());
+                        let v = xraise!(ns
+                            .eval_func_with_values(
+                                on_occupied,
+                                vec![Ok(item.clone()), Ok(prev_v)],
+                                rt.clone(),
+                                false
+                            )?
+                            .unwrap_value());
                         ret.inner.get_mut(&hash_key).unwrap()[idx].1 = v;
                     }
                     KeyLocation::Missing(hash_key) => {
-                        let v = xraise!(ns.eval_func_with_values(on_empty, vec![Ok(item.clone())], rt.clone(), false)?.unwrap_value());
+                        let v = xraise!(ns
+                            .eval_func_with_values(
+                                on_empty,
+                                vec![Ok(item.clone())],
+                                rt.clone(),
+                                false
+                            )?
+                            .unwrap_value());
                         ret.inner.get_mut(&hash_key).unwrap().push((item, v));
                         ret.len += 1;
                     }
                     KeyLocation::Vacant(hash_key) => {
-                        let v = xraise!(ns.eval_func_with_values(on_empty, vec![Ok(item.clone())], rt.clone(), false)?.unwrap_value());
+                        let v = xraise!(ns
+                            .eval_func_with_values(
+                                on_empty,
+                                vec![Ok(item.clone())],
+                                rt.clone(),
+                                false
+                            )?
+                            .unwrap_value());
                         ret.inner.insert(hash_key, vec![(item, v)]);
                         ret.len += 1;
                     }

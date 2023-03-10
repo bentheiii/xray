@@ -8,7 +8,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::iter;
 use std::mem::size_of;
 use std::num::{IntErrorKind, ParseIntError};
-use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Rem, Sub};
+use std::ops::{Add, AddAssign, BitAnd, BitOr, BitXor, Div, Mul, MulAssign, Neg, Rem, Sub};
 
 type SmallInt = i64;
 
@@ -73,8 +73,8 @@ impl LazyBigint {
     pub(crate) fn range(&'_ self) -> impl IntoIterator<Item = Self> + '_ {
         iter::successors(Some(Self::zero()), |p| Some(p + &Self::one())).take_while(|i| i < self)
     }
-    
-    pub(crate) fn sign(&self)->i8{
+
+    pub(crate) fn sign(&self) -> i8 {
         if self.is_positive() {
             1
         } else if self.is_negative() {
@@ -185,6 +185,36 @@ impl Mul for &LazyBigint {
     }
 }
 
+impl MulAssign<&Self> for LazyBigint {
+    fn mul_assign(&mut self, rhs: &Self) {
+        if &LazyBigint::Short(1) == rhs {
+            return;
+        }
+        if let (LazyBigint::Short(_), LazyBigint::Short(_)) = (&self, &rhs) {
+            // todo there has to be a better way
+            let LazyBigint::Short(s0) = self else {unreachable!()};
+            let LazyBigint::Short(s1) = rhs else {unreachable!()};
+            if let Some(v) = s0.checked_mul(*s1) {
+                *s0 = v;
+                return;
+            }
+        }
+        if let (LazyBigint::Long(_), LazyBigint::Long(_)) = (&self, &rhs) {
+            let LazyBigint::Long(b0) = self else {unreachable!()};
+            let LazyBigint::Long(b1) = rhs else {unreachable!()};
+            *b0 *= b1;
+            return;
+        }
+        *self = (self as &Self) + rhs;
+    }
+}
+
+impl MulAssign for LazyBigint {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self *= &rhs
+    }
+}
+
 impl Add for LazyBigint {
     type Output = Self;
 
@@ -207,6 +237,29 @@ impl Add for &LazyBigint {
             | (LazyBigint::Long(b), LazyBigint::Short(s)) => LazyBigint::from(b + s),
             (LazyBigint::Long(b0), LazyBigint::Long(b1)) => LazyBigint::from(b0 + b1),
         }
+    }
+}
+
+impl AddAssign<&Self> for LazyBigint {
+    fn add_assign(&mut self, rhs: &Self) {
+        if &LazyBigint::Short(0) == rhs {
+            return;
+        }
+        if let (LazyBigint::Short(_), LazyBigint::Short(_)) = (&self, &rhs) {
+            let LazyBigint::Short(s0) = self else {unreachable!()};
+            let LazyBigint::Short(s1) = rhs else {unreachable!()};
+            if let Some(v) = s0.checked_add(*s1) {
+                *s0 = v;
+                return;
+            }
+        }
+        *self = (self as &Self) + rhs;
+    }
+}
+
+impl AddAssign for LazyBigint {
+    fn add_assign(&mut self, rhs: Self) {
+        *self += &rhs
     }
 }
 

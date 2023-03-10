@@ -24,15 +24,15 @@ use either::Either;
 use num_traits::{One, Signed, ToPrimitive, Zero};
 use rc::Rc;
 use std::borrow::Cow;
+use std::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::Debug;
 use std::hash::Hasher;
 use std::io::Write;
-use std::mem::{size_of};
+use std::mem::size_of;
 use std::ops::Neg;
 use std::sync::Arc;
 use std::{iter, rc};
-use std::cmp::Ordering;
 
 use crate::util::lazy_bigint::LazyBigint;
 use crate::util::try_extend::TryExtend;
@@ -152,10 +152,10 @@ impl<W: Write + 'static> XSequence<W> {
                 let part_idx = midpoint_lengths.partition_point(|x| *x <= idx);
                 let internal_idx = idx
                     - if part_idx == 0 {
-                    0
-                } else {
-                    midpoint_lengths[part_idx - 1]
-                };
+                        0
+                    } else {
+                        midpoint_lengths[part_idx - 1]
+                    };
                 to_native!(parts[part_idx], Self).get(internal_idx, ns, rt)
             }
         }
@@ -165,7 +165,7 @@ impl<W: Write + 'static> XSequence<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> Option<impl DoubleEndedIterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a>
+    ) -> Option<impl DoubleEndedIterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a>
     {
         Some(match self {
             XSequence::Array(arr) => Either::Left(arr.iter().cloned().map(|i| Ok(Ok(i)))),
@@ -177,7 +177,7 @@ impl<W: Write + 'static> XSequence<W> {
         &'a self,
         ns: &'a RuntimeScope<W>,
         rt: RTCell<W>,
-    ) -> impl Iterator<Item=Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
+    ) -> impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
         self.diter(ns, rt.clone()).map_or_else(
             || Either::Left((0..).map(move |idx| self.get(idx, ns, rt.clone()))),
             Either::Right,
@@ -321,7 +321,7 @@ impl<W: Write + 'static> XSequence<W> {
                 },
                 Int
             )
-                .is_positive()
+            .is_positive()
             {
                 is_sorted = false;
                 break;
@@ -391,20 +391,37 @@ impl<W: Write + 'static> XSequence<W> {
         Ok(Ok(ret))
     }
 
-    fn quickselect(&self, n: usize, cmp_func: &XFunction<W>, ns: &RuntimeScope<W>, rt: RTCell<W>) -> XResult<Rc<ManagedXValue<W>>, W> {
+    fn quickselect(
+        &self,
+        n: usize,
+        cmp_func: &XFunction<W>,
+        ns: &RuntimeScope<W>,
+        rt: RTCell<W>,
+    ) -> XResult<Rc<ManagedXValue<W>>, W> {
         let cmp = |a, b| -> XResult<i8, W> {
             Ok(Ok(to_primitive!(
-                forward_err!(ns.eval_func_with_values(cmp_func, vec![Ok(a), Ok(b)], rt.clone(), false)?.unwrap_value()),
+                forward_err!(ns
+                    .eval_func_with_values(cmp_func, vec![Ok(a), Ok(b)], rt.clone(), false)?
+                    .unwrap_value()),
                 Int
-            ).sign()))
+            )
+            .sign()))
         };
 
-        let mut arr = forward_err!(self.diter(ns, rt.clone()).unwrap().collect::<XResult<Vec<_>, _>>()?);
+        let mut arr = forward_err!(self
+            .diter(ns, rt.clone())
+            .unwrap()
+            .collect::<XResult<Vec<_>, _>>()?);
         let mut left = 0usize;
         let mut right = arr.len() - 1;
 
-        fn partition<W>(items: &mut [Rc<ManagedXValue<W>>], left: usize, right: usize, cmp: &impl Fn(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>) -> XResult<i8, W>) -> XResult<usize, W> {
-            if left==right{
+        fn partition<W>(
+            items: &mut [Rc<ManagedXValue<W>>],
+            left: usize,
+            right: usize,
+            cmp: &impl Fn(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>) -> XResult<i8, W>,
+        ) -> XResult<usize, W> {
+            if left == right {
                 return Ok(Ok(left));
             }
             let mut ret = left;
@@ -414,12 +431,12 @@ impl<W: Write + 'static> XSequence<W> {
                 let b = &items[right];
                 let mid = (left + right) / 2;
                 let c = &items[mid];
-                let a_b = forward_err!(cmp(a.clone(),b.clone())?);
-                let a_c = forward_err!(cmp(a.clone(),c.clone())?);
+                let a_b = forward_err!(cmp(a.clone(), b.clone())?);
+                let a_c = forward_err!(cmp(a.clone(), c.clone())?);
                 let piv_idx = if a_b * a_c == -1 {
                     left
                 } else {
-                    let b_c = forward_err!(cmp(b.clone(),c.clone())?);
+                    let b_c = forward_err!(cmp(b.clone(), c.clone())?);
                     if b_c * (-a_b) == -1 {
                         right
                     } else {
@@ -430,7 +447,7 @@ impl<W: Write + 'static> XSequence<W> {
                 items[right].clone()
             };
             for j in left..=right {
-                let c = forward_err!(cmp(items[j].clone(),pivot.clone())?);
+                let c = forward_err!(cmp(items[j].clone(), pivot.clone())?);
                 if c == -1 {
                     items.swap(j, ret);
                     ret += 1;
@@ -442,10 +459,10 @@ impl<W: Write + 'static> XSequence<W> {
 
         loop {
             let pivot_idx = forward_err!(partition(&mut arr, left, right, &cmp)?);
-            match pivot_idx.cmp(&n){
-                Ordering::Equal => {break Ok(Ok(arr.swap_remove(pivot_idx)))}
-                Ordering::Greater => {right = pivot_idx - 1},
-                Ordering::Less => {left = pivot_idx + 1},
+            match pivot_idx.cmp(&n) {
+                Ordering::Equal => break Ok(Ok(arr.swap_remove(pivot_idx))),
+                Ordering::Greater => right = pivot_idx - 1,
+                Ordering::Less => left = pivot_idx + 1,
             }
         }
     }
@@ -832,7 +849,7 @@ pub(crate) fn add_sequence_map<W: Write + 'static>(
             ],
             XSequenceType::xtype(output_t),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -1156,7 +1173,7 @@ pub(crate) fn add_sequence_take_while<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -1203,7 +1220,7 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static>(
             ],
             t_arr.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -1396,7 +1413,10 @@ pub(crate) fn add_sequence_dyn_sort<W: Write + 'static>(
     })
 }
 
-fn add_delegate_1arg_cmp<W: Write + 'static>(name: &'static str, scope: &mut RootCompilationScope<W>)-> Result<(), CompilationError>{
+fn add_delegate_1arg_cmp<W: Write + 'static>(
+    name: &'static str,
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
     let cb_symbol = scope.identifier(name);
 
@@ -1428,7 +1448,10 @@ fn add_delegate_1arg_cmp<W: Write + 'static>(name: &'static str, scope: &mut Roo
     })
 }
 
-fn add_delegate_cmp<W: Write + 'static>(name: &'static str, scope: &mut RootCompilationScope<W>)-> Result<(), CompilationError>{
+fn add_delegate_cmp<W: Write + 'static>(
+    name: &'static str,
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
     let cb_symbol = scope.identifier(name);
 
@@ -1442,12 +1465,7 @@ fn add_delegate_cmp<W: Write + 'static>(name: &'static str, scope: &mut RootComp
 
         let (inner_cmp, cmp_t) =
             get_func_with_type(ns, cmp_symbol, &[t0.clone(), t0.clone()], None)?;
-        let (cb, cb_t) = get_func_with_type(
-            ns,
-            cb_symbol,
-            &[a0.clone(), cmp_t.xtype()],
-            None,
-        )?;
+        let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[a0.clone(), cmp_t.xtype()], None)?;
 
         Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[a0], cb_t.rtype()),
@@ -1805,7 +1823,6 @@ pub(crate) fn add_sequence_dyn_mean<W: Write + 'static>(
         ))
     })
 }
-
 
 pub(crate) fn add_sequence_dyn_geo_mean<W: Write + 'static>(
     scope: &mut RootCompilationScope<W>,

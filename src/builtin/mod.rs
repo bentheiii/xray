@@ -61,6 +61,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_int_le(scope).unwrap();
     add_int_lt(scope).unwrap();
     add_int_mod(scope).unwrap();
+    add_int_multinom(scope).unwrap();
     add_int_mul(scope).unwrap();
     add_int_ne(scope).unwrap();
     add_int_neg(scope).unwrap();

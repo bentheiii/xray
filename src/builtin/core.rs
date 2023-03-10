@@ -211,11 +211,17 @@ pub(crate) fn unpack_dyn_types_at_least<const N: usize>(
     }
 }
 
-pub(crate) fn unpack_native<'a>(t: &'a Arc<XType>, name: &'static str) -> Result<&'a [Arc<XType>], String> {
+pub(crate) fn unpack_native<'a>(
+    t: &'a Arc<XType>,
+    name: &'static str,
+) -> Result<&'a [Arc<XType>], String> {
     unpack_natives(t, &[name])
 }
 
-pub(crate) fn unpack_natives<'a>(t: &'a Arc<XType>, names: &[&'static str]) -> Result<&'a [Arc<XType>], String> {
+pub(crate) fn unpack_natives<'a>(
+    t: &'a Arc<XType>,
+    names: &[&'static str],
+) -> Result<&'a [Arc<XType>], String> {
     match t.as_ref() {
         XType::XNative(nt0, bind) if names.iter().any(|n| *n == nt0.name()) => Ok(&bind[..]),
         _ => Err(format!("Expected one of {names:?} type, got {t:?}")),

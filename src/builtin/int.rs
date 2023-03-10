@@ -1,10 +1,10 @@
 use crate::builtin::core::{eval, search, ufunc_ref, xcmp, xerr};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
-use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XResult, XValue};
 use crate::{
-    add_binfunc, manage_native, to_primitive, ufunc, xraise, xraise_opt, CompilationError,
-    XStaticFunction,
+    add_binfunc, forward_err, manage_native, to_native, to_primitive, ufunc, xraise, xraise_opt,
+    CompilationError, XStaticFunction,
 };
 
 use num_traits::{One, Pow, Signed, ToPrimitive, Zero};
@@ -287,11 +287,49 @@ add_int_binop!(
         let mut denum = LazyBigint::one();
         for (i, s) in search(b.range(), rt.clone()) {
             s?;
-            num = num * (a - &i);
-            denum = denum * (&i + &LazyBigint::one());
+            num *= a - &i;
+            denum *= &i + &LazyBigint::one();
             rt.borrow()
                 .can_allocate_by(|| Some(num.prospective_size() + denum.prospective_size()))?;
         }
         Ok(Ok(XValue::Int(num / denum)))
     }
 );
+
+pub(crate) fn add_int_multinom<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "multinom",
+        XFuncSpec::new(&[&XSequenceType::xtype(X_INT.clone())], X_INT.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let Some(s) = to_native!(a0, XSequence::<W>).diter(ns, rt.clone()) else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
+
+            let mut s = xraise!(s.map(|v|->XResult<LazyBigint, W>{
+                Ok(Ok(to_primitive!(forward_err!(v?), Int).clone()))
+            }).collect::<XResult<Vec<_>, W>>()?);
+            if s.len() <= 1{
+                return Ok(ManagedXValue::new(XValue::Int(LazyBigint::one()), rt)?.into())
+            }
+            s.sort_unstable_by(|a,b| LazyBigint::cmp(a,b).reverse());
+            if s.last().unwrap().is_negative(){
+                return xerr(ManagedXError::new("sequence cannot have negative values", rt)?);
+            }
+            let mut num_ctr = s[0].clone() + LazyBigint::one();
+            let mut num = LazyBigint::one();
+            let mut denum = LazyBigint::one();
+            let mut search =  rt.borrow().limits.search_iter();
+            for item in s.into_iter().skip(1).take_while(|i| i.is_positive()){
+                for i in item.range(){
+                    search.next().unwrap()?;
+                    rt.borrow().can_allocate_by(|| Some(num.prospective_size() + denum.prospective_size()))?;
+                    num *= &i + &num_ctr;
+                    denum *= &i + &LazyBigint::one();
+                }
+                num_ctr += item;
+            }
+            Ok(ManagedXValue::new(XValue::Int(num / denum), rt)?.into())
+        }),
+    )
+}
