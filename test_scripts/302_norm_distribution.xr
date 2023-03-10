@@ -1,0 +1,8 @@
+fn main()->bool{
+    let d = normal_distribution(40.0,1.5);
+
+    assert(d.cdf(42.0).is_close(0.9087887802699836))
+    && assert(d.pdf(42.0).is_close(0.10934004978399574))
+    && assert(d.quantile(0.9087887802699836).is_close(42.0))
+    && assert(is_error(d.quantile(1.0)))
+}

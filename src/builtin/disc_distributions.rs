@@ -65,16 +65,16 @@ pub(crate) enum XDiscreteDistribution {
     Uniform(DiscreteUniform),
 }
 
-fn big_int_cdf<'a, K: Bounded + Clone + Num, T: Float>(c: &impl DiscreteCDF<K,T>, x: &'a LazyBigint) ->T where K: TryFrom<&'a LazyBigint>{
+fn big_int_cdf<'a, K: Bounded + Clone + Num, T: Float>(c: &impl DiscreteCDF<K, T>, x: &'a LazyBigint) -> T where K: TryFrom<&'a LazyBigint> {
     let Ok(x) = x.try_into() else {
-        return if x.is_negative() { T::zero() } else { T::one() }
+        return if x.is_negative() { T::zero() } else { T::one() };
     };
     c.cdf(x)
 }
 
-fn big_int_pdf<'a, K: Bounded + Clone + Num, T: Float>(c: &impl Discrete<K,T>, x: &'a LazyBigint) ->T where K: TryFrom<&'a LazyBigint>{
+fn big_int_pdf<'a, K: Bounded + Clone + Num, T: Float>(c: &impl Discrete<K, T>, x: &'a LazyBigint) -> T where K: TryFrom<&'a LazyBigint> {
     let Ok(x) = x.try_into() else {
-        return T::zero()
+        return T::zero();
     };
     c.pmf(x)
 }
@@ -82,10 +82,10 @@ fn big_int_pdf<'a, K: Bounded + Clone + Num, T: Float>(c: &impl Discrete<K,T>, x
 impl XDiscreteDistribution {
     fn cdf(&self, x: &LazyBigint) -> f64 {
         match self {
-            Self::Binomial(i) => big_int_cdf(i,x),
-            Self::Hypergeometric(i) => big_int_cdf(i,x),
-            Self::NegativeBinomial(i) => big_int_cdf(i,x),
-            Self::Uniform(i) => big_int_cdf(i,x),
+            Self::Binomial(i) => big_int_cdf(i, x),
+            Self::Hypergeometric(i) => big_int_cdf(i, x),
+            Self::NegativeBinomial(i) => big_int_cdf(i, x),
+            Self::Uniform(i) => big_int_cdf(i, x),
         }
     }
 
@@ -102,7 +102,18 @@ impl XDiscreteDistribution {
         match self {
             Self::Binomial(i) => inverse_cdf(i, x).into(),
             Self::Hypergeometric(i) => inverse_cdf(i, x).into(),
-            Self::NegativeBinomial(i) => inverse_cdf(i, x).into(),
+            Self::NegativeBinomial(i) => {
+                if i.r() == 1.0 {
+                    let p = i.p();
+                    (((1.0 - x) / (1.0 - p)).ln() / (1.0 - p).ln())
+                        .floor()
+                        .to_i64()
+                        .unwrap()
+                        .into()
+                } else {
+                    inverse_cdf(i, x).into()
+                }
+            }
             Self::Uniform(i) => (x * ((i.max() - i.min() + 1) as f64) + (i.min() - 1) as f64)
                 .floor()
                 .to_i64()

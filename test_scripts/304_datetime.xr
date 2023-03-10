@@ -1,0 +1,10 @@
+fn main()->bool{
+    let d0 = datetime(1678470314.65);
+    let d1 = datetime(-62319054940.0);
+    let d2 = datetime(542389514.0);
+
+    assert(d0 == d0)
+    && assert(d1 == d1)
+    && assert(d2 == d2)
+    && assert([d0, d1, d2].sort() == [d1, d2, d0])
+}

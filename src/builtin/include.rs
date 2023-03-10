@@ -43,6 +43,14 @@ fn abs(f: float)->float{
     if(f < 0.0, -f, f)
 }
 
+fn add(f: float, i: int)->float{
+    f+i.to_float()
+}
+
+fn add(a: int, b: float)->float{
+    a.to_float()+b
+}
+
 fn div(f: float, i: int)->float{
     f/i.to_float()
 }
@@ -271,11 +279,38 @@ fn julian_day(date: Date)->int{
 }
 
 fn eq(d0: Date, d1: Date)->bool{
-    d0.julian_day() == d1.julian_day()
+    eq(d0.members(), d1.members())
 }
 
 fn cmp(d0: Date, d1: Date)->int{
-    cmp(d0.julian_day(), d1.julian_day())
+    cmp(d0.members(), d1.members())
+}
+
+// datetime
+struct Datetime(date: Date, hours: int, minutes: int, seconds: float)
+let __std_unix_epoch = Date(1970,1,1);
+
+fn unix(dt: Datetime)->float{
+    ((dt::date.julian_day()-__std_unix_epoch.julian_day())*86400 + dt::hours*60*60 + dt::minutes*60) + dt::seconds
+}
+
+fn datetime(unix: float)->Datetime{
+    let seconds = unix % 60.0;
+    let u = (unix/60.0).floor();
+    let minutes = u % 60;
+    let u = (u/60).floor();
+    let hours = u %24;
+    let u = (u/24).floor();
+    let days = date(u + __std_unix_epoch.julian_day());
+    Datetime(days, hours, minutes, seconds)
+}
+
+fn eq(d0: Datetime, d1: Datetime)->bool{
+    eq(d0.members(), d1.members())
+}
+
+fn cmp(d0: Datetime, d1: Datetime)->int{
+    cmp(d0.members(), d1.members())
 }
 
 //sequences

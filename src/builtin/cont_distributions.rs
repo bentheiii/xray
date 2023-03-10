@@ -7,9 +7,7 @@ use crate::{
     XStaticFunction, XType,
 };
 use num_traits::Float;
-use statrs::distribution::{
-    Beta, Continuous, ContinuousCDF, Exp, FisherSnedecor, Gamma, LogNormal, Uniform,
-};
+use statrs::distribution::{Beta, Continuous, ContinuousCDF, Exp, FisherSnedecor, Gamma, LogNormal, Normal, Uniform};
 use statrs::function::erf::erf_inv;
 use statrs::statistics::{Max, Min};
 use std::fmt::Debug;
@@ -72,6 +70,7 @@ pub(crate) enum XContinuousDistribution {
     FisherSnedecor(FisherSnedecor),
     Gamma(Gamma),
     LogNormal(LogNormal, f64, f64),
+    Normal(Normal),
     Uniform(Uniform),
 }
 
@@ -83,6 +82,7 @@ impl XContinuousDistribution {
             Self::FisherSnedecor(i) => i.cdf(x),
             Self::Gamma(i) => i.cdf(x),
             Self::LogNormal(i, ..) => i.cdf(x),
+            Self::Normal(i) => i.cdf(x),
             Self::Uniform(i) => i.cdf(x),
         }
     }
@@ -94,6 +94,7 @@ impl XContinuousDistribution {
             Self::FisherSnedecor(i) => i.pdf(x),
             Self::Gamma(i) => i.pdf(x),
             Self::LogNormal(i, ..) => i.pdf(x),
+            Self::Normal(i) => i.pdf(x),
             Self::Uniform(i) => i.pdf(x),
         }
     }
@@ -107,6 +108,7 @@ impl XContinuousDistribution {
             Self::LogNormal(_, location, scale) => {
                 (location + (2.0 * scale * scale).sqrt() * erf_inv(2.0 * x - 1.0)).exp()
             }
+            Self::Normal(i) => i.inverse_cdf(x),
             Self::Uniform(i) => x * (i.max() - i.min()) + i.min(),
         }
     }
@@ -213,6 +215,31 @@ pub(crate) fn add_contdist_fs<W: Write + 'static>(
             };
             Ok(manage_native!(
                 XContinuousDistribution::FisherSnedecor(ret),
+                rt
+            ))
+        }),
+    )
+}
+
+pub(crate) fn add_contdist_normal<W: Write + 'static>(
+    scope: &mut RootCompilationScope<W>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "normal_distribution",
+        XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_CONTDIST.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let f0 = to_primitive!(a0, Float);
+            let f1 = to_primitive!(a1, Float);
+            let ret = match Normal::new(*f0, *f1) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
+                }
+            };
+            Ok(manage_native!(
+                XContinuousDistribution::Normal(ret),
                 rt
             ))
         }),

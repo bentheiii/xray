@@ -1,0 +1,9 @@
+fn main()->bool{
+    let d = datetime(1678470314.65);
+
+    assert(d::date == Date(2023, 3, 10))
+    && assert(d::hours == 17)
+    && assert(d::minutes == 45)
+    && assert(d::seconds.is_close(14.65))
+    && assert(d.unix().is_close(1678470314.65))
+}

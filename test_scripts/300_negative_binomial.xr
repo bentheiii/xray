@@ -2,7 +2,7 @@ fn main()->bool{
     let d = negative_binomial_distribution(5.0, 0.25);
 
     assert(d.cdf(10).is_close(0.3135140584781964))
-    && assert(d.pmf(10) == 0.05504866037517299)
+    && assert(d.pmf(10).is_close(0.05504866))
     && assert(d.pmf(-1) == 0.0)
     && assert(d.quantile(0.3135141) == 10)
     && assert(d.quantile(0.0) == 0)

@@ -1,0 +1,10 @@
+fn main()->bool{
+    let d = geometric_distribution(0.25);
+
+    assert(d.cdf(10).is_close(0.9577648639678955078125))
+    && assert(d.pmf(10).is_close(0.014078378677368164))
+    && assert(d.pmf(-1) == 0.0)
+    && assert(d.quantile(0.9577648639678955078125) == 10)
+    && assert(d.quantile(0.0) == -1)
+    && assert(is_error(d.quantile(1.1)))
+}
