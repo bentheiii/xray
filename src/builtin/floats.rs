@@ -363,6 +363,26 @@ pub(crate) fn add_float_gamma<W, R>(
     )
 }
 
+pub(crate) fn add_float_tan<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "tan",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.tan())))),
+    )
+}
+
+pub(crate) fn add_float_tanh<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "tanh",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.tanh())))),
+    )
+}
+
 pub(crate) fn add_float_gammaln<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {

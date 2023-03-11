@@ -1,8 +1,11 @@
 fn main()->bool{
-    let d = custom_distribution([3, 8, 10, 17, 24, 27,17,24].map((x: int)->{(x,1.0)}));
+    let s = [3, 8, 10, 17, 24, 27,17,24];
+    let d = sample_distribution(s);
 
     assert(d.skewness().is_close(-0.228780406))
     && assert(d.mean().is_close(16.25))
     && assert(d.variance().is_close(64.9375))
     && assert(d.std_dev().is_close(8.058381))
+    && assert(sample_variance(s).is_close(74.21428571))
+    && assert(sample_standard_deviation(s).is_close(8.614771367))
 }

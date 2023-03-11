@@ -1,0 +1,4 @@
+fn main()->bool{
+    assert(tan(0.785).is_close(0.9992039901050427))
+    && assert(tanh(0.5).is_close(0.462117))
+}

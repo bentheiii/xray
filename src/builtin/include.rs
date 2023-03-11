@@ -264,6 +264,18 @@ fn geometric_distribution(p: float)->DiscreteDistribution{
     negative_binomial_distribution(1.0, p)
 }
 
+fn sample_distribution(s: Sequence<int>)->DiscreteDistribution{
+    custom_distribution(s.map((x: int)->{(x,1.0)}))
+}
+
+fn sample_variance(s: Sequence<int>)->float{
+    sample_distribution(s).variance()*s.len()/(s.len()-1)
+}
+
+fn sample_standard_deviation(s: Sequence<int>)->float{
+    sample_variance(s).sqrt()
+}
+
 fn random(d: DiscreteDistribution)->int{
     d.sample(1)[0]
 }
