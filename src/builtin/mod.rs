@@ -178,6 +178,10 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
     add_sequence_dyn_n_smallest(scope).unwrap();
     add_sequence_dyn_nth_largest(scope).unwrap();
     add_sequence_dyn_nth_smallest(scope).unwrap();
+    add_sequence_dyn_rank_avg(scope).unwrap();
+    add_sequence_dyn_rank_eq(scope).unwrap();
+    add_sequence_dyn_rank_sorted_avg(scope).unwrap();
+    add_sequence_dyn_rank_sorted_eq(scope).unwrap();
     add_sequence_dyn_sort(scope).unwrap();
     add_sequence_dyn_to_str(scope).unwrap();
     add_sequence_dyn_unzip(scope).unwrap();
@@ -277,6 +281,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
     add_contdist_normal(scope).unwrap();
     add_contdist_pdf(scope).unwrap();
     add_contdist_quantile(scope).unwrap();
+    add_contdist_rectangular(scope).unwrap();
     add_contdist_sample(scope).unwrap();
 
     add_discrete_distribution_type(scope).unwrap();
@@ -289,6 +294,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
     add_discdist_poisson(scope).unwrap();
     add_discdist_custom(scope).unwrap();
     add_discdist_sample(scope).unwrap();
+    add_discdist_uniform(scope).unwrap();
 
     add_cast(scope).unwrap();
     add_debug(scope).unwrap();

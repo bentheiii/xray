@@ -1,0 +1,8 @@
+fn main()->bool{
+    let d = uniform_distribution(1, 6);
+
+    assert(d.cdf(4) == 4/6)
+    && assert(d.pmf(4) == 1/6)
+    && assert(d.quantile(4/6) == 4)
+    && assert(is_error(d.quantile(1.1)))
+}

@@ -1742,3 +1742,33 @@ fn test_script_311() {
 fn test_script_312() {
     run_script_from_name(function_name!())
 }
+
+#[test]
+fn test_script_313() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_314() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_315() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_316() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_317() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_318() {
+    run_script_from_name(function_name!())
+}

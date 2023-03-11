@@ -1,0 +1,20 @@
+fn main()->bool{
+    let s = [0,1,1,2,3,5,8,13];
+
+    assert(s.rank_sorted_eq(0) == 1)
+    && assert(s.rank_sorted_avg(0) == 1.0)
+    && assert(s.rank_sorted_eq(1) == 2)
+    && assert(s.rank_sorted_avg(1) == 2.5)
+    && assert(s.rank_sorted_eq(2) == 4)
+    && assert(s.rank_sorted_avg(2) == 4.0)
+    && assert(s.rank_sorted_eq(3) == 5)
+    && assert(s.rank_sorted_avg(3) == 5.0)
+    && assert(is_error(s.rank_sorted_eq(4)))
+    && assert(is_error(s.rank_sorted_avg(4)))
+    && assert(s.rank_sorted_eq(5) == 6)
+    && assert(s.rank_sorted_avg(5) == 6.0)
+    && assert(s.rank_sorted_eq(8) == 7)
+    && assert(s.rank_sorted_avg(8) == 7.0)
+    && assert(s.rank_sorted_eq(13) == 8)
+    && assert(s.rank_sorted_avg(13) == 8.0)
+}

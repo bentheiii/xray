@@ -16,7 +16,7 @@ use std::fmt::Debug;
 
 use crate::builtin::builtin_permissions;
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use rand::distributions::Distribution;
+use rand::distributions::{Distribution};
 use rand::{RngCore, SeedableRng};
 use std::sync::Arc;
 
@@ -261,6 +261,51 @@ pub(crate) fn add_contdist_normal<W, R>(
     )
 }
 
+
+pub(crate) fn add_contdist_gamma<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "gamma_distribution",
+        XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_CONTDIST.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let f0 = to_primitive!(a0, Float);
+            let f1 = to_primitive!(a1, Float);
+            let ret = match Gamma::new(*f0, *f1) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
+                }
+            };
+            Ok(manage_native!(XContinuousDistribution::Gamma(ret), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_contdist_rectangular<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "rectangular_distribution",
+        XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_CONTDIST.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let f0 = to_primitive!(a0, Float);
+            let f1 = to_primitive!(a1, Float);
+            let ret = match Uniform::new(*f0, *f1) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
+                }
+            };
+            Ok(manage_native!(XContinuousDistribution::Uniform(ret), rt))
+        }),
+    )
+}
+
 pub(crate) fn add_contdist_cdf<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
@@ -312,28 +357,6 @@ pub(crate) fn add_contdist_quantile<W, R>(
                 return xerr(ManagedXError::new("value out of bounds", rt)?);
             }
             Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
-        }),
-    )
-}
-
-pub(crate) fn add_contdist_gamma<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
-) -> Result<(), CompilationError> {
-    scope.add_func(
-        "gamma_distribution",
-        XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_CONTDIST.clone()),
-        XStaticFunction::from_native(|args, ns, _tca, rt| {
-            let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let f0 = to_primitive!(a0, Float);
-            let f1 = to_primitive!(a1, Float);
-            let ret = match Gamma::new(*f0, *f1) {
-                Ok(ret) => ret,
-                Err(e) => {
-                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
-                }
-            };
-            Ok(manage_native!(XContinuousDistribution::Gamma(ret), rt))
         }),
     )
 }

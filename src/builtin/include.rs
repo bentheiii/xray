@@ -256,9 +256,25 @@ fn geometric_distribution(p: float)->DiscreteDistribution{
     negative_binomial_distribution(1.0, p)
 }
 
+fn random(d: DiscreteDistribution)->int{
+    d.sample(1)[0]
+}
+
 // cont distributions
 fn chisq_distribution(d: int)->ContinuousDistribution{
     gamma_distribution(d/2, 0.5)
+}
+
+fn standard_distribution()->ContinuousDistribution{
+    rectangular_distribution(0.0, 1.0)
+}
+
+fn random(d: ContinuousDistribution)->float{
+    d.sample(1)[0]
+}
+
+fn random()->float{
+    standard_distribution().random()
 }
 
 // dates
@@ -405,6 +421,25 @@ fn bisect<T>(seq: Sequence<T>, left_predicate: (T)->(bool))->int{
 
 fn aggregate<T0, T1>(seq: Sequence<T0>, initial_state: T1, func: (T1, T0)->(T1))->Generator<T1>{
     seq.to_generator().aggregate(initial_state, func)
+}
+
+fn rank_sorted_eq<T0, T1>(seq: Sequence<T0>, t: T1, cmp: (T0, T1)->(int))->int{
+    let idx = seq.bisect((x: T0) -> {cmp(x, t)<0});
+    if(cmp(seq[idx], t) == 0, idx+1, error("item not in sequence"))
+}
+
+fn rank_sorted_avg<T0, T1>(seq: Sequence<T0>, t: T1, cmp: (T0, T1)->(int))->float{
+    let bottom = seq.bisect((x: T0) -> {cmp(x, t)<0});
+    let top = seq.bisect((x: T0) -> {cmp(x, t)<=0});
+    if(cmp(seq[bottom], t) == 0, (bottom+top+1)/2, error("item not in sequence"))
+}
+
+fn rank_eq<T0>(seq: Sequence<T0>, t: T0, cmp: (T0, T0)->(int))->int{
+    seq.sort(cmp).rank_sorted_eq(t, cmp)
+}
+
+fn rank_avg<T0>(seq: Sequence<T0>, t: T0, cmp: (T0, T0)->(int))->float{
+    seq.sort(cmp).rank_sorted_avg(t, cmp)
 }
 
 //generators

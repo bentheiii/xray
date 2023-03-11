@@ -1,0 +1,21 @@
+fn main()->bool{
+    let s = [0,1,8,13,2,3,1,5];
+    let c = cmp{int, int};
+
+    assert(s.rank_eq(0, c) == 1)
+    && assert(s.rank_avg(0, c) == 1.0)
+    && assert(s.rank_eq(1, c) == 2)
+    && assert(s.rank_avg(1, c) == 2.5)
+    && assert(s.rank_eq(2, c) == 4)
+    && assert(s.rank_avg(2, c) == 4.0)
+    && assert(s.rank_eq(3, c) == 5)
+    && assert(s.rank_avg(3, c) == 5.0)
+    && assert(is_error(s.rank_eq(4, c)))
+    && assert(is_error(s.rank_avg(4, c)))
+    && assert(s.rank_eq(5, c) == 6)
+    && assert(s.rank_avg(5, c) == 6.0)
+    && assert(s.rank_eq(8, c) == 7)
+    && assert(s.rank_avg(8, c) == 7.0)
+    && assert(s.rank_eq(13, c) == 8)
+    && assert(s.rank_avg(13, c) == 8.0)
+}

@@ -8,9 +8,7 @@ use crate::{
     XStaticFunction, XType,
 };
 use num_traits::{Bounded, Float, Num, Signed, ToPrimitive};
-use statrs::distribution::{
-    Binomial, Discrete, DiscreteCDF, DiscreteUniform, Hypergeometric, NegativeBinomial, Poisson,
-};
+use statrs::distribution::{Binomial, Discrete, DiscreteCDF, DiscreteUniform, Hypergeometric, NegativeBinomial, Poisson};
 use statrs::statistics::{Max, Min};
 use std::fmt::Debug;
 
@@ -349,6 +347,32 @@ pub(crate) fn add_discdist_poisson<W, R>(
                 }
             };
             Ok(manage_native!(XDiscreteDistribution::Poisson(ret), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_discdist_uniform<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "uniform_distribution",
+        XFuncSpec::new(&[&X_INT, &X_INT], X_DISCDIST.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let Some(i0) = to_primitive!(a0, Int).to_i64() else {
+                return xerr(ManagedXError::new("N out of bounds", rt)?);
+            };
+            let Some(i1) = to_primitive!(a1, Int).to_i64() else {
+                return xerr(ManagedXError::new("K out of bounds", rt)?);
+            };
+            let ret = match DiscreteUniform::new(i0, i1) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
+                }
+            };
+            Ok(manage_native!(XDiscreteDistribution::Uniform(ret), rt))
         }),
     )
 }
