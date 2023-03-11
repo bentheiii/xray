@@ -1,0 +1,5 @@
+fn main()->bool{
+    let d = binomial_distribution(9, 0.25);
+
+    assert(d.skewness().is_close(0.3849001794597505))
+}

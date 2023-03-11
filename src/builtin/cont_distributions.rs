@@ -11,12 +11,12 @@ use statrs::distribution::{
     Beta, Continuous, ContinuousCDF, Exp, FisherSnedecor, Gamma, LogNormal, Normal, Uniform,
 };
 use statrs::function::erf::erf_inv;
-use statrs::statistics::{Max, Min};
+use statrs::statistics::{Distribution, Max, Min};
 use std::fmt::Debug;
 
 use crate::builtin::builtin_permissions;
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use rand::distributions::{Distribution};
+use rand::distributions::Distribution as _;
 use rand::{RngCore, SeedableRng};
 use std::sync::Arc;
 
@@ -129,6 +129,19 @@ impl XContinuousDistribution {
             Self::Normal(i) => i.sample_iter(rng).take(n).collect(),
             Self::Uniform(i) => i.sample_iter(rng).take(n).collect(),
         }
+    }
+
+    fn skewness(&self)->Option<f64>{
+        match self {
+            Self::Beta(i) => i.skewness(),
+            Self::Exponential(i) => i.skewness(),
+            Self::FisherSnedecor(i) => i.skewness(),
+            Self::Gamma(i) => i.skewness(),
+            Self::LogNormal(i, ..) => i.skewness(),
+            Self::Normal(i) => i.skewness(),
+            Self::Uniform(i) => i.skewness(),
+        }
+
     }
 }
 
@@ -357,6 +370,24 @@ pub(crate) fn add_contdist_quantile<W, R>(
                 return xerr(ManagedXError::new("value out of bounds", rt)?);
             }
             Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+        }),
+    )
+}
+
+pub(crate) fn add_contdist_skewness<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "skewness",
+        XFuncSpec::new(&[&X_CONTDIST], X_FLOAT.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let d0 = to_native!(a0, XContinuousDistribution);
+            let ret = d0.skewness();
+            match ret {
+                None => xerr(ManagedXError::new("distribution has no skew", rt)?),
+                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+            }
         }),
     )
 }

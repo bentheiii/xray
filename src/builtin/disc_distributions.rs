@@ -9,14 +9,14 @@ use crate::{
 };
 use num_traits::{Bounded, Float, Num, Signed, ToPrimitive};
 use statrs::distribution::{Binomial, Discrete, DiscreteCDF, DiscreteUniform, Hypergeometric, NegativeBinomial, Poisson};
-use statrs::statistics::{Max, Min};
+use statrs::statistics::{DiscreteDistribution, Distribution, Max, Min};
 use std::fmt::Debug;
 
 use crate::builtin::builtin_permissions;
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use itertools::Itertools;
 use num_traits::FromPrimitive;
-use rand::distributions::{Distribution, Standard};
+use rand::distributions::{Distribution as _, Standard};
 use rand::{Rng, RngCore, SeedableRng};
 use std::sync::Arc;
 
@@ -194,6 +194,44 @@ impl XDiscreteDistribution {
                 .collect(),
         }
     }
+
+    fn skewness(&self)->Option<f64>{
+        match self {
+            Self::Binomial(i) => i.skewness(),
+            Self::Custom(items) => {
+                #[derive(Default)]
+                struct Means{first: f64, second: f64, third: f64}
+                impl Means{
+                    fn append(&mut self, item: &LazyBigint, p: f64)->bool{
+                        let Some(first) = item.to_f64() else {return false};
+                        let second = first*first;
+                        let third = first*second;
+                        self.first += p*first;
+                        self.second += p*second;
+                        self.third += p*third;
+                        true
+                    }
+                }
+
+                let mut means = Means::default();
+                let mut prev_v = 0.0;
+                for (k,v) in items{
+                    if !means.append(k, *v-prev_v){
+                        return None
+                    }
+                    prev_v = *v;
+                }
+                let Means{first, second, third} = means;
+                let std_sq = second - first*first;
+                let std_dev = std_sq.sqrt();
+                Some((third - 3.0*first*std_sq - first.powi(3))/(std_dev.powi(3)))
+            },
+            Self::Hypergeometric(i) => i.skewness(),
+            Self::NegativeBinomial(i) => i.skewness(),
+            Self::Poisson(i) => i.skewness(),
+            Self::Uniform(i) => i.skewness(),
+        }
+    }
 }
 
 impl XNativeValue for XDiscreteDistribution {
@@ -253,8 +291,10 @@ pub(crate) fn add_discdist_custom<W, R>(
                 let prob = *to_primitive!(tup[1], Float);
                 (val, prob)
             }).sorted_unstable_by(|(k0, _), (k1, _)| k0.cmp(k1))
+                .group_by(|p| p.0.clone())
+                .into_iter()
                 .scan(0.0, |acc, (val, p)| {
-                    *acc += p;
+                    *acc += p.map(|(_,p)|p).sum::<f64>();
                     Some((val, *acc))
                 }).collect::<Vec<_>>();
             let first_p = items.first().unwrap().1;
@@ -424,6 +464,24 @@ pub(crate) fn add_discdist_quantile<W, R>(
                 return xerr(ManagedXError::new("quantile must be between 0 and 1", rt)?);
             }
             Ok(ManagedXValue::new(XValue::Int(d0.quantile(*f1)), rt)?.into())
+        }),
+    )
+}
+
+pub(crate) fn add_discdist_skewness<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "skewness",
+        XFuncSpec::new(&[&X_DISCDIST], X_FLOAT.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let d0 = to_native!(a0, XDiscreteDistribution);
+            let ret = d0.skewness();
+            match ret {
+                None => xerr(ManagedXError::new("distribution has no skew", rt)?),
+                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+            }
         }),
     )
 }

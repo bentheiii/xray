@@ -35,6 +35,10 @@ fn harmonic_mean(a: int, b:int)->float{
     2.0/(1/a + 1/b)
 }
 
+fn sign(a: int)->int{
+    if(a>0, 1, if(a<0, -1, 0))
+}
+
 // float
 let pi = 3.1415926535897932384626433832795028841971693;
 let e = 2.7182818284590452353602874713526624977572;
@@ -81,6 +85,10 @@ fn harmonic_mean(a: float, b:float)->float{
 
 fn log(a: float, base: float)->float{
     a.ln() / base.ln()
+}
+
+fn sign(a: float)->float{
+    if(a>0.0, 1.0, if(a<0.0, -1.0, 0.0))
 }
 
 // complex

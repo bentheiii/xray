@@ -1,0 +1,5 @@
+fn main()->bool{
+    let d = beta_distribution(0.25, 3.6);
+
+    assert(d.skewness().is_close(2.6586951982089353))
+}
