@@ -1,0 +1,8 @@
+fn main()->bool{
+    let d = uniform(1.7, 3.1);
+    let s = d.sample(4000);
+
+    assert(s.len() == 4000)
+    && assert(d.sample(0) == [])
+    && assert(s.mean().is_close(1.7, 1e-1))
+}

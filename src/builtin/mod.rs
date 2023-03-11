@@ -275,6 +275,7 @@ pub(crate) fn load_builtin<W: Write + 'static, R: RngCore + SeedableRng>(scope: 
     add_contdist_normal(scope).unwrap();
     add_contdist_pdf(scope).unwrap();
     add_contdist_quantile(scope).unwrap();
+    add_contdist_sample(scope).unwrap();
 
     add_discrete_distribution_type(scope).unwrap();
     add_discdist_binomial(scope).unwrap();

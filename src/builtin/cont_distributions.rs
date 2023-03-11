@@ -1,18 +1,22 @@
 use crate::builtin::core::{eval, xerr};
 use crate::native_types::{NativeType, XNativeValue};
-use crate::xtype::{XFuncSpec, X_FLOAT};
+use crate::xtype::{XFuncSpec, X_FLOAT, X_INT};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use crate::{
     manage_native, to_native, to_primitive, xraise, CompilationError, RootCompilationScope,
     XStaticFunction, XType,
 };
-use num_traits::Float;
+use num_traits::{Float, ToPrimitive};
 use statrs::distribution::{Beta, Continuous, ContinuousCDF, Exp, FisherSnedecor, Gamma, LogNormal, Normal, Uniform};
 use statrs::function::erf::erf_inv;
 use statrs::statistics::{Max, Min};
 use std::fmt::Debug;
 use std::io::Write;
 use std::sync::Arc;
+use rand::{RngCore, SeedableRng};
+use rand::distributions::Distribution;
+use crate::builtin::builtin_permissions;
+use crate::builtin::sequence::{XSequence, XSequenceType};
 
 /// copy-paste of the inverse cdf algorithm from statrs, but with more precision
 fn deep_inverse_cdf<K: Float, T: Float, S: ContinuousCDF<K, T>>(s: &S, p: T) -> K {
@@ -110,6 +114,18 @@ impl XContinuousDistribution {
             }
             Self::Normal(i) => i.inverse_cdf(x),
             Self::Uniform(i) => x * (i.max() - i.min()) + i.min(),
+        }
+    }
+
+    fn sample(&self, n: usize, rng: &mut impl RngCore)->Vec<f64>{
+        match self {
+            Self::Beta(i) => i.sample_iter(rng).take(n).collect(),
+            Self::Exponential(i) => i.sample_iter(rng).take(n).collect(),
+            Self::FisherSnedecor(i) => i.sample_iter(rng).take(n).collect(),
+            Self::Gamma(i) => i.sample_iter(rng).take(n).collect(),
+            Self::LogNormal(i, ..) => i.sample_iter(rng).take(n).collect(),
+            Self::Normal(i) => i.sample_iter(rng).take(n).collect(),
+            Self::Uniform(i) => i.sample_iter(rng).take(n).collect(),
         }
     }
 }
@@ -319,6 +335,30 @@ pub(crate) fn add_contdist_gamma<W: Write + 'static, R>(
                 }
             };
             Ok(manage_native!(XContinuousDistribution::Gamma(ret), rt))
+        }),
+    )
+}
+
+
+pub(crate) fn add_contdist_sample<W: Write + 'static, R: SeedableRng + RngCore>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "sample",
+        XFuncSpec::new(&[&X_CONTDIST, &X_INT], XSequenceType::xtype(X_FLOAT.clone())),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let d0 = to_native!(a0, XContinuousDistribution);
+            let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
+            rt.borrow()
+                .limits
+                .check_permission(&builtin_permissions::RANDOM)?;
+            rt.borrow().can_allocate(i1)?;
+            let nums = d0.sample(i1, rt.borrow_mut().get_rng());
+            let nums = nums.into_iter().map(|v| ManagedXValue::new(XValue::Float(v), rt.clone())).collect::<Result<Vec<_>, _>>()?;
+            let ret = XSequence::array(nums);
+            Ok(manage_native!(ret, rt))
         }),
     )
 }
