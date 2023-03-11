@@ -1,0 +1,12 @@
+fn main()->bool{
+    let d = custom_distribution([(0, 200.0), (1, 300.0), (2, 100.0), (3, 400.0)]);
+
+    assert(d.cdf(2).is_close(0.6))
+    && assert(d.cdf(0) == 0.2)
+    && assert(d.cdf(-1) == 0.0)
+    && assert(d.pmf(2).is_close(0.1))
+    && assert(d.pmf(-1) == 0.0)
+    && assert(d.quantile(0.124653) == 0)
+    && assert(d.quantile(0.0) == 0)
+    && assert(is_error(d.quantile(1.1)))
+}

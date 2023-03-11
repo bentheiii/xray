@@ -60,6 +60,7 @@ pub struct Runtime<W> {
     pub(crate) size: usize, // this will be zero if the runtime has no size limit
     pub(crate) ud_calls: usize, // this will be zero if the runtime has no us_call limit
     pub stdout: W,
+    pub rng: Option<>
     pub(crate) timeout: Option<Instant>,
 }
 

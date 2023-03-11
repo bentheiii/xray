@@ -282,6 +282,8 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_discdist_negative_binomial(scope).unwrap();
     add_discdist_pmf(scope).unwrap();
     add_discdist_quantile(scope).unwrap();
+    add_discdist_poisson(scope).unwrap();
+    add_discdist_custom(scope).unwrap();
 
     add_cast(scope).unwrap();
     add_debug(scope).unwrap();

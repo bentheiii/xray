@@ -1,0 +1,6 @@
+fn main()->bool{
+    let s = [(9.0,10.0), (7.0,6.0), (5.0,1.0),(3.0,5.0),(1.0,3.0)];
+
+    assert(is_error(pearson_correlation([])))
+    && assert(pearson_correlation(s).is_close(0.699379))
+}

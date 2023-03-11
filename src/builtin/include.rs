@@ -51,6 +51,14 @@ fn add(a: int, b: float)->float{
     a.to_float()+b
 }
 
+fn mul(f: float, i: int)->float{
+    f*i.to_float()
+}
+
+fn mul(a: int, b: float)->float{
+    a.to_float()*b
+}
+
 fn div(f: float, i: int)->float{
     f/i.to_float()
 }
@@ -597,5 +605,21 @@ fn product(g: Sequence<int>)->int{
 
 fn product(g: Sequence<float>)->float{
     g.product(1.0)
+}
+
+fn pearson_correlation(s: Sequence<(float, float)>)->float{
+    struct Agg(sum0: float, sum1: float, sq0: float, sq1: float, prod: float)
+
+    let agg = s.reduce(Agg(0.0,0.0,0.0,0.0,0.0), (a: Agg, item: (float, float))->{
+        Agg(
+            a::sum0+item::item0,
+            a::sum1+item::item1,
+            a::sq0+item::item0*item::item0,
+            a::sq1+item::item1*item::item1,
+            a::prod + item::item0*item::item1,
+        )
+    });
+    (s.len() * agg::prod - agg::sum0 * agg::sum1)
+    / (sqrt(s.len()*agg::sq0-agg::sum0**2) * sqrt(s.len()*agg::sq1-agg::sum1**2))
 }
 "#;

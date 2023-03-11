@@ -1711,3 +1711,23 @@ fn test_script_305() {
 fn test_script_306() {
     run_script_from_name(function_name!())
 }
+
+#[test]
+fn test_script_307() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_308() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_309() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_310() {
+    run_script_from_name(function_name!())
+}

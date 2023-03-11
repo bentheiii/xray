@@ -1,0 +1,10 @@
+fn main()->bool{
+    let d = poisson_distribution(5.0);
+
+    assert(d.cdf(2).is_close(0.124653))
+    && assert(d.pmf(2).is_close(0.084224))
+    && assert(d.pmf(-1) == 0.0)
+    && assert(d.quantile(0.124653) == 2)
+    && assert(d.quantile(0.0) == 0)
+    && assert(is_error(d.quantile(1.1)))
+}
