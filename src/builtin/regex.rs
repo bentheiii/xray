@@ -50,14 +50,14 @@ impl XNativeValue for Regex {
     }
 }
 
-pub(crate) fn add_regex_type<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_regex_type<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_native_type("Regex", X_REGEX.clone())
 }
 
-pub(crate) fn add_regex_new<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_regex_new<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "regex",
@@ -87,8 +87,8 @@ pub(crate) fn add_regex_new<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_regex_match<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_regex_match<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "match",
@@ -107,12 +107,12 @@ pub(crate) fn add_regex_match<W: Write + 'static>(
                 },
             };
             let Some(cap) = r0.captures(s1.substr(i2, None)) else {
-                return Ok(manage_native!(XOptional::<W> {value: None}, rt))
+                return Ok(manage_native!(XOptional::<W, R> {value: None}, rt))
             };
             let mut pairs = Vec::with_capacity(r0.captures_len());
             for sub_cap in cap.iter() {
                 pairs.push(match sub_cap {
-                    None => manage_native!(XOptional::<W> { value: None }, rt.clone()),
+                    None => manage_native!(XOptional::<W, R> { value: None }, rt.clone()),
                     Some(m) => {
                         let start = ManagedXValue::new(
                             XValue::Int(LazyBigint::from(m.start() + i2)),
@@ -126,13 +126,13 @@ pub(crate) fn add_regex_match<W: Write + 'static>(
                             XValue::StructInstance(vec![start, end]),
                             rt.clone(),
                         )?;
-                        manage_native!(XOptional::<W> { value: Some(t) }, rt.clone())
+                        manage_native!(XOptional::<W, R> { value: Some(t) }, rt.clone())
                     }
                 })
             }
 
             let arr = manage_native!(XSequence::array(pairs), rt.clone());
-            Ok(manage_native!(XOptional::<W> { value: Some(arr) }, rt))
+            Ok(manage_native!(XOptional::<W, R> { value: Some(arr) }, rt))
         }),
     )
 }

@@ -10,8 +10,8 @@ use std::iter;
 use std::rc::Rc;
 use std::sync::Arc;
 
-pub(crate) fn add_union_members<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_union_members<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("members", "unions", move |_params, types, _ns, bind| {
         if bind.is_some() {
@@ -30,7 +30,7 @@ pub(crate) fn add_union_members<W: Write + 'static>(
             move |args, ns, _tca, rt| {
                 let a0 = xraise!(ns.eval(&args[0], rt.clone(), false)?.unwrap_value());
                 let (tag,u0) = to_primitive!(a0, UnionInstance).clone();
-                let xnone: Rc<ManagedXValue<W>> = manage_native!(XOptional::<W> {value: None}, rt.clone());
+                let xnone: Rc<ManagedXValue<W, R>> = manage_native!(XOptional::<W, R> {value: None}, rt.clone());
                 let not_none = manage_native!(XOptional {value: Some(u0)}, rt.clone());
                 let members = iter::repeat(xnone.clone()).take(tag).chain(iter::once(not_none)).chain(iter::repeat(xnone)).take(n_fields).collect();
                 let ret = ManagedXValue::new(XValue::StructInstance(members), rt)?;

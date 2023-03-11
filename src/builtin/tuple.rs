@@ -13,8 +13,8 @@ use num_traits::{ToPrimitive, Zero};
 use std::io::Write;
 use std::sync::Arc;
 
-pub(crate) fn add_tuple_empty_and<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_tuple_empty_and<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
@@ -28,8 +28,8 @@ pub(crate) fn add_tuple_empty_and<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_tuple_dyn_eq<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_tuple_dyn_eq<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
 
@@ -59,7 +59,7 @@ pub(crate) fn add_tuple_dyn_eq<W: Write + 'static>(
                     }
                     inner_values
                 };
-                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                Ok(Ok(move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
                     let a1 = xraise!(eval(&args[1], ns, &rt)?);
                     let t0 = to_primitive!(a0, StructInstance);
@@ -81,8 +81,8 @@ pub(crate) fn add_tuple_dyn_eq<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_tuple_dyn_cmp<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_tuple_dyn_cmp<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("cmp");
 
@@ -113,7 +113,7 @@ pub(crate) fn add_tuple_dyn_cmp<W: Write + 'static>(
                     }
                     inner_values
                 };
-                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                Ok(Ok(move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
                     let a1 = xraise!(eval(&args[1], ns, &rt)?);
                     let t0 = to_primitive!(a0, StructInstance);
@@ -133,8 +133,8 @@ pub(crate) fn add_tuple_dyn_cmp<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_tuple_dyn_hash<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_tuple_dyn_hash<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("hash");
 
@@ -160,7 +160,7 @@ pub(crate) fn add_tuple_dyn_hash<W: Write + 'static>(
                     }
                     inner_values
                 };
-                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                Ok(Ok(move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
                     let t0 = to_primitive!(a0, StructInstance);
                     let mut hasher = DefaultHasher::new();
@@ -179,8 +179,8 @@ pub(crate) fn add_tuple_dyn_hash<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_tuple_dyn_to_str<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_tuple_dyn_to_str<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("to_str");
 
@@ -206,7 +206,7 @@ pub(crate) fn add_tuple_dyn_to_str<W: Write + 'static>(
                     }
                     inner_values
                 };
-                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                Ok(Ok(move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
                     let t0 = to_primitive!(a0, StructInstance);
                     let mut ret = FencedString::from_str("(");

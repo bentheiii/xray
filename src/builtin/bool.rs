@@ -14,8 +14,8 @@ use crate::xexpr::XExpr;
 use std::io::Write;
 use std::rc;
 
-pub(crate) fn add_bool_type<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_bool_type<W: Write, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_native_type("bool", X_BOOL.clone())
 }
@@ -24,8 +24,8 @@ add_binfunc!(add_bool_eq, eq, X_BOOL, Bool, X_BOOL, |a, b, _| Ok(Ok(
     XValue::Bool(a == b)
 )));
 
-pub(crate) fn add_bool_assert<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_bool_assert<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "assert",
@@ -53,8 +53,8 @@ pub(crate) fn add_bool_assert<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_bool_not<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_bool_not<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "not",
@@ -63,8 +63,8 @@ pub(crate) fn add_bool_not<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_bool_and<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_bool_and<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "and",
@@ -79,8 +79,8 @@ pub(crate) fn add_bool_and<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_bool_or<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_bool_or<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "or",
@@ -95,8 +95,8 @@ pub(crate) fn add_bool_or<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_bool_then<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_bool_then<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
@@ -120,8 +120,8 @@ pub(crate) fn add_bool_then<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_bool_hash<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_bool_hash<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "hash",
@@ -132,8 +132,8 @@ pub(crate) fn add_bool_hash<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_bool_to_str<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_bool_to_str<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "to_str",

@@ -45,15 +45,15 @@ impl NativeType for XMappingType {
     }
 }
 
-type MappingBucket<W> = Vec<(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>)>;
+type MappingBucket<W, R> = Vec<(Rc<ManagedXValue<W, R>>, Rc<ManagedXValue<W, R>>)>;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(super) struct XMapping<W> {
-    inner: HashMap<u64, MappingBucket<W>>,
+pub(super) struct XMapping<W, R> {
+    inner: HashMap<u64, MappingBucket<W, R>>,
     len: usize,
-    hash_func: Rc<ManagedXValue<W>>,
-    eq_func: Rc<ManagedXValue<W>>,
+    hash_func: Rc<ManagedXValue<W, R>>,
+    eq_func: Rc<ManagedXValue<W, R>>,
 }
 
 #[derive(Debug)]
@@ -73,11 +73,11 @@ impl KeyLocation {
     }
 }
 
-impl<W: Write + 'static> XMapping<W> {
+impl<W: Write + 'static, R: 'static> XMapping<W, R> {
     fn new(
-        hash_func: Rc<ManagedXValue<W>>,
-        eq_func: Rc<ManagedXValue<W>>,
-        dict: HashMap<u64, MappingBucket<W>>,
+        hash_func: Rc<ManagedXValue<W, R>>,
+        eq_func: Rc<ManagedXValue<W, R>>,
+        dict: HashMap<u64, MappingBucket<W, R>>,
         len: usize,
     ) -> Self {
         Self {
@@ -92,13 +92,13 @@ impl<W: Write + 'static> XMapping<W> {
         &self,
         items: impl Iterator<
             Item = Result<
-                Result<(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>), Rc<ManagedXError<W>>>,
+                Result<(Rc<ManagedXValue<W, R>>, Rc<ManagedXValue<W, R>>), Rc<ManagedXError<W, R>>>,
                 RuntimeViolation,
             >,
         >,
-        ns: &RuntimeScope<W>,
-        rt: RTCell<W>,
-    ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
+        ns: &RuntimeScope<W, R>,
+        rt: RTCell<W, R>,
+    ) -> Result<TailedEvalResult<W, R>, RuntimeViolation> {
         let mut ret = Self::new(
             self.hash_func.clone(),
             self.eq_func.clone(),
@@ -128,10 +128,10 @@ impl<W: Write + 'static> XMapping<W> {
 
     fn locate(
         &self,
-        key: &Rc<ManagedXValue<W>>,
-        ns: &RuntimeScope<W>,
-        rt: RTCell<W>,
-    ) -> Result<Result<KeyLocation, Rc<ManagedXError<W>>>, RuntimeViolation> {
+        key: &Rc<ManagedXValue<W, R>>,
+        ns: &RuntimeScope<W, R>,
+        rt: RTCell<W, R>,
+    ) -> Result<Result<KeyLocation, Rc<ManagedXError<W, R>>>, RuntimeViolation> {
         let hash_func = to_primitive!(self.hash_func, Function);
         let raw_hash = forward_err!(ns
             .eval_func_with_values(hash_func, vec![Ok(key.clone())], rt.clone(), false)?
@@ -159,32 +159,32 @@ impl<W: Write + 'static> XMapping<W> {
         Ok(Ok(KeyLocation::Missing(hash_key)))
     }
 
-    fn get(&self, coordinates: (u64, usize)) -> &Rc<ManagedXValue<W>> {
+    fn get(&self, coordinates: (u64, usize)) -> &Rc<ManagedXValue<W, R>> {
         &self.inner[&coordinates.0][coordinates.1].1
     }
 
     pub(super) fn iter(
         &self,
-    ) -> impl Iterator<Item = (Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>)> + '_ {
+    ) -> impl Iterator<Item = (Rc<ManagedXValue<W, R>>, Rc<ManagedXValue<W, R>>)> + '_ {
         self.inner.iter().flat_map(|(_, b)| b.iter()).cloned()
     }
 }
 
-impl<W: 'static> XNativeValue for XMapping<W> {
+impl<W: 'static, R: 'static> XNativeValue for XMapping<W, R> {
     fn dyn_size(&self) -> usize {
-        (self.len * 2 + self.inner.len() + 2) * size_of::<Rc<ManagedXValue<W>>>()
+        (self.len * 2 + self.inner.len() + 2) * size_of::<Rc<ManagedXValue<W, R>>>()
     }
 }
 
-pub(crate) fn add_mapping_type<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_mapping_type<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], _) = scope.generics_from_names(["K", "V"]);
     scope.add_native_type("Mapping", XMappingType::xtype(k, v))
 }
 
-pub(crate) fn add_mapping_new<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_mapping_new<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k], params) = scope.generics_from_names(["K"]);
 
@@ -215,8 +215,8 @@ pub(crate) fn add_mapping_new<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_mapping_set<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_mapping_set<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
@@ -228,15 +228,15 @@ pub(crate) fn add_mapping_set<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
-            let mapping = to_native!(a0, XMapping<W>);
+            let mapping = to_native!(a0, XMapping<W, R>);
             rt.borrow().can_allocate(mapping.len * 2)?;
             mapping.with_update(once(Ok(Ok((a1, a2)))), ns, rt)
         }),
     )
 }
 
-pub(crate) fn add_mapping_update<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_mapping_update<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
@@ -254,8 +254,8 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let mapping = to_native!(a0, XMapping<W>);
-            let gen0 = to_native!(a1, XGenerator<W>);
+            let mapping = to_native!(a0, XMapping<W, R>);
+            let gen0 = to_native!(a1, XGenerator<W, R>);
             let items = gen0.iter(ns, rt.clone()).map(|t| {
                 let t = match t? {
                     Ok(t) => t,
@@ -269,8 +269,8 @@ pub(crate) fn add_mapping_update<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_mapping_update_from_keys<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_mapping_update_from_keys<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
@@ -298,8 +298,8 @@ pub(crate) fn add_mapping_update_from_keys<W: Write + 'static>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let a3 = xraise!(eval(&args[3], ns, &rt)?);
-            let mapping = to_native!(a0, XMapping<W>);
-            let gen0 = to_native!(a1, XGenerator<W>);
+            let mapping = to_native!(a0, XMapping<W, R>);
+            let gen0 = to_native!(a1, XGenerator<W, R>);
             let on_empty = to_primitive!(a2, Function);
             let on_occupied = to_primitive!(a3, Function);
 
@@ -357,8 +357,8 @@ pub(crate) fn add_mapping_update_from_keys<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_mapping_lookup<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_mapping_lookup<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
@@ -369,12 +369,12 @@ pub(crate) fn add_mapping_lookup<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let mapping = to_native!(a0, XMapping<W>);
+            let mapping = to_native!(a0, XMapping<W, R>);
             let val = xraise!(mapping.locate(&a1, ns, rt.clone())?)
                 .found()
                 .map(|c| mapping.get(c));
             Ok(manage_native!(
-                XOptional::<W> {
+                XOptional::<W, R> {
                     value: val.cloned()
                 },
                 rt
@@ -383,8 +383,8 @@ pub(crate) fn add_mapping_lookup<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_mapping_len<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_mapping_len<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k, v);
@@ -394,14 +394,14 @@ pub(crate) fn add_mapping_len<W: Write + 'static>(
         XFuncSpec::new(&[&mp], X_INT.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let mapping = to_native!(a0, XMapping<W>);
+            let mapping = to_native!(a0, XMapping<W, R>);
             Ok(ManagedXValue::new(XValue::Int(mapping.len.into()), rt)?.into())
         }),
     )
 }
 
-pub(crate) fn add_mapping_to_generator<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_mapping_to_generator<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v.clone());
@@ -421,8 +421,8 @@ pub(crate) fn add_mapping_to_generator<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_mapping_pop<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_mapping_pop<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
@@ -433,7 +433,7 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let mapping = to_native!(a0, XMapping<W>);
+            let mapping = to_native!(a0, XMapping<W, R>);
             if mapping.len == 0 {
                 return xerr(ManagedXError::new("key not found", rt)?);
             }
@@ -452,8 +452,8 @@ pub(crate) fn add_mapping_pop<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_mapping_discard<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_mapping_discard<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
     let mp = XMappingType::xtype(k.clone(), v);
@@ -464,7 +464,7 @@ pub(crate) fn add_mapping_discard<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let mapping = to_native!(a0, XMapping<W>);
+            let mapping = to_native!(a0, XMapping<W, R>);
             if mapping.len == 0 {
                 return Ok(a0.clone().into());
             }
@@ -483,8 +483,8 @@ pub(crate) fn add_mapping_discard<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_mapping_dyn_hash<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_mapping_dyn_hash<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("hash");
 
@@ -505,9 +505,9 @@ pub(crate) fn add_mapping_dyn_hash<W: Write + 'static>(
                 let inner_value = forward_err!(ns.eval(&inner, rt, false)?.unwrap_value());
 
 
-                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                Ok(Ok(move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                    let m0 = to_native!(a0, XMapping<W>);
+                    let m0 = to_native!(a0, XMapping<W, R>);
                     let inner_value_hash_func = to_primitive!(inner_value, Function);
                     // note that since order is important to the default hasher, we'll just xor them together
                     let mut ret = 0u64;
@@ -530,8 +530,8 @@ pub(crate) fn add_mapping_dyn_hash<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_mapping_dyn_eq<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_mapping_dyn_eq<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("eq");
 
@@ -557,11 +557,11 @@ pub(crate) fn add_mapping_dyn_eq<W: Write + 'static>(
                 let inner_value = forward_err!(ns.eval(&inner, rt, false)?.unwrap_value());
 
 
-                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                Ok(Ok(move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
                     let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                    let m0 = to_native!(a0, XMapping<W>);
-                    let m1 = to_native!(a1, XMapping<W>);
+                    let m0 = to_native!(a0, XMapping<W, R>);
+                    let m1 = to_native!(a1, XMapping<W, R>);
                     if m0.len != m1.len {
                         return Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into());
                     }
@@ -593,8 +593,8 @@ pub(crate) fn add_mapping_dyn_eq<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_mapping_dyn_new<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_mapping_dyn_new<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
     let hash_symbol = scope.identifier("hash");

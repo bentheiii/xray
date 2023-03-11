@@ -23,8 +23,8 @@ use std::io::Write;
 use std::sync::Arc;
 use std::{iter, rc};
 
-pub(crate) fn add_if<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_if<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
@@ -37,27 +37,27 @@ pub(crate) fn add_if<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_error<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_error<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "error",
         XFuncSpec::new(&[&X_STRING], X_UNKNOWN.clone()),
-        ufunc!(String, |a: &FencedString, rt: RTCell<W>| {
+        ufunc!(String, |a: &FencedString, rt: RTCell<W, R>| {
             rt.borrow().can_allocate(a.bytes())?;
             Ok(Err(a.to_string()))
         }),
     )
 }
 
-pub(crate) fn add_debug<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_debug<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "debug",
         XFuncSpec::new_with_optional(&[&t], &[&X_STRING], t.clone()).generic(params),
-        XStaticFunction::from_native(|args: &[XExpr<W>], ns, _tca, rt| {
+        XStaticFunction::from_native(|args: &[XExpr<W, R>], ns, _tca, rt| {
             rt.borrow()
                 .limits
                 .check_permission(&builtin_permissions::PRINT_DEBUG)?;
@@ -75,8 +75,8 @@ pub(crate) fn add_debug<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_is_error<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_is_error<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
@@ -104,8 +104,8 @@ pub(crate) fn add_is_error<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_if_error<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_if_error<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
@@ -122,8 +122,8 @@ pub(crate) fn add_if_error<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_if_error_specific<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_if_error_specific<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
@@ -143,8 +143,8 @@ pub(crate) fn add_if_error_specific<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_get_error<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_get_error<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "get_error",
@@ -168,8 +168,8 @@ pub(crate) fn add_get_error<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_ne<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_ne<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
 
@@ -186,7 +186,7 @@ pub(crate) fn add_ne<W: Write + 'static>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&eq_expr, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
                         let a0 = eval(&args[0], ns, &rt)?;
                         let a1 = eval(&args[1], ns, &rt)?;
                         let func = to_primitive!(inner_value, Function);
@@ -202,8 +202,8 @@ pub(crate) fn add_ne<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_display<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_display<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let to_str_symbol = scope.identifier("to_str");
 
@@ -231,7 +231,7 @@ pub(crate) fn add_display<W: Write + 'static>(
                     let inner_value =
                         forward_err!(ns.eval(&inner_to_str, rt, false)?.unwrap_value());
                     Ok(Ok(
-                        move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<W>| {
+                        move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt: RTCell<W, R>| {
                             rt.borrow()
                                 .limits
                                 .check_permission(&builtin_permissions::PRINT)?;
@@ -259,8 +259,8 @@ pub(crate) fn add_display<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_cmp_lt<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_cmp_lt<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
 
@@ -277,7 +277,7 @@ pub(crate) fn add_cmp_lt<W: Write + 'static>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner_func, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
                         let a0 = eval(&args[0], ns, &rt)?;
                         let a1 = eval(&args[1], ns, &rt)?;
                         let func = to_primitive!(inner_value, Function);
@@ -296,8 +296,8 @@ pub(crate) fn add_cmp_lt<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_cmp_gt<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_cmp_gt<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
 
@@ -315,7 +315,7 @@ pub(crate) fn add_cmp_gt<W: Write + 'static>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner_func, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
                         let a0 = eval(&args[0], ns, &rt)?;
                         let a1 = eval(&args[1], ns, &rt)?;
                         let func = to_primitive!(inner_value, Function);
@@ -334,8 +334,8 @@ pub(crate) fn add_cmp_gt<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_cmp_ge<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_cmp_ge<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
 
@@ -352,7 +352,7 @@ pub(crate) fn add_cmp_ge<W: Write + 'static>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner_func, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
                         let a0 = eval(&args[0], ns, &rt)?;
                         let a1 = eval(&args[1], ns, &rt)?;
                         let func = to_primitive!(inner_value, Function);
@@ -371,8 +371,8 @@ pub(crate) fn add_cmp_ge<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_cmp_le<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_cmp_le<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
 
@@ -390,7 +390,7 @@ pub(crate) fn add_cmp_le<W: Write + 'static>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner_func, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
                         let a0 = eval(&args[0], ns, &rt)?;
                         let a1 = eval(&args[1], ns, &rt)?;
                         let func = to_primitive!(inner_value, Function);
@@ -409,8 +409,8 @@ pub(crate) fn add_cmp_le<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_cast<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_cast<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("cast", "", move |_params, _types, _ns, bind| {
         let bind_len = bind.map_or(0, |a| a.len());
@@ -428,8 +428,8 @@ pub(crate) fn add_cast<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_partial<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_partial<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("partial", "currying", move |_params, types, _ns, bind| {
         if bind.is_some() {
@@ -481,8 +481,8 @@ pub(crate) fn add_partial<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_generic_dyn_harmonic_mean<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generic_dyn_harmonic_mean<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let mean_symbol = scope.identifier("mean");
     let div_symbol = scope.identifier("div");
@@ -523,7 +523,7 @@ pub(crate) fn add_generic_dyn_harmonic_mean<W: Write + 'static>(
                     }))), rt)?;
 
                     Ok(Ok(
-                        move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
+                        move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt: RTCell<_, _>| {
                             let a0 = xraise!(eval(&args[0], ns, &rt)?);
                             let XValue::Function(inner_map) = &inner_map.value else { unreachable!() };
                             let XValue::Function(inner_mean) = &inner_mean.value else { unreachable!() };
@@ -547,8 +547,8 @@ pub(crate) fn add_generic_dyn_harmonic_mean<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generic_dyn_product<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generic_dyn_product<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("mul");
     let cb_symbol = scope.identifier("reduce");
@@ -577,8 +577,8 @@ pub(crate) fn add_generic_dyn_product<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_generic_dyn_sum<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generic_dyn_sum<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("add");
     let cb_symbol = scope.identifier("reduce");
@@ -607,8 +607,8 @@ pub(crate) fn add_generic_dyn_sum<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_generic_dyn_max<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generic_dyn_max<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("lt");
     let cb_symbol = scope.identifier("max");
@@ -634,8 +634,8 @@ pub(crate) fn add_generic_dyn_max<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_generic_dyn_min<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generic_dyn_min<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("lt");
     let cb_symbol = scope.identifier("min");
@@ -661,8 +661,8 @@ pub(crate) fn add_generic_dyn_min<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_generic_dyn_max_iter<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generic_dyn_max_iter<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("lt");
     let cb_symbol = scope.identifier("max");
@@ -689,8 +689,8 @@ pub(crate) fn add_generic_dyn_max_iter<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_generic_dyn_min_iter<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generic_dyn_min_iter<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("lt");
     let cb_symbol = scope.identifier("min");

@@ -25,34 +25,34 @@ use crate::util::special_prefix_interner::SpecialPrefixBackend;
 /// these will always point to variable cells
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Debug(bound = ""))]
-pub enum Declaration<W> {
+pub enum Declaration<W, R> {
     Parameter {
         cell_idx: usize,
         argument_idx: usize,
     },
     Value {
         cell_idx: usize,
-        expr: XExpr<W>,
+        expr: XExpr<W, R>,
     },
     FactoryFunction {
         cell_idx: usize,
         #[derivative(Debug = "ignore")]
-        cb: DynEvalCallback<W>,
+        cb: DynEvalCallback<W, R>,
     },
     Function {
         cell_idx: usize,
-        func: XStaticFunction<W>,
+        func: XStaticFunction<W, R>,
     },
 }
 
 pub(crate) type Interner = StringInterner<SpecialPrefixBackend<DefaultBackend<DefaultSymbol>>>;
 
-pub struct RootCompilationScope<W: 'static> {
-    pub(crate) scope: CompilationScope<'static, W>,
+pub struct RootCompilationScope<W: 'static, R: 'static> {
+    pub(crate) scope: CompilationScope<'static, W, R>,
     pub(crate) interner: Interner,
 }
 
-impl<W: Write + 'static> RootCompilationScope<W> {
+impl<W: Write + 'static, R> RootCompilationScope<W, R> {
     pub fn new() -> Self {
         Self {
             scope: CompilationScope::root(),
@@ -73,7 +73,7 @@ impl<W: Write + 'static> RootCompilationScope<W> {
         &mut self,
         name: &'static str,
         spec: XFuncSpec,
-        func: XStaticFunction<W>,
+        func: XStaticFunction<W, R>,
     ) -> Result<(), CompilationError> {
         self.scope
             .add_static_func(self.interner.get_or_intern_static(name), spec, func)
@@ -84,11 +84,11 @@ impl<W: Write + 'static> RootCompilationScope<W> {
         name: &'static str,
         desc: &'static str,
         func: impl Fn(
-                Option<&[XExpr<W>]>,
+                Option<&[XExpr<W, R>]>,
                 Option<&[Arc<XType>]>,
-                &mut CompilationScope<'_, W>,
+                &mut CompilationScope<'_, W, R>,
                 Option<&[Arc<XType>]>,
-            ) -> Result<XFunctionFactoryOutput<W>, String>
+            ) -> Result<XFunctionFactoryOutput<W, R>, String>
             + 'static,
     ) -> Result<(), CompilationError> {
         self.scope
@@ -132,7 +132,7 @@ impl<W: Write + 'static> RootCompilationScope<W> {
     }
 }
 
-impl<W: Write + 'static> Default for RootCompilationScope<W> {
+impl<W: Write + 'static, R> Default for RootCompilationScope<W, R> {
     fn default() -> Self {
         Self::new()
     }

@@ -10,13 +10,14 @@ use std::time::Duration;
 use crate::utils::capture_writer::CaptureWriter;
 use crate::utils::memory_writer::MemoryWriter;
 use either::Either;
+use rand::rngs::StdRng;
 use regex::Regex;
 use serde::Deserialize;
 use stdext::function_name;
 use xray::builtin::builtin_permissions;
 use xray::permissions::PermissionSet;
 use xray::root_runtime_scope::RootEvaluationScope;
-use xray::runtime::RuntimeLimits;
+use xray::runtime::{RTCell, RuntimeLimits};
 use xray::std_compilation_scope;
 use xray::xvalue::XValue;
 
@@ -108,7 +109,7 @@ impl ScriptConfig {
             }
         }
 
-        let runtime = limits.to_runtime(output);
+        let runtime: RTCell<_, StdRng> = limits.to_runtime(output);
 
         let eval_scope_results =
             RootEvaluationScope::from_compilation_scope(&comp_scope, runtime.clone());
@@ -1729,5 +1730,10 @@ fn test_script_309() {
 
 #[test]
 fn test_script_310() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_311() {
     run_script_from_name(function_name!())
 }

@@ -10,7 +10,7 @@ use crate::runtime_scope::{EvaluationCell, RuntimeScope, RuntimeScopeTemplate};
 use crate::runtime_violation::RuntimeViolation;
 use crate::RootCompilationScope;
 
-pub type EvaluatedValue<W> = Result<Rc<ManagedXValue<W>>, Rc<ManagedXError<W>>>;
+pub type EvaluatedValue<W, R> = Result<Rc<ManagedXValue<W, R>>, Rc<ManagedXError<W, R>>>;
 
 #[derive(Debug)]
 pub enum GetValueError {
@@ -27,16 +27,16 @@ pub enum GetUniqueFunctionError {
     ForwardRefFunction(Vec<String>),
 }
 
-pub struct RootEvaluationScope<'c, W: 'static> {
-    scope: Rc<RuntimeScope<'static, W>>,
-    compilation_scope: &'c RootCompilationScope<W>,
-    runtime: RTCell<W>,
+pub struct RootEvaluationScope<'c, W: 'static, R: 'static> {
+    scope: Rc<RuntimeScope<'static, W, R>>,
+    compilation_scope: &'c RootCompilationScope<W, R>,
+    runtime: RTCell<W, R>,
 }
 
-impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
+impl<'c, W: Write + 'static, R> RootEvaluationScope<'c, W, R> {
     pub fn from_compilation_scope(
-        comp_scope: &'c RootCompilationScope<W>,
-        runtime: RTCell<W>,
+        comp_scope: &'c RootCompilationScope<W, R>,
+        runtime: RTCell<W, R>,
     ) -> Result<Self, RuntimeViolation> {
         let cell_specs = comp_scope
             .scope
@@ -64,7 +64,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
         Ok(ret)
     }
 
-    pub fn get_value(&self, name: &str) -> Result<&EvaluatedValue<W>, GetValueError> {
+    pub fn get_value(&self, name: &str) -> Result<&EvaluatedValue<W, R>, GetValueError> {
         let id = self.compilation_scope.get_identifier(name);
         if let Some(id) = id {
             let cell_idx = self
@@ -86,7 +86,7 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
     pub fn get_user_defined_function(
         &self,
         name: &str,
-    ) -> Result<&XFunction<W>, GetUniqueFunctionError> {
+    ) -> Result<&XFunction<W, R>, GetUniqueFunctionError> {
         let id = self.compilation_scope.get_identifier(name);
         if let Some(id) = id {
             let overload = self
@@ -134,9 +134,9 @@ impl<'c, W: Write + 'static> RootEvaluationScope<'c, W> {
 
     pub fn run_function(
         &self,
-        function: &XFunction<W>,
-        args: Vec<EvaluatedValue<W>>,
-    ) -> Result<TailedEvalResult<W>, RuntimeViolation> {
+        function: &XFunction<W, R>,
+        args: Vec<EvaluatedValue<W, R>>,
+    ) -> Result<TailedEvalResult<W, R>, RuntimeViolation> {
         self.scope
             .eval_func_with_values(function, args, self.runtime.clone(), false)
     }

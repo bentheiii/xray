@@ -5,8 +5,8 @@ use crate::builtin::core::{unpack_dyn_types, xerr};
 use crate::xvalue::{ManagedXError, XFunctionFactoryOutput};
 use std::io::Write;
 
-pub(crate) fn add_unknown_eq<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_unknown_eq<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("eq", "unknown", move |_params, types, _ns, bind| {
         if bind.is_some() {
@@ -28,8 +28,8 @@ pub(crate) fn add_unknown_eq<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_unknown_to_str<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_unknown_to_str<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("to_str", "unknown", move |_params, types, _ns, bind| {
         if bind.is_some() {
@@ -49,8 +49,8 @@ pub(crate) fn add_unknown_to_str<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_unknown_hash<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_unknown_hash<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("hash", "unknown", move |_params, types, _ns, bind| {
         if bind.is_some() {

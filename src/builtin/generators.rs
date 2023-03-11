@@ -59,44 +59,44 @@ impl NativeType for XGeneratorType {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(crate) enum XGenerator<W> {
+pub(crate) enum XGenerator<W, R> {
     Aggregate {
-        inner: Rc<ManagedXValue<W>>,
-        initial_state: Rc<ManagedXValue<W>>,
-        func: Rc<ManagedXValue<W>>,
+        inner: Rc<ManagedXValue<W, R>>,
+        initial_state: Rc<ManagedXValue<W, R>>,
+        func: Rc<ManagedXValue<W, R>>,
     },
-    FromSequence(Rc<ManagedXValue<W>>),
-    SuccessorsUntil(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
-    Map(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
-    Filter(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
-    Zip(Vec<Rc<ManagedXValue<W>>>),
-    Chain(Vec<Rc<ManagedXValue<W>>>),
-    Slice(Rc<ManagedXValue<W>>, usize, Option<usize>),
-    Repeat(Rc<ManagedXValue<W>>),
-    TakeWhile(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
-    SkipUntil(Rc<ManagedXValue<W>>, Rc<ManagedXValue<W>>),
-    FromSet(Rc<ManagedXValue<W>>),
-    FromMapping(Rc<ManagedXValue<W>>),
+    FromSequence(Rc<ManagedXValue<W, R>>),
+    SuccessorsUntil(Rc<ManagedXValue<W, R>>, Rc<ManagedXValue<W, R>>),
+    Map(Rc<ManagedXValue<W, R>>, Rc<ManagedXValue<W, R>>),
+    Filter(Rc<ManagedXValue<W, R>>, Rc<ManagedXValue<W, R>>),
+    Zip(Vec<Rc<ManagedXValue<W, R>>>),
+    Chain(Vec<Rc<ManagedXValue<W, R>>>),
+    Slice(Rc<ManagedXValue<W, R>>, usize, Option<usize>),
+    Repeat(Rc<ManagedXValue<W, R>>),
+    TakeWhile(Rc<ManagedXValue<W, R>>, Rc<ManagedXValue<W, R>>),
+    SkipUntil(Rc<ManagedXValue<W, R>>, Rc<ManagedXValue<W, R>>),
+    FromSet(Rc<ManagedXValue<W, R>>),
+    FromMapping(Rc<ManagedXValue<W, R>>),
 }
 
-impl<W: 'static> XNativeValue for XGenerator<W> {
+impl<W: 'static, R: 'static> XNativeValue for XGenerator<W, R> {
     fn dyn_size(&self) -> usize {
         match self {
-            Self::Zip(arr) | Self::Chain(arr) => arr.len() * size_of::<Rc<ManagedXValue<W>>>(),
+            Self::Zip(arr) | Self::Chain(arr) => arr.len() * size_of::<Rc<ManagedXValue<W, R>>>(),
             _ => 0,
         }
     }
 }
 
-impl<W: Write + 'static> XGenerator<W> {
+impl<W: Write + 'static, R: 'static> XGenerator<W, R> {
     fn _iter<'a>(
         &'a self,
-        ns: &'a RuntimeScope<W>,
-        rt: RTCell<W>,
-    ) -> impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
-        type InnerIter<'a, W> =
-            dyn Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a;
-        type BIter<'a, W> = Box<InnerIter<'a, W>>;
+        ns: &'a RuntimeScope<W, R>,
+        rt: RTCell<W, R>,
+    ) -> impl Iterator<Item = Result<EvaluatedValue<W, R>, RuntimeViolation>> + 'a {
+        type InnerIter<'a, W, R> =
+            dyn Iterator<Item = Result<EvaluatedValue<W, R>, RuntimeViolation>> + 'a;
+        type BIter<'a, W, R> = Box<InnerIter<'a, W, R>>;
 
         match self {
             Self::Aggregate {
@@ -104,7 +104,7 @@ impl<W: Write + 'static> XGenerator<W> {
                 initial_state,
                 func,
             } => either_a({
-                let inner: BIter<_> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
+                let inner: BIter<_, _> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
                 let fun = to_primitive!(func, Function);
                 iter::once(Ok(Ok(initial_state.clone()))).chain(inner.scan(
                     Ok(initial_state.clone()),
@@ -124,7 +124,7 @@ impl<W: Write + 'static> XGenerator<W> {
                     },
                 ))
             }),
-            Self::FromSequence(seq) => either_b(to_native!(seq, XSequence<W>).iter(ns, rt)),
+            Self::FromSequence(seq) => either_b(to_native!(seq, XSequence<W, R>).iter(ns, rt)),
             Self::SuccessorsUntil(initial_state, func) => either_c({
                 let fun = to_primitive!(func, Function);
                 iter::successors(Some(Ok(Ok(initial_state.clone()))), move |prev| {
@@ -133,7 +133,7 @@ impl<W: Write + 'static> XGenerator<W> {
                         Ok(g) => {
                             let g = g.unwrap_value();
                             let Ok(g) = g else { return Some(Ok(g)); };
-                            let as_opt = to_native!(g, XOptional<W>);
+                            let as_opt = to_native!(g, XOptional<W, R>);
                             as_opt.value.as_ref().map(|v| Ok(Ok(v.clone())))
                         }
                         Err(violation) => Some(Err(violation)),
@@ -141,7 +141,7 @@ impl<W: Write + 'static> XGenerator<W> {
                 })
             }),
             Self::Map(gen, func) => either_d({
-                let inner: BIter<_> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
+                let inner: BIter<_, _> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
                 let f = to_primitive!(func, Function);
                 inner.map(move |v| {
                     v.and_then(|v| {
@@ -155,10 +155,10 @@ impl<W: Write + 'static> XGenerator<W> {
                 let mut iters = arr
                     .iter()
                     .map(|gen| {
-                        let ret: BIter<_> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
+                        let ret: BIter<_, _> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
                         ret
                     })
-                    .collect::<Vec<BIter<_>>>();
+                    .collect::<Vec<BIter<_, _>>>();
                 iter::from_fn(move || {
                     iters
                         .iter_mut()
@@ -181,7 +181,7 @@ impl<W: Write + 'static> XGenerator<W> {
                 })
             }),
             Self::Slice(gen, start, end) => either_g({
-                let inner: BIter<_> = Box::new(to_native!(gen, Self)._iter(ns, rt));
+                let inner: BIter<_, _> = Box::new(to_native!(gen, Self)._iter(ns, rt));
                 if let Some(end) = end {
                     Either::Left(inner.skip(*start).take(*end))
                 } else {
@@ -189,7 +189,7 @@ impl<W: Write + 'static> XGenerator<W> {
                 }
             }),
             Self::Filter(gen, func) => either_h({
-                let inner: BIter<_> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
+                let inner: BIter<_, _> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
                 let f = to_primitive!(func, Function);
                 inner.filter_map(move |i| {
                     let Ok(value) = i else { return Some(i); };
@@ -205,13 +205,13 @@ impl<W: Write + 'static> XGenerator<W> {
             Self::Repeat(gen) => either_i({
                 let gen = to_native!(gen, Self);
                 iter::repeat_with(move || {
-                    let inner: BIter<_> = Box::new(gen._iter(ns, rt.clone()));
+                    let inner: BIter<_, _> = Box::new(gen._iter(ns, rt.clone()));
                     inner
                 })
                 .flatten()
             }),
             Self::TakeWhile(gen, func) => either_j({
-                let inner: BIter<_> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
+                let inner: BIter<_, _> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
                 let f = to_primitive!(func, Function);
                 inner.map_while(move |i| {
                     let Ok(value) = i else { return Some(i); };
@@ -225,7 +225,7 @@ impl<W: Write + 'static> XGenerator<W> {
                 })
             }),
             Self::SkipUntil(gen, func) => either_k({
-                let inner: BIter<_> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
+                let inner: BIter<_, _> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
                 let f = to_primitive!(func, Function);
                 let mut found_first = false;
                 inner.filter_map(move |i| {
@@ -243,9 +243,9 @@ impl<W: Write + 'static> XGenerator<W> {
                     found_first.then_some(Ok(value))
                 })
             }),
-            Self::FromSet(set) => either_l(to_native!(set, XSet<W>).iter().map(|e| Ok(Ok(e)))),
+            Self::FromSet(set) => either_l(to_native!(set, XSet<W, R>).iter().map(|e| Ok(Ok(e)))),
             Self::FromMapping(mapping) => {
-                either_m_last(to_native!(mapping, XMapping<W>).iter().map(move |(k, v)| {
+                either_m_last(to_native!(mapping, XMapping<W, R>).iter().map(move |(k, v)| {
                     Ok(Ok(ManagedXValue::new(
                         XValue::StructInstance(vec![k, v]),
                         rt.clone(),
@@ -257,9 +257,9 @@ impl<W: Write + 'static> XGenerator<W> {
 
     pub(super) fn iter<'a>(
         &'a self,
-        ns: &'a RuntimeScope<W>,
-        rt: RTCell<W>,
-    ) -> impl Iterator<Item = Result<EvaluatedValue<W>, RuntimeViolation>> + 'a {
+        ns: &'a RuntimeScope<W, R>,
+        rt: RTCell<W, R>,
+    ) -> impl Iterator<Item = Result<EvaluatedValue<W, R>, RuntimeViolation>> + 'a {
         self._iter(ns, rt.clone())
             .zip(rt.borrow().limits.search_iter())
             .map(|(v, search)| {
@@ -268,7 +268,7 @@ impl<W: Write + 'static> XGenerator<W> {
             })
     }
 
-    fn chain<'a>(base0: &'a Rc<ManagedXValue<W>>, base1: &'a Rc<ManagedXValue<W>>) -> Self {
+    fn chain<'a>(base0: &'a Rc<ManagedXValue<W, R>>, base1: &'a Rc<ManagedXValue<W, R>>) -> Self {
         let gen0 = to_native!(base0, Self);
         let gen1 = to_native!(base1, Self);
         let parts = match (gen0, gen1) {
@@ -288,10 +288,10 @@ impl<W: Write + 'static> XGenerator<W> {
     }
 
     fn slice(
-        base: &Rc<ManagedXValue<W>>,
+        base: &Rc<ManagedXValue<W, R>>,
         start: usize,
         end: Option<usize>,
-    ) -> Result<Self, &Rc<ManagedXValue<W>>> {
+    ) -> Result<Self, &Rc<ManagedXValue<W, R>>> {
         if start == 0 && end.is_none() {
             return Err(base);
         }
@@ -311,15 +311,15 @@ impl<W: Write + 'static> XGenerator<W> {
     }
 }
 
-pub(crate) fn add_generator_type<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_type<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Generator", XGeneratorType::xtype(t))
 }
 
-pub(crate) fn add_generator_successors_until<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_successors_until<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_gen = XGeneratorType::xtype(t.clone());
@@ -346,8 +346,8 @@ pub(crate) fn add_generator_successors_until<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_add<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_add<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_gen = XGeneratorType::xtype(t);
@@ -364,8 +364,8 @@ pub(crate) fn add_generator_add<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_nth<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_nth<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_gen = XGeneratorType::xtype(t.clone());
@@ -388,7 +388,7 @@ pub(crate) fn add_generator_nth<W: Write + 'static>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
-            let gen0 = to_native!(a0, XGenerator<W>);
+            let gen0 = to_native!(a0, XGenerator<W, R>);
             let mut matches_left = to_primitive!(a1, Int).clone();
             if matches_left.is_negative() {
                 return xerr(ManagedXError::new(
@@ -416,13 +416,13 @@ pub(crate) fn add_generator_nth<W: Write + 'static>(
                     matches_left = matches_left - One::one();
                 }
             }
-            Ok(manage_native!(XOptional::<W> { value: None }, rt))
+            Ok(manage_native!(XOptional::<W, R> { value: None }, rt))
         }),
     )
 }
 
-pub(crate) fn add_generator_get<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_get<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_gen = XGeneratorType::xtype(t.clone());
@@ -433,7 +433,7 @@ pub(crate) fn add_generator_get<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let gen0 = to_native!(a0, XGenerator<W>);
+            let gen0 = to_native!(a0, XGenerator<W, R>);
             let mut idx = to_primitive!(a1, Int).clone();
             if idx.is_negative() {
                 return xerr(ManagedXError::new(
@@ -453,8 +453,8 @@ pub(crate) fn add_generator_get<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_filter<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_filter<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_gen = XGeneratorType::xtype(t.clone());
@@ -481,8 +481,8 @@ pub(crate) fn add_generator_filter<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_map<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_map<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t0, t1], params) = scope.generics_from_names(["T0", "T1"]);
     let t0_gen = XGeneratorType::xtype(t0.clone());
@@ -510,8 +510,8 @@ pub(crate) fn add_generator_map<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_aggregate<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_aggregate<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t0, t1], params) = scope.generics_from_names(["T0", "T1"]);
     let t0_gen = XGeneratorType::xtype(t0.clone());
@@ -548,8 +548,8 @@ pub(crate) fn add_generator_aggregate<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_skip<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_skip<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_gen = XGeneratorType::xtype(t);
@@ -570,8 +570,8 @@ pub(crate) fn add_generator_skip<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_take<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_take<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_gen = XGeneratorType::xtype(t);
@@ -592,8 +592,8 @@ pub(crate) fn add_generator_take<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_skip_until<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_skip_until<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_gen = XGeneratorType::xtype(t.clone());
@@ -620,8 +620,8 @@ pub(crate) fn add_generator_skip_until<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_take_while<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_take_while<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_gen = XGeneratorType::xtype(t.clone());
@@ -648,8 +648,8 @@ pub(crate) fn add_generator_take_while<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_repeat<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_repeat<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_gen = XGeneratorType::xtype(t);
@@ -665,8 +665,8 @@ pub(crate) fn add_generator_repeat<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_to_array<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_to_array<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_gen = XGeneratorType::xtype(t.clone());
@@ -676,7 +676,7 @@ pub(crate) fn add_generator_to_array<W: Write + 'static>(
         XFuncSpec::new(&[&t_gen], XSequenceType::xtype(t)).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let gen0 = to_native!(a0, XGenerator<W>);
+            let gen0 = to_native!(a0, XGenerator<W, R>);
             let mut ret = Vec::new();
             for value in gen0.iter(ns, rt.clone()) {
                 let value = xraise!(value?);
@@ -688,8 +688,8 @@ pub(crate) fn add_generator_to_array<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_len<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_len<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_gen = XGeneratorType::xtype(t);
@@ -699,7 +699,7 @@ pub(crate) fn add_generator_len<W: Write + 'static>(
         XFuncSpec::new(&[&t_gen], X_INT.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let gen0 = to_native!(a0, XGenerator<W>);
+            let gen0 = to_native!(a0, XGenerator<W, R>);
             let mut ret = 0usize;
             for value in gen0.iter(ns, rt.clone()) {
                 xraise!(value?);
@@ -710,8 +710,8 @@ pub(crate) fn add_generator_len<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_last<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_last<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XGeneratorType::xtype(t.clone());
@@ -721,7 +721,7 @@ pub(crate) fn add_generator_last<W: Write + 'static>(
         XFuncSpec::new(&[&t_arr], t).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let gen0 = to_native!(a0, XGenerator<W>);
+            let gen0 = to_native!(a0, XGenerator<W, R>);
             let mut ret = None;
             for value in gen0.iter(ns, rt.clone()) {
                 let value = xraise!(value?);
@@ -736,8 +736,8 @@ pub(crate) fn add_generator_last<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_join<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_join<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let t_arr = XGeneratorType::xtype(X_STRING.clone());
 
@@ -747,7 +747,7 @@ pub(crate) fn add_generator_join<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
-            let seq0 = to_native!(a0, XGenerator<W>);
+            let seq0 = to_native!(a0, XGenerator<W, R>);
             let delimiter = match a1 {
                 None => Cow::Owned(FencedString::from_str("")),
                 Some(ref a) => Cow::Borrowed(to_primitive!(a, String).as_ref()),
@@ -773,8 +773,8 @@ pub(crate) fn add_generator_join<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_dyn_mean<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_dyn_mean<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("add");
     let div_symbol = scope.identifier("div");
@@ -812,7 +812,7 @@ pub(crate) fn add_generator_dyn_mean<W: Write + 'static>(
                     let inner_div = forward_err!(ns.eval(&inner_div, rt.clone(), false)?.unwrap_value());
                     let one = ManagedXValue::new(XValue::Int(LazyBigint::from(1)), rt)?;
                     Ok(Ok(
-                        move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
+                        move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt: RTCell<_, _>| {
                             let a0 = xraise!(eval(&args[0], ns, &rt)?);
                             let XValue::Function(inner_agg) = &inner_agg.value else { unreachable!() };
                             let XValue::Function(inner_enumerate) = &inner_enumerate.value else { unreachable!() };
@@ -842,8 +842,8 @@ pub(crate) fn add_generator_dyn_mean<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_dyn_geo_mean<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_dyn_geo_mean<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("mul");
     let div_symbol = scope.identifier("div");
@@ -884,7 +884,7 @@ pub(crate) fn add_generator_dyn_geo_mean<W: Write + 'static>(
                     let inner_pow = forward_err!(ns.eval(&inner_pow, rt.clone(), false)?.unwrap_value());
                     let one = ManagedXValue::new(XValue::Int(LazyBigint::from(1)), rt)?;
                     Ok(Ok(
-                        move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt: RTCell<_>| {
+                        move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt: RTCell<_, _>| {
                             let a0 = xraise!(eval(&args[0], ns, &rt)?);
                             let XValue::Function(inner_agg) = &inner_agg.value else { unreachable!() };
                             let XValue::Function(inner_enumerate) = &inner_enumerate.value else { unreachable!() };
@@ -919,8 +919,8 @@ pub(crate) fn add_generator_dyn_geo_mean<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_generator_dyn_zip<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_dyn_zip<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("zip", "generators", move |_params, types, _ns, bind| {
         if bind.is_some() {
@@ -964,14 +964,14 @@ pub(crate) fn add_generator_dyn_zip<W: Write + 'static>(
                     gens.push(a);
                     rt.as_ref().borrow().can_afford(&gens)?
                 }
-                Ok(manage_native!(XGenerator::<W>::Zip(gens), rt))
+                Ok(manage_native!(XGenerator::<W, R>::Zip(gens), rt))
             },
         ))
     })
 }
 
-pub(crate) fn add_generator_dyn_unzip<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_generator_dyn_unzip<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("unzip", "generators", move |_params, types, _ns, bind| {
         if bind.is_some() {

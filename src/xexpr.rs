@@ -41,23 +41,23 @@ impl<'a> OverloadSpecialization {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(crate) enum XStaticExpr<W> {
+pub(crate) enum XStaticExpr<W, R> {
     LiteralBool(bool),
     LiteralInt(i128),
     LiteralFloat(f64),
     LiteralString(String),
-    Array(Vec<XStaticExpr<W>>),
-    Tuple(Vec<XStaticExpr<W>>),
-    Call(Box<XStaticExpr<W>>, Vec<XStaticExpr<W>>),
-    Member(Box<XStaticExpr<W>>, Identifier),
-    MemberValue(Box<XStaticExpr<W>>, Identifier),
-    MemberOptValue(Box<XStaticExpr<W>>, Identifier),
+    Array(Vec<XStaticExpr<W, R>>),
+    Tuple(Vec<XStaticExpr<W, R>>),
+    Call(Box<XStaticExpr<W, R>>, Vec<XStaticExpr<W, R>>),
+    Member(Box<XStaticExpr<W, R>>, Identifier),
+    MemberValue(Box<XStaticExpr<W, R>>, Identifier),
+    MemberOptValue(Box<XStaticExpr<W, R>>, Identifier),
     Ident(Identifier),
     SpecializedIdent(Identifier, OverloadSpecialization),
-    Lambda(XFuncSpec, Box<XStaticFunction<W>>),
+    Lambda(XFuncSpec, Box<XStaticFunction<W, R>>),
 }
 
-impl<W: Write + 'static> XStaticExpr<W> {
+impl<W: Write + 'static, R> XStaticExpr<W, R> {
     pub(crate) fn new_call(name: &'static str, args: Vec<Self>, interner: &mut Interner) -> Self {
         Self::Call(
             Box::new(Self::Ident(interner.get_or_intern_static(name))),
@@ -72,51 +72,51 @@ impl<W: Write + 'static> XStaticExpr<W> {
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""), Debug(bound = ""))]
-pub enum XExpr<W> {
+pub enum XExpr<W, R> {
     LiteralBool(bool),
     LiteralInt(i128),
     LiteralFloat(f64),
     LiteralString(String),
-    Array(Vec<XExpr<W>>),
-    Tuple(Vec<XExpr<W>>),
-    Call(Box<XExpr<W>>, Vec<XExpr<W>>),
-    Construct(Arc<XCompoundSpec>, Bind, Vec<XExpr<W>>),
-    Variant(Arc<XCompoundSpec>, Bind, usize, Box<XExpr<W>>),
-    Member(Box<XExpr<W>>, usize),
-    MemberValue(Box<XExpr<W>>, usize),
-    MemberOptValue(Box<XExpr<W>>, usize),
+    Array(Vec<XExpr<W, R>>),
+    Tuple(Vec<XExpr<W, R>>),
+    Call(Box<XExpr<W, R>>, Vec<XExpr<W, R>>),
+    Construct(Arc<XCompoundSpec>, Bind, Vec<XExpr<W, R>>),
+    Variant(Arc<XCompoundSpec>, Bind, usize, Box<XExpr<W, R>>),
+    Member(Box<XExpr<W, R>>, usize),
+    MemberValue(Box<XExpr<W, R>>, usize),
+    MemberOptValue(Box<XExpr<W, R>>, usize),
     Value(usize),
     // this dummy exists for calling native functions with arguments that were already
     // evaluated
-    Dummy(EvaluatedValue<W>),
+    Dummy(EvaluatedValue<W, R>),
 }
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
-pub enum XStaticFunction<W> {
-    Native(NativeCallable<W>),
-    UserFunction(Rc<StaticUserFunction<W>>),
+pub enum XStaticFunction<W, R> {
+    Native(NativeCallable<W, R>),
+    UserFunction(Rc<StaticUserFunction<W, R>>),
 }
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub struct StaticUserFunction<W> {
+pub struct StaticUserFunction<W, R> {
     pub(crate) param_len: usize,
-    pub(crate) defaults: Vec<XExpr<W>>,
+    pub(crate) defaults: Vec<XExpr<W, R>>,
     pub(crate) cell_specs: Vec<CellSpec>,
-    pub(crate) declarations: Vec<Declaration<W>>,
-    pub(crate) output: Box<XExpr<W>>,
+    pub(crate) declarations: Vec<Declaration<W, R>>,
+    pub(crate) output: Box<XExpr<W, R>>,
     pub(crate) id: usize,
     pub(crate) parent_id: usize,
     pub(crate) forward_requirements: HashSet<ForwardRefRequirement>,
 }
 
-impl<W: Write + 'static> XStaticFunction<W> {
+impl<W: Write + 'static, R: 'static> XStaticFunction<W, R> {
     pub(crate) fn to_function(
         &self,
-        closure: &RuntimeScope<'_, W>,
-        rt: RTCell<W>,
-    ) -> Result<XFunction<W>, RuntimeViolation> {
+        closure: &RuntimeScope<'_, W, R>,
+        rt: RTCell<W, R>,
+    ) -> Result<XFunction<W, R>, RuntimeViolation> {
         Ok(match self {
             Self::Native(native) => XFunction::Native(native.clone()),
             Self::UserFunction(uf) => XFunction::UserFunction {
@@ -138,18 +138,18 @@ impl<W: Write + 'static> XStaticFunction<W> {
 
     pub(crate) fn from_native(
         f: impl Fn(
-                &[XExpr<W>],
-                &RuntimeScope<'_, W>,
+                &[XExpr<W, R>],
+                &RuntimeScope<'_, W, R>,
                 bool,
-                RTCell<W>,
-            ) -> Result<TailedEvalResult<W>, RuntimeViolation>
+                RTCell<W, R>,
+            ) -> Result<TailedEvalResult<W, R>, RuntimeViolation>
             + 'static,
     ) -> Self {
         Self::Native(Rc::new(f))
     }
 }
 
-impl<W> Debug for XStaticFunction<W> {
+impl<W, R> Debug for XStaticFunction<W, R> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             Self::Native(..) => {
@@ -164,21 +164,21 @@ impl<W> Debug for XStaticFunction<W> {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub struct XExplicitStaticArgSpec<W> {
+pub struct XExplicitStaticArgSpec<W, R> {
     pub(crate) name: Identifier,
     pub(crate) type_: Arc<XType>,
-    pub(crate) default: Option<XStaticExpr<W>>,
+    pub(crate) default: Option<XStaticExpr<W, R>>,
 }
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub enum TailedEvalResult<W> {
-    Value(EvaluatedValue<W>),
-    TailCall(Vec<EvaluatedValue<W>>),
+pub enum TailedEvalResult<W, R> {
+    Value(EvaluatedValue<W, R>),
+    TailCall(Vec<EvaluatedValue<W, R>>),
 }
 
-impl<W: Write + 'static> TailedEvalResult<W> {
-    pub fn unwrap_value(self) -> EvaluatedValue<W> {
+impl<W: Write + 'static, R> TailedEvalResult<W, R> {
+    pub fn unwrap_value(self) -> EvaluatedValue<W, R> {
         match self {
             Self::Value(v) => v,
             Self::TailCall(_) => {
@@ -188,14 +188,14 @@ impl<W: Write + 'static> TailedEvalResult<W> {
     }
 }
 
-impl<W: Write + 'static> From<Rc<ManagedXValue<W>>> for TailedEvalResult<W> {
-    fn from(v: Rc<ManagedXValue<W>>) -> Self {
+impl<W: Write + 'static, R> From<Rc<ManagedXValue<W, R>>> for TailedEvalResult<W, R> {
+    fn from(v: Rc<ManagedXValue<W, R>>) -> Self {
         Self::Value(Ok(v))
     }
 }
 
-impl<W: Write + 'static> From<EvaluatedValue<W>> for TailedEvalResult<W> {
-    fn from(v: EvaluatedValue<W>) -> Self {
+impl<W: Write + 'static, R> From<EvaluatedValue<W, R>> for TailedEvalResult<W, R> {
+    fn from(v: EvaluatedValue<W, R>) -> Self {
         Self::Value(v)
     }
 }

@@ -13,11 +13,12 @@ use statrs::statistics::{Max, Min};
 use std::fmt::Debug;
 use std::io::Write;
 use std::sync::Arc;
-use rand::Rng;
+use rand::{Rng, RngCore, SeedableRng};
 use itertools::Itertools;
 use crate::builtin::sequence::{XSequence, XSequenceType};
 use rand::distributions::{Distribution, Standard};
 use num_traits::FromPrimitive;
+use crate::builtin::builtin_permissions;
 
 fn inverse_cdf<K: Bounded + Clone + Num + Debug, T: Float>(s: &impl DiscreteCDF<K, T>, p: T) -> K {
     if p == T::zero() {
@@ -150,17 +151,17 @@ impl XDiscreteDistribution {
         }
     }
 
-    fn sample(self, n: usize, rng: &mut impl Rng)->Vec<LazyBigint>{
+    fn sample(&self, n: usize, rng: &mut impl RngCore)->Vec<LazyBigint>{
         match self {
-            Self::Binomial(ref i) => i.sample_iter(rng).map(|p| LazyBigint::from_f64(p).unwrap()).take(n).collect(),
-            Self::Custom(ref items) => {
+            Self::Binomial(i) => i.sample_iter(rng).map(|p| LazyBigint::from_f64(p).unwrap()).take(n).collect(),
+            Self::Custom(items) => {
                 rng.sample_iter(Standard).map(|x: f64|{
                     let idx = items.partition_point(|(_, p)| p <= &x);
                     items[idx].0.clone()
                 }).take(n).collect()
             },
             Self::Hypergeometric(i) => i.sample_iter(rng).map(|p| LazyBigint::from_f64(p).unwrap()).take(n).collect(),
-            Self::NegativeBinomial(i) => i.sample_iter(rng).map(|p| LazyBigint::from_f64(p).unwrap()).take(n).collect(),
+            Self::NegativeBinomial(i) => i.sample_iter(rng).map(|p| LazyBigint::from(p)).take(n).collect(),
             Self::Poisson(i) => i.sample_iter(rng).map(|p| LazyBigint::from_f64(p).unwrap()).take(n).collect(),
             Self::Uniform(i) => i.sample_iter(rng).map(|p| LazyBigint::from_f64(p).unwrap()).take(n).collect(),
         }
@@ -173,14 +174,14 @@ impl XNativeValue for XDiscreteDistribution {
     }
 }
 
-pub(crate) fn add_discrete_distribution_type<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_discrete_distribution_type<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_native_type("DiscreteDistribution", X_DISCDIST.clone())
 }
 
-pub(crate) fn add_discdist_binomial<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_discdist_binomial<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "binomial_distribution",
@@ -203,21 +204,21 @@ pub(crate) fn add_discdist_binomial<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_discdist_custom<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_discdist_custom<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "custom_distribution",
         XFuncSpec::new(&[&XSequenceType::xtype(Arc::new(XType::Tuple(vec![X_INT.clone(), X_FLOAT.clone()]))), ], X_DISCDIST.clone()),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let s0 = to_native!(a0, XSequence::<W>);
+            let s0 = to_native!(a0, XSequence::<W, R>);
             let Some(len) = s0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             if len == 0 {
                 return xerr(ManagedXError::new("sequence is empty", rt)?);
             }
             rt.borrow().can_allocate_by(|| Some(len))?;
-            let arr = xraise!(s0.diter(ns, rt.clone()).unwrap().collect::<XResult<Vec<_>,_>>()?);
+            let arr = xraise!(s0.diter(ns, rt.clone()).unwrap().collect::<XResult<Vec<_>,_, _>>()?);
             let mut items = arr.iter().map(|item| {
                 let tup = to_primitive!(item, StructInstance);
                 let val = to_primitive!(tup[0], Int).clone();
@@ -244,8 +245,8 @@ pub(crate) fn add_discdist_custom<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_discdist_hypergeometric<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_discdist_hypergeometric<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "hypergeometric_distribution",
@@ -277,8 +278,8 @@ pub(crate) fn add_discdist_hypergeometric<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_discdist_negative_binomial<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_discdist_negative_binomial<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "negative_binomial_distribution",
@@ -302,8 +303,8 @@ pub(crate) fn add_discdist_negative_binomial<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_discdist_poisson<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_discdist_poisson<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "poisson_distribution",
@@ -325,8 +326,8 @@ pub(crate) fn add_discdist_poisson<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_discdist_cdf<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_discdist_cdf<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "cdf",
@@ -341,8 +342,8 @@ pub(crate) fn add_discdist_cdf<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_discdist_pmf<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_discdist_pmf<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "pmf",
@@ -357,8 +358,8 @@ pub(crate) fn add_discdist_pmf<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_discdist_quantile<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_discdist_quantile<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "quantile",
@@ -372,6 +373,29 @@ pub(crate) fn add_discdist_quantile<W: Write + 'static>(
                 return xerr(ManagedXError::new("quantile must be between 0 and 1", rt)?);
             }
             Ok(ManagedXValue::new(XValue::Int(d0.quantile(*f1)), rt)?.into())
+        }),
+    )
+}
+
+pub(crate) fn add_discdist_sample<W: Write + 'static, R: SeedableRng + RngCore>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "sample",
+        XFuncSpec::new(&[&X_DISCDIST, &X_INT], XSequenceType::xtype(X_INT.clone())),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let d0 = to_native!(a0, XDiscreteDistribution);
+            let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
+            rt.borrow()
+                .limits
+                .check_permission(&builtin_permissions::RANDOM)?;
+            rt.borrow().can_allocate(i1)?;
+            let nums = d0.sample(i1, rt.borrow_mut().get_rng());
+            let nums = nums.into_iter().map(|v| ManagedXValue::new(XValue::Int(v), rt.clone())).collect::<Result<Vec<_>, _>>()?;
+            let ret = XSequence::array(nums);
+            Ok(manage_native!(ret, rt))
         }),
     )
 }

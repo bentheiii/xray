@@ -34,6 +34,7 @@ use crate::parser::XRayParser;
 use crate::root_compilation_scope::{Declaration, RootCompilationScope};
 
 use std::io::Write;
+use rand::{RngCore, SeedableRng};
 
 use crate::runtime::RTCell;
 
@@ -47,7 +48,7 @@ use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFunc
 
 pub type Identifier = SpecialPrefixSymbol<DefaultBackend<DefaultSymbol>>;
 
-pub fn std_compilation_scope<W: Write + 'static>() -> RootCompilationScope<W> {
+pub fn std_compilation_scope<W: Write + 'static, R: RngCore + SeedableRng>() -> RootCompilationScope<W, R> {
     let mut ret = RootCompilationScope::new();
 
     load_builtin(&mut ret);

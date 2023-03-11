@@ -250,7 +250,7 @@ impl<T: Resolve> Resolve for Vec<T> {
     }
 }
 
-impl<W: Write + 'static> Resolve for Vec<XExpr<W>> {
+impl<W: Write + 'static, R> Resolve for Vec<XExpr<W, R>> {
     type Output = Self;
     fn resolve(&self, _interner: &Interner) -> Self::Output {
         self.clone()

@@ -42,16 +42,16 @@ impl NativeType for XStackType {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-struct StackNode<W> {
-    value: Rc<ManagedXValue<W>>,
-    next: Option<Rc<StackNode<W>>>,
+struct StackNode<W, R> {
+    value: Rc<ManagedXValue<W, R>>,
+    next: Option<Rc<StackNode<W, R>>>,
 }
 
-impl<W: Write + 'static> StackNode<W> {
-    fn first(value: Rc<ManagedXValue<W>>) -> Rc<Self> {
+impl<W: Write + 'static, R> StackNode<W, R> {
+    fn first(value: Rc<ManagedXValue<W, R>>) -> Rc<Self> {
         Rc::new(Self { value, next: None })
     }
-    fn new(value: Rc<ManagedXValue<W>>, next: Rc<Self>) -> Rc<Self> {
+    fn new(value: Rc<ManagedXValue<W, R>>, next: Rc<Self>) -> Rc<Self> {
         Rc::new(Self {
             value,
             next: Some(next),
@@ -61,12 +61,12 @@ impl<W: Write + 'static> StackNode<W> {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(super) struct XStack<W> {
-    head: Option<Rc<StackNode<W>>>,
+pub(super) struct XStack<W, R> {
+    head: Option<Rc<StackNode<W, R>>>,
     pub(super) length: usize,
 }
 
-impl<W> Default for XStack<W> {
+impl<W, R> Default for XStack<W, R> {
     fn default() -> Self {
         Self {
             head: None,
@@ -75,12 +75,12 @@ impl<W> Default for XStack<W> {
     }
 }
 
-impl<W: Write + 'static> XStack<W> {
+impl<W: Write + 'static, R> XStack<W, R> {
     pub(super) fn new() -> Self {
         Self::default()
     }
 
-    pub(super) fn push(&self, value: Rc<ManagedXValue<W>>) -> Self {
+    pub(super) fn push(&self, value: Rc<ManagedXValue<W, R>>) -> Self {
         let node = match self.head {
             None => StackNode::first(value),
             Some(ref head) => StackNode::new(value, head.clone()),
@@ -91,7 +91,7 @@ impl<W: Write + 'static> XStack<W> {
         }
     }
 
-    fn to_vec<const REV: bool>(&self) -> Vec<Rc<ManagedXValue<W>>> {
+    fn to_vec<const REV: bool>(&self) -> Vec<Rc<ManagedXValue<W, R>>> {
         let mut vec = Vec::with_capacity(self.length);
         let mut node = &self.head;
         while let Some(ref n) = node {
@@ -104,7 +104,7 @@ impl<W: Write + 'static> XStack<W> {
         vec
     }
 
-    pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue<W>>> + '_ {
+    pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue<W, R>>> + '_ {
         let mut node = &self.head;
         from_fn(move || match &node {
             None => None,
@@ -117,7 +117,7 @@ impl<W: Write + 'static> XStack<W> {
     }
 }
 
-impl<W: 'static> XNativeValue for XStack<W> {
+impl<W: 'static, R: 'static> XNativeValue for XStack<W, R> {
     fn dyn_size(&self) -> usize {
         let mut managed_count = 0;
         let mut node = &self.head;
@@ -133,31 +133,31 @@ impl<W: 'static> XNativeValue for XStack<W> {
         if node.is_none() {
             managed_count += 1;
         }
-        (managed_count + 1) * size_of::<Rc<ManagedXValue<W>>>()
+        (managed_count + 1) * size_of::<Rc<ManagedXValue<W, R>>>()
     }
 }
 
-pub(crate) fn add_stack_type<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_stack_type<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Stack", XStackType::xtype(t))
 }
 
-pub(crate) fn add_stack_new<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_stack_new<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "stack",
         XFuncSpec::new(&[], XStackType::xtype(X_UNKNOWN.clone())),
         XStaticFunction::from_native(|_args, _ns, _tca, rt| {
-            Ok(manage_native!(XStack::<W>::new(), rt))
+            Ok(manage_native!(XStack::<W, R>::new(), rt))
         }),
     )
 }
 
-pub(crate) fn add_stack_push<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_stack_push<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
@@ -168,14 +168,14 @@ pub(crate) fn add_stack_push<W: Write + 'static>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let stk0 = to_native!(a0, XStack<W>);
+            let stk0 = to_native!(a0, XStack<W, R>);
             Ok(manage_native!(stk0.push(a1), rt))
         }),
     )
 }
 
-pub(crate) fn add_stack_to_array<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_stack_to_array<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
@@ -185,15 +185,15 @@ pub(crate) fn add_stack_to_array<W: Write + 'static>(
         XFuncSpec::new(&[&t_stk], XSequenceType::xtype(t)).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let stk0 = to_native!(a0, XStack<W>);
+            let stk0 = to_native!(a0, XStack<W, R>);
             rt.borrow().can_allocate(stk0.length)?;
             Ok(manage_native!(XSequence::array(stk0.to_vec::<false>()), rt))
         }),
     )
 }
 
-pub(crate) fn add_stack_to_array_reversed<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_stack_to_array_reversed<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
@@ -203,15 +203,15 @@ pub(crate) fn add_stack_to_array_reversed<W: Write + 'static>(
         XFuncSpec::new(&[&t_stk], XSequenceType::xtype(t)).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let stk0 = to_native!(a0, XStack<W>);
+            let stk0 = to_native!(a0, XStack<W, R>);
             rt.borrow().can_allocate(stk0.length)?;
             Ok(manage_native!(XSequence::array(stk0.to_vec::<true>()), rt))
         }),
     )
 }
 
-pub(crate) fn add_stack_len<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_stack_len<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t);
@@ -221,14 +221,14 @@ pub(crate) fn add_stack_len<W: Write + 'static>(
         XFuncSpec::new(&[&t_stk], X_INT.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let stk0 = to_native!(a0, XStack<W>);
+            let stk0 = to_native!(a0, XStack<W, R>);
             Ok(ManagedXValue::new(XValue::Int(stk0.length.into()), rt)?.into())
         }),
     )
 }
 
-pub(crate) fn add_stack_head<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_stack_head<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t.clone());
@@ -238,7 +238,7 @@ pub(crate) fn add_stack_head<W: Write + 'static>(
         XFuncSpec::new(&[&t_stk], t).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let stk0 = to_native!(a0, XStack<W>);
+            let stk0 = to_native!(a0, XStack<W, R>);
             match &stk0.head {
                 Some(v) => Ok(v.value.clone().into()),
                 None => Ok(Err(ManagedXError::new("stack is empty", rt)?).into()),
@@ -247,8 +247,8 @@ pub(crate) fn add_stack_head<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_stack_tail<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_stack_tail<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_stk = XStackType::xtype(t);
@@ -258,7 +258,7 @@ pub(crate) fn add_stack_tail<W: Write + 'static>(
         XFuncSpec::new(&[&t_stk], t_stk.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let stk0 = to_native!(a0, XStack<W>);
+            let stk0 = to_native!(a0, XStack<W, R>);
             match &stk0.head {
                 Some(v) => Ok(manage_native!(
                     XStack {
@@ -273,8 +273,8 @@ pub(crate) fn add_stack_tail<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_stack_dyn_eq<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_stack_dyn_eq<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
 
@@ -299,11 +299,11 @@ pub(crate) fn add_stack_dyn_eq<W: Write + 'static>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner_eq, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
                         let a0 = xraise!(eval(&args[0], ns, &rt)?);
                         let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                        let s0 = &to_native!(a0, XStack<W>);
-                        let s1 = &to_native!(a1, XStack<W>);
+                        let s0 = &to_native!(a0, XStack<W, R>);
+                        let s1 = &to_native!(a1, XStack<W, R>);
                         if s0.length != s1.length {
                             return Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into());
                         }
@@ -332,8 +332,8 @@ pub(crate) fn add_stack_dyn_eq<W: Write + 'static>(
     })
 }
 
-pub(crate) fn add_stack_dyn_hash<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_stack_dyn_hash<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("hash");
 
@@ -354,9 +354,9 @@ pub(crate) fn add_stack_dyn_hash<W: Write + 'static>(
                 let inner_value = forward_err!(ns.eval(&inner, rt, false)?.unwrap_value());
 
 
-                Ok(Ok(move |args: &[XExpr<W>], ns: &RuntimeScope<'_, W>, _tca, rt| {
+                Ok(Ok(move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                    let seq0 = to_native!(a0, XStack<W>);
+                    let seq0 = to_native!(a0, XStack<W, R>);
                     let mut hasher = DefaultHasher::new();
                     let inner_func = to_primitive!(inner_value, Function);
 

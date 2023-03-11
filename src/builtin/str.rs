@@ -21,8 +21,8 @@ use std::hash::{Hash, Hasher};
 use std::io::Write;
 use std::rc;
 
-pub(crate) fn add_str_type<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_str_type<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_native_type("str", X_STRING.clone())
 }
@@ -37,14 +37,14 @@ add_binfunc!(
     X_STRING,
     String,
     X_STRING,
-    |a: &FencedString, b: &FencedString, rt: &RTCell<W>| {
+    |a: &FencedString, b: &FencedString, rt: &RTCell<W, R>| {
         rt.borrow().can_allocate(a.bytes() + b.bytes())?;
         Ok(Ok(XValue::String(Box::new(a + b))))
     }
 );
 
-pub(crate) fn add_str_hash<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_str_hash<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "hash",
@@ -60,8 +60,8 @@ pub(crate) fn add_str_hash<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_str_len<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_str_len<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "len",
@@ -72,8 +72,8 @@ pub(crate) fn add_str_len<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_str_to_str<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_str_to_str<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "to_str",
@@ -82,8 +82,8 @@ pub(crate) fn add_str_to_str<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_str_chars<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_str_chars<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "chars",
@@ -108,8 +108,8 @@ pub(crate) fn add_str_chars<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_str_get<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_str_get<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "get",
@@ -125,8 +125,8 @@ pub(crate) fn add_str_get<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_str_find<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_str_find<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "find",
@@ -161,8 +161,8 @@ pub(crate) fn add_str_find<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_str_substring<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_str_substring<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "substring",
@@ -184,8 +184,8 @@ pub(crate) fn add_str_substring<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_str_code_point<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_str_code_point<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "code_point",
@@ -199,8 +199,8 @@ pub(crate) fn add_str_code_point<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_str_lower<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_str_lower<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "lower",
@@ -218,8 +218,8 @@ pub(crate) fn add_str_lower<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_str_upper<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_str_upper<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "upper",
@@ -237,8 +237,8 @@ pub(crate) fn add_str_upper<W: Write + 'static>(
     )
 }
 
-pub(crate) fn add_str_to_int<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_str_to_int<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "to_int",

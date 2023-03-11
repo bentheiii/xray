@@ -2,23 +2,16 @@ extern crate core;
 extern crate pest;
 
 use std::io::stdout;
+use rand::rngs::StdRng;
 
 use xray::root_runtime_scope::RootEvaluationScope;
 
-use xray::runtime::RuntimeLimits;
+use xray::runtime::{RTCell, RuntimeLimits};
 use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    forward fn foo(i: int)->int;
-
-    fn fool(i: int)->int {
-        foo(i*i)
-    }
-
-    fn foo(i: int)->int{ i+2 }
-
-    let z = fool(5);
+    let z = poisson_distribution(10.0).sample(10);
     "###;
     /*
     fn foo()->()->(int){ // 32
@@ -37,7 +30,7 @@ fn main() {
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()
     };
-    let runtime = limits.to_runtime(stdout());
+    let runtime: RTCell<_, StdRng> = limits.to_runtime(stdout());
 
     let mut root_scope = std_compilation_scope();
 

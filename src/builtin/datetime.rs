@@ -7,7 +7,7 @@ use crate::xexpr::XStaticFunction;
 use crate::xtype::{X_FLOAT, XFuncSpec};
 use crate::xvalue::{ManagedXValue, XValue};
 
-pub(crate) fn add_datetime_now<W: Write + 'static>(scope: &mut RootCompilationScope<W>) -> Result<(), CompilationError>{
+pub(crate) fn add_datetime_now<W: Write + 'static, R>(scope: &mut RootCompilationScope<W, R>) -> Result<(), CompilationError>{
     scope.add_func(
         "__std_unix_now",
         XFuncSpec::new(&[], X_FLOAT.clone()),

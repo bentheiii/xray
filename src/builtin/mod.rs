@@ -10,6 +10,7 @@ use crate::builtin::str::*;
 use crate::builtin::unknown::*;
 
 use std::io::Write;
+use rand::{RngCore, SeedableRng};
 
 use crate::builtin::cont_distributions::*;
 use crate::builtin::datetime::*;
@@ -46,7 +47,7 @@ pub mod unions;
 pub mod unknown;
 pub mod datetime;
 
-pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<W>) {
+pub(crate) fn load_builtin<W: Write + 'static, R: RngCore + SeedableRng>(scope: &mut RootCompilationScope<W, R>) {
     add_int_type(scope).unwrap();
     add_int_add(scope).unwrap();
     add_int_binom(scope).unwrap();
@@ -284,6 +285,7 @@ pub(crate) fn load_builtin<W: Write + 'static>(scope: &mut RootCompilationScope<
     add_discdist_quantile(scope).unwrap();
     add_discdist_poisson(scope).unwrap();
     add_discdist_custom(scope).unwrap();
+    add_discdist_sample(scope).unwrap();
 
     add_cast(scope).unwrap();
     add_debug(scope).unwrap();

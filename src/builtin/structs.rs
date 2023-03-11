@@ -6,8 +6,8 @@ use crate::xvalue::XFunctionFactoryOutput;
 use std::io::Write;
 use std::sync::Arc;
 
-pub(crate) fn add_struct_members<W: Write + 'static>(
-    scope: &mut RootCompilationScope<W>,
+pub(crate) fn add_struct_members<W: Write + 'static, R>(
+    scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("members", "structs", move |_params, types, _ns, bind| {
         if bind.is_some() {

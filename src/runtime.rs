@@ -9,6 +9,7 @@ use std::iter;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
+use rand::SeedableRng;
 
 #[derive(Debug, Default)]
 pub struct RuntimeLimits {
@@ -23,12 +24,13 @@ pub struct RuntimeLimits {
 }
 
 impl RuntimeLimits {
-    pub fn to_runtime<W: Write + 'static>(self, output: W) -> RTCell<W> {
+    pub fn to_runtime<W: Write + 'static, R>(self, output: W) -> RTCell<W, R> {
         Rc::new(RefCell::new(Runtime {
             size: 0,
             stdout: output,
             ud_calls: 0,
             timeout: self.time_limit.map(|ti| Instant::now() + ti),
+            rng: None,
             limits: self,
         }))
     }
@@ -55,18 +57,18 @@ impl RuntimeLimits {
     }
 }
 
-pub struct Runtime<W> {
+pub struct Runtime<W, R> {
     pub limits: RuntimeLimits,
     pub(crate) size: usize, // this will be zero if the runtime has no size limit
     pub(crate) ud_calls: usize, // this will be zero if the runtime has no us_call limit
     pub stdout: W,
-    pub rng: Option<>
+    pub rng: Option<R>,
     pub(crate) timeout: Option<Instant>,
 }
 
-pub type RTCell<W> = Rc<RefCell<Runtime<W>>>;
+pub type RTCell<W, R> = Rc<RefCell<Runtime<W, R>>>;
 
-impl<W: Write + 'static> Runtime<W> {
+impl<W, R> Runtime<W, R> {
     pub fn can_allocate(&self, new_size: usize) -> Result<(), RuntimeViolation> {
         self.can_allocate_by(|| Some(new_size))
     }
@@ -107,6 +109,12 @@ impl<W: Write + 'static> Runtime<W> {
             .map_or(true, |timeout| timeout > Instant::now())
             .then_some(())
             .ok_or(RuntimeViolation::Timeout)
+    }
+}
+
+impl<W, R: SeedableRng> Runtime<W, R>{
+    pub fn get_rng(&mut self)->&mut R{
+        self.rng.get_or_insert_with(|| R::from_entropy())
     }
 }
 
