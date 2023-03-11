@@ -9,8 +9,8 @@ use crate::builtin::stack::*;
 use crate::builtin::str::*;
 use crate::builtin::unknown::*;
 
-use std::io::Write;
 use rand::{RngCore, SeedableRng};
+use std::io::Write;
 
 use crate::builtin::cont_distributions::*;
 use crate::builtin::datetime::*;
@@ -28,6 +28,7 @@ pub mod bool;
 pub mod builtin_permissions;
 pub mod cont_distributions;
 mod core;
+pub mod datetime;
 pub mod disc_distributions;
 pub mod floats;
 pub mod generators;
@@ -45,9 +46,10 @@ pub mod structs;
 pub mod tuple;
 pub mod unions;
 pub mod unknown;
-pub mod datetime;
 
-pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(scope: &mut RootCompilationScope<W, R>) {
+pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
+    scope: &mut RootCompilationScope<W, R>,
+) {
     add_int_type(scope).unwrap();
     add_int_add(scope).unwrap();
     add_int_binom(scope).unwrap();

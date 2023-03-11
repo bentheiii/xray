@@ -14,7 +14,7 @@ use std::cmp::max;
 
 use std::convert::TryFrom;
 use std::f64::consts::LOG10_2;
-use std::io::Write;
+
 use std::ops::Neg;
 use std::rc;
 
@@ -101,22 +101,20 @@ add_int_binop!(
         Ok(Ok(XValue::Int(a.clone() ^ b.clone())))
     }
 );
-add_binfunc!(
-    add_int_div,
-    div,
-    X_INT,
-    Int,
-    X_FLOAT,
-    |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W, R>| {
-        Ok(if b.is_zero() {
-            Err(String::from("Division by zero"))
-        } else {
-            rt.borrow()
-                .can_allocate(a.prospective_size() - b.prospective_size())?;
-            Ok(XValue::Float(a.clone().true_div(b.clone())))
-        })
-    }
-);
+add_binfunc!(add_int_div, div, X_INT, Int, X_FLOAT, |a: &LazyBigint,
+                                                     b: &LazyBigint,
+                                                     rt: &RTCell<
+    W,
+    R,
+>| {
+    Ok(if b.is_zero() {
+        Err(String::from("Division by zero"))
+    } else {
+        rt.borrow()
+            .can_allocate(a.prospective_size() - b.prospective_size())?;
+        Ok(XValue::Float(a.clone().true_div(b.clone())))
+    })
+});
 add_binfunc!(
     add_int_pow,
     pow,

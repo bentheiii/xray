@@ -2,13 +2,13 @@ use crate::permissions::{Permission, PermissionSet};
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
 use either::Either;
+use rand::SeedableRng;
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::iter;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
-use rand::SeedableRng;
 
 #[derive(Debug, Default)]
 pub struct RuntimeLimits {
@@ -111,8 +111,8 @@ impl<W, R> Runtime<W, R> {
     }
 }
 
-impl<W, R: SeedableRng> Runtime<W, R>{
-    pub fn get_rng(&mut self)->&mut R{
+impl<W, R: SeedableRng> Runtime<W, R> {
+    pub fn get_rng(&mut self) -> &mut R {
         self.rng.get_or_insert_with(|| R::from_entropy())
     }
 }

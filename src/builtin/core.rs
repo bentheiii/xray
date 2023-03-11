@@ -1,8 +1,6 @@
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use num_traits::{One, Zero};
 
-use std::io::Write;
-
 use crate::compilation_scope::CompilationScope;
 use crate::root_runtime_scope::EvaluatedValue;
 use crate::runtime_scope::RuntimeScope;
@@ -60,7 +58,10 @@ macro_rules! add_binfunc {
 
 pub fn ufunc_ref<W: 'static, R: 'static, F>(func: F) -> XStaticFunction<W, R>
 where
-    F: Fn(Rc<ManagedXValue<W, R>>, RTCell<W, R>) -> Result<TailedEvalResult<W, R>, RuntimeViolation>
+    F: Fn(
+            Rc<ManagedXValue<W, R>>,
+            RTCell<W, R>,
+        ) -> Result<TailedEvalResult<W, R>, RuntimeViolation>
         + 'static,
 {
     XStaticFunction::from_native(move |args, ns, _tca, rt| {

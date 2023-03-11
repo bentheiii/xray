@@ -22,7 +22,7 @@ use num_traits::{One, Signed, ToPrimitive, Zero};
 use rc::Rc;
 
 use std::fmt::Debug;
-use std::io::Write;
+
 use std::mem::size_of;
 
 use crate::builtin::mapping::XMapping;
@@ -155,7 +155,8 @@ impl<W: 'static, R: 'static> XGenerator<W, R> {
                 let mut iters = arr
                     .iter()
                     .map(|gen| {
-                        let ret: BIter<_, _> = Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
+                        let ret: BIter<_, _> =
+                            Box::new(to_native!(gen, Self)._iter(ns, rt.clone()));
                         ret
                     })
                     .collect::<Vec<BIter<_, _>>>();
@@ -244,14 +245,16 @@ impl<W: 'static, R: 'static> XGenerator<W, R> {
                 })
             }),
             Self::FromSet(set) => either_l(to_native!(set, XSet<W, R>).iter().map(|e| Ok(Ok(e)))),
-            Self::FromMapping(mapping) => {
-                either_m_last(to_native!(mapping, XMapping<W, R>).iter().map(move |(k, v)| {
-                    Ok(Ok(ManagedXValue::new(
-                        XValue::StructInstance(vec![k, v]),
-                        rt.clone(),
-                    )?))
-                }))
-            }
+            Self::FromMapping(mapping) => either_m_last(
+                to_native!(mapping, XMapping<W, R>)
+                    .iter()
+                    .map(move |(k, v)| {
+                        Ok(Ok(ManagedXValue::new(
+                            XValue::StructInstance(vec![k, v]),
+                            rt.clone(),
+                        )?))
+                    }),
+            ),
         }
     }
 

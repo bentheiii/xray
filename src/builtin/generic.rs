@@ -23,9 +23,7 @@ use std::io::Write;
 use std::sync::Arc;
 use std::{iter, rc};
 
-pub(crate) fn add_if<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
-) -> Result<(), CompilationError> {
+pub(crate) fn add_if<W, R>(scope: &mut RootCompilationScope<W, R>) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if",
@@ -168,9 +166,7 @@ pub(crate) fn add_get_error<W, R>(
     )
 }
 
-pub(crate) fn add_ne<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
-) -> Result<(), CompilationError> {
+pub(crate) fn add_ne<W, R>(scope: &mut RootCompilationScope<W, R>) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
 
     scope.add_dyn_func("ne", "eq-inverse", move |_params, types, ns, bind| {
@@ -231,7 +227,10 @@ pub(crate) fn add_display<W: Write, R>(
                     let inner_value =
                         forward_err!(ns.eval(&inner_to_str, rt, false)?.unwrap_value());
                     Ok(Ok(
-                        move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt: RTCell<W, R>| {
+                        move |args: &[XExpr<W, R>],
+                              ns: &RuntimeScope<'_, W, R>,
+                              _tca,
+                              rt: RTCell<W, R>| {
                             rt.borrow()
                                 .limits
                                 .check_permission(&builtin_permissions::PRINT)?;

@@ -33,8 +33,8 @@ use crate::compile_err::{CompilationError, TracedCompilationError};
 use crate::parser::XRayParser;
 use crate::root_compilation_scope::{Declaration, RootCompilationScope};
 
-use std::io::Write;
 use rand::{RngCore, SeedableRng};
+use std::io::Write;
 
 use crate::runtime::RTCell;
 

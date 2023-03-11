@@ -19,7 +19,7 @@ use num_traits::ToPrimitive;
 use rc::Rc;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::io::Write;
+
 use std::iter::once;
 use std::mem::size_of;
 use std::rc;

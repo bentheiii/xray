@@ -7,16 +7,18 @@ use crate::{
     XStaticFunction, XType,
 };
 use num_traits::{Float, ToPrimitive};
-use statrs::distribution::{Beta, Continuous, ContinuousCDF, Exp, FisherSnedecor, Gamma, LogNormal, Normal, Uniform};
+use statrs::distribution::{
+    Beta, Continuous, ContinuousCDF, Exp, FisherSnedecor, Gamma, LogNormal, Normal, Uniform,
+};
 use statrs::function::erf::erf_inv;
 use statrs::statistics::{Max, Min};
 use std::fmt::Debug;
-use std::io::Write;
-use std::sync::Arc;
-use rand::{RngCore, SeedableRng};
-use rand::distributions::Distribution;
+
 use crate::builtin::builtin_permissions;
 use crate::builtin::sequence::{XSequence, XSequenceType};
+use rand::distributions::Distribution;
+use rand::{RngCore, SeedableRng};
+use std::sync::Arc;
 
 /// copy-paste of the inverse cdf algorithm from statrs, but with more precision
 fn deep_inverse_cdf<K: Float, T: Float, S: ContinuousCDF<K, T>>(s: &S, p: T) -> K {
@@ -117,7 +119,7 @@ impl XContinuousDistribution {
         }
     }
 
-    fn sample(&self, n: usize, rng: &mut impl RngCore)->Vec<f64>{
+    fn sample(&self, n: usize, rng: &mut impl RngCore) -> Vec<f64> {
         match self {
             Self::Beta(i) => i.sample_iter(rng).take(n).collect(),
             Self::Exponential(i) => i.sample_iter(rng).take(n).collect(),
@@ -254,10 +256,7 @@ pub(crate) fn add_contdist_normal<W, R>(
                     return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
                 }
             };
-            Ok(manage_native!(
-                XContinuousDistribution::Normal(ret),
-                rt
-            ))
+            Ok(manage_native!(XContinuousDistribution::Normal(ret), rt))
         }),
     )
 }
@@ -338,7 +337,6 @@ pub(crate) fn add_contdist_gamma<W, R>(
         }),
     )
 }
-
 
 pub(crate) fn add_contdist_sample<W, R: SeedableRng + RngCore>(
     scope: &mut RootCompilationScope<W, R>,

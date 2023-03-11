@@ -167,7 +167,10 @@ impl<W, R> Drop for ManagedXValue<W, R> {
 }
 
 impl<W, R> ManagedXValue<W, R> {
-    pub(crate) fn new(value: XValue<W, R>, runtime: RTCell<W, R>) -> Result<Rc<Self>, RuntimeViolation> {
+    pub(crate) fn new(
+        value: XValue<W, R>,
+        runtime: RTCell<W, R>,
+    ) -> Result<Rc<Self>, RuntimeViolation> {
         let size;
         {
             let size_limit = runtime.borrow().limits.size_limit;

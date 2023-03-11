@@ -14,7 +14,7 @@ use std::cmp::max_by;
 use crate::util::fenced_string::FencedString;
 use statrs::function::erf::{erf, erfc};
 use statrs::function::gamma::{gamma, ln_gamma};
-use std::io::Write;
+
 use std::rc;
 
 pub(crate) fn add_float_type<W, R>(

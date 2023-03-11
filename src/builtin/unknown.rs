@@ -3,7 +3,6 @@ use crate::{CompilationError, RootCompilationScope, XFuncSpec};
 
 use crate::builtin::core::{unpack_dyn_types, xerr};
 use crate::xvalue::{ManagedXError, XFunctionFactoryOutput};
-use std::io::Write;
 
 pub(crate) fn add_unknown_eq<W, R>(
     scope: &mut RootCompilationScope<W, R>,

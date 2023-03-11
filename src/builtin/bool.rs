@@ -11,7 +11,7 @@ use rc::Rc;
 
 use crate::util::fenced_string::FencedString;
 use crate::xexpr::XExpr;
-use std::io::Write;
+
 use std::rc;
 
 pub(crate) fn add_bool_type<W, R>(

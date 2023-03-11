@@ -18,7 +18,7 @@ use crate::{add_binfunc, manage_native, to_primitive, ufunc, xraise, xraise_opt}
 use itertools::Itertools;
 use num_traits::{FromPrimitive, Signed, ToPrimitive};
 use std::hash::{Hash, Hasher};
-use std::io::Write;
+
 use std::rc;
 
 pub(crate) fn add_str_type<W, R>(

@@ -484,7 +484,7 @@ impl ToPrimitive for LazyBigint {
 
 macro_rules! impl_try_from {
     ($t: ty) => {
-        impl TryFrom<LazyBigint> for $t{
+        impl TryFrom<LazyBigint> for $t {
             type Error = ();
             fn try_from(value: LazyBigint) -> Result<Self, Self::Error> {
                 match value {
@@ -494,7 +494,7 @@ macro_rules! impl_try_from {
             }
         }
 
-        impl TryFrom<&LazyBigint> for $t{
+        impl TryFrom<&LazyBigint> for $t {
             type Error = ();
             fn try_from(value: &LazyBigint) -> Result<Self, Self::Error> {
                 match value {
@@ -506,8 +506,8 @@ macro_rules! impl_try_from {
     };
 }
 
-impl_try_from!{u64}
-impl_try_from!{i64}
+impl_try_from! {u64}
+impl_try_from! {i64}
 
 impl PartialOrd for LazyBigint {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {

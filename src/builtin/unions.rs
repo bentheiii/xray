@@ -5,7 +5,7 @@ use crate::root_compilation_scope::RootCompilationScope;
 use crate::xtype::{CompoundKind, XFuncSpec, XType};
 use crate::xvalue::{ManagedXValue, XFunctionFactoryOutput, XValue};
 use crate::{manage_native, to_primitive, xraise};
-use std::io::Write;
+
 use std::iter;
 use std::rc::Rc;
 use std::sync::Arc;

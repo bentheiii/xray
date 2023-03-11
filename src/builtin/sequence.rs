@@ -28,7 +28,7 @@ use std::cmp::Ordering;
 use std::collections::hash_map::DefaultHasher;
 use std::fmt::Debug;
 use std::hash::Hasher;
-use std::io::Write;
+
 use std::mem::size_of;
 use std::ops::Neg;
 use std::sync::Arc;
@@ -211,6 +211,7 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
         })
     }
 
+    #[allow(clippy::type_complexity)]
     pub(crate) fn chain<'a>(
         base0: &'a Rc<ManagedXValue<W, R>>,
         base1: &'a Rc<ManagedXValue<W, R>>,
@@ -1792,10 +1793,12 @@ pub(crate) fn add_sequence_dyn_mean<W, R>(
                     forward_err!(ns.eval(&inner_sum, rt.clone(), false)?.unwrap_value());
                 let inner_len =
                     forward_err!(ns.eval(&inner_len, rt.clone(), false)?.unwrap_value());
-                let inner_div =
-                    forward_err!(ns.eval(&inner_div, rt, false)?.unwrap_value());
+                let inner_div = forward_err!(ns.eval(&inner_div, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt: RTCell<_, _>| {
+                    move |args: &[XExpr<W, R>],
+                          ns: &RuntimeScope<'_, W, R>,
+                          _tca,
+                          rt: RTCell<_, _>| {
                         let a0 = xraise!(eval(&args[0], ns, &rt)?);
                         let XValue::Function(inner_sum) = &inner_sum.value else { unreachable!() };
                         let XValue::Function(inner_len) = &inner_len.value else { unreachable!() };
@@ -1811,12 +1814,7 @@ pub(crate) fn add_sequence_dyn_mean<W, R>(
                         let len = xraise!(ns
                             .eval_func_with_values(inner_len, vec![Ok(a0),], rt.clone(), false)?
                             .unwrap_value());
-                        ns.eval_func_with_values(
-                            inner_div,
-                            vec![Ok(total), Ok(len)],
-                            rt,
-                            false,
-                        )
+                        ns.eval_func_with_values(inner_div, vec![Ok(total), Ok(len)], rt, false)
                     },
                 ))
             },

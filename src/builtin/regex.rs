@@ -9,7 +9,6 @@ use crate::{
 };
 
 use std::fmt::Debug;
-use std::io::Write;
 
 use num_traits::ToPrimitive;
 use regex::{Regex, RegexBuilder};

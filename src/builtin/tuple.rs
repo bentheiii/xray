@@ -10,7 +10,7 @@ use crate::util::fenced_string::FencedString;
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::{XExpr, XStaticFunction};
 use num_traits::{ToPrimitive, Zero};
-use std::io::Write;
+
 use std::sync::Arc;
 
 pub(crate) fn add_tuple_empty_and<W, R>(

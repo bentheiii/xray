@@ -8,17 +8,19 @@ use crate::{
     XStaticFunction, XType,
 };
 use num_traits::{Bounded, Float, Num, Signed, ToPrimitive};
-use statrs::distribution::{Binomial, Discrete, DiscreteCDF, DiscreteUniform, Hypergeometric, NegativeBinomial, Poisson};
+use statrs::distribution::{
+    Binomial, Discrete, DiscreteCDF, DiscreteUniform, Hypergeometric, NegativeBinomial, Poisson,
+};
 use statrs::statistics::{Max, Min};
 use std::fmt::Debug;
-use std::io::Write;
-use std::sync::Arc;
-use rand::{Rng, RngCore, SeedableRng};
-use itertools::Itertools;
-use crate::builtin::sequence::{XSequence, XSequenceType};
-use rand::distributions::{Distribution, Standard};
-use num_traits::FromPrimitive;
+
 use crate::builtin::builtin_permissions;
+use crate::builtin::sequence::{XSequence, XSequenceType};
+use itertools::Itertools;
+use num_traits::FromPrimitive;
+use rand::distributions::{Distribution, Standard};
+use rand::{Rng, RngCore, SeedableRng};
+use std::sync::Arc;
 
 fn inverse_cdf<K: Bounded + Clone + Num + Debug, T: Float>(s: &impl DiscreteCDF<K, T>, p: T) -> K {
     if p == T::zero() {
@@ -73,14 +75,26 @@ pub(crate) enum XDiscreteDistribution {
     Uniform(DiscreteUniform),
 }
 
-fn big_int_cdf<'a, K: Bounded + Clone + Num, T: Float>(c: &impl DiscreteCDF<K, T>, x: &'a LazyBigint) -> T where K: TryFrom<&'a LazyBigint> {
+fn big_int_cdf<'a, K: Bounded + Clone + Num, T: Float>(
+    c: &impl DiscreteCDF<K, T>,
+    x: &'a LazyBigint,
+) -> T
+where
+    K: TryFrom<&'a LazyBigint>,
+{
     let Ok(x) = x.try_into() else {
         return if x.is_negative() { T::zero() } else { T::one() };
     };
     c.cdf(x)
 }
 
-fn big_int_pdf<'a, K: Bounded + Clone + Num, T: Float>(c: &impl Discrete<K, T>, x: &'a LazyBigint) -> T where K: TryFrom<&'a LazyBigint> {
+fn big_int_pdf<'a, K: Bounded + Clone + Num, T: Float>(
+    c: &impl Discrete<K, T>,
+    x: &'a LazyBigint,
+) -> T
+where
+    K: TryFrom<&'a LazyBigint>,
+{
     let Ok(x) = x.try_into() else {
         return T::zero();
     };
@@ -93,10 +107,10 @@ impl XDiscreteDistribution {
             Self::Binomial(i) => big_int_cdf(i, x),
             Self::Custom(items) => {
                 let idx = items.partition_point(|(i, _)| i <= x);
-                if idx == 0{
+                if idx == 0 {
                     0.0
                 } else {
-                    items[idx-1].1
+                    items[idx - 1].1
                 }
             }
             Self::Hypergeometric(i) => big_int_cdf(i, x),
@@ -109,12 +123,10 @@ impl XDiscreteDistribution {
     fn pmf(&self, x: &LazyBigint) -> f64 {
         match self {
             Self::Binomial(i) => big_int_pdf(i, x),
-            Self::Custom(items) => {
-                match items.binary_search_by(|(i, _)| i.cmp(x)){
-                    Ok(0) | Err(..) => 0.0,
-                    Ok(idx) => items[idx].1 - items[idx-1].1
-                }
-            }
+            Self::Custom(items) => match items.binary_search_by(|(i, _)| i.cmp(x)) {
+                Ok(0) | Err(..) => 0.0,
+                Ok(idx) => items[idx].1 - items[idx - 1].1,
+            },
             Self::Hypergeometric(i) => big_int_pdf(i, x),
             Self::NegativeBinomial(i) => big_int_pdf(i, x),
             Self::Poisson(i) => big_int_pdf(i, x),
@@ -151,19 +163,37 @@ impl XDiscreteDistribution {
         }
     }
 
-    fn sample(&self, n: usize, rng: &mut impl RngCore)->Vec<LazyBigint>{
+    fn sample(&self, n: usize, rng: &mut impl RngCore) -> Vec<LazyBigint> {
         match self {
-            Self::Binomial(i) => i.sample_iter(rng).map(|p| LazyBigint::from_f64(p).unwrap()).take(n).collect(),
-            Self::Custom(items) => {
-                rng.sample_iter(Standard).map(|x: f64|{
+            Self::Binomial(i) => i
+                .sample_iter(rng)
+                .map(|p| LazyBigint::from_f64(p).unwrap())
+                .take(n)
+                .collect(),
+            Self::Custom(items) => rng
+                .sample_iter(Standard)
+                .map(|x: f64| {
                     let idx = items.partition_point(|(_, p)| p <= &x);
                     items[idx].0.clone()
-                }).take(n).collect()
-            },
-            Self::Hypergeometric(i) => i.sample_iter(rng).map(|p| LazyBigint::from_f64(p).unwrap()).take(n).collect(),
-            Self::NegativeBinomial(i) => i.sample_iter(rng).map(|p| LazyBigint::from(p)).take(n).collect(),
-            Self::Poisson(i) => i.sample_iter(rng).map(|p| LazyBigint::from_f64(p).unwrap()).take(n).collect(),
-            Self::Uniform(i) => i.sample_iter(rng).map(|p| LazyBigint::from_f64(p).unwrap()).take(n).collect(),
+                })
+                .take(n)
+                .collect(),
+            Self::Hypergeometric(i) => i
+                .sample_iter(rng)
+                .map(|p| LazyBigint::from_f64(p).unwrap())
+                .take(n)
+                .collect(),
+            Self::NegativeBinomial(i) => i.sample_iter(rng).map(LazyBigint::from).take(n).collect(),
+            Self::Poisson(i) => i
+                .sample_iter(rng)
+                .map(|p| LazyBigint::from_f64(p).unwrap())
+                .take(n)
+                .collect(),
+            Self::Uniform(i) => i
+                .sample_iter(rng)
+                .map(|p| LazyBigint::from_f64(p).unwrap())
+                .take(n)
+                .collect(),
         }
     }
 }
@@ -318,10 +348,7 @@ pub(crate) fn add_discdist_poisson<W, R>(
                     return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
                 }
             };
-            Ok(manage_native!(
-                XDiscreteDistribution::Poisson(ret),
-                rt
-            ))
+            Ok(manage_native!(XDiscreteDistribution::Poisson(ret), rt))
         }),
     )
 }
