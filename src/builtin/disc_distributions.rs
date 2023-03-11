@@ -174,13 +174,13 @@ impl XNativeValue for XDiscreteDistribution {
     }
 }
 
-pub(crate) fn add_discrete_distribution_type<W: Write + 'static, R>(
+pub(crate) fn add_discrete_distribution_type<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_native_type("DiscreteDistribution", X_DISCDIST.clone())
 }
 
-pub(crate) fn add_discdist_binomial<W: Write + 'static, R>(
+pub(crate) fn add_discdist_binomial<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -204,7 +204,7 @@ pub(crate) fn add_discdist_binomial<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_discdist_custom<W: Write + 'static, R>(
+pub(crate) fn add_discdist_custom<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -245,7 +245,7 @@ pub(crate) fn add_discdist_custom<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_discdist_hypergeometric<W: Write + 'static, R>(
+pub(crate) fn add_discdist_hypergeometric<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -278,7 +278,7 @@ pub(crate) fn add_discdist_hypergeometric<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_discdist_negative_binomial<W: Write + 'static, R>(
+pub(crate) fn add_discdist_negative_binomial<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -303,7 +303,7 @@ pub(crate) fn add_discdist_negative_binomial<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_discdist_poisson<W: Write + 'static, R>(
+pub(crate) fn add_discdist_poisson<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -326,7 +326,7 @@ pub(crate) fn add_discdist_poisson<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_discdist_cdf<W: Write + 'static, R>(
+pub(crate) fn add_discdist_cdf<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -342,7 +342,7 @@ pub(crate) fn add_discdist_cdf<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_discdist_pmf<W: Write + 'static, R>(
+pub(crate) fn add_discdist_pmf<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -358,7 +358,7 @@ pub(crate) fn add_discdist_pmf<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_discdist_quantile<W: Write + 'static, R>(
+pub(crate) fn add_discdist_quantile<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -377,7 +377,7 @@ pub(crate) fn add_discdist_quantile<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_discdist_sample<W: Write + 'static, R: SeedableRng + RngCore>(
+pub(crate) fn add_discdist_sample<W, R: SeedableRng + RngCore>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(

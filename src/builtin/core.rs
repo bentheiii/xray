@@ -26,7 +26,7 @@ macro_rules! xraise {
     }};
 }
 
-pub fn xerr<W: Write + 'static, R>(
+pub fn xerr<W, R>(
     err: Rc<ManagedXError<W, R>>,
 ) -> Result<TailedEvalResult<W, R>, RuntimeViolation> {
     Ok(TailedEvalResult::Value(Err(err)))
@@ -35,7 +35,7 @@ pub fn xerr<W: Write + 'static, R>(
 #[macro_export]
 macro_rules! add_binfunc {
     ($fn_name:ident, $name:ident, $operand_type: expr, $operand_variant:ident, $return_type:expr, $func:expr) => {
-        pub(crate) fn $fn_name<W: Write, R>(
+        pub(crate) fn $fn_name<W, R>(
             scope: &mut RootCompilationScope<W, R>,
         ) -> Result<(), $crate::CompilationError> {
             scope.add_func(
@@ -58,7 +58,7 @@ macro_rules! add_binfunc {
     };
 }
 
-pub fn ufunc_ref<W: Write + 'static, R: 'static, F>(func: F) -> XStaticFunction<W, R>
+pub fn ufunc_ref<W: 'static, R: 'static, F>(func: F) -> XStaticFunction<W, R>
 where
     F: Fn(Rc<ManagedXValue<W, R>>, RTCell<W, R>) -> Result<TailedEvalResult<W, R>, RuntimeViolation>
         + 'static,
@@ -117,7 +117,7 @@ macro_rules! to_primitive {
     };
 }
 
-pub(super) fn eval<W: Write + 'static, R: 'static>(
+pub(super) fn eval<W: 'static, R: 'static>(
     expr: &XExpr<W, R>,
     ns: &RuntimeScope<W, R>,
     rt: &RTCell<W, R>,
@@ -142,7 +142,7 @@ macro_rules! manage_native {
     };
 }
 
-pub(super) fn xcmp<W: Write + 'static, R, T: PartialOrd>(rhs: T, lhs: T) -> XValue<W, R> {
+pub(super) fn xcmp<W, R, T: PartialOrd>(rhs: T, lhs: T) -> XValue<W, R> {
     XValue::Int(if rhs < lhs {
         LazyBigint::one().neg()
     } else if rhs > lhs {
@@ -228,7 +228,7 @@ pub(crate) fn unpack_natives<'a>(
     }
 }
 
-pub(super) fn get_func<W: Write + 'static, R>(
+pub(super) fn get_func<W, R>(
     scope: &mut CompilationScope<W, R>,
     symbol: Identifier,
     arguments: &[Arc<XType>],
@@ -237,7 +237,7 @@ pub(super) fn get_func<W: Write + 'static, R>(
     get_func_with_type(scope, symbol, arguments, Some(expected_return_type)).map(|x| x.0)
 }
 
-pub(super) fn get_func_with_type<W: Write + 'static, R>(
+pub(super) fn get_func_with_type<W, R>(
     scope: &mut CompilationScope<W, R>,
     symbol: Identifier,
     arguments: &[Arc<XType>],

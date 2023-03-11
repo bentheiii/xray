@@ -47,7 +47,7 @@ struct StackNode<W, R> {
     next: Option<Rc<StackNode<W, R>>>,
 }
 
-impl<W: Write + 'static, R> StackNode<W, R> {
+impl<W, R> StackNode<W, R> {
     fn first(value: Rc<ManagedXValue<W, R>>) -> Rc<Self> {
         Rc::new(Self { value, next: None })
     }
@@ -75,7 +75,7 @@ impl<W, R> Default for XStack<W, R> {
     }
 }
 
-impl<W: Write + 'static, R> XStack<W, R> {
+impl<W, R> XStack<W, R> {
     pub(super) fn new() -> Self {
         Self::default()
     }
@@ -137,14 +137,14 @@ impl<W: 'static, R: 'static> XNativeValue for XStack<W, R> {
     }
 }
 
-pub(crate) fn add_stack_type<W: Write + 'static, R>(
+pub(crate) fn add_stack_type<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Stack", XStackType::xtype(t))
 }
 
-pub(crate) fn add_stack_new<W: Write + 'static, R>(
+pub(crate) fn add_stack_new<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -156,7 +156,7 @@ pub(crate) fn add_stack_new<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_stack_push<W: Write + 'static, R>(
+pub(crate) fn add_stack_push<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -174,7 +174,7 @@ pub(crate) fn add_stack_push<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_stack_to_array<W: Write + 'static, R>(
+pub(crate) fn add_stack_to_array<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -192,7 +192,7 @@ pub(crate) fn add_stack_to_array<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_stack_to_array_reversed<W: Write + 'static, R>(
+pub(crate) fn add_stack_to_array_reversed<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -210,7 +210,7 @@ pub(crate) fn add_stack_to_array_reversed<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_stack_len<W: Write + 'static, R>(
+pub(crate) fn add_stack_len<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -227,7 +227,7 @@ pub(crate) fn add_stack_len<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_stack_head<W: Write + 'static, R>(
+pub(crate) fn add_stack_head<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -247,7 +247,7 @@ pub(crate) fn add_stack_head<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_stack_tail<W: Write + 'static, R>(
+pub(crate) fn add_stack_tail<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -273,7 +273,7 @@ pub(crate) fn add_stack_tail<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_stack_dyn_eq<W: Write + 'static, R>(
+pub(crate) fn add_stack_dyn_eq<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
@@ -332,7 +332,7 @@ pub(crate) fn add_stack_dyn_eq<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_stack_dyn_hash<W: Write + 'static, R>(
+pub(crate) fn add_stack_dyn_hash<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("hash");

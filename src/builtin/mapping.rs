@@ -73,7 +73,7 @@ impl KeyLocation {
     }
 }
 
-impl<W: Write + 'static, R: 'static> XMapping<W, R> {
+impl<W: 'static, R: 'static> XMapping<W, R> {
     fn new(
         hash_func: Rc<ManagedXValue<W, R>>,
         eq_func: Rc<ManagedXValue<W, R>>,
@@ -176,14 +176,14 @@ impl<W: 'static, R: 'static> XNativeValue for XMapping<W, R> {
     }
 }
 
-pub(crate) fn add_mapping_type<W: Write + 'static, R>(
+pub(crate) fn add_mapping_type<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], _) = scope.generics_from_names(["K", "V"]);
     scope.add_native_type("Mapping", XMappingType::xtype(k, v))
 }
 
-pub(crate) fn add_mapping_new<W: Write + 'static, R>(
+pub(crate) fn add_mapping_new<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k], params) = scope.generics_from_names(["K"]);
@@ -215,7 +215,7 @@ pub(crate) fn add_mapping_new<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_mapping_set<W: Write + 'static, R>(
+pub(crate) fn add_mapping_set<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
@@ -235,7 +235,7 @@ pub(crate) fn add_mapping_set<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_mapping_update<W: Write + 'static, R>(
+pub(crate) fn add_mapping_update<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
@@ -269,7 +269,7 @@ pub(crate) fn add_mapping_update<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_mapping_update_from_keys<W: Write + 'static, R>(
+pub(crate) fn add_mapping_update_from_keys<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
@@ -357,7 +357,7 @@ pub(crate) fn add_mapping_update_from_keys<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_mapping_lookup<W: Write + 'static, R>(
+pub(crate) fn add_mapping_lookup<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
@@ -383,7 +383,7 @@ pub(crate) fn add_mapping_lookup<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_mapping_len<W: Write + 'static, R>(
+pub(crate) fn add_mapping_len<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
@@ -400,7 +400,7 @@ pub(crate) fn add_mapping_len<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_mapping_to_generator<W: Write + 'static, R>(
+pub(crate) fn add_mapping_to_generator<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
@@ -421,7 +421,7 @@ pub(crate) fn add_mapping_to_generator<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_mapping_pop<W: Write + 'static, R>(
+pub(crate) fn add_mapping_pop<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
@@ -452,7 +452,7 @@ pub(crate) fn add_mapping_pop<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_mapping_discard<W: Write + 'static, R>(
+pub(crate) fn add_mapping_discard<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([k, v], params) = scope.generics_from_names(["K", "V"]);
@@ -483,7 +483,7 @@ pub(crate) fn add_mapping_discard<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_mapping_dyn_hash<W: Write + 'static, R>(
+pub(crate) fn add_mapping_dyn_hash<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("hash");
@@ -530,7 +530,7 @@ pub(crate) fn add_mapping_dyn_hash<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_mapping_dyn_eq<W: Write + 'static, R>(
+pub(crate) fn add_mapping_dyn_eq<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("eq");
@@ -593,7 +593,7 @@ pub(crate) fn add_mapping_dyn_eq<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_mapping_dyn_new<W: Write + 'static, R>(
+pub(crate) fn add_mapping_dyn_new<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");

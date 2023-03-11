@@ -23,7 +23,7 @@ use crate::runtime::{ProspectiveSize, RTCell};
 use crate::util::fenced_string::FencedString;
 use crate::util::lazy_bigint::LazyBigint;
 
-pub(crate) fn add_int_type<W: Write + 'static, R>(
+pub(crate) fn add_int_type<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_native_type("int", X_INT.clone())
@@ -155,7 +155,7 @@ add_binfunc!(add_int_ge, ge, X_INT, Int, X_BOOL, |a, b, _rt| Ok(Ok(
     XValue::Bool(a >= b)
 )));
 
-pub(crate) fn add_int_neg<W: Write + 'static, R>(
+pub(crate) fn add_int_neg<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -168,7 +168,7 @@ pub(crate) fn add_int_neg<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_int_to_str<W: Write + 'static, R>(
+pub(crate) fn add_int_to_str<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -184,7 +184,7 @@ pub(crate) fn add_int_to_str<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_int_to_float<W: Write + 'static, R>(
+pub(crate) fn add_int_to_float<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -199,7 +199,7 @@ pub(crate) fn add_int_to_float<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_int_digits<W: Write + 'static, R>(
+pub(crate) fn add_int_digits<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -236,7 +236,7 @@ pub(crate) fn add_int_digits<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_int_hash<W: Write + 'static, R>(
+pub(crate) fn add_int_hash<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -257,7 +257,7 @@ add_binfunc!(add_int_cmp, cmp, X_INT, Int, X_INT, |a, b, _rt| Ok(Ok(
     xcmp(a, b)
 )));
 
-pub(crate) fn add_int_chr<W: Write + 'static, R>(
+pub(crate) fn add_int_chr<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -296,7 +296,7 @@ add_int_binop!(
     }
 );
 
-pub(crate) fn add_int_multinom<W: Write + 'static, R>(
+pub(crate) fn add_int_multinom<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(

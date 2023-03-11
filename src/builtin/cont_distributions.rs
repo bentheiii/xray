@@ -136,13 +136,13 @@ impl XNativeValue for XContinuousDistribution {
     }
 }
 
-pub(crate) fn add_continuous_distribution_type<W: Write + 'static, R>(
+pub(crate) fn add_continuous_distribution_type<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_native_type("ContinuousDistribution", X_CONTDIST.clone())
 }
 
-pub(crate) fn add_contdist_beta<W: Write + 'static, R>(
+pub(crate) fn add_contdist_beta<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -164,7 +164,7 @@ pub(crate) fn add_contdist_beta<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_contdist_lognormal<W: Write + 'static, R>(
+pub(crate) fn add_contdist_lognormal<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -189,7 +189,7 @@ pub(crate) fn add_contdist_lognormal<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_contdist_exp<W: Write + 'static, R>(
+pub(crate) fn add_contdist_exp<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -212,7 +212,7 @@ pub(crate) fn add_contdist_exp<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_contdist_fs<W: Write + 'static, R>(
+pub(crate) fn add_contdist_fs<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -237,7 +237,7 @@ pub(crate) fn add_contdist_fs<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_contdist_normal<W: Write + 'static, R>(
+pub(crate) fn add_contdist_normal<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -262,7 +262,7 @@ pub(crate) fn add_contdist_normal<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_contdist_cdf<W: Write + 'static, R>(
+pub(crate) fn add_contdist_cdf<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -278,7 +278,7 @@ pub(crate) fn add_contdist_cdf<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_contdist_pdf<W: Write + 'static, R>(
+pub(crate) fn add_contdist_pdf<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -294,7 +294,7 @@ pub(crate) fn add_contdist_pdf<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_contdist_quantile<W: Write + 'static, R>(
+pub(crate) fn add_contdist_quantile<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -317,7 +317,7 @@ pub(crate) fn add_contdist_quantile<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_contdist_gamma<W: Write + 'static, R>(
+pub(crate) fn add_contdist_gamma<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -340,7 +340,7 @@ pub(crate) fn add_contdist_gamma<W: Write + 'static, R>(
 }
 
 
-pub(crate) fn add_contdist_sample<W: Write + 'static, R: SeedableRng + RngCore>(
+pub(crate) fn add_contdist_sample<W, R: SeedableRng + RngCore>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(

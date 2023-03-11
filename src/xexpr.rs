@@ -12,7 +12,6 @@ use crate::compilation_scope::{CellSpec, ForwardRefRequirement};
 use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
 use crate::runtime_violation::RuntimeViolation;
 use std::fmt::{Debug, Error, Formatter};
-use std::io::Write;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -57,7 +56,7 @@ pub(crate) enum XStaticExpr<W, R> {
     Lambda(XFuncSpec, Box<XStaticFunction<W, R>>),
 }
 
-impl<W: Write + 'static, R> XStaticExpr<W, R> {
+impl<W, R> XStaticExpr<W, R> {
     pub(crate) fn new_call(name: &'static str, args: Vec<Self>, interner: &mut Interner) -> Self {
         Self::Call(
             Box::new(Self::Ident(interner.get_or_intern_static(name))),
@@ -111,7 +110,7 @@ pub struct StaticUserFunction<W, R> {
     pub(crate) forward_requirements: HashSet<ForwardRefRequirement>,
 }
 
-impl<W: Write + 'static, R: 'static> XStaticFunction<W, R> {
+impl<W: 'static, R: 'static> XStaticFunction<W, R> {
     pub(crate) fn to_function(
         &self,
         closure: &RuntimeScope<'_, W, R>,
@@ -177,7 +176,7 @@ pub enum TailedEvalResult<W, R> {
     TailCall(Vec<EvaluatedValue<W, R>>),
 }
 
-impl<W: Write + 'static, R> TailedEvalResult<W, R> {
+impl<W, R> TailedEvalResult<W, R> {
     pub fn unwrap_value(self) -> EvaluatedValue<W, R> {
         match self {
             Self::Value(v) => v,
@@ -188,13 +187,13 @@ impl<W: Write + 'static, R> TailedEvalResult<W, R> {
     }
 }
 
-impl<W: Write + 'static, R> From<Rc<ManagedXValue<W, R>>> for TailedEvalResult<W, R> {
+impl<W, R> From<Rc<ManagedXValue<W, R>>> for TailedEvalResult<W, R> {
     fn from(v: Rc<ManagedXValue<W, R>>) -> Self {
         Self::Value(Ok(v))
     }
 }
 
-impl<W: Write + 'static, R> From<EvaluatedValue<W, R>> for TailedEvalResult<W, R> {
+impl<W, R> From<EvaluatedValue<W, R>> for TailedEvalResult<W, R> {
     fn from(v: EvaluatedValue<W, R>) -> Self {
         Self::Value(v)
     }

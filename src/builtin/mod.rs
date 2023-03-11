@@ -47,7 +47,7 @@ pub mod unions;
 pub mod unknown;
 pub mod datetime;
 
-pub(crate) fn load_builtin<W: Write + 'static, R: RngCore + SeedableRng>(scope: &mut RootCompilationScope<W, R>) {
+pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(scope: &mut RootCompilationScope<W, R>) {
     add_int_type(scope).unwrap();
     add_int_add(scope).unwrap();
     add_int_binom(scope).unwrap();

@@ -13,7 +13,7 @@ use num_traits::{ToPrimitive, Zero};
 use std::io::Write;
 use std::sync::Arc;
 
-pub(crate) fn add_tuple_empty_and<W: Write + 'static, R>(
+pub(crate) fn add_tuple_empty_and<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -28,7 +28,7 @@ pub(crate) fn add_tuple_empty_and<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_tuple_dyn_eq<W: Write + 'static, R>(
+pub(crate) fn add_tuple_dyn_eq<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
@@ -81,7 +81,7 @@ pub(crate) fn add_tuple_dyn_eq<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_tuple_dyn_cmp<W: Write + 'static, R>(
+pub(crate) fn add_tuple_dyn_cmp<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("cmp");
@@ -133,7 +133,7 @@ pub(crate) fn add_tuple_dyn_cmp<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_tuple_dyn_hash<W: Write + 'static, R>(
+pub(crate) fn add_tuple_dyn_hash<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("hash");
@@ -179,7 +179,7 @@ pub(crate) fn add_tuple_dyn_hash<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_tuple_dyn_to_str<W: Write + 'static, R>(
+pub(crate) fn add_tuple_dyn_to_str<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("to_str");

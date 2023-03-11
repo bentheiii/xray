@@ -8,7 +8,6 @@ use itertools::Itertools;
 use pest::iterators::Pair;
 use pest::Position;
 use std::fmt::{Debug, Display, Formatter};
-use std::io::Write;
 use std::sync::Arc;
 
 use crate::root_compilation_scope::Interner;
@@ -250,7 +249,7 @@ impl<T: Resolve> Resolve for Vec<T> {
     }
 }
 
-impl<W: Write + 'static, R> Resolve for Vec<XExpr<W, R>> {
+impl<W, R> Resolve for Vec<XExpr<W, R>> {
     type Output = Self;
     fn resolve(&self, _interner: &Interner) -> Self::Output {
         self.clone()

@@ -23,7 +23,7 @@ use std::io::Write;
 use std::sync::Arc;
 use std::{iter, rc};
 
-pub(crate) fn add_if<W: Write + 'static, R>(
+pub(crate) fn add_if<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -37,7 +37,7 @@ pub(crate) fn add_if<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_error<W: Write + 'static, R>(
+pub(crate) fn add_error<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -50,7 +50,7 @@ pub(crate) fn add_error<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_debug<W: Write + 'static, R>(
+pub(crate) fn add_debug<W: Write, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -75,7 +75,7 @@ pub(crate) fn add_debug<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_is_error<W: Write + 'static, R>(
+pub(crate) fn add_is_error<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -104,7 +104,7 @@ pub(crate) fn add_is_error<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_if_error<W: Write + 'static, R>(
+pub(crate) fn add_if_error<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -122,7 +122,7 @@ pub(crate) fn add_if_error<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_if_error_specific<W: Write + 'static, R>(
+pub(crate) fn add_if_error_specific<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -143,7 +143,7 @@ pub(crate) fn add_if_error_specific<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_get_error<W: Write + 'static, R>(
+pub(crate) fn add_get_error<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -168,7 +168,7 @@ pub(crate) fn add_get_error<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_ne<W: Write + 'static, R>(
+pub(crate) fn add_ne<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
@@ -202,7 +202,7 @@ pub(crate) fn add_ne<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_display<W: Write + 'static, R>(
+pub(crate) fn add_display<W: Write, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let to_str_symbol = scope.identifier("to_str");
@@ -259,7 +259,7 @@ pub(crate) fn add_display<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_cmp_lt<W: Write + 'static, R>(
+pub(crate) fn add_cmp_lt<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
@@ -296,7 +296,7 @@ pub(crate) fn add_cmp_lt<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_cmp_gt<W: Write + 'static, R>(
+pub(crate) fn add_cmp_gt<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
@@ -334,7 +334,7 @@ pub(crate) fn add_cmp_gt<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_cmp_ge<W: Write + 'static, R>(
+pub(crate) fn add_cmp_ge<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
@@ -371,7 +371,7 @@ pub(crate) fn add_cmp_ge<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_cmp_le<W: Write + 'static, R>(
+pub(crate) fn add_cmp_le<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
@@ -409,7 +409,7 @@ pub(crate) fn add_cmp_le<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_cast<W: Write + 'static, R>(
+pub(crate) fn add_cast<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("cast", "", move |_params, _types, _ns, bind| {
@@ -428,7 +428,7 @@ pub(crate) fn add_cast<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_partial<W: Write + 'static, R>(
+pub(crate) fn add_partial<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("partial", "currying", move |_params, types, _ns, bind| {
@@ -481,7 +481,7 @@ pub(crate) fn add_partial<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_generic_dyn_harmonic_mean<W: Write + 'static, R>(
+pub(crate) fn add_generic_dyn_harmonic_mean<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let mean_symbol = scope.identifier("mean");
@@ -547,7 +547,7 @@ pub(crate) fn add_generic_dyn_harmonic_mean<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generic_dyn_product<W: Write + 'static, R>(
+pub(crate) fn add_generic_dyn_product<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("mul");
@@ -577,7 +577,7 @@ pub(crate) fn add_generic_dyn_product<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_generic_dyn_sum<W: Write + 'static, R>(
+pub(crate) fn add_generic_dyn_sum<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("add");
@@ -607,7 +607,7 @@ pub(crate) fn add_generic_dyn_sum<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_generic_dyn_max<W: Write + 'static, R>(
+pub(crate) fn add_generic_dyn_max<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("lt");
@@ -634,7 +634,7 @@ pub(crate) fn add_generic_dyn_max<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_generic_dyn_min<W: Write + 'static, R>(
+pub(crate) fn add_generic_dyn_min<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("lt");
@@ -661,7 +661,7 @@ pub(crate) fn add_generic_dyn_min<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_generic_dyn_max_iter<W: Write + 'static, R>(
+pub(crate) fn add_generic_dyn_max_iter<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("lt");
@@ -689,7 +689,7 @@ pub(crate) fn add_generic_dyn_max_iter<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_generic_dyn_min_iter<W: Write + 'static, R>(
+pub(crate) fn add_generic_dyn_min_iter<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("lt");

@@ -4,7 +4,6 @@ use crate::util::lazy_bigint::LazyBigint;
 use either::Either;
 use std::cell::RefCell;
 use std::fmt::Debug;
-use std::io::Write;
 use std::iter;
 use std::mem::size_of;
 use std::rc::Rc;
@@ -24,7 +23,7 @@ pub struct RuntimeLimits {
 }
 
 impl RuntimeLimits {
-    pub fn to_runtime<W: Write + 'static, R>(self, output: W) -> RTCell<W, R> {
+    pub fn to_runtime<W, R>(self, output: W) -> RTCell<W, R> {
         Rc::new(RefCell::new(Runtime {
             size: 0,
             stdout: output,

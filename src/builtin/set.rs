@@ -60,7 +60,7 @@ pub(crate) struct XSet<W, R> {
     eq_func: Rc<ManagedXValue<W, R>>,
 }
 
-impl<W: Write + 'static, R: 'static> XSet<W, R> {
+impl<W: 'static, R: 'static> XSet<W, R> {
     fn new(
         hash_func: Rc<ManagedXValue<W, R>>,
         eq_func: Rc<ManagedXValue<W, R>>,
@@ -150,14 +150,14 @@ impl<W: 'static, R: 'static> XNativeValue for XSet<W, R> {
     }
 }
 
-pub(crate) fn add_set_type<W: Write + 'static, R>(
+pub(crate) fn add_set_type<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Set", XSetType::xtype(t))
 }
 
-pub(crate) fn add_set_new<W: Write + 'static, R>(
+pub(crate) fn add_set_new<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -189,7 +189,7 @@ pub(crate) fn add_set_new<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_set_update<W: Write + 'static, R>(
+pub(crate) fn add_set_update<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -208,7 +208,7 @@ pub(crate) fn add_set_update<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_set_add<W: Write + 'static, R>(
+pub(crate) fn add_set_add<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -227,7 +227,7 @@ pub(crate) fn add_set_add<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_set_contains<W: Write + 'static, R>(
+pub(crate) fn add_set_contains<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -249,7 +249,7 @@ pub(crate) fn add_set_contains<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_set_len<W: Write + 'static, R>(
+pub(crate) fn add_set_len<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -266,7 +266,7 @@ pub(crate) fn add_set_len<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_set_to_generator<W: Write + 'static, R>(
+pub(crate) fn add_set_to_generator<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -282,7 +282,7 @@ pub(crate) fn add_set_to_generator<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_set_remove<W: Write + 'static, R>(
+pub(crate) fn add_set_remove<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -313,7 +313,7 @@ pub(crate) fn add_set_remove<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_set_discard<W: Write + 'static, R>(
+pub(crate) fn add_set_discard<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -344,7 +344,7 @@ pub(crate) fn add_set_discard<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_set_clear<W: Write + 'static, R>(
+pub(crate) fn add_set_clear<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -372,7 +372,7 @@ pub(crate) fn add_set_clear<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_set_hash<W: Write + 'static, R>(
+pub(crate) fn add_set_hash<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -395,7 +395,7 @@ pub(crate) fn add_set_hash<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_set_dyn_new<W: Write + 'static, R>(
+pub(crate) fn add_set_dyn_new<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");

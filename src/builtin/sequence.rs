@@ -81,7 +81,7 @@ pub enum XSequence<W, R> {
     Count,
 }
 
-impl<W: Write + 'static, R: 'static> XSequence<W, R> {
+impl<W: 'static, R: 'static> XSequence<W, R> {
     pub(crate) fn array(value: Vec<Rc<ManagedXValue<W, R>>>) -> Self {
         if value.is_empty() {
             Self::Empty
@@ -505,14 +505,14 @@ impl<W: 'static, R: 'static> XNativeValue for XSequence<W, R> {
     }
 }
 
-pub(crate) fn add_sequence_type<W: Write + 'static, R>(
+pub(crate) fn add_sequence_type<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Sequence", XSequenceType::xtype(t))
 }
 
-pub(crate) fn add_sequence_get<W: Write + 'static, R>(
+pub(crate) fn add_sequence_get<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -530,7 +530,7 @@ pub(crate) fn add_sequence_get<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_len<W: Write + 'static, R>(
+pub(crate) fn add_sequence_len<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -547,7 +547,7 @@ pub(crate) fn add_sequence_len<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_add<W: Write + 'static, R>(
+pub(crate) fn add_sequence_add<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -569,7 +569,7 @@ pub(crate) fn add_sequence_add<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_add_stack<W: Write + 'static, R>(
+pub(crate) fn add_sequence_add_stack<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -602,7 +602,7 @@ pub(crate) fn add_sequence_add_stack<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_addrev_stack<W: Write + 'static, R>(
+pub(crate) fn add_sequence_addrev_stack<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -637,7 +637,7 @@ pub(crate) fn add_sequence_addrev_stack<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_push<W: Write + 'static, R>(
+pub(crate) fn add_sequence_push<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -661,7 +661,7 @@ pub(crate) fn add_sequence_push<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_rpush<W: Write + 'static, R>(
+pub(crate) fn add_sequence_rpush<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -683,7 +683,7 @@ pub(crate) fn add_sequence_rpush<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_insert<W: Write + 'static, R>(
+pub(crate) fn add_sequence_insert<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -712,7 +712,7 @@ pub(crate) fn add_sequence_insert<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_pop<W: Write + 'static, R>(
+pub(crate) fn add_sequence_pop<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -742,7 +742,7 @@ pub(crate) fn add_sequence_pop<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_set<W: Write + 'static, R>(
+pub(crate) fn add_sequence_set<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -771,7 +771,7 @@ pub(crate) fn add_sequence_set<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_swap<W: Write + 'static, R>(
+pub(crate) fn add_sequence_swap<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -810,7 +810,7 @@ pub(crate) fn add_sequence_swap<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_to_stack<W: Write + 'static, R>(
+pub(crate) fn add_sequence_to_stack<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -832,7 +832,7 @@ pub(crate) fn add_sequence_to_stack<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_map<W: Write + 'static, R>(
+pub(crate) fn add_sequence_map<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([input_t, output_t], params) = scope.generics_from_names(["T_IN", "T_OUT"]);
@@ -858,7 +858,7 @@ pub(crate) fn add_sequence_map<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_to_array<W: Write + 'static, R>(
+pub(crate) fn add_sequence_to_array<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -883,7 +883,7 @@ pub(crate) fn add_sequence_to_array<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_sort<W: Write + 'static, R>(
+pub(crate) fn add_sequence_sort<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -915,7 +915,7 @@ pub(crate) fn add_sequence_sort<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_n_largest<W: Write + 'static, R>(
+pub(crate) fn add_sequence_n_largest<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -951,7 +951,7 @@ pub(crate) fn add_sequence_n_largest<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_n_smallest<W: Write + 'static, R>(
+pub(crate) fn add_sequence_n_smallest<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -987,7 +987,7 @@ pub(crate) fn add_sequence_n_smallest<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_nth_largest<W: Write + 'static, R>(
+pub(crate) fn add_sequence_nth_largest<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -1025,7 +1025,7 @@ pub(crate) fn add_sequence_nth_largest<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_nth_smallest<W: Write + 'static, R>(
+pub(crate) fn add_sequence_nth_smallest<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -1063,7 +1063,7 @@ pub(crate) fn add_sequence_nth_smallest<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_range<W: Write + 'static, R>(
+pub(crate) fn add_sequence_range<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let t_arr = XSequenceType::xtype(X_INT.clone());
@@ -1101,7 +1101,7 @@ pub(crate) fn add_sequence_range<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_nth<W: Write + 'static, R>(
+pub(crate) fn add_sequence_nth<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -1155,7 +1155,7 @@ pub(crate) fn add_sequence_nth<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_take_while<W: Write + 'static, R>(
+pub(crate) fn add_sequence_take_while<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -1202,7 +1202,7 @@ pub(crate) fn add_sequence_take_while<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_skip_until<W: Write + 'static, R>(
+pub(crate) fn add_sequence_skip_until<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -1250,7 +1250,7 @@ pub(crate) fn add_sequence_skip_until<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_take<W: Write + 'static, R>(
+pub(crate) fn add_sequence_take<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -1271,7 +1271,7 @@ pub(crate) fn add_sequence_take<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_skip<W: Write + 'static, R>(
+pub(crate) fn add_sequence_skip<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -1292,7 +1292,7 @@ pub(crate) fn add_sequence_skip<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_count<W: Write + 'static, R>(
+pub(crate) fn add_sequence_count<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -1304,7 +1304,7 @@ pub(crate) fn add_sequence_count<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_to_generator<W: Write + 'static, R>(
+pub(crate) fn add_sequence_to_generator<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -1320,7 +1320,7 @@ pub(crate) fn add_sequence_to_generator<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_sequence_dyn_eq<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_eq<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
@@ -1384,7 +1384,7 @@ pub(crate) fn add_sequence_dyn_eq<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_sort<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_sort<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
@@ -1413,7 +1413,7 @@ pub(crate) fn add_sequence_dyn_sort<W: Write + 'static, R>(
     })
 }
 
-fn add_delegate_1arg_cmp<W: Write + 'static, R>(
+fn add_delegate_1arg_cmp<W, R>(
     name: &'static str,
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
@@ -1448,7 +1448,7 @@ fn add_delegate_1arg_cmp<W: Write + 'static, R>(
     })
 }
 
-fn add_delegate_cmp<W: Write + 'static, R>(
+fn add_delegate_cmp<W, R>(
     name: &'static str,
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
@@ -1478,37 +1478,37 @@ fn add_delegate_cmp<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_n_largest<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_n_largest<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     add_delegate_1arg_cmp("n_largest", scope)
 }
 
-pub(crate) fn add_sequence_dyn_n_smallest<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_n_smallest<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     add_delegate_1arg_cmp("n_smallest", scope)
 }
 
-pub(crate) fn add_sequence_dyn_nth_largest<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_nth_largest<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     add_delegate_1arg_cmp("nth_largest", scope)
 }
 
-pub(crate) fn add_sequence_dyn_nth_smallest<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_nth_smallest<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     add_delegate_1arg_cmp("nth_smallest", scope)
 }
 
-pub(crate) fn add_sequence_dyn_median<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_median<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     add_delegate_cmp("median", scope)
 }
 
-pub(crate) fn add_sequence_dyn_zip<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_zip<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("zip", "sequences", move |_params, types, _ns, bind| {
@@ -1547,7 +1547,7 @@ pub(crate) fn add_sequence_dyn_zip<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_unzip<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_unzip<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("unzip", "sequences", move |_params, types, _ns, bind| {
@@ -1590,7 +1590,7 @@ pub(crate) fn add_sequence_dyn_unzip<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_to_str<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_to_str<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("to_str");
@@ -1647,7 +1647,7 @@ pub(crate) fn add_sequence_dyn_to_str<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_hash<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_hash<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("hash");
@@ -1696,7 +1696,7 @@ pub(crate) fn add_sequence_dyn_hash<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_cmp<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_cmp<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
@@ -1765,7 +1765,7 @@ pub(crate) fn add_sequence_dyn_cmp<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_mean<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_mean<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let sum_symbol = scope.identifier("sum");
@@ -1824,7 +1824,7 @@ pub(crate) fn add_sequence_dyn_mean<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_geo_mean<W: Write + 'static, R>(
+pub(crate) fn add_sequence_dyn_geo_mean<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let prod_symbol = scope.identifier("product");

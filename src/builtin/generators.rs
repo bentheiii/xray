@@ -88,7 +88,7 @@ impl<W: 'static, R: 'static> XNativeValue for XGenerator<W, R> {
     }
 }
 
-impl<W: Write + 'static, R: 'static> XGenerator<W, R> {
+impl<W: 'static, R: 'static> XGenerator<W, R> {
     fn _iter<'a>(
         &'a self,
         ns: &'a RuntimeScope<W, R>,
@@ -311,14 +311,14 @@ impl<W: Write + 'static, R: 'static> XGenerator<W, R> {
     }
 }
 
-pub(crate) fn add_generator_type<W: Write + 'static, R>(
+pub(crate) fn add_generator_type<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Generator", XGeneratorType::xtype(t))
 }
 
-pub(crate) fn add_generator_successors_until<W: Write + 'static, R>(
+pub(crate) fn add_generator_successors_until<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -346,7 +346,7 @@ pub(crate) fn add_generator_successors_until<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_add<W: Write + 'static, R>(
+pub(crate) fn add_generator_add<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -364,7 +364,7 @@ pub(crate) fn add_generator_add<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_nth<W: Write + 'static, R>(
+pub(crate) fn add_generator_nth<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -421,7 +421,7 @@ pub(crate) fn add_generator_nth<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_get<W: Write + 'static, R>(
+pub(crate) fn add_generator_get<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -453,7 +453,7 @@ pub(crate) fn add_generator_get<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_filter<W: Write + 'static, R>(
+pub(crate) fn add_generator_filter<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -481,7 +481,7 @@ pub(crate) fn add_generator_filter<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_map<W: Write + 'static, R>(
+pub(crate) fn add_generator_map<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t0, t1], params) = scope.generics_from_names(["T0", "T1"]);
@@ -510,7 +510,7 @@ pub(crate) fn add_generator_map<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_aggregate<W: Write + 'static, R>(
+pub(crate) fn add_generator_aggregate<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t0, t1], params) = scope.generics_from_names(["T0", "T1"]);
@@ -548,7 +548,7 @@ pub(crate) fn add_generator_aggregate<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_skip<W: Write + 'static, R>(
+pub(crate) fn add_generator_skip<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -570,7 +570,7 @@ pub(crate) fn add_generator_skip<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_take<W: Write + 'static, R>(
+pub(crate) fn add_generator_take<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -592,7 +592,7 @@ pub(crate) fn add_generator_take<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_skip_until<W: Write + 'static, R>(
+pub(crate) fn add_generator_skip_until<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -620,7 +620,7 @@ pub(crate) fn add_generator_skip_until<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_take_while<W: Write + 'static, R>(
+pub(crate) fn add_generator_take_while<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -648,7 +648,7 @@ pub(crate) fn add_generator_take_while<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_repeat<W: Write + 'static, R>(
+pub(crate) fn add_generator_repeat<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -665,7 +665,7 @@ pub(crate) fn add_generator_repeat<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_to_array<W: Write + 'static, R>(
+pub(crate) fn add_generator_to_array<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -688,7 +688,7 @@ pub(crate) fn add_generator_to_array<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_len<W: Write + 'static, R>(
+pub(crate) fn add_generator_len<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -710,7 +710,7 @@ pub(crate) fn add_generator_len<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_last<W: Write + 'static, R>(
+pub(crate) fn add_generator_last<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -736,7 +736,7 @@ pub(crate) fn add_generator_last<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_join<W: Write + 'static, R>(
+pub(crate) fn add_generator_join<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let t_arr = XGeneratorType::xtype(X_STRING.clone());
@@ -773,7 +773,7 @@ pub(crate) fn add_generator_join<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_dyn_mean<W: Write + 'static, R>(
+pub(crate) fn add_generator_dyn_mean<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("add");
@@ -842,7 +842,7 @@ pub(crate) fn add_generator_dyn_mean<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_dyn_geo_mean<W: Write + 'static, R>(
+pub(crate) fn add_generator_dyn_geo_mean<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("mul");
@@ -919,7 +919,7 @@ pub(crate) fn add_generator_dyn_geo_mean<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_generator_dyn_zip<W: Write + 'static, R>(
+pub(crate) fn add_generator_dyn_zip<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("zip", "generators", move |_params, types, _ns, bind| {
@@ -970,7 +970,7 @@ pub(crate) fn add_generator_dyn_zip<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_generator_dyn_unzip<W: Write + 'static, R>(
+pub(crate) fn add_generator_dyn_unzip<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("unzip", "generators", move |_params, types, _ns, bind| {

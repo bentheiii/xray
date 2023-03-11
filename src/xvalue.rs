@@ -12,7 +12,6 @@ use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::fenced_string::FencedString;
 use std::fmt::{Debug, Error, Formatter};
-use std::io::Write;
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -62,7 +61,7 @@ pub struct XFunctionFactoryOutput<W, R> {
     pub(crate) func: DynEvalCallback<W, R>,
 }
 
-impl<W: Write + 'static, R: 'static> XFunctionFactoryOutput<W, R> {
+impl<W: 'static, R: 'static> XFunctionFactoryOutput<W, R> {
     pub(crate) fn from_native(
         spec: XFuncSpec,
         callable: impl Fn(

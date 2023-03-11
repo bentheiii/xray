@@ -1,6 +1,5 @@
 use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
-use std::io::Write;
 
 use crate::builtin::optional::XOptionalType;
 use crate::builtin::sequence::XSequenceType;
@@ -166,7 +165,7 @@ fn next_id() -> usize {
     NEXT_ID.fetch_add(1, Ordering::SeqCst)
 }
 
-impl<'p, W: Write + 'static, R> CompilationScope<'p, W, R> {
+impl<'p, W, R> CompilationScope<'p, W, R> {
     pub(crate) fn root() -> Self {
         Self {
             cells: Default::default(),
@@ -1083,7 +1082,7 @@ impl<'p, W: Write + 'static, R> CompilationScope<'p, W, R> {
                 #[derivative(Debug = "ignore")] DynEvalCallback<W, R>,
             ),
         }
-        fn prepare_return<W: Write + 'static, R>(
+        fn prepare_return<W, R>(
             namespace: &mut CompilationScope<W, R>,
             considered: OverloadToConsider<W, R>,
         ) -> Result<XExpr<W, R>, CompilationError> {

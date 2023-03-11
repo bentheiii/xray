@@ -3,7 +3,6 @@ use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::{TailedEvalResult, XExpr};
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XValue};
 use crate::{manage_native, xraise, Declaration, RTCell};
-use std::io::Write;
 use std::mem;
 use std::rc::Rc;
 
@@ -22,7 +21,7 @@ pub(crate) enum TemplatedEvaluationCell<W, R> {
     FromTemplate(usize),
 }
 
-impl<W: Write + 'static, R> TemplatedEvaluationCell<W, R> {
+impl<W, R> TemplatedEvaluationCell<W, R> {
     fn put(&mut self, value: EvaluatedValue<W, R>) {
         match self {
             Self::FromTemplate(..) => panic!("attempted to write to templated cell"),
@@ -57,7 +56,7 @@ pub(crate) enum EvaluationCell<W, R> {
     },
 }
 
-impl<W: Write + 'static, R: 'static> EvaluationCell<W, R> {
+impl<W: 'static, R: 'static> EvaluationCell<W, R> {
     fn from_spec(
         cell: &CellSpec,
         parent: Option<&RuntimeScope<W, R>>,
@@ -103,7 +102,7 @@ pub struct RuntimeScopeTemplate<W, R> {
     output: Option<Box<XExpr<W, R>>>,
 }
 
-impl<W: Write + 'static, R: 'static> RuntimeScopeTemplate<W, R> {
+impl<W: 'static, R: 'static> RuntimeScopeTemplate<W, R> {
     fn to_function(self: Rc<Self>) -> XFunction<W, R> {
         XFunction::UserFunction {
             output: self.output.clone().unwrap(),
@@ -173,7 +172,7 @@ pub struct RuntimeScope<'a, W, R> {
     template: Rc<RuntimeScopeTemplate<W, R>>,
 }
 
-impl<'a, W: Write + 'static, R: 'static> RuntimeScope<'a, W, R> {
+impl<'a, W: 'static, R: 'static> RuntimeScope<'a, W, R> {
     pub(crate) fn from_template(
         template: Rc<RuntimeScopeTemplate<W, R>>,
         stack_parent: Option<&'a Self>,

@@ -48,14 +48,14 @@ impl<W: 'static, R: 'static> XNativeValue for XOptional<W, R> {
     }
 }
 
-pub(crate) fn add_optional_type<W: Write + 'static, R>(
+pub(crate) fn add_optional_type<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Optional", XOptionalType::xtype(t))
 }
 
-pub(crate) fn add_optional_none<W: Write + 'static, R>(
+pub(crate) fn add_optional_none<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -67,7 +67,7 @@ pub(crate) fn add_optional_none<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_optional_some<W: Write + 'static, R>(
+pub(crate) fn add_optional_some<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -81,7 +81,7 @@ pub(crate) fn add_optional_some<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_optional_map<W: Write + 'static, R>(
+pub(crate) fn add_optional_map<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t_in, t_out], params) = scope.generics_from_names(["T_IN", "T_OUT"]);
@@ -120,7 +120,7 @@ pub(crate) fn add_optional_map<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_optional_map_or<W: Write + 'static, R>(
+pub(crate) fn add_optional_map_or<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -156,7 +156,7 @@ pub(crate) fn add_optional_map_or<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_optional_or_unwrap<W: Write + 'static, R>(
+pub(crate) fn add_optional_or_unwrap<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -175,7 +175,7 @@ pub(crate) fn add_optional_or_unwrap<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_optional_or<W: Write + 'static, R>(
+pub(crate) fn add_optional_or<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -194,7 +194,7 @@ pub(crate) fn add_optional_or<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_optional_and<W: Write + 'static, R>(
+pub(crate) fn add_optional_and<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -213,7 +213,7 @@ pub(crate) fn add_optional_and<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_optional_has_value<W: Write + 'static, R>(
+pub(crate) fn add_optional_has_value<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -229,7 +229,7 @@ pub(crate) fn add_optional_has_value<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_optional_value<W: Write + 'static, R>(
+pub(crate) fn add_optional_value<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -250,7 +250,7 @@ pub(crate) fn add_optional_value<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_optional_dyn_eq<W: Write + 'static, R>(
+pub(crate) fn add_optional_dyn_eq<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
@@ -303,7 +303,7 @@ pub(crate) fn add_optional_dyn_eq<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_optional_dyn_hash<W: Write + 'static, R>(
+pub(crate) fn add_optional_dyn_hash<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("hash");
@@ -341,7 +341,7 @@ pub(crate) fn add_optional_dyn_hash<W: Write + 'static, R>(
     })
 }
 
-pub(crate) fn add_optional_dyn_to_string<W: Write + 'static, R>(
+pub(crate) fn add_optional_dyn_to_string<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("to_str");

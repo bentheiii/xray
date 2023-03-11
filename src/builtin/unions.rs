@@ -10,7 +10,7 @@ use std::iter;
 use std::rc::Rc;
 use std::sync::Arc;
 
-pub(crate) fn add_union_members<W: Write + 'static, R>(
+pub(crate) fn add_union_members<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("members", "unions", move |_params, types, _ns, bind| {

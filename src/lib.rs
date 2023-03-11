@@ -48,7 +48,7 @@ use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFunc
 
 pub type Identifier = SpecialPrefixSymbol<DefaultBackend<DefaultSymbol>>;
 
-pub fn std_compilation_scope<W: Write + 'static, R: RngCore + SeedableRng>() -> RootCompilationScope<W, R> {
+pub fn std_compilation_scope<W: Write, R: RngCore + SeedableRng>() -> RootCompilationScope<W, R> {
     let mut ret = RootCompilationScope::new();
 
     load_builtin(&mut ret);

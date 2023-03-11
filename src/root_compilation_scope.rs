@@ -7,8 +7,6 @@ use crate::{CompilationError, Identifier, XRayParser};
 use std::collections::HashSet;
 use std::convert::TryInto;
 
-use std::io::Write;
-
 use std::ops::Deref;
 
 use std::sync::Arc;
@@ -52,7 +50,7 @@ pub struct RootCompilationScope<W: 'static, R: 'static> {
     pub(crate) interner: Interner,
 }
 
-impl<W: Write + 'static, R> RootCompilationScope<W, R> {
+impl<W, R> RootCompilationScope<W, R> {
     pub fn new() -> Self {
         Self {
             scope: CompilationScope::root(),
@@ -132,7 +130,7 @@ impl<W: Write + 'static, R> RootCompilationScope<W, R> {
     }
 }
 
-impl<W: Write + 'static, R> Default for RootCompilationScope<W, R> {
+impl<W, R> Default for RootCompilationScope<W, R> {
     fn default() -> Self {
         Self::new()
     }

@@ -8,7 +8,6 @@ use pest::iterators::{Pair, Pairs};
 use std::borrow::Cow;
 use std::collections::HashSet;
 use std::hash::Hash;
-use std::io::Write;
 use std::iter;
 use std::sync::Arc;
 
@@ -62,7 +61,7 @@ struct ParsedFunctionHeader<'b, W, R> {
     specific_gen_params: Option<Vec<Identifier>>,
 }
 
-impl<'p, W: Write + 'static, R> CompilationScope<'p, W, R> {
+impl<'p, W, R> CompilationScope<'p, W, R> {
     fn parse_function_header<'b>(
         &mut self,
         input: &Pair<'b, Rule>,

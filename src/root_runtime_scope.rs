@@ -2,7 +2,6 @@ use crate::runtime::RTCell;
 use crate::xexpr::TailedEvalResult;
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XValue};
 
-use std::io::Write;
 use std::rc::Rc;
 
 use crate::compilation_scope::{CellSpec, OverloadWithForwardReq};
@@ -33,7 +32,7 @@ pub struct RootEvaluationScope<'c, W: 'static, R: 'static> {
     runtime: RTCell<W, R>,
 }
 
-impl<'c, W: Write + 'static, R> RootEvaluationScope<'c, W, R> {
+impl<'c, W, R> RootEvaluationScope<'c, W, R> {
     pub fn from_compilation_scope(
         comp_scope: &'c RootCompilationScope<W, R>,
         runtime: RTCell<W, R>,

@@ -50,13 +50,13 @@ impl XNativeValue for Regex {
     }
 }
 
-pub(crate) fn add_regex_type<W: Write + 'static, R>(
+pub(crate) fn add_regex_type<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_native_type("Regex", X_REGEX.clone())
 }
 
-pub(crate) fn add_regex_new<W: Write + 'static, R>(
+pub(crate) fn add_regex_new<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -87,7 +87,7 @@ pub(crate) fn add_regex_new<W: Write + 'static, R>(
     )
 }
 
-pub(crate) fn add_regex_match<W: Write + 'static, R>(
+pub(crate) fn add_regex_match<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
     scope.add_func(

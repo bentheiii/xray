@@ -1,5 +1,5 @@
 fn main()->bool{
-    let d = uniform(1.7, 3.1);
+    let d = normal_distribution(1.7, 3.1);
     let s = d.sample(4000);
 
     assert(s.len() == 4000)
