@@ -2,13 +2,11 @@ use crate::builtin::core::{eval, xerr};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncSpec, X_FLOAT, X_INT};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
-use crate::{
-    manage_native, to_native, to_primitive, xraise, CompilationError, RootCompilationScope,
-    XStaticFunction, XType,
-};
+use crate::{manage_native, to_native, to_primitive, xraise, CompilationError, RootCompilationScope, XStaticFunction, XType, xraise_opt};
 use num_traits::{Float, ToPrimitive};
 use statrs::distribution::{
     Beta, Continuous, ContinuousCDF, Exp, FisherSnedecor, Gamma, LogNormal, Normal, Uniform,
+    StudentsT,
 };
 use statrs::function::erf::erf_inv;
 use statrs::statistics::{Distribution, Max, Min};
@@ -78,6 +76,7 @@ pub(crate) enum XContinuousDistribution {
     LogNormal(LogNormal, f64, f64),
     Normal(Normal),
     Uniform(Uniform),
+    StudentsT(StudentsT),
 }
 
 impl XContinuousDistribution {
@@ -90,6 +89,7 @@ impl XContinuousDistribution {
             Self::LogNormal(i, ..) => i.cdf(x),
             Self::Normal(i) => i.cdf(x),
             Self::Uniform(i) => i.cdf(x),
+            Self::StudentsT(i)=>i.cdf(x),
         }
     }
 
@@ -102,6 +102,7 @@ impl XContinuousDistribution {
             Self::LogNormal(i, ..) => i.pdf(x),
             Self::Normal(i) => i.pdf(x),
             Self::Uniform(i) => i.pdf(x),
+            Self::StudentsT(i)=>i.pdf(x),
         }
     }
 
@@ -116,6 +117,7 @@ impl XContinuousDistribution {
             }
             Self::Normal(i) => i.inverse_cdf(x),
             Self::Uniform(i) => x * (i.max() - i.min()) + i.min(),
+            Self::StudentsT(i) => i.inverse_cdf(x),
         }
     }
 
@@ -128,6 +130,7 @@ impl XContinuousDistribution {
             Self::LogNormal(i, ..) => i.sample_iter(rng).take(n).collect(),
             Self::Normal(i) => i.sample_iter(rng).take(n).collect(),
             Self::Uniform(i) => i.sample_iter(rng).take(n).collect(),
+            Self::StudentsT(i) => i.sample_iter(rng).take(n).collect(),
         }
     }
 
@@ -140,6 +143,7 @@ impl XContinuousDistribution {
             Self::LogNormal(i, ..) => i.skewness(),
             Self::Normal(i) => i.skewness(),
             Self::Uniform(i) => i.skewness(),
+            Self::StudentsT(i) => i.skewness(),
         }
     }
     
@@ -152,6 +156,7 @@ impl XContinuousDistribution {
             Self::LogNormal(i, ..) => i.mean(),
             Self::Normal(i) => i.mean(),
             Self::Uniform(i) => i.mean(),
+            Self::StudentsT(i) => i.mean(),
         }
     }
     
@@ -164,6 +169,7 @@ impl XContinuousDistribution {
             Self::LogNormal(i, ..) => i.variance(),
             Self::Normal(i) => i.variance(),
             Self::Uniform(i) => i.variance(),
+            Self::StudentsT(i) => i.variance(),
         }
     }
 }
@@ -338,6 +344,30 @@ pub(crate) fn add_contdist_rectangular<W, R>(
                 }
             };
             Ok(manage_native!(XContinuousDistribution::Uniform(ret), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_contdist_students_t<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "students_t_distribution",
+        XFuncSpec::new_with_optional(&[&X_FLOAT], &[&X_FLOAT, &X_FLOAT], X_CONTDIST.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
+            let a2 = xraise_opt!(args.get(2).map(|e| eval(e, ns, &rt)).transpose()?);
+            let f0 = to_primitive!(a0, Float);
+            let f1 = a1.map_or(0.0, |a| *to_primitive!(a, Float));
+            let f2 = a2.map_or(1.0, |a| *to_primitive!(a, Float));
+            let ret = match StudentsT::new(f1, f2, *f0) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
+                }
+            };
+            Ok(manage_native!(XContinuousDistribution::StudentsT(ret), rt))
         }),
     )
 }

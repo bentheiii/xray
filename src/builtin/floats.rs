@@ -110,8 +110,8 @@ pub(crate) fn add_float_is_close<W, R>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise_opt!(args.get(2).map(|e| eval(e, ns, &rt)).transpose()?);
             let a3 = xraise_opt!(args.get(3).map(|e| eval(e, ns, &rt)).transpose()?);
-            let rel_tol = a2.map_or(1e-6, |a2| *to_primitive!(a2, Float));
-            let abs_tol = a3.map_or(1e-6, |a2| *to_primitive!(a2, Float));
+            let rel_tol = a2.map_or(1e-6, |a| *to_primitive!(a, Float));
+            let abs_tol = a3.map_or(1e-6, |a| *to_primitive!(a, Float));
             let f0 = to_primitive!(a0, Float);
             let f1 = to_primitive!(a1, Float);
             let tol = max_by(

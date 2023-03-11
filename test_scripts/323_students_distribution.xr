@@ -1,0 +1,8 @@
+fn main()->bool{
+    let d = students_t_distribution(60.0);
+
+    assert(d.cdf(1.5).is_close(0.930570822840910111998))
+    && assert(d.pdf(1.5).is_close(0.129259768866547284619))
+    && assert(d.quantile(0.930570822840910111998).is_close(1.5))
+    && assert(is_error(d.quantile(1.1)))
+}
