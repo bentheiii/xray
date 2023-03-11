@@ -278,17 +278,20 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
     add_contdist_fs(scope).unwrap();
     add_contdist_gamma(scope).unwrap();
     add_contdist_lognormal(scope).unwrap();
+    add_contdist_mean(scope).unwrap();
     add_contdist_normal(scope).unwrap();
     add_contdist_pdf(scope).unwrap();
     add_contdist_quantile(scope).unwrap();
     add_contdist_rectangular(scope).unwrap();
     add_contdist_sample(scope).unwrap();
     add_contdist_skewness(scope).unwrap();
+    add_contdist_variance(scope).unwrap();
 
     add_discrete_distribution_type(scope).unwrap();
     add_discdist_binomial(scope).unwrap();
     add_discdist_cdf(scope).unwrap();
     add_discdist_hypergeometric(scope).unwrap();
+    add_discdist_mean(scope).unwrap();
     add_discdist_negative_binomial(scope).unwrap();
     add_discdist_pmf(scope).unwrap();
     add_discdist_quantile(scope).unwrap();
@@ -296,6 +299,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
     add_discdist_custom(scope).unwrap();
     add_discdist_sample(scope).unwrap();
     add_discdist_skewness(scope).unwrap();
+    add_discdist_variance(scope).unwrap();
     add_discdist_uniform(scope).unwrap();
 
     add_cast(scope).unwrap();

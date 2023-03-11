@@ -2,4 +2,7 @@ fn main()->bool{
     let d = binomial_distribution(9, 0.25);
 
     assert(d.skewness().is_close(0.3849001794597505))
+    && assert(d.mean().is_close(2.25))
+    && assert(d.variance().is_close(1.6875))
+    && assert(d.std_dev().is_close(1.299038106))
 }

@@ -19,6 +19,7 @@ use num_traits::FromPrimitive;
 use rand::distributions::{Distribution as _, Standard};
 use rand::{Rng, RngCore, SeedableRng};
 use std::sync::Arc;
+use crate::util::means::Means;
 
 fn inverse_cdf<K: Bounded + Clone + Num + Debug, T: Float>(s: &impl DiscreteCDF<K, T>, p: T) -> K {
     if p == T::zero() {
@@ -199,29 +200,15 @@ impl XDiscreteDistribution {
         match self {
             Self::Binomial(i) => i.skewness(),
             Self::Custom(items) => {
-                #[derive(Default)]
-                struct Means{first: f64, second: f64, third: f64}
-                impl Means{
-                    fn append(&mut self, item: &LazyBigint, p: f64)->bool{
-                        let Some(first) = item.to_f64() else {return false};
-                        let second = first*first;
-                        let third = first*second;
-                        self.first += p*first;
-                        self.second += p*second;
-                        self.third += p*third;
-                        true
-                    }
-                }
-
-                let mut means = Means::default();
+                let mut means = Means::<3>::default();
                 let mut prev_v = 0.0;
                 for (k,v) in items{
-                    if !means.append(k, *v-prev_v){
+                    if !means.insert(k, *v-prev_v){
                         return None
                     }
                     prev_v = *v;
                 }
-                let Means{first, second, third} = means;
+                let [first, second, third] = means.0;
                 let std_sq = second - first*first;
                 let std_dev = std_sq.sqrt();
                 Some((third - 3.0*first*std_sq - first.powi(3))/(std_dev.powi(3)))
@@ -230,6 +217,50 @@ impl XDiscreteDistribution {
             Self::NegativeBinomial(i) => i.skewness(),
             Self::Poisson(i) => i.skewness(),
             Self::Uniform(i) => i.skewness(),
+        }
+    }
+
+    fn mean(&self)->Option<f64>{
+        match self {
+            Self::Binomial(i) => i.mean(),
+            Self::Custom(items) => {
+                let mut means = Means::<1>::default();
+                let mut prev_v = 0.0;
+                for (k,v) in items{
+                    if !means.insert(k, *v-prev_v){
+                        return None
+                    }
+                    prev_v = *v;
+                }
+                let [first] = means.0;
+                Some(first)
+            },
+            Self::Hypergeometric(i) => i.mean(),
+            Self::NegativeBinomial(i) => i.mean(),
+            Self::Poisson(i) => i.mean(),
+            Self::Uniform(i) => i.mean(),
+        }
+    }
+
+    fn variance(&self)->Option<f64>{
+        match self {
+            Self::Binomial(i) => i.variance(),
+            Self::Custom(items) => {
+                let mut means = Means::<2>::default();
+                let mut prev_v = 0.0;
+                for (k,v) in items{
+                    if !means.insert(k, *v-prev_v){
+                        return None
+                    }
+                    prev_v = *v;
+                }
+                let [first, second] = means.0;
+                Some(second - first*first)
+            },
+            Self::Hypergeometric(i) => i.variance(),
+            Self::NegativeBinomial(i) => i.variance(),
+            Self::Poisson(i) => i.variance(),
+            Self::Uniform(i) => i.variance(),
         }
     }
 }
@@ -480,6 +511,42 @@ pub(crate) fn add_discdist_skewness<W, R>(
             let ret = d0.skewness();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no skew", rt)?),
+                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+            }
+        }),
+    )
+}
+
+pub(crate) fn add_discdist_mean<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "mean",
+        XFuncSpec::new(&[&X_DISCDIST], X_FLOAT.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let d0 = to_native!(a0, XDiscreteDistribution);
+            let ret = d0.mean();
+            match ret {
+                None => xerr(ManagedXError::new("distribution has no mean", rt)?),
+                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+            }
+        }),
+    )
+}
+
+pub(crate) fn add_discdist_variance<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "variance",
+        XFuncSpec::new(&[&X_DISCDIST], X_FLOAT.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let d0 = to_native!(a0, XDiscreteDistribution);
+            let ret = d0.variance();
+            match ret {
+                None => xerr(ManagedXError::new("distribution has no variance", rt)?),
                 Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
             }
         }),

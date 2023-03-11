@@ -2,4 +2,7 @@ fn main()->bool{
     let d = beta_distribution(0.25, 3.6);
 
     assert(d.skewness().is_close(2.6586951982089353))
+    && assert(d.mean().is_close(0.064935065))
+    && assert(d.variance().is_close(0.01251927882))
+    && assert(d.std_dev().is_close(0.111889583))
 }

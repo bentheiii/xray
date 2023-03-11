@@ -268,6 +268,10 @@ fn random(d: DiscreteDistribution)->int{
     d.sample(1)[0]
 }
 
+fn std_dev(d: DiscreteDistribution)->float{
+    d.variance().sqrt()
+}
+
 // cont distributions
 fn chisq_distribution(d: int)->ContinuousDistribution{
     gamma_distribution(d/2, 0.5)
@@ -283,6 +287,10 @@ fn random(d: ContinuousDistribution)->float{
 
 fn random()->float{
     standard_distribution().random()
+}
+
+fn std_dev(d: ContinuousDistribution)->float{
+    d.variance().sqrt()
 }
 
 // dates

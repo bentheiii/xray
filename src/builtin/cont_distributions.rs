@@ -141,7 +141,30 @@ impl XContinuousDistribution {
             Self::Normal(i) => i.skewness(),
             Self::Uniform(i) => i.skewness(),
         }
-
+    }
+    
+    fn mean(&self)->Option<f64>{
+        match self {
+            Self::Beta(i) => i.mean(),
+            Self::Exponential(i) => i.mean(),
+            Self::FisherSnedecor(i) => i.mean(),
+            Self::Gamma(i) => i.mean(),
+            Self::LogNormal(i, ..) => i.mean(),
+            Self::Normal(i) => i.mean(),
+            Self::Uniform(i) => i.mean(),
+        }
+    }
+    
+    fn variance(&self)->Option<f64>{
+        match self {
+            Self::Beta(i) => i.variance(),
+            Self::Exponential(i) => i.variance(),
+            Self::FisherSnedecor(i) => i.variance(),
+            Self::Gamma(i) => i.variance(),
+            Self::LogNormal(i, ..) => i.variance(),
+            Self::Normal(i) => i.variance(),
+            Self::Uniform(i) => i.variance(),
+        }
     }
 }
 
@@ -386,6 +409,42 @@ pub(crate) fn add_contdist_skewness<W, R>(
             let ret = d0.skewness();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no skew", rt)?),
+                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+            }
+        }),
+    )
+}
+
+pub(crate) fn add_contdist_mean<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "mean",
+        XFuncSpec::new(&[&X_CONTDIST], X_FLOAT.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let d0 = to_native!(a0, XContinuousDistribution);
+            let ret = d0.mean();
+            match ret {
+                None => xerr(ManagedXError::new("distribution has no mean", rt)?),
+                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+            }
+        }),
+    )
+}
+
+pub(crate) fn add_contdist_variance<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "variance",
+        XFuncSpec::new(&[&X_CONTDIST], X_FLOAT.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let d0 = to_native!(a0, XContinuousDistribution);
+            let ret = d0.variance();
+            match ret {
+                None => xerr(ManagedXError::new("distribution has no variance", rt)?),
                 Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
             }
         }),
