@@ -533,6 +533,10 @@ fn product(g: Generator<float>)->float{
     g.product(1.0)
 }
 
+fn unique<T>(g: Generator<T>, h: (T)->(int), e: (T,T)->(bool))->Generator<T>{
+    g.with_count(h,e).filter((i: (T, int))->{i::item1==1}).map((i: (T, int))->{i::item0})
+}
+
 // sets
 fn __std_xset_order_by_cardinality<T>(a: Set<T>, b: Set<T>) -> (Set<T>, Set<T>){
     if(a.len() < b.len(), (a,b), (b,a))

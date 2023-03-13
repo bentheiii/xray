@@ -1,0 +1,5 @@
+fn main()->bool{
+    let s = [1,3,6,3,1,1,8,6,0].to_generator().unique().to_array();
+
+    assert(s == [1, 3, 6, 8, 0])
+}

@@ -264,9 +264,12 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
     add_generator_take(scope).unwrap();
     add_generator_take_while(scope).unwrap();
     add_generator_to_array(scope).unwrap();
+    add_generator_with_count(scope).unwrap();
     add_generator_dyn_mean(scope).unwrap();
     add_generator_dyn_geo_mean(scope).unwrap();
+    add_generator_dyn_unique(scope).unwrap();
     add_generator_dyn_unzip(scope).unwrap();
+    add_generator_dyn_with_count(scope).unwrap();
     add_generator_dyn_zip(scope).unwrap();
 
     add_regex_type(scope).unwrap();

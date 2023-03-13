@@ -8,7 +8,7 @@ use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_UNKNOWN};
-use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XResult, XValue};
 use crate::XType::XCallable;
 use crate::{
     delegate, forward_err, manage_native, to_native, to_primitive, xraise, CompilationError,
@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use std::iter::once;
-use std::mem::size_of;
+use std::mem::{size_of};
 use std::rc;
 use std::sync::Arc;
 
@@ -45,12 +45,12 @@ impl NativeType for XMappingType {
     }
 }
 
-type MappingBucket<W, R> = Vec<(Rc<ManagedXValue<W, R>>, Rc<ManagedXValue<W, R>>)>;
+type MappingBucket<W, R, V> = Vec<(Rc<ManagedXValue<W, R>>, V)>;
 
 #[derive(Derivative)]
-#[derivative(Debug(bound = ""))]
-pub(super) struct XMapping<W, R> {
-    inner: HashMap<u64, MappingBucket<W, R>>,
+#[derivative(Debug(bound = "V: Debug"))]
+pub(super) struct XMapping<W, R, V = Rc<ManagedXValue<W, R>>> {
+    inner: HashMap<u64, MappingBucket<W, R, V>>,
     len: usize,
     hash_func: Rc<ManagedXValue<W, R>>,
     eq_func: Rc<ManagedXValue<W, R>>,
@@ -73,11 +73,11 @@ impl KeyLocation {
     }
 }
 
-impl<W: 'static, R: 'static> XMapping<W, R> {
-    fn new(
+impl<W: 'static, R: 'static, V: Debug + 'static> XMapping<W, R, V> {
+    pub(super) fn new(
         hash_func: Rc<ManagedXValue<W, R>>,
         eq_func: Rc<ManagedXValue<W, R>>,
-        dict: HashMap<u64, MappingBucket<W, R>>,
+        dict: HashMap<u64, MappingBucket<W, R, V>>,
         len: usize,
     ) -> Self {
         Self {
@@ -91,14 +91,14 @@ impl<W: 'static, R: 'static> XMapping<W, R> {
     fn with_update(
         &self,
         items: impl Iterator<
-            Item = Result<
-                Result<(Rc<ManagedXValue<W, R>>, Rc<ManagedXValue<W, R>>), Rc<ManagedXError<W, R>>>,
+            Item=Result<
+                Result<(Rc<ManagedXValue<W, R>>, V), Rc<ManagedXError<W, R>>>,
                 RuntimeViolation,
             >,
         >,
         ns: &RuntimeScope<W, R>,
         rt: RTCell<W, R>,
-    ) -> Result<TailedEvalResult<W, R>, RuntimeViolation> {
+    ) -> Result<TailedEvalResult<W, R>, RuntimeViolation> where V: Clone {
         let mut ret = Self::new(
             self.hash_func.clone(),
             self.eq_func.clone(),
@@ -107,20 +107,7 @@ impl<W: 'static, R: 'static> XMapping<W, R> {
         );
         for item in items {
             let (k, v) = xraise!(item?);
-            let loc = xraise!(ret.locate(&k, ns, rt.clone())?);
-            match loc {
-                KeyLocation::Found((hash_key, idx)) => {
-                    ret.inner.get_mut(&hash_key).unwrap()[idx].1 = v
-                }
-                KeyLocation::Missing(hash_key) => {
-                    ret.inner.get_mut(&hash_key).unwrap().push((k, v));
-                    ret.len += 1;
-                }
-                KeyLocation::Vacant(hash_key) => {
-                    ret.inner.insert(hash_key, vec![(k, v)]);
-                    ret.len += 1;
-                }
-            }
+            xraise!(ret.put(&k,|| v.clone(), |_| v.clone(), ns, rt.clone())?);
         }
 
         Ok(manage_native!(ret, rt))
@@ -159,18 +146,72 @@ impl<W: 'static, R: 'static> XMapping<W, R> {
         Ok(Ok(KeyLocation::Missing(hash_key)))
     }
 
-    fn get(&self, coordinates: (u64, usize)) -> &Rc<ManagedXValue<W, R>> {
+    fn get(&self, coordinates: (u64, usize)) -> &V {
         &self.inner[&coordinates.0][coordinates.1].1
+    }
+
+    pub(super) fn put(&mut self, k: &Rc<ManagedXValue<W, R>>, on_empty: impl FnOnce() -> V, on_found: impl FnOnce(&V) -> V, ns: &RuntimeScope<W, R>,
+                      rt: RTCell<W, R>, ) -> XResult<&V, W, R> {
+        let loc = forward_err!(self.locate(k, ns, rt)?);
+        Ok(Ok(match loc {
+            KeyLocation::Found((hash_key, idx)) => {
+                let prev_v = &self.inner.get(&hash_key).unwrap()[idx].1;
+                let v = on_found(prev_v);
+                let spot =&mut self.inner.get_mut(&hash_key).unwrap()[idx];
+                spot.1 = v;
+                &spot.1
+            }
+            KeyLocation::Missing(hash_key) => {
+                let v = on_empty();
+                let bucket = self.inner.get_mut(&hash_key).unwrap();
+                bucket.push((k.clone(), v));
+                self.len += 1;
+                &bucket.last().unwrap().1
+            }
+            KeyLocation::Vacant(hash_key) => {
+                let v = on_empty();
+                let bucket = self.inner.entry(hash_key).or_insert(vec![(k.clone(), v)]);
+                self.len += 1;
+                &bucket.last().unwrap().1
+            }
+        }))
+    }
+
+    pub(super) fn try_put(&mut self, k: &Rc<ManagedXValue<W, R>>, on_empty: impl FnOnce() -> XResult<V, W, R>, on_found: impl FnOnce(&V) -> XResult<V, W, R>, ns: &RuntimeScope<W, R>,
+                          rt: RTCell<W, R>, ) -> XResult<&V, W, R> {
+        let loc = forward_err!(self.locate(k, ns, rt)?);
+        Ok(Ok(match loc {
+            KeyLocation::Found((hash_key, idx)) => {
+                let prev_v = &self.inner.get(&hash_key).unwrap()[idx].1;
+                let v = forward_err!(on_found(prev_v)?);
+                let spot =&mut self.inner.get_mut(&hash_key).unwrap()[idx];
+                spot.1 = v;
+                &spot.1
+            }
+            KeyLocation::Missing(hash_key) => {
+                let v = forward_err!(on_empty()?);
+                let bucket = self.inner.get_mut(&hash_key).unwrap();
+                bucket.push((k.clone(), v));
+                self.len += 1;
+                &bucket.last().unwrap().1
+            }
+            KeyLocation::Vacant(hash_key) => {
+                let v = forward_err!(on_empty()?);
+                let bucket = self.inner.entry(hash_key).or_insert(vec![(k.clone(), v)]);
+                self.len += 1;
+                &bucket.last().unwrap().1
+            }
+        }))
     }
 
     pub(super) fn iter(
         &self,
-    ) -> impl Iterator<Item = (Rc<ManagedXValue<W, R>>, Rc<ManagedXValue<W, R>>)> + '_ {
+    ) -> impl Iterator<Item=(Rc<ManagedXValue<W, R>>, V)> + '_ where V: Clone {
         self.inner.iter().flat_map(|(_, b)| b.iter()).cloned()
     }
 }
 
-impl<W: 'static, R: 'static> XNativeValue for XMapping<W, R> {
+impl<W: 'static, R: 'static, V: Debug + 'static> XNativeValue for XMapping<W, R, V> {
     fn dyn_size(&self) -> usize {
         (self.len * 2 + self.inner.len() + 2) * size_of::<Rc<ManagedXValue<W, R>>>()
     }
@@ -203,12 +244,12 @@ pub(crate) fn add_mapping_new<W, R>(
             ],
             XMappingType::xtype(k, X_UNKNOWN.clone()),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let hash_func = xraise!(eval(&args[0], ns, &rt)?);
             let eq_func = xraise!(eval(&args[1], ns, &rt)?);
             Ok(manage_native!(
-                XMapping::new(hash_func, eq_func, Default::default(), 0),
+                XMapping::<W, R>::new(hash_func, eq_func, Default::default(), 0),
                 rt
             ))
         }),
@@ -250,7 +291,7 @@ pub(crate) fn add_mapping_update<W, R>(
             ],
             mp.clone(),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -292,7 +333,7 @@ pub(crate) fn add_mapping_update_from_keys<W, R>(
             ],
             mp.clone(),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -311,45 +352,21 @@ pub(crate) fn add_mapping_update_from_keys<W, R>(
             );
             for item in gen0.iter(ns, rt.clone()) {
                 let item = xraise!(item?);
-                let loc = xraise!(ret.locate(&item, ns, rt.clone())?);
-                match loc {
-                    KeyLocation::Found((hash_key, idx)) => {
-                        let prev_v = ret.inner.get_mut(&hash_key).unwrap()[idx].1.clone();
-                        let v = xraise!(ns
-                            .eval_func_with_values(
+                xraise!(ret.try_put(&item, || {
+                    ns.eval_func_with_values(
+                                on_empty,
+                                vec![Ok(item.clone())],
+                                rt.clone(),
+                                false
+                            ).map(|v| v.unwrap_value())
+                }, |v| {
+                    ns.eval_func_with_values(
                                 on_occupied,
-                                vec![Ok(item.clone()), Ok(prev_v)],
+                                vec![Ok(item.clone()), Ok(v.clone())],
                                 rt.clone(),
                                 false
-                            )?
-                            .unwrap_value());
-                        ret.inner.get_mut(&hash_key).unwrap()[idx].1 = v;
-                    }
-                    KeyLocation::Missing(hash_key) => {
-                        let v = xraise!(ns
-                            .eval_func_with_values(
-                                on_empty,
-                                vec![Ok(item.clone())],
-                                rt.clone(),
-                                false
-                            )?
-                            .unwrap_value());
-                        ret.inner.get_mut(&hash_key).unwrap().push((item, v));
-                        ret.len += 1;
-                    }
-                    KeyLocation::Vacant(hash_key) => {
-                        let v = xraise!(ns
-                            .eval_func_with_values(
-                                on_empty,
-                                vec![Ok(item.clone())],
-                                rt.clone(),
-                                false
-                            )?
-                            .unwrap_value());
-                        ret.inner.insert(hash_key, vec![(item, v)]);
-                        ret.len += 1;
-                    }
-                }
+                            ).map(|v| v.unwrap_value())
+                }, ns, rt.clone())?);
             }
 
             Ok(manage_native!(ret, rt))
@@ -412,7 +429,7 @@ pub(crate) fn add_mapping_to_generator<W, R>(
             &[&mp],
             XGeneratorType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
         )
-        .generic(params),
+            .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let gen = XGenerator::FromMapping(a0);
@@ -544,8 +561,8 @@ pub(crate) fn add_mapping_dyn_eq<W, R>(
         let [k0, v0] = unpack_native(a0, "Mapping")? else { unreachable!() };
         let [k1, v1] = unpack_native(a1, "Mapping")? else { unreachable!() };
 
-        if k0 != k1{
-            return Err("the two mappings must have the same key type".to_string())
+        if k0 != k1 {
+            return Err("the two mappings must have the same key type".to_string());
         }
 
         let inner = get_func(ns, symbol, &[v0.clone(), v1.clone()], &X_BOOL)?;
@@ -580,10 +597,10 @@ pub(crate) fn add_mapping_dyn_eq<W, R>(
                                     false
                                 )?
                                 .unwrap_value());
-                            let is_eq = to_primitive!(eq, Bool);
-                            if !*is_eq {
-                                return Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into());
-                            }
+                        let is_eq = to_primitive!(eq, Bool);
+                        if !*is_eq {
+                            return Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into());
+                        }
                     }
 
                     Ok(ManagedXValue::new(XValue::Bool(true), rt)?.into())
