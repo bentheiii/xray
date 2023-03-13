@@ -292,6 +292,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
     add_contdist_skewness(scope).unwrap();
     add_contdist_students_t(scope).unwrap();
     add_contdist_variance(scope).unwrap();
+    add_contdist_weibull(scope).unwrap();
 
     add_discrete_distribution_type(scope).unwrap();
     add_discdist_binomial(scope).unwrap();

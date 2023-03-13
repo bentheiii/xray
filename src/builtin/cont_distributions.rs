@@ -6,7 +6,7 @@ use crate::{manage_native, to_native, to_primitive, xraise, CompilationError, Ro
 use num_traits::{Float, ToPrimitive};
 use statrs::distribution::{
     Beta, Continuous, ContinuousCDF, Exp, FisherSnedecor, Gamma, LogNormal, Normal, Uniform,
-    StudentsT,
+    StudentsT, Weibull
 };
 use statrs::function::erf::erf_inv;
 use statrs::statistics::{Distribution, Max, Min};
@@ -77,6 +77,7 @@ pub(crate) enum XContinuousDistribution {
     Normal(Normal),
     Uniform(Uniform),
     StudentsT(StudentsT),
+    Weibull(Weibull),
 }
 
 impl XContinuousDistribution {
@@ -90,6 +91,7 @@ impl XContinuousDistribution {
             Self::Normal(i) => i.cdf(x),
             Self::Uniform(i) => i.cdf(x),
             Self::StudentsT(i)=>i.cdf(x),
+            Self::Weibull(i) => i.cdf(x),
         }
     }
 
@@ -103,6 +105,7 @@ impl XContinuousDistribution {
             Self::Normal(i) => i.pdf(x),
             Self::Uniform(i) => i.pdf(x),
             Self::StudentsT(i)=>i.pdf(x),
+            Self::Weibull(i) => i.pdf(x),
         }
     }
 
@@ -118,6 +121,7 @@ impl XContinuousDistribution {
             Self::Normal(i) => i.inverse_cdf(x),
             Self::Uniform(i) => x * (i.max() - i.min()) + i.min(),
             Self::StudentsT(i) => i.inverse_cdf(x),
+            Self::Weibull(i) => deep_inverse_cdf(i, x),
         }
     }
 
@@ -131,6 +135,7 @@ impl XContinuousDistribution {
             Self::Normal(i) => i.sample_iter(rng).take(n).collect(),
             Self::Uniform(i) => i.sample_iter(rng).take(n).collect(),
             Self::StudentsT(i) => i.sample_iter(rng).take(n).collect(),
+            Self::Weibull(i) => i.sample_iter(rng).take(n).collect(),
         }
     }
 
@@ -144,6 +149,7 @@ impl XContinuousDistribution {
             Self::Normal(i) => i.skewness(),
             Self::Uniform(i) => i.skewness(),
             Self::StudentsT(i) => i.skewness(),
+            Self::Weibull(i) => i.skewness(),
         }
     }
     
@@ -157,6 +163,7 @@ impl XContinuousDistribution {
             Self::Normal(i) => i.mean(),
             Self::Uniform(i) => i.mean(),
             Self::StudentsT(i) => i.mean(),
+            Self::Weibull(i) => i.mean(),
         }
     }
     
@@ -170,6 +177,7 @@ impl XContinuousDistribution {
             Self::Normal(i) => i.variance(),
             Self::Uniform(i) => i.variance(),
             Self::StudentsT(i) => i.variance(),
+            Self::Weibull(i) => i.variance(),
         }
     }
 }
@@ -299,6 +307,28 @@ pub(crate) fn add_contdist_normal<W, R>(
                 }
             };
             Ok(manage_native!(XContinuousDistribution::Normal(ret), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_contdist_weibull<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "weibull_distribution",
+        XFuncSpec::new(&[&X_FLOAT, &X_FLOAT], X_CONTDIST.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let f0 = to_primitive!(a0, Float);
+            let f1 = to_primitive!(a1, Float);
+            let ret = match Weibull::new(*f0, *f1) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
+                }
+            };
+            Ok(manage_native!(XContinuousDistribution::Weibull(ret), rt))
         }),
     )
 }
