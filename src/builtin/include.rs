@@ -378,12 +378,25 @@ fn cmp(d0: Datetime, d1: Datetime)->int{
 }
 
 //sequences
+fn reverse<T>(a: Sequence<T>)->Sequence<T>{
+    let offset = a.len();
+    range(offset).map((idx: int)->{a[offset-1-idx]})
+}
+
 fn any<T>(a: Sequence<T>, f: (T)->(bool))->bool{
     a.nth(0, f).has_value()
 }
 
 fn all<T>(a: Sequence<T>, f: (T)->(bool))->bool{
     !a.nth(0, (t: T) -> {!f(t)}).has_value()
+}
+
+fn any(a: Sequence<bool>)->bool{
+    a.nth(0, (t: bool) -> {t}).has_value()
+}
+
+fn all(a: Sequence<bool>)->bool{
+    !a.nth(0, (t: bool) -> {!t}).has_value()
 }
 
 fn first<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{

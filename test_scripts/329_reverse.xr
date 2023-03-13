@@ -1,0 +1,5 @@
+fn main()->bool{
+    let d = [3, 8, 9, 10, 2, 1, 0];
+
+    assert(d.reverse() == [0, 1, 2, 10, 9, 8, 3])
+}
