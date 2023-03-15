@@ -331,3 +331,21 @@ pub(crate) fn add_int_multinom<W, R>(
         }),
     )
 }
+
+pub(crate) fn add_int_format<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "format",
+        XFuncSpec::new(&[&X_INT, &X_STRING], X_STRING.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let i0 = to_primitive!(a0, Int);
+            let i1 = to_primitive!(a0, String);
+            let Some(ord) = s.to_u32() else { return xerr(ManagedXError::new("number too large", rt)?); };
+            let Ok(chr) = char::try_from(ord) else { return xerr(ManagedXError::new("value is not a unicode char", rt)?); };
+            Ok(ManagedXValue::new(XValue::String(Box::new(FencedString::from_string(chr.into()))), rt)?.into())
+        }),
+    )
+}

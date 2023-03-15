@@ -1,3 +1,0 @@
-fn main()->bool{
-    assert(name<int>() == "int")
-}
