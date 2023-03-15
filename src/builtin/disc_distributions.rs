@@ -8,18 +8,20 @@ use crate::{
     XStaticFunction, XType,
 };
 use num_traits::{Bounded, Float, Num, Signed, ToPrimitive};
-use statrs::distribution::{Binomial, Discrete, DiscreteCDF, DiscreteUniform, Hypergeometric, NegativeBinomial, Poisson};
+use statrs::distribution::{
+    Binomial, Discrete, DiscreteCDF, DiscreteUniform, Hypergeometric, NegativeBinomial, Poisson,
+};
 use statrs::statistics::{DiscreteDistribution, Distribution, Max, Min};
 use std::fmt::Debug;
 
 use crate::builtin::builtin_permissions;
 use crate::builtin::sequence::{XSequence, XSequenceType};
+use crate::util::means::Means;
 use itertools::Itertools;
 use num_traits::FromPrimitive;
 use rand::distributions::{Distribution as _, Standard};
 use rand::{Rng, RngCore, SeedableRng};
 use std::sync::Arc;
-use crate::util::means::Means;
 
 fn inverse_cdf<K: Bounded + Clone + Num + Debug, T: Float>(s: &impl DiscreteCDF<K, T>, p: T) -> K {
     if p == T::zero() {
@@ -196,23 +198,23 @@ impl XDiscreteDistribution {
         }
     }
 
-    fn skewness(&self)->Option<f64>{
+    fn skewness(&self) -> Option<f64> {
         match self {
             Self::Binomial(i) => i.skewness(),
             Self::Custom(items) => {
                 let mut means = Means::<3>::default();
                 let mut prev_v = 0.0;
-                for (k,v) in items{
-                    if !means.insert(k, *v-prev_v){
-                        return None
+                for (k, v) in items {
+                    if !means.insert(k, *v - prev_v) {
+                        return None;
                     }
                     prev_v = *v;
                 }
                 let [first, second, third] = means.0;
-                let std_sq = second - first*first;
+                let std_sq = second - first * first;
                 let std_dev = std_sq.sqrt();
-                Some((third - 3.0*first*std_sq - first.powi(3))/(std_dev.powi(3)))
-            },
+                Some((third - 3.0 * first * std_sq - first.powi(3)) / (std_dev.powi(3)))
+            }
             Self::Hypergeometric(i) => i.skewness(),
             Self::NegativeBinomial(i) => i.skewness(),
             Self::Poisson(i) => i.skewness(),
@@ -220,21 +222,21 @@ impl XDiscreteDistribution {
         }
     }
 
-    fn mean(&self)->Option<f64>{
+    fn mean(&self) -> Option<f64> {
         match self {
             Self::Binomial(i) => i.mean(),
             Self::Custom(items) => {
                 let mut means = Means::<1>::default();
                 let mut prev_v = 0.0;
-                for (k,v) in items{
-                    if !means.insert(k, *v-prev_v){
-                        return None
+                for (k, v) in items {
+                    if !means.insert(k, *v - prev_v) {
+                        return None;
                     }
                     prev_v = *v;
                 }
                 let [first] = means.0;
                 Some(first)
-            },
+            }
             Self::Hypergeometric(i) => i.mean(),
             Self::NegativeBinomial(i) => i.mean(),
             Self::Poisson(i) => i.mean(),
@@ -242,21 +244,21 @@ impl XDiscreteDistribution {
         }
     }
 
-    fn variance(&self)->Option<f64>{
+    fn variance(&self) -> Option<f64> {
         match self {
             Self::Binomial(i) => i.variance(),
             Self::Custom(items) => {
                 let mut means = Means::<2>::default();
                 let mut prev_v = 0.0;
-                for (k,v) in items{
-                    if !means.insert(k, *v-prev_v){
-                        return None
+                for (k, v) in items {
+                    if !means.insert(k, *v - prev_v) {
+                        return None;
                     }
                     prev_v = *v;
                 }
                 let [first, second] = means.0;
-                Some(second - first*first)
-            },
+                Some(second - first * first)
+            }
             Self::Hypergeometric(i) => i.variance(),
             Self::NegativeBinomial(i) => i.variance(),
             Self::Poisson(i) => i.variance(),
@@ -511,7 +513,7 @@ pub(crate) fn add_discdist_skewness<W, R>(
             let ret = d0.skewness();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no skew", rt)?),
-                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into()),
             }
         }),
     )
@@ -529,7 +531,7 @@ pub(crate) fn add_discdist_mean<W, R>(
             let ret = d0.mean();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no mean", rt)?),
-                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into()),
             }
         }),
     )
@@ -547,7 +549,7 @@ pub(crate) fn add_discdist_variance<W, R>(
             let ret = d0.variance();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no variance", rt)?),
-                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into()),
             }
         }),
     )

@@ -110,8 +110,8 @@ impl<'c, W, R> RootEvaluationScope<'c, W, R> {
                                 if fref.fulfilled {
                                     None
                                 } else {
-                                    let name =
-                                        self.compilation_scope.interner.resolve(fref.name).unwrap();
+                                    let interner = self.compilation_scope.interner.borrow();
+                                    let name = interner.resolve(fref.name).unwrap();
                                     Some(name.to_string())
                                 }
                             })

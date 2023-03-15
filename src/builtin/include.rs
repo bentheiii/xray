@@ -1,4 +1,7 @@
 pub const INCLUDE: &str = r#"
+// meta
+let xray_version = (0,1,0);
+
 // generic
 fn min<T>(a: T, b: T, lt: (T,T)->(bool))->T{
     if(lt(a,b), a, b)

@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 
 use std::iter::once;
-use std::mem::{size_of};
+use std::mem::size_of;
 use std::rc;
 use std::sync::Arc;
 
@@ -91,14 +91,17 @@ impl<W: 'static, R: 'static, V: Debug + 'static> XMapping<W, R, V> {
     fn with_update(
         &self,
         items: impl Iterator<
-            Item=Result<
+            Item = Result<
                 Result<(Rc<ManagedXValue<W, R>>, V), Rc<ManagedXError<W, R>>>,
                 RuntimeViolation,
             >,
         >,
         ns: &RuntimeScope<W, R>,
         rt: RTCell<W, R>,
-    ) -> Result<TailedEvalResult<W, R>, RuntimeViolation> where V: Clone {
+    ) -> Result<TailedEvalResult<W, R>, RuntimeViolation>
+    where
+        V: Clone,
+    {
         let mut ret = Self::new(
             self.hash_func.clone(),
             self.eq_func.clone(),
@@ -107,7 +110,7 @@ impl<W: 'static, R: 'static, V: Debug + 'static> XMapping<W, R, V> {
         );
         for item in items {
             let (k, v) = xraise!(item?);
-            xraise!(ret.put(&k,|| v.clone(), |_| v.clone(), ns, rt.clone())?);
+            xraise!(ret.put(&k, || v.clone(), |_| v.clone(), ns, rt.clone())?);
         }
 
         Ok(manage_native!(ret, rt))
@@ -150,14 +153,20 @@ impl<W: 'static, R: 'static, V: Debug + 'static> XMapping<W, R, V> {
         &self.inner[&coordinates.0][coordinates.1].1
     }
 
-    pub(super) fn put(&mut self, k: &Rc<ManagedXValue<W, R>>, on_empty: impl FnOnce() -> V, on_found: impl FnOnce(&V) -> V, ns: &RuntimeScope<W, R>,
-                      rt: RTCell<W, R>, ) -> XResult<&V, W, R> {
+    pub(super) fn put(
+        &mut self,
+        k: &Rc<ManagedXValue<W, R>>,
+        on_empty: impl FnOnce() -> V,
+        on_found: impl FnOnce(&V) -> V,
+        ns: &RuntimeScope<W, R>,
+        rt: RTCell<W, R>,
+    ) -> XResult<&V, W, R> {
         let loc = forward_err!(self.locate(k, ns, rt)?);
         Ok(Ok(match loc {
             KeyLocation::Found((hash_key, idx)) => {
                 let prev_v = &self.inner.get(&hash_key).unwrap()[idx].1;
                 let v = on_found(prev_v);
-                let spot =&mut self.inner.get_mut(&hash_key).unwrap()[idx];
+                let spot = &mut self.inner.get_mut(&hash_key).unwrap()[idx];
                 spot.1 = v;
                 &spot.1
             }
@@ -177,14 +186,20 @@ impl<W: 'static, R: 'static, V: Debug + 'static> XMapping<W, R, V> {
         }))
     }
 
-    pub(super) fn try_put(&mut self, k: &Rc<ManagedXValue<W, R>>, on_empty: impl FnOnce() -> XResult<V, W, R>, on_found: impl FnOnce(&V) -> XResult<V, W, R>, ns: &RuntimeScope<W, R>,
-                          rt: RTCell<W, R>, ) -> XResult<&V, W, R> {
+    pub(super) fn try_put(
+        &mut self,
+        k: &Rc<ManagedXValue<W, R>>,
+        on_empty: impl FnOnce() -> XResult<V, W, R>,
+        on_found: impl FnOnce(&V) -> XResult<V, W, R>,
+        ns: &RuntimeScope<W, R>,
+        rt: RTCell<W, R>,
+    ) -> XResult<&V, W, R> {
         let loc = forward_err!(self.locate(k, ns, rt)?);
         Ok(Ok(match loc {
             KeyLocation::Found((hash_key, idx)) => {
                 let prev_v = &self.inner.get(&hash_key).unwrap()[idx].1;
                 let v = forward_err!(on_found(prev_v)?);
-                let spot =&mut self.inner.get_mut(&hash_key).unwrap()[idx];
+                let spot = &mut self.inner.get_mut(&hash_key).unwrap()[idx];
                 spot.1 = v;
                 &spot.1
             }
@@ -204,16 +219,19 @@ impl<W: 'static, R: 'static, V: Debug + 'static> XMapping<W, R, V> {
         }))
     }
 
-    pub(super) fn iter(
-        &self,
-    ) -> impl Iterator<Item=(Rc<ManagedXValue<W, R>>, V)> + '_ where V: Clone {
+    pub(super) fn iter(&self) -> impl Iterator<Item = (Rc<ManagedXValue<W, R>>, V)> + '_
+    where
+        V: Clone,
+    {
         self.inner.iter().flat_map(|(_, b)| b.iter()).cloned()
     }
 }
 
 impl<W: 'static, R: 'static, V: Debug + 'static> XNativeValue for XMapping<W, R, V> {
     fn dyn_size(&self) -> usize {
-        (self.len * 2 + self.inner.len() + 2) * size_of::<Rc<ManagedXValue<W, R>>>()
+        (self.inner.len() * size_of::<MappingBucket<W, R, V>>())
+            + (self.len * size_of::<Rc<ManagedXValue<W, R>>>())
+            + (self.len * size_of::<V>())
     }
 }
 
@@ -244,7 +262,7 @@ pub(crate) fn add_mapping_new<W, R>(
             ],
             XMappingType::xtype(k, X_UNKNOWN.clone()),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let hash_func = xraise!(eval(&args[0], ns, &rt)?);
             let eq_func = xraise!(eval(&args[1], ns, &rt)?);
@@ -291,7 +309,7 @@ pub(crate) fn add_mapping_update<W, R>(
             ],
             mp.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -333,7 +351,7 @@ pub(crate) fn add_mapping_update_from_keys<W, R>(
             ],
             mp.clone(),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
@@ -352,21 +370,29 @@ pub(crate) fn add_mapping_update_from_keys<W, R>(
             );
             for item in gen0.iter(ns, rt.clone()) {
                 let item = xraise!(item?);
-                xraise!(ret.try_put(&item, || {
-                    ns.eval_func_with_values(
-                                on_empty,
-                                vec![Ok(item.clone())],
-                                rt.clone(),
-                                false
-                            ).map(|v| v.unwrap_value())
-                }, |v| {
-                    ns.eval_func_with_values(
-                                on_occupied,
-                                vec![Ok(item.clone()), Ok(v.clone())],
-                                rt.clone(),
-                                false
-                            ).map(|v| v.unwrap_value())
-                }, ns, rt.clone())?);
+                xraise!(ret.try_put(
+                    &item,
+                    || {
+                        ns.eval_func_with_values(
+                            on_empty,
+                            vec![Ok(item.clone())],
+                            rt.clone(),
+                            false,
+                        )
+                        .map(|v| v.unwrap_value())
+                    },
+                    |v| {
+                        ns.eval_func_with_values(
+                            on_occupied,
+                            vec![Ok(item.clone()), Ok(v.clone())],
+                            rt.clone(),
+                            false,
+                        )
+                        .map(|v| v.unwrap_value())
+                    },
+                    ns,
+                    rt.clone()
+                )?);
             }
 
             Ok(manage_native!(ret, rt))
@@ -429,7 +455,7 @@ pub(crate) fn add_mapping_to_generator<W, R>(
             &[&mp],
             XGeneratorType::xtype(Arc::new(XType::Tuple(vec![k, v]))),
         )
-            .generic(params),
+        .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let gen = XGenerator::FromMapping(a0);

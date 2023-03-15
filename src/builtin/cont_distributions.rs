@@ -2,11 +2,14 @@ use crate::builtin::core::{eval, xerr};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncSpec, X_FLOAT, X_INT};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
-use crate::{manage_native, to_native, to_primitive, xraise, CompilationError, RootCompilationScope, XStaticFunction, XType, xraise_opt};
+use crate::{
+    manage_native, to_native, to_primitive, xraise, xraise_opt, CompilationError,
+    RootCompilationScope, XStaticFunction, XType,
+};
 use num_traits::{Float, ToPrimitive};
 use statrs::distribution::{
-    Beta, Continuous, ContinuousCDF, Exp, FisherSnedecor, Gamma, LogNormal, Normal, Uniform,
-    StudentsT, Weibull
+    Beta, Continuous, ContinuousCDF, Exp, FisherSnedecor, Gamma, LogNormal, Normal, StudentsT,
+    Uniform, Weibull,
 };
 use statrs::function::erf::erf_inv;
 use statrs::statistics::{Distribution, Max, Min};
@@ -90,7 +93,7 @@ impl XContinuousDistribution {
             Self::LogNormal(i, ..) => i.cdf(x),
             Self::Normal(i) => i.cdf(x),
             Self::Uniform(i) => i.cdf(x),
-            Self::StudentsT(i)=>i.cdf(x),
+            Self::StudentsT(i) => i.cdf(x),
             Self::Weibull(i) => i.cdf(x),
         }
     }
@@ -104,7 +107,7 @@ impl XContinuousDistribution {
             Self::LogNormal(i, ..) => i.pdf(x),
             Self::Normal(i) => i.pdf(x),
             Self::Uniform(i) => i.pdf(x),
-            Self::StudentsT(i)=>i.pdf(x),
+            Self::StudentsT(i) => i.pdf(x),
             Self::Weibull(i) => i.pdf(x),
         }
     }
@@ -139,7 +142,7 @@ impl XContinuousDistribution {
         }
     }
 
-    fn skewness(&self)->Option<f64>{
+    fn skewness(&self) -> Option<f64> {
         match self {
             Self::Beta(i) => i.skewness(),
             Self::Exponential(i) => i.skewness(),
@@ -152,8 +155,8 @@ impl XContinuousDistribution {
             Self::Weibull(i) => i.skewness(),
         }
     }
-    
-    fn mean(&self)->Option<f64>{
+
+    fn mean(&self) -> Option<f64> {
         match self {
             Self::Beta(i) => i.mean(),
             Self::Exponential(i) => i.mean(),
@@ -166,8 +169,8 @@ impl XContinuousDistribution {
             Self::Weibull(i) => i.mean(),
         }
     }
-    
-    fn variance(&self)->Option<f64>{
+
+    fn variance(&self) -> Option<f64> {
         match self {
             Self::Beta(i) => i.variance(),
             Self::Exponential(i) => i.variance(),
@@ -333,7 +336,6 @@ pub(crate) fn add_contdist_weibull<W, R>(
     )
 }
 
-
 pub(crate) fn add_contdist_gamma<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
@@ -469,7 +471,7 @@ pub(crate) fn add_contdist_skewness<W, R>(
             let ret = d0.skewness();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no skew", rt)?),
-                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into()),
             }
         }),
     )
@@ -487,7 +489,7 @@ pub(crate) fn add_contdist_mean<W, R>(
             let ret = d0.mean();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no mean", rt)?),
-                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into()),
             }
         }),
     )
@@ -505,7 +507,7 @@ pub(crate) fn add_contdist_variance<W, R>(
             let ret = d0.variance();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no variance", rt)?),
-                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into()),
             }
         }),
     )

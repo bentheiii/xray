@@ -3,11 +3,13 @@ use crate::xexpr::{XExpr, XStaticFunction};
 use crate::xtype::{XFuncSpec, XType};
 use crate::xvalue::{DynEvalCallback, XFunctionFactoryOutput};
 use crate::{CompilationError, Identifier, XRayParser};
+use std::cell::RefCell;
 
 use std::collections::HashSet;
 use std::convert::TryInto;
 
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
+use std::rc::Rc;
 
 use std::sync::Arc;
 use string_interner::{DefaultBackend, DefaultSymbol, StringInterner};
@@ -47,14 +49,14 @@ pub(crate) type Interner = StringInterner<SpecialPrefixBackend<DefaultBackend<De
 
 pub struct RootCompilationScope<W: 'static, R: 'static> {
     pub(crate) scope: CompilationScope<'static, W, R>,
-    pub(crate) interner: Interner,
+    pub(crate) interner: Rc<RefCell<Interner>>,
 }
 
 impl<W, R> RootCompilationScope<W, R> {
     pub fn new() -> Self {
         Self {
             scope: CompilationScope::root(),
-            interner: Interner::new(),
+            interner: Rc::new(RefCell::new(Interner::new())),
         }
     }
 
@@ -63,8 +65,8 @@ impl<W, R> RootCompilationScope<W, R> {
         name: &'static str,
         type_: Arc<XType>,
     ) -> Result<(), CompilationError> {
-        self.scope
-            .add_type(self.interner.get_or_intern_static(name), type_)
+        let id = self.identifier(name);
+        self.scope.add_type(id, type_)
     }
 
     pub fn add_func(
@@ -73,8 +75,8 @@ impl<W, R> RootCompilationScope<W, R> {
         spec: XFuncSpec,
         func: XStaticFunction<W, R>,
     ) -> Result<(), CompilationError> {
-        self.scope
-            .add_static_func(self.interner.get_or_intern_static(name), spec, func)
+        let id = self.identifier(name);
+        self.scope.add_static_func(id, spec, func)
     }
 
     pub fn add_dyn_func(
@@ -89,9 +91,8 @@ impl<W, R> RootCompilationScope<W, R> {
             ) -> Result<XFunctionFactoryOutput<W, R>, String>
             + 'static,
     ) -> Result<(), CompilationError> {
-        self.scope
-            .add_dynamic_func(self.interner.get_or_intern_static(name), desc, func)
-            .map(|_| ())
+        let id = self.identifier(name);
+        self.scope.add_dynamic_func(id, desc, func).map(|_| ())
     }
 
     pub(crate) fn generics_from_names<const N: usize>(
@@ -101,7 +102,7 @@ impl<W, R> RootCompilationScope<W, R> {
         let (v0, v1) = names
             .iter()
             .map(|name| {
-                let ident = self.interner.get_or_intern_static(name);
+                let ident = self.identifier(name);
                 (XType::XGeneric(ident).into(), ident)
             })
             .unzip::<_, _, Vec<_>, Vec<_>>();
@@ -109,24 +110,27 @@ impl<W, R> RootCompilationScope<W, R> {
     }
 
     pub fn identifier(&mut self, name: &'static str) -> Identifier {
-        self.interner.get_or_intern_static(name)
+        self.interner.borrow_mut().get_or_intern_static(name)
     }
 
     pub fn get_identifier(&self, name: &str) -> Option<Identifier> {
-        self.interner.get(name)
+        self.interner.borrow().get(name)
     }
 
     pub fn feed_file(&mut self, input: &str) -> Result<(), Box<ResolvedTracedCompilationError>> {
         let body = XRayParser::parse(Rule::header, input)
             .map(|mut p| p.next().unwrap())
             .map_err(|s| ResolvedTracedCompilationError::Syntax(Box::new(s)))?;
-        self.scope
-            .feed(body, &HashSet::new(), &mut self.interner)
-            .map_err(|e| Box::new(e.resolve_with_input(&self.interner, input)))
+        let r = self.scope.feed(
+            body,
+            &HashSet::new(),
+            self.interner.borrow_mut().deref_mut(),
+        );
+        r.map_err(|e| Box::new(e.resolve_with_input(&self.interner.borrow_mut(), input)))
     }
 
     pub fn describe_type(&self, t: impl Deref<Target = XType>) -> String {
-        t.to_string_with_interner(&self.interner)
+        t.to_string_with_interner(&self.interner.as_ref().borrow())
     }
 }
 
