@@ -1,0 +1,41 @@
+fn main()->bool{
+    assert(format(298, "<6x") == "12a   ")
+    && assert(format(298, "!<6x") == "12a!!!")
+    && assert(format(-298, "!<6x") == "-12a!!")
+    && assert(format(-298, "!<#6x") == "-0x12a")
+    && assert(format(-298, "!>#7x") == "!-0x12a")
+    && assert(format(-298, "!=#7x") == "-0x!12a")
+
+    && assert(format(298, "<6") == "298   ")
+    && assert(format(298, "!^6") == "!298!!")
+    && assert(format(-298, "!<6") == "-298!!")
+    && assert(format(-298, "!^#6") == "!-298!")
+    && assert(format(-298, "!>7") == "!!!-298")
+    && assert(format(-298, "!=7") == "-!!!298")
+
+    && assert(format(298, "<06") == "298000")
+    && assert(format(298, "06") == "000298")
+    && assert(format(-298, "<06") == "-29800")
+    && assert(format(-298, "06") == "-00298")
+    && assert(format(-298, "!>07") == "!!!-298")
+    && assert(format(-298, "07") == "-000298")
+
+    && assert(format(5, "+") == "+5")
+    && assert(format(27, "#x") == "0x1b")
+    && assert(format(27, "#X") == "0X1b")
+    && assert(format(27, "#010x") == "0x0000001b")
+    && assert(format(5, "05") == "00005")
+    && assert(format(-5, "05") == "-0005")
+
+    && assert(format(42, "") == "42")
+    && assert(format(42, "x") == "2a")
+    && assert(format(42, "o") == "52")
+    && assert(format(42, "b") == "101010")
+    && assert(format(42, "#x") == "0x2a")
+    && assert(format(42, "#o") == "0o52")
+    && assert(format(42, "#b") == "0b101010")
+
+    && assert(format(123456789, ",") == "123,456,789")
+    && assert(format(123456789, "10_") == "123_456_789")
+    && assert(format(123456789, "15_") == "    123_456_789")
+}

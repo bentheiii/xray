@@ -60,6 +60,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
     add_int_div(scope).unwrap();
     add_int_digits(scope).unwrap();
     add_int_eq(scope).unwrap();
+    add_int_format(scope).unwrap();
     add_int_ge(scope).unwrap();
     add_int_gt(scope).unwrap();
     add_int_hash(scope).unwrap();

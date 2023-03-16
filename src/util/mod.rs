@@ -10,3 +10,5 @@ pub mod multieither;
 pub mod special_prefix_interner;
 pub mod str_escapes;
 pub mod try_heap;
+pub mod xformatter;
+pub mod str_parts;
