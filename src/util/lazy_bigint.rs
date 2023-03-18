@@ -84,19 +84,19 @@ impl LazyBigint {
         }
     }
 
-    pub(crate) fn magnitude_to_str(&self, radix: u32) -> String{
-        match self{
-            Self::Short(s)=>{
+    pub(crate) fn magnitude_to_str(&self, radix: u32) -> String {
+        match self {
+            Self::Short(s) => {
                 let mag = s.abs();
-                match radix{
+                match radix {
                     2 => format!("{mag:b}"),
                     8 => format!("{mag:o}"),
                     10 => format!("{mag}"),
                     16 => format!("{mag:x}"),
-                    _ => panic!()
+                    _ => panic!(),
                 }
-            },
-            Self::Long(b)=>b.magnitude().to_str_radix(radix)
+            }
+            Self::Long(b) => b.magnitude().to_str_radix(radix),
         }
     }
 }

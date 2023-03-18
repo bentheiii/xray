@@ -217,3 +217,6 @@
 * [ ] native dynamic functions?
 * [ ] line number in RTCELL?
 * [ ] warnings (like when assigning variable to magic method?)
+* [ ] make [str].sum use join
+* [ ] custom seeding for hash
+* [ ] make sure nan inf and negzero are impossible

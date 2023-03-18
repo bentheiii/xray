@@ -1,4 +1,6 @@
 use crate::builtin::core::{eval, xcmp, xerr};
+use crate::util::str_parts::StrParts;
+use crate::util::xformatter::{group_string, XFormatting};
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use crate::{
@@ -416,3 +418,79 @@ pub(crate) fn add_float_to_str<W, R>(
 add_binfunc!(add_float_cmp, cmp, X_FLOAT, Float, X_INT, |a, b, _| Ok(Ok(
     xcmp(a, b)
 )));
+
+pub(crate) fn add_float_format<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    fn get_body<'a>(
+        mag: f64,
+        ty: Option<&'a str>,
+        precision: usize,
+        grouping: Option<&'a str>,
+    ) -> StrParts<'a> {
+        match ty {
+            Some("e") => StrParts::from(format!("{mag:.precision$e}")),
+            Some("E") => StrParts::from(format!("{mag:.precision$E}")),
+            Some("%") => {
+                let mut i = get_body(100.0 * mag, Some("f"), precision, grouping);
+                i.extend(["%"]);
+                i
+            }
+            _ => {
+                let b = format!("{mag:.precision$}");
+                let (whole, part) = if let Some((w, p)) = b.split_once('.') {
+                    (w.to_string(), Some(p.to_string()))
+                } else {
+                    (b, None)
+                };
+                let mut ret = if let Some(grouping) = grouping {
+                    group_string(whole, grouping)
+                } else {
+                    StrParts::from(whole)
+                };
+                if let Some(part) = part {
+                    ret.extend(["."]);
+                    ret.extend([part])
+                }
+                ret
+            }
+        }
+    }
+
+    fn format_inner(f0: f64, specs: XFormatting) -> String {
+        let mag = f0.abs();
+        let body = get_body(
+            mag,
+            specs.ty.type_,
+            specs.precision.unwrap_or(6),
+            specs.grouping,
+        );
+        let sign_parts = specs.sign(f0 < 0.0);
+
+        let (prefix, infix, postfix) = specs
+            .fill_specs
+            .map(|f| f.fillers(body.len() + sign_parts.len()))
+            .unwrap_or_default();
+
+        format!("{prefix}{sign_parts}{infix}{body}{postfix}")
+    }
+
+    scope.add_func(
+        "format",
+        XFuncSpec::new(&[&X_FLOAT, &X_STRING], X_STRING.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let f0 = to_primitive!(a0, Float);
+            let s1 = to_primitive!(a1, String);
+            let specs = XFormatting::from_str(s1.as_str()).unwrap_or_default();
+
+            rt.borrow().can_allocate_by(|| Some(specs.min_width()))?;
+
+            let ret = XValue::String(Box::new(FencedString::from_string(format_inner(
+                *f0, specs,
+            ))));
+            Ok(ManagedXValue::new(ret, rt)?.into())
+        }),
+    )
+}

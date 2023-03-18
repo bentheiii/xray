@@ -1,7 +1,6 @@
 use crate::builtin::core::{eval, search, ufunc_ref, xcmp, xerr};
 use crate::builtin::sequence::{XSequence, XSequenceType};
-use crate::util::str_parts::StrParts;
-use crate::util::xformatter::{XFormatting, SignMode, Alignment};
+use crate::util::xformatter::XFormatting;
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XResult, XValue};
 use crate::{
@@ -347,68 +346,39 @@ pub(crate) fn add_int_format<W, R>(
             let s1 = to_primitive!(a1, String);
             let specs = XFormatting::from_str(s1.as_str()).unwrap_or_default();
 
-            rt.borrow()
-                .can_allocate_by(|| {
-                    Some(max(
-                        ((i0.bits() / 8) as f64 * LOG10_2).ceil() as usize,
-                        specs.min_width(),
-                    ))
-                })?;
-            let radix = match specs.ty.type_{
-                Some("x")|Some("X")=>16,
-                Some("o")|Some("O")=>8,
-                Some("b")|Some("B")=>2,
-                _=>10,
+            rt.borrow().can_allocate_by(|| {
+                Some(max(
+                    ((i0.bits() / 8) as f64
+                        * LOG10_2
+                        * (3.0 + specs.grouping.map(|g| g.len() as f64).unwrap_or_default())
+                        / 3.0)
+                        .ceil() as usize,
+                    specs.min_width(),
+                ))
+            })?;
+            let radix = match specs.ty.type_ {
+                Some("x") | Some("X") => 16,
+                Some("o") | Some("O") => 8,
+                Some("b") | Some("B") => 2,
+                _ => 10,
             };
-            let mut body = i0.magnitude_to_str(radix);
-            if let Some(grouping) = specs.grouping{
-                body = body .as_bytes()
-                .rchunks(3)
-                .rev()
-                .map(std::str::from_utf8)
-                .collect::<Result<Vec<&str>, _>>()
-                .unwrap()
-                .join(grouping);  // separator
-            };
-            let mut sign_parts = StrParts::default();
-            if i0.is_negative(){
-                sign_parts.extend(["-"]);
-            } else if let Some(sign_mode) = specs.sign_mode{
-                match sign_mode{
-                    SignMode::Positive => {sign_parts.extend(["+"]);}
-                    SignMode::Whitespace => {sign_parts.extend([" "]);}
-                    _=>{}
-                }
-            }
+            let s = i0.magnitude_to_str(radix);
+            let body = specs.group(&s);
+            let mut sign_parts = specs.sign(i0.is_negative());
 
-            if specs.ty.alternative && radix != 10{
+            if specs.ty.alternative && radix != 10 {
                 if let Some(type_) = specs.ty.type_ {
                     sign_parts.extend(["0", type_]);
                 }
             }
-
-            let mut prefix = String::new();
-            let mut infix = String::new();
-            let mut postfix = String::new();
-            if let Some(fill_specs) = specs.fill_specs{
-                // todo improve getting of total sign parts here
-                let total_len = body.len() + sign_parts.len();
-                if let Some(chars_to_pad) = fill_specs.width.checked_sub(total_len){
-                    let fill_char = fill_specs.get_filler();
-                    match fill_specs.get_alignment(){
-                        Alignment::Left => {postfix = fill_char.repeat(chars_to_pad);}
-                        Alignment::Right => {prefix = fill_char.repeat(chars_to_pad);}
-                        Alignment::RightWithSign => {infix = fill_char.repeat(chars_to_pad);}
-                        Alignment::Center => {
-                            let mid = chars_to_pad/2;
-                            prefix = fill_char.repeat(mid);
-                            postfix = fill_char.repeat(chars_to_pad-mid);
-                        }
-                    }
-                }
-            }
-            let ret = XValue::String(Box::new(FencedString::from_string(format!("{prefix}{sign_parts}{infix}{body}{postfix}"))));
-            return Ok(ManagedXValue::new(ret, rt)?.into());
+            let (prefix, infix, postfix) = specs
+                .fill_specs
+                .map(|f| f.fillers(body.len() + sign_parts.len()))
+                .unwrap_or_default();
+            let ret = XValue::String(Box::new(FencedString::from_string(format!(
+                "{prefix}{sign_parts}{infix}{body}{postfix}"
+            ))));
+            Ok(ManagedXValue::new(ret, rt)?.into())
         }),
     )
 }
