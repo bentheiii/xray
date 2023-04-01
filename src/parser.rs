@@ -686,6 +686,7 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
             Rule::FORMATTED_STRING => {
                 let add_sym = interner.get_or_intern_static("add");
                 let to_str_sym = interner.get_or_intern_static("to_str");
+                let format_sym = interner.get_or_intern_static("format");
                 let mut ret = None;
                 for part in input
                     .into_inner()
@@ -701,6 +702,12 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
                             to_str_sym,
                             vec![self.parse_expr(part, interner)?],
                         ),
+                        Rule::f_with_formatting => {
+                            let mut inner = part.into_inner();
+                            let expr = self.parse_expr(inner.next().unwrap(), interner)?;
+                            let formatting = XStaticExpr::LiteralString(inner.next().unwrap().as_str().to_string());
+                            XStaticExpr::new_call_sym(format_sym, vec![expr, formatting])
+                        },
                         _ => XStaticExpr::LiteralString(apply_brace_escape(
                             &apply_escapes(part.clone().as_str()).map_err(|e| e.trace(&part))?,
                         )),

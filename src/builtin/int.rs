@@ -344,7 +344,11 @@ pub(crate) fn add_int_format<W, R>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let i0 = to_primitive!(a0, Int);
             let s1 = to_primitive!(a1, String);
-            let specs = XFormatting::from_str(s1.as_str()).unwrap_or_default();
+            let Some(specs) = XFormatting::from_str(s1.as_str()) else {return xerr(ManagedXError::new("invalid format spec", rt)?);};
+
+            if specs.precision.is_some(){
+                return xerr(ManagedXError::new("int cannot be formatted with precision", rt)?);
+            }
 
             rt.borrow().can_allocate_by(|| {
                 Some(max(
@@ -357,18 +361,22 @@ pub(crate) fn add_int_format<W, R>(
                 ))
             })?;
             let radix = match specs.ty.type_ {
+                None => 10,
                 Some("x") | Some("X") => 16,
                 Some("o") | Some("O") => 8,
                 Some("b") | Some("B") => 2,
-                _ => 10,
+                Some(other) => {return xerr(ManagedXError::new(format!("unrecognized int type: {other}"), rt)?);}
             };
             let s = i0.magnitude_to_str(radix);
+            
             let body = specs.group(&s);
             let mut sign_parts = specs.sign(i0.is_negative());
 
-            if specs.ty.alternative && radix != 10 {
+            if specs.ty.alternative {
                 if let Some(type_) = specs.ty.type_ {
                     sign_parts.extend(["0", type_]);
+                } else {
+                    return xerr(ManagedXError::new("missing type for alt", rt)?);
                 }
             }
             let (prefix, infix, postfix) = specs

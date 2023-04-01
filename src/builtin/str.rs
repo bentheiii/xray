@@ -1,10 +1,12 @@
 use crate::builtin::core::{eval, xcmp, xerr};
+use crate::util::xformatter::{XFormatting, FillSpecs, Alignment};
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 
 use crate::util::lazy_bigint::LazyBigint;
 use rc::Rc;
 use std::borrow::Cow;
+use std::cmp::max;
 use std::collections::hash_map::DefaultHasher;
 
 use crate::builtin::optional::{XOptional, XOptionalType};
@@ -270,3 +272,55 @@ pub(crate) fn add_str_to_int<W, R>(
 add_binfunc!(add_str_cmp, cmp, X_STRING, String, X_INT, |a, b, _rt| Ok(
     Ok(xcmp(a, b))
 ));
+
+pub(crate) fn add_str_format<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "format",
+        XFuncSpec::new(&[&X_STRING, &X_STRING], X_STRING.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let s0 = to_primitive!(a0, String);
+            let s1 = to_primitive!(a1, String);
+            let Some(specs) = XFormatting::from_str(s1.as_str()) else {return xerr(ManagedXError::new("invalid format spec", rt)?);};
+
+            if specs.precision.is_some(){
+                return xerr(ManagedXError::new("str cannot be formatted with precision", rt)?);
+            }
+            if specs.ty.type_.is_some() || specs.ty.alternative{
+                return xerr(ManagedXError::new("str cannot be formatted with type", rt)?);
+            }
+            if specs.grouping.is_some(){
+                return xerr(ManagedXError::new("str cannot be formatted with group", rt)?);
+            }
+            if specs.sign_mode.is_some(){
+                return xerr(ManagedXError::new("str cannot be formatted with sign", rt)?);
+            }
+            if specs.fill_specs.is_none(){
+                return Ok(a0.into());
+            }
+            if let Some(FillSpecs{alignment: Some(Alignment::RightWithSign), ..}) = specs.fill_specs{
+                return xerr(ManagedXError::new("str cannot be formatted with sign-sensitivity", rt)?);
+            }
+
+            rt.borrow().can_allocate_by(|| {
+                Some(max(
+                    s0.len(),
+                    specs.min_width(),
+                ))
+            })?;
+
+            let (prefix, infix, postfix) = specs
+                .fill_specs
+                .map(|f| f.fillers(s0.len()))
+                .unwrap_or_default();
+            assert!(infix.is_empty());
+            let ret = XValue::String(Box::new(FencedString::from_string(format!(
+                "{prefix}{s0}{postfix}"
+            ))));
+            Ok(ManagedXValue::new(ret, rt)?.into())
+        }),
+    )
+}

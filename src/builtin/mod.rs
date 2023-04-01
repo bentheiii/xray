@@ -120,6 +120,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
     add_str_code_point(scope).unwrap();
     add_str_eq(scope).unwrap();
     add_str_find(scope).unwrap();
+    add_str_format(scope).unwrap();
     add_str_get(scope).unwrap();
     add_str_hash(scope).unwrap();
     add_str_len(scope).unwrap();

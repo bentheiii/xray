@@ -427,16 +427,16 @@ pub(crate) fn add_float_format<W, R>(
         ty: Option<&'a str>,
         precision: usize,
         grouping: Option<&'a str>,
-    ) -> StrParts<'a> {
-        match ty {
+    ) -> Result<StrParts<'a>, String> {
+        Ok(match ty {
             Some("e") => StrParts::from(format!("{mag:.precision$e}")),
             Some("E") => StrParts::from(format!("{mag:.precision$E}")),
             Some("%") => {
-                let mut i = get_body(100.0 * mag, Some("f"), precision, grouping);
+                let mut i = get_body(100.0 * mag, Some("f"), precision, grouping)?;
                 i.extend(["%"]);
                 i
             }
-            _ => {
+            None | Some("f") => {
                 let b = format!("{mag:.precision$}");
                 let (whole, part) = if let Some((w, p)) = b.split_once('.') {
                     (w.to_string(), Some(p.to_string()))
@@ -454,25 +454,8 @@ pub(crate) fn add_float_format<W, R>(
                 }
                 ret
             }
-        }
-    }
-
-    fn format_inner(f0: f64, specs: XFormatting) -> String {
-        let mag = f0.abs();
-        let body = get_body(
-            mag,
-            specs.ty.type_,
-            specs.precision.unwrap_or(6),
-            specs.grouping,
-        );
-        let sign_parts = specs.sign(f0 < 0.0);
-
-        let (prefix, infix, postfix) = specs
-            .fill_specs
-            .map(|f| f.fillers(body.len() + sign_parts.len()))
-            .unwrap_or_default();
-
-        format!("{prefix}{sign_parts}{infix}{body}{postfix}")
+            Some(other) => {return Err(format!("unrecognized float type: {other}"));}
+        })
     }
 
     scope.add_func(
@@ -483,13 +466,33 @@ pub(crate) fn add_float_format<W, R>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let f0 = to_primitive!(a0, Float);
             let s1 = to_primitive!(a1, String);
-            let specs = XFormatting::from_str(s1.as_str()).unwrap_or_default();
+            let Some(specs) = XFormatting::from_str(s1.as_str()) else {return xerr(ManagedXError::new("invalid format spec", rt)?);};
 
             rt.borrow().can_allocate_by(|| Some(specs.min_width()))?;
 
-            let ret = XValue::String(Box::new(FencedString::from_string(format_inner(
-                *f0, specs,
-            ))));
+            let mag = f0.abs();
+            if specs.ty.alternative{
+                return xerr(ManagedXError::new("no alt type available for float formatting", rt)?);
+            }
+            let body = match get_body(
+                mag,
+                specs.ty.type_,
+                specs.precision.unwrap_or(6),
+                specs.grouping,
+            ) {
+                Ok(body)=>body,
+                Err(err)=> {return xerr(ManagedXError::new(err, rt)?);}
+            };
+            let sign_parts = specs.sign(*f0 < 0.0);
+
+            let (prefix, infix, postfix) = specs
+                .fill_specs
+                .map(|f| f.fillers(body.len() + sign_parts.len()))
+                .unwrap_or_default();
+
+            
+
+            let ret = XValue::String(Box::new(FencedString::from_string(format!("{prefix}{sign_parts}{infix}{body}{postfix}"))));
             Ok(ManagedXValue::new(ret, rt)?.into())
         }),
     )

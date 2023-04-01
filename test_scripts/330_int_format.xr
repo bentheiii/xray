@@ -9,7 +9,7 @@ fn main()->bool{
     && assert(format(298, "<6") == "298   ")
     && assert(format(298, "!^6") == "!298!!")
     && assert(format(-298, "!<6") == "-298!!")
-    && assert(format(-298, "!^#6") == "!-298!")
+    && assert(format(-298, "!^6") == "!-298!")
     && assert(format(-298, "!>7") == "!!!-298")
     && assert(format(-298, "!=7") == "-!!!298")
 

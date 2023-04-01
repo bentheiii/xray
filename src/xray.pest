@@ -135,11 +135,13 @@ STRING = {single_quote_str | double_quote_str}
 
 FORMATTED_STRING = {"f" ~ (f_single_quote_str | f_double_quote_str)}
  f_single_quote_str = ${PUSH("#"*) ~ "'" ~ f_inner_string_single ~ "'" ~ POP}
-  f_inner_string_single = ${(f_inner_string_part_single | "{" ~ expression ~ "}")*}
+  f_inner_string_single = ${(f_inner_string_part_single | "{" ~ f_with_formatting ~ "}" | "{" ~ expression ~ "}")*}
   f_inner_string_part_single = @{(!(("'") ~ PEEK) ~ ("\'" | "\\\\" | "{{" | "}}" | (!("{"|"}")~ANY)))+}
  f_double_quote_str = ${PUSH("#"*) ~ "\"" ~ f_inner_string_double ~ "\"" ~ POP}
-  f_inner_string_double = ${(f_inner_string_part_double | "{" ~ expression ~ "}")*}
+  f_inner_string_double = ${(f_inner_string_part_double | "{" ~ f_with_formatting ~ "}" | "{" ~ expression ~ "}")*}
   f_inner_string_part_double = @{(!(("\"") ~ PEEK) ~ ("\'" | "\\\\" | "{{" | "}}" | (!("{"|"}")~ANY)))+}
+f_with_formatting = {expression ~ ":" ~ formatting}
+formatting = @{(!("}")~ANY)*}
 
 RAW_STRING = {"r" ~ (raw_single_quote_str | raw_double_quote_str)}
  raw_single_quote_str = ${PUSH("#"*) ~ "'" ~ raw_inner_string_single ~ "'" ~ POP}

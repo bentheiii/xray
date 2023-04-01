@@ -11,7 +11,7 @@ use xray::std_compilation_scope;
 
 fn main() {
     let input = r###"
-    let z = poisson_distribution(10.0).sample(10);
+    let z = f"{1/-3:#=10.3f}";
     "###;
     /*
     fn foo()->()->(int){ // 32

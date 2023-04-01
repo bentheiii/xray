@@ -140,7 +140,7 @@ impl<'a> XFormatting<'a> {
             (?P<zero_pad>0)?
             (?P<width>[1-9][0-9]*)?
             (?P<grouping>[,_])?
-            (?:\.(?P<precision>[1-9][0-9]*))?
+            (?:\.(?P<precision>[0-9]*))?
             (?P<type>.)?
             $
             "
@@ -165,11 +165,17 @@ impl<'a> XFormatting<'a> {
                     }
                 })
         };
+        if fill_specs.as_ref().and_then(|f| f.filler).map_or(false, |f| !f.is_ascii()){
+            return None;
+        }
         let precision = captures
             .name("precision")
             .and_then(|m| m.as_str().parse().ok());
         let sign_mode = captures.name("sign").map(|m| m.as_str().into());
         let grouping = captures.name("grouping").map(|m| m.as_str());
+        if grouping.as_ref().map_or(false, |f| !f.is_ascii()){
+            return None;
+        }
         let ty = {
             let type_ = captures.name("type").map(|m| m.as_str());
             let alternative = captures.name("alt").is_some();
