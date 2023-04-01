@@ -1,0 +1,8 @@
+fn main()->bool{
+    let v = "over";
+    let d = f"one {v:~>10} minus three is {1}/{-3} = {1/-3:#=10.3f}";
+    let s = f'one {v:~>10} minus three is {1}/{-3} = {1/-3:#=10.3f}';
+
+    assert(d == s)
+    && assert(d == "one ~~~~~~over minus three is 1/-3 = -####0.333")
+}

@@ -1,0 +1,8 @@
+fn main()->bool{
+    let s = "banana";
+
+    assert(s.rfind("n") == some(4))
+    && assert(s.rfind("t") == none())
+    && assert(s.rfind("n", 4) == some(2))
+    && assert(s.rfind("n", 1) == none())
+}

@@ -1,0 +1,8 @@
+fn main()->bool{
+    assert(format("blash", "") == "blash")
+    && assert(format("blash", "10") == "     blash")
+    && assert(format("blash", "<10") == "blash     ")
+    && assert(format("blash", "^10") == "  blash   ")
+    && assert(format("blash", "!<10") == "blash!!!!!")
+    && assert(format("blash", "<3") == "blash")
+}
