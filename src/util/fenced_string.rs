@@ -44,10 +44,9 @@ impl FencedString {
     pub(crate) fn substring(&self, start: usize, end: Option<usize>) -> Self {
         if self.char_starts.is_empty() {
             Self {
-                buffer: (if let Some(end) = end {
-                    self.buffer[start..end].to_string()
-                } else {
-                    self.buffer[start..].to_string()
+                buffer: (match end {
+                    Some(end) if end < self.len()=> self.buffer[start..end].to_string(),
+                    _ => self.buffer[start..].to_string(),
                 }),
                 char_starts: Vec::new(),
             }
@@ -76,10 +75,9 @@ impl FencedString {
 
     pub(crate) fn substr(&self, start: usize, end: Option<usize>) -> &str {
         if self.char_starts.is_empty() {
-            if let Some(end) = end {
-                &self.buffer[start..end]
-            } else {
-                &self.buffer[start..]
+            match end {
+                Some(end) if end < self.len() => &self.buffer[start..end],
+                _ => &self.buffer[start..],
             }
         } else {
             let start_byte = self.char_starts[start];
@@ -236,7 +234,7 @@ mod tests {
                 c.clone().skip(start).collect::<String>()
             );
             assert_eq!(f.substring(start, None).as_str(), f.substr(start, None));
-            for end in start..f.len() {
+            for end in start..f.len()+10 {
                 assert_eq!(
                     f.substr(start, Some(end)),
                     c.clone().take(end).skip(start).collect::<String>()
@@ -264,7 +262,8 @@ mod tests {
     fn test_complex() {
         let f = test_str("rs🧡s💛dfdd💚d💙d💜d");
         assert_eq!(f.len(), 15);
-        assert_eq!(f.substr(1, Some(4)), "s🧡s")
+        assert_eq!(f.substr(1, Some(4)), "s🧡s");
+        assert_eq!(f.substr(12, Some(100)), "d💜d");
     }
 
     #[test]

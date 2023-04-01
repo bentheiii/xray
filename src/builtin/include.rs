@@ -262,6 +262,14 @@ fn join(s: Sequence<str>, delimiter: str ?= "")->str{
     s.to_generator().join(delimiter)
 }
 
+fn starts_with(s: str, prefix: str)->bool{
+    s.substring(0, prefix.len()) == prefix
+}
+
+fn ends_with(s: str, suffix: str)->bool{
+    suffix.len() <= s.len() && s.substring(s.len()-suffix.len()) == suffix
+}
+
 // disc distributions
 fn geometric_distribution(p: float)->DiscreteDistribution{
     negative_binomial_distribution(1.0, p)
