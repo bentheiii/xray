@@ -684,10 +684,10 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
                     .to_string(),
             )),
             Rule::FORMATTED_STRING => {
-                let add_sym = interner.get_or_intern_static("add");
+                let join_sym = interner.get_or_intern_static("join");
                 let to_str_sym = interner.get_or_intern_static("to_str");
                 let format_sym = interner.get_or_intern_static("format");
-                let mut ret = None;
+                let mut parts = Vec::new();
                 for part in input
                     .into_inner()
                     .next()
@@ -705,19 +705,21 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
                         Rule::f_with_formatting => {
                             let mut inner = part.into_inner();
                             let expr = self.parse_expr(inner.next().unwrap(), interner)?;
-                            let formatting = XStaticExpr::LiteralString(inner.next().unwrap().as_str().to_string());
+                            let formatting = XStaticExpr::LiteralString(
+                                inner.next().unwrap().as_str().to_string(),
+                            );
                             XStaticExpr::new_call_sym(format_sym, vec![expr, formatting])
-                        },
+                        }
                         _ => XStaticExpr::LiteralString(apply_brace_escape(
                             &apply_escapes(part.clone().as_str()).map_err(|e| e.trace(&part))?,
                         )),
                     };
-                    ret = Some(match ret {
-                        None => expr,
-                        Some(prev) => XStaticExpr::new_call_sym(add_sym, vec![prev, expr]),
-                    });
+                    parts.push(expr);
                 }
-                Ok(ret.unwrap_or_else(|| XStaticExpr::LiteralString("".to_string())))
+                Ok(XStaticExpr::new_call_sym(
+                    join_sym,
+                    vec![XStaticExpr::Array(parts)],
+                ))
             }
             Rule::bool => {
                 return Ok(XStaticExpr::LiteralBool(input.as_str() == "true"));

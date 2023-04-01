@@ -454,7 +454,9 @@ pub(crate) fn add_float_format<W, R>(
                 }
                 ret
             }
-            Some(other) => {return Err(format!("unrecognized float type: {other}"));}
+            Some(other) => {
+                return Err(format!("unrecognized float type: {other}"));
+            }
         })
     }
 
@@ -489,8 +491,6 @@ pub(crate) fn add_float_format<W, R>(
                 .fill_specs
                 .map(|f| f.fillers(body.len() + sign_parts.len()))
                 .unwrap_or_default();
-
-            
 
             let ret = XValue::String(Box::new(FencedString::from_string(format!("{prefix}{sign_parts}{infix}{body}{postfix}"))));
             Ok(ManagedXValue::new(ret, rt)?.into())

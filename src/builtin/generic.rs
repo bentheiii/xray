@@ -715,3 +715,32 @@ pub(crate) fn add_generic_dyn_min_iter<W, R>(
         ))
     })
 }
+
+pub(crate) fn add_generic_dyn_contains<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    let f_symbol = scope.identifier("eq");
+    let cb_symbol = scope.identifier("contains");
+
+    scope.add_dyn_func("contains", "eq", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+        let [t0, t1] = unpack_dyn_types(types)?;
+        let [inner0] = unpack_natives(t0, &["Generator", "Sequence"])? else { unreachable!() };
+
+        let (inner_f, f_t) =
+            get_func_with_type(ns, f_symbol, &[inner0.clone(), inner0.clone()], None)?;
+        let (cb, cb_t) =
+            get_func_with_type(ns, cb_symbol, &[t0.clone(), t1.clone(), f_t.xtype()], None)?;
+
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[t0, t1], cb_t.rtype()),
+            delegate!(
+                with [inner_f, cb],
+                args [0->a0, 1->a1],
+                cb(a0, a1, inner_f)
+            ),
+        ))
+    })
+}

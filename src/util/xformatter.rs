@@ -165,7 +165,11 @@ impl<'a> XFormatting<'a> {
                     }
                 })
         };
-        if fill_specs.as_ref().and_then(|f| f.filler).map_or(false, |f| !f.is_ascii()){
+        if fill_specs
+            .as_ref()
+            .and_then(|f| f.filler)
+            .map_or(false, |f| !f.is_ascii())
+        {
             return None;
         }
         let precision = captures
@@ -173,7 +177,7 @@ impl<'a> XFormatting<'a> {
             .and_then(|m| m.as_str().parse().ok());
         let sign_mode = captures.name("sign").map(|m| m.as_str().into());
         let grouping = captures.name("grouping").map(|m| m.as_str());
-        if grouping.as_ref().map_or(false, |f| !f.is_ascii()){
+        if grouping.as_ref().map_or(false, |f| !f.is_ascii()) {
             return None;
         }
         let ty = {

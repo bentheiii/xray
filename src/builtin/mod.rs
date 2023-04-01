@@ -125,6 +125,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
     add_str_hash(scope).unwrap();
     add_str_len(scope).unwrap();
     add_str_lower(scope).unwrap();
+    add_str_rfind(scope).unwrap();
     add_str_substring(scope).unwrap();
     add_str_to_int(scope).unwrap();
     add_str_to_str(scope).unwrap();
@@ -328,6 +329,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
     add_ne(scope).unwrap();
     add_partial(scope).unwrap();
 
+    add_generic_dyn_contains(scope).unwrap();
     add_generic_dyn_harmonic_mean(scope).unwrap();
     add_generic_dyn_max(scope).unwrap();
     add_generic_dyn_min(scope).unwrap();

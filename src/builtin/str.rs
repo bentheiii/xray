@@ -1,5 +1,5 @@
 use crate::builtin::core::{eval, xcmp, xerr};
-use crate::util::xformatter::{XFormatting, FillSpecs, Alignment};
+use crate::util::xformatter::{Alignment, FillSpecs, XFormatting};
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 
@@ -157,6 +157,42 @@ pub(crate) fn add_str_find<W, R>(
             let found_idx = haystack
                 .find(needle.as_str())
                 .map(|i| ManagedXValue::new(XValue::Int((i + start_ind).into()), rt.clone()))
+                .transpose()?;
+            Ok(manage_native!(XOptional { value: found_idx }, rt))
+        }),
+    )
+}
+
+pub(crate) fn add_str_rfind<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "rfind",
+        XFuncSpec::new_with_optional(
+            &[&X_STRING, &X_STRING],
+            &[&X_INT],
+            XOptionalType::xtype(X_INT.clone()),
+        ),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise_opt!(args.get(2).map(|e| eval(e, ns, &rt)).transpose()?);
+            let string = to_primitive!(a0, String);
+            let needle = to_primitive!(a1, String);
+            if needle.is_empty() {
+                return xerr(ManagedXError::new("needle cannot be empty", rt)?);
+            }
+            let end_ind = match a2 {
+                None => None,
+                Some(a2) => Some(match to_primitive!(a2, Int).to_usize() {
+                    None => return xerr(ManagedXError::new("index out of bounds", rt)?),
+                    Some(i) => i,
+                }),
+            };
+            let haystack = string.substr(0, end_ind);
+            let found_idx = haystack
+                .rfind(needle.as_str())
+                .map(|i| ManagedXValue::new(XValue::Int(i.into()), rt.clone()))
                 .transpose()?;
             Ok(manage_native!(XOptional { value: found_idx }, rt))
         }),

@@ -368,7 +368,6 @@ pub(crate) fn add_int_format<W, R>(
                 Some(other) => {return xerr(ManagedXError::new(format!("unrecognized int type: {other}"), rt)?);}
             };
             let s = i0.magnitude_to_str(radix);
-            
             let body = specs.group(&s);
             let mut sign_parts = specs.sign(i0.is_negative());
 

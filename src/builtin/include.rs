@@ -519,6 +519,10 @@ fn count<T>(s: Generator<T>, f: (T)->(bool))->int{
     s.filter(f).len()
 }
 
+fn contains<T>(s: Generator<T>, i: T, eq_: (T,T)->(bool))->bool{
+    s.any((t: T)->{eq_(t, i)})
+}
+
 fn aggregate<T>(g: Generator<T>, f: (T, T)->(T))->Generator<T>{
     g.aggregate(none(),
         (prev: Optional<T>, next: T)->{if(prev.has_value(), some(f(prev.value(), next)), some(next))}
@@ -668,6 +672,10 @@ fn aggregate<T>(seq: Sequence<T>,  f: (T, T)->(T))->Generator<T>{
 
 fn reduce<T0, T1>(g: Sequence<T0>, initial_state: T1, func: (T1, T0)->(T1)) -> T1{
     g.to_generator().reduce(initial_state, func)
+}
+
+fn contains<T>(s: Sequence<T>, i: T, eq_: (T,T)->(bool))->bool{
+    s.to_generator().contains(i, eq_)
 }
 
 fn reduce<T>(g: Sequence<T>, func: (T, T)->(T)) -> T{
