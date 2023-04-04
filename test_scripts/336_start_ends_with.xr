@@ -3,10 +3,12 @@ fn main()->bool{
 
     assert(s.starts_with("ban"))
     && assert(s.starts_with("banana"))
+    && assert(s.starts_with(""))
     && assert(!s.starts_with("baa"))
     && assert(!s.starts_with("bananas"))
     && assert(s.ends_with("nana"))
     && assert(s.ends_with("banana"))
+    && assert(s.ends_with(""))
     && assert(!s.ends_with("naa"))
     && assert(!s.ends_with("bananas"))
 }

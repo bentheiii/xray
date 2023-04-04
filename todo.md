@@ -106,7 +106,7 @@
   * [X] atan2
   * [X] geometric distribution
   * [ ] some things in python
-    * [ ] got to type  https://docs.python.org/3/library/functions.html#type
+    * [ ] got to partition https://docs.python.org/3/library/stdtypes.html#str.partition
   * [X] sequence::manifest
   * [ ] json?
   * [X] chain sequence?

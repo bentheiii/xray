@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 
 #[derive(Debug, Default)]
 pub struct RuntimeLimits {
-    // note that all the standard functions already take up about 20K bytes
+    // note that all the standard functions already take up about 25K bytes overhead
     pub size_limit: Option<usize>,
     pub depth_limit: Option<usize>,
     pub recursion_limit: Option<usize>,

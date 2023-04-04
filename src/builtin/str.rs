@@ -10,7 +10,6 @@ use std::cmp::max;
 use std::collections::hash_map::DefaultHasher;
 
 use crate::builtin::optional::{XOptional, XOptionalType};
-use crate::builtin::sequence::{XSequence, XSequenceType};
 use crate::compile_err::CompilationError;
 use crate::root_compilation_scope::RootCompilationScope;
 use crate::runtime::RTCell;
@@ -74,6 +73,48 @@ pub(crate) fn add_str_len<W, R>(
     )
 }
 
+pub(crate) fn add_str_is_whitespace<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "is_whitespace",
+        XFuncSpec::new(&[&X_STRING], X_BOOL.clone()),
+        ufunc!(String, |a: &FencedString, _rt| {
+            Ok(Ok(
+                XValue::Bool(a.iter().all(char::is_whitespace))
+            ))
+        }),
+    )
+}
+
+pub(crate) fn add_str_is_lower<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "is_lower",
+        XFuncSpec::new(&[&X_STRING], X_BOOL.clone()),
+        ufunc!(String, |a: &FencedString, _rt| {
+            Ok(Ok(
+                XValue::Bool(a.iter().all(char::is_lowercase))
+            ))
+        }),
+    )
+}
+
+pub(crate) fn add_str_is_upper<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "is_upper",
+        XFuncSpec::new(&[&X_STRING], X_BOOL.clone()),
+        ufunc!(String, |a: &FencedString, _rt| {
+            Ok(Ok(
+                XValue::Bool(a.iter().all(char::is_uppercase))
+            ))
+        }),
+    )
+}
+
 pub(crate) fn add_str_to_str<W, R>(
     scope: &mut RootCompilationScope<W, R>,
 ) -> Result<(), CompilationError> {
@@ -81,32 +122,6 @@ pub(crate) fn add_str_to_str<W, R>(
         "to_str",
         XFuncSpec::new(&[&X_STRING], X_STRING.clone()),
         XStaticFunction::from_native(|args, ns, tca, rt| ns.eval(&args[0], rt, tca)),
-    )
-}
-
-pub(crate) fn add_str_chars<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
-) -> Result<(), CompilationError> {
-    scope.add_func(
-        "chars",
-        XFuncSpec::new(&[&X_STRING], XSequenceType::xtype(X_STRING.clone())),
-        XStaticFunction::from_native(|args, ns, _tca, rt| {
-            let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let s = to_primitive!(a0, String);
-            rt.borrow().can_allocate_by(|| Some(s.bytes()))?;
-            let chars = s
-                .iter()
-                .map(|c| {
-                    ManagedXValue::new(
-                        XValue::String(Box::new(FencedString::from_string(c.to_string()))),
-                        rt.clone(),
-                    )
-                })
-                .collect::<Result<Vec<_>, _>>()?
-                .into_iter()
-                .collect();
-            Ok(manage_native!(XSequence::array(chars), rt))
-        }),
     )
 }
 

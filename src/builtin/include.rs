@@ -233,6 +233,10 @@ fn indicator(a: bool)->int{
 }
 
 // string
+fn chars(a: str)->Sequence<str>{
+    range(a.len()).map((i: int)->{a[i]})
+}
+
 fn mul(a: str, n: int)->str{
     repeat([a].to_generator()).take(n).join()
 }
@@ -268,6 +272,11 @@ fn starts_with(s: str, prefix: str)->bool{
 
 fn ends_with(s: str, suffix: str)->bool{
     suffix.len() <= s.len() && s.substring(s.len()-suffix.len()) == suffix
+}
+
+fn lstrip(s: str, predicate: (str)->(bool))->str{
+    let c = s.chars().to_generator().take_while(predicate).len();
+    s.substring(c)
 }
 
 // disc distributions
@@ -670,6 +679,31 @@ fn covariance(s: Generator<(float, float)>)->float{
 fn factorial(n: int, step: int ?= 1)->int{
     if(n < 0, error("cannot get factorial of negative number"),
         range(n,0,-step).to_generator().reduce(1, mul{int, int}))
+}
+
+// str
+fn lstrip(s: str)->str{
+    s.lstrip(is_whitespace)
+}
+
+fn rstrip(s: str, predicate: (str)->(bool))->str{
+    let c = s.chars().reverse().to_generator().take_while(predicate).len();
+    s.substring(0, s.len()-c)
+}
+
+fn rstrip(s: str)->str{
+    s.rstrip(is_whitespace)
+}
+
+fn strip(s: str, predicate: (str)->(bool))->str{
+    let chrs = s.chars();
+    let skip_from_start = chrs.to_generator().take_while(predicate).len();
+    let skip_from_end = chrs.skip(skip_from_start).reverse().to_generator().take_while(predicate).len();
+    s.substring(skip_from_start, s.len()-skip_from_end)
+}
+
+fn strip(s: str)->str{
+    s.strip(is_whitespace)
 }
 
 // sequences

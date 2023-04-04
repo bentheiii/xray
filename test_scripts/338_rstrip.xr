@@ -1,0 +1,5 @@
+fn main()->bool{
+    assert("  \n\r   bana aa  ".rstrip() == "  \n\r   bana aa")
+    && assert("hi".rstrip() == "hi")
+    && assert("  \t \n \r ".rstrip() == "")
+}

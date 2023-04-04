@@ -115,7 +115,6 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
 
     add_str_type(scope).unwrap();
     add_str_add(scope).unwrap();
-    add_str_chars(scope).unwrap();
     add_str_cmp(scope).unwrap();
     add_str_code_point(scope).unwrap();
     add_str_eq(scope).unwrap();
@@ -123,6 +122,9 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
     add_str_format(scope).unwrap();
     add_str_get(scope).unwrap();
     add_str_hash(scope).unwrap();
+    add_str_is_lower(scope).unwrap();
+    add_str_is_upper(scope).unwrap();
+    add_str_is_whitespace(scope).unwrap();
     add_str_len(scope).unwrap();
     add_str_lower(scope).unwrap();
     add_str_rfind(scope).unwrap();
