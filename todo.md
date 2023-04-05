@@ -106,7 +106,7 @@
   * [X] atan2
   * [X] geometric distribution
   * [ ] some things in python
-    * [ ] got to partition https://docs.python.org/3/library/stdtypes.html#str.partition
+    * [ ] got to rpartition https://docs.python.org/3/library/stdtypes.html#str.rpartition
   * [X] sequence::manifest
   * [ ] json?
   * [X] chain sequence?
@@ -174,7 +174,7 @@
   * [X] repeat (with n and infinite)
   * [ ] lambda with defaults
   * [ ] str find
-  * [ ] str split edge cases
+  * [ ] str split/nsplit/rsplit edge cases
   * [ ] members for recursive types
   * [ ] errors:
     * [ ] VariableAsType
@@ -183,6 +183,7 @@
   * [ ] turbofish with zero params
   * [ ] dyn with with zero params
   * [ ] sum/product/mean/geomean? with complex types
+  * [ ] str reverse
 * [X] reduce macros in builtin/core
 * [ ] better errors
   * [X] compilation error tracing

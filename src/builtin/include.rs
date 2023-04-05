@@ -249,7 +249,7 @@ fn split(s: str, n: str)->Generator<str>{
     fn next_bound(prev_bounds: (int, Optional<int>))->Optional<(int, Optional<int>)>{
         fn from_prev_end(prev_end: int)->(int, Optional<int>){
             let next_start = prev_end+n.len();
-            (next_start, debug(s.find(n,next_start), "hi "))
+            (next_start, s.find(n,next_start))
         }
         prev_bounds::item1.map(from_prev_end)
     }
@@ -261,6 +261,29 @@ fn split(s: str, n: str)->Generator<str>{
     .map(bounds_to_string)
 }
 
+fn split(s: str, n: str, count:int)->Generator<str>{
+    fn next_bound(prev_bounds: (int, Optional<int>, int))->Optional<(int, Optional<int>, int)>{
+        fn from_prev_end(prev_end: int)->(int, Optional<int>, int){
+            let next_start = prev_end+n.len();
+            (
+                next_start, 
+                if(prev_bounds::item2==count, none(), s.find(n,next_start)),
+                prev_bounds::item2+1
+            )
+        }
+        prev_bounds::item1.map(from_prev_end)
+    }
+    fn bounds_to_string(bounds: (int, Optional<int>, int))->str{
+        s.substring(bounds::item0, bounds::item1)
+    }
+
+    fn nontrivial()->Generator<str>{
+        let first_match = s.find(n);
+        successors_until((0, first_match, 1), next_bound)
+        .map(bounds_to_string)
+    }
+    if(count==0, [s].to_generator(), nontrivial())
+}
 
 fn join(s: Sequence<str>, delimiter: str ?= "")->str{
     s.to_generator().join(delimiter)
@@ -277,6 +300,24 @@ fn ends_with(s: str, suffix: str)->bool{
 fn lstrip(s: str, predicate: (str)->(bool))->str{
     let c = s.chars().to_generator().take_while(predicate).len();
     s.substring(c)
+}
+
+fn remove_prefix(s: str, prefix: str)->str{
+    if(s.starts_with(prefix), s.substring(len(prefix)), s)
+}
+
+fn remove_suffix(s: str, suffix: str)->str{
+    if(s.ends_with(suffix), s.substring(0, len(s)-len(suffix)), s)
+}
+
+fn replace(s: str, old: str, new: str)->str{
+    s.split(old).join(new)
+}
+
+fn replace(s: str, old: str, new: str, count: int)->str{
+    let parts = s.split(old).to_array();
+    parts.take(count+1).join(new)
+    + parts.skip(count+1).map((s: str)->{old + s}).join()
 }
 
 // disc distributions
@@ -682,6 +723,10 @@ fn factorial(n: int, step: int ?= 1)->int{
 }
 
 // str
+fn reverse(s: str)->str{
+    s.chars().reverse().join()
+}
+
 fn lstrip(s: str)->str{
     s.lstrip(is_whitespace)
 }
@@ -693,6 +738,33 @@ fn rstrip(s: str, predicate: (str)->(bool))->str{
 
 fn rstrip(s: str)->str{
     s.rstrip(is_whitespace)
+}
+
+fn rsplit(s: str, n: str, count:int)->Sequence<str>{
+    fn rfind_helper(s: str, strp: int)->int{
+        s.rfind(n, strp).map((i:int)->{i+len(n)}) || 0
+    }
+
+    fn next_bound(prev_bounds: (int, int, int))->Optional<(int, int, int)>{
+        (prev_bounds::item0 != 0).then((
+            if(prev_bounds::item2==count, 0, s.rfind_helper(prev_bounds::item0-len(n))),
+            prev_bounds::item0-len(n),
+            prev_bounds::item2+1
+        ))
+    }
+    fn bounds_to_string(bounds: (int, int))->str{
+        s.substring(bounds::item0, bounds::item1)
+    }
+
+    fn nontrivial()->Sequence<str>{
+        let first_match = s.rfind_helper(len(s));
+        successors_until((first_match, len(s), 1), next_bound)
+        .map((b: (int, int, int)) -> {(b::item0, b::item1)})
+        .to_array()
+        .reverse()
+        .map(bounds_to_string)
+    }
+    if(count==0, [s], nontrivial())
 }
 
 fn strip(s: str, predicate: (str)->(bool))->str{
