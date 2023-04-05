@@ -1,0 +1,10 @@
+fn main()->bool{
+    let s0 = set<int>().update([1,1,2,3,5,8,13,21]);
+    let s1 = set<int>().update(range(1,22,2));
+    let e = set<int>();
+
+    assert(s0-s1 == set<int>().update([2,8]))
+    && assert(s1-s0 == set<int>().update([7,9,11,15,17,19]))
+    && assert(s0-e == s0)
+    && assert(s1-e == s1)
+}

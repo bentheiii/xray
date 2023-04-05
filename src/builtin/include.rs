@@ -320,6 +320,14 @@ fn replace(s: str, old: str, new: str, count: int)->str{
     + parts.skip(count+1).map((s: str)->{old + s}).join()
 }
 
+fn partition(s: str, n: str)->(str,str){
+    s.find(n).map((i:int)->{(s.substring(0,i), s.substring(i+len(n)))}) || (s, "")
+}
+
+fn rpartition(s: str, n: str)->(str,str){
+    s.rfind(n).map((i:int)->{(s.substring(0,i), s.substring(i+len(n)))}) || ("", s)
+}
+
 // disc distributions
 fn geometric_distribution(p: float)->DiscreteDistribution{
     negative_binomial_distribution(1.0, p)
@@ -635,6 +643,10 @@ fn bit_and<T>(a: Set<T>, b: Set<T>)->Set<T>{
 
 fn bit_or<T>(a: Set<T>, b: Set<T>)->Set<T>{
     a.update(b.to_generator())
+}
+
+fn sub<T>(a: Set<T>, b: Set<T>)->Set<T>{
+    a.clear().update(a.to_generator().filter((i: T) -> {!b.contains(i)}))
 }
 
 fn to_array<T>(s: Set<T>)->Sequence<T>{
