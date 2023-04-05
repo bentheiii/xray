@@ -1,0 +1,5 @@
+fn main()->bool{
+    assert("banana".replace("a", "t") == "btntnt")
+    && assert("one one was a race horse, two two was one too".replace("one", "three") == "three three was a race horse, two two was three too")
+    && assert("banana".replace("na", "t") == "batt")
+}

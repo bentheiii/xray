@@ -1,0 +1,5 @@
+fn main()->bool{
+    assert("MiscTests".remove_suffix("Tests") == "Misc")
+    && assert("TmpDirMixin".remove_suffix("Tast") == "TmpDirMixin")
+    && assert("TastHook".remove_suffix("") == "TastHook")
+}

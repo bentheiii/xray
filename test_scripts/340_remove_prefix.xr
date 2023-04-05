@@ -1,0 +1,5 @@
+fn main()->bool{
+    assert("TastHook".remove_prefix("Tast") == "Hook")
+    && assert("BTastHook".remove_prefix("Tast") == "BTastHook")
+    && assert("TastHook".remove_prefix("") == "TastHook")
+}
