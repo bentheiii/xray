@@ -649,6 +649,10 @@ fn sub<T>(a: Set<T>, b: Set<T>)->Set<T>{
     a.clear().update(a.to_generator().filter((i: T) -> {!b.contains(i)}))
 }
 
+fn bit_xor<T>(a: Set<T>, b: Set<T>)->Set<T>{
+    (a-b) | (b-a)
+}
+
 fn to_array<T>(s: Set<T>)->Sequence<T>{
     s.to_generator().to_array()
 }
@@ -676,6 +680,11 @@ fn gt<T>(a: Set<T>, b: Set<T>)->bool{
 
 fn ge<T>(a: Set<T>, b: Set<T>)->bool{
     b.le(a)
+}
+
+fn is_disjoint<T>(a: Set<T>, b: Set<T>)->bool{
+    let ord = __std_xset_order_by_cardinality(a, b);
+    ord::item0.to_generator().all((x:T)->{!ord::item1.contains(x)})
 }
 
 // mappings
