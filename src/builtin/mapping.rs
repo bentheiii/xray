@@ -116,7 +116,7 @@ impl<W: 'static, R: 'static, V: Debug + 'static> XMapping<W, R, V> {
         key: &Rc<ManagedXValue<W, R>>,
         ns: &RuntimeScope<W, R>,
         rt: RTCell<W, R>,
-    ) -> Result<Result<KeyLocation, Rc<ManagedXError<W, R>>>, RuntimeViolation> {
+    ) -> XResult<KeyLocation, W, R> {
         let hash_func = to_primitive!(self.hash_func, Function);
         let raw_hash = forward_err!(ns
             .eval_func_with_values(hash_func, vec![Ok(key.clone())], rt.clone(), false)?

@@ -6,7 +6,7 @@ use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
-use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue, XResult};
 use crate::XType::XCallable;
 use crate::{
     delegate, forward_err, manage_native, to_native, to_primitive, xraise, CompilationError,
@@ -77,7 +77,7 @@ impl<W: 'static, R: 'static> XSet<W, R> {
 
     fn with_update(
         &self,
-        items: impl Iterator<Item = Result<EvaluatedValue<W, R>, RuntimeViolation>>,
+        items: impl Iterator<Item = XResult<Rc<ManagedXValue<W,R>>, W, R>>,
         ns: &RuntimeScope<W, R>,
         rt: RTCell<W, R>,
     ) -> Result<TailedEvalResult<W, R>, RuntimeViolation> {
@@ -111,7 +111,7 @@ impl<W: 'static, R: 'static> XSet<W, R> {
         element: &Rc<ManagedXValue<W, R>>,
         ns: &RuntimeScope<W, R>,
         rt: RTCell<W, R>,
-    ) -> Result<Result<KeyLocation, Rc<ManagedXError<W, R>>>, RuntimeViolation> {
+    ) -> XResult<KeyLocation, W, R> {
         let hash_func = to_primitive!(self.hash_func, Function);
         let raw_hash = forward_err!(ns
             .eval_func_with_values(hash_func, vec![Ok(element.clone())], rt.clone(), false)?

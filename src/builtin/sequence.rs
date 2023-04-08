@@ -122,7 +122,7 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
         idx: usize,
         ns: &RuntimeScope<W, R>,
         rt: RTCell<W, R>,
-    ) -> Result<EvaluatedValue<W, R>, RuntimeViolation> {
+    ) -> XResult<Rc<ManagedXValue<W,R>>, W, R> {
         match self {
             Self::Empty => unreachable!(),
             Self::Array(arr) => Ok(Ok(arr[idx].clone())),
@@ -165,7 +165,7 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
         &'a self,
         ns: &'a RuntimeScope<W, R>,
         rt: RTCell<W, R>,
-    ) -> Option<impl DoubleEndedIterator<Item = Result<EvaluatedValue<W, R>, RuntimeViolation>> + 'a>
+    ) -> Option<impl DoubleEndedIterator<Item = XResult<Rc<ManagedXValue<W,R>>, W, R>> + 'a>
     {
         Some(match self {
             XSequence::Array(arr) => Either::Left(arr.iter().cloned().map(|i| Ok(Ok(i)))),
@@ -177,7 +177,7 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
         &'a self,
         ns: &'a RuntimeScope<W, R>,
         rt: RTCell<W, R>,
-    ) -> impl Iterator<Item = Result<EvaluatedValue<W, R>, RuntimeViolation>> + 'a {
+    ) -> impl Iterator<Item = XResult<Rc<ManagedXValue<W,R>>, W, R>> + 'a {
         self.diter(ns, rt.clone()).map_or_else(
             || Either::Left((0..).map(move |idx| self.get(idx, ns, rt.clone()))),
             Either::Right,
@@ -472,7 +472,7 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
         &self,
         i: &LazyBigint,
         rt: RTCell<W, R>,
-    ) -> Result<Result<usize, Rc<ManagedXError<W, R>>>, RuntimeViolation> {
+    ) -> XResult<usize, W, R> {
         let mut i = Cow::Borrowed(i);
         let len = self.len();
         if i.is_negative() {

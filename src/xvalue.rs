@@ -50,7 +50,7 @@ pub(crate) type DynEvalCallback<W, R> = Rc<
     dyn Fn(
         &RuntimeScope<W, R>,
         RTCell<W, R>,
-    ) -> Result<Result<XStaticFunction<W, R>, Rc<ManagedXError<W, R>>>, RuntimeViolation>,
+    ) -> XResult<XStaticFunction<W, R>, W, R>,
 >;
 
 pub type NativeCallable<W, R> = Rc<NativeCallback<W, R>>;
@@ -84,7 +84,7 @@ impl<W: 'static, R: 'static> XFunctionFactoryOutput<W, R> {
         callable: impl Fn(
                 &RuntimeScope<W, R>,
                 RTCell<W, R>,
-            ) -> Result<Result<F, Rc<ManagedXError<W, R>>>, RuntimeViolation>
+            ) -> XResult<F, W, R>
             + 'static,
     ) -> Self
     where
@@ -200,7 +200,7 @@ impl<W, R> ManagedXValue<W, R> {
     pub(crate) fn from_result(
         value: Result<XValue<W, R>, Rc<ManagedXError<W, R>>>,
         runtime: RTCell<W, R>,
-    ) -> Result<EvaluatedValue<W, R>, RuntimeViolation> {
+    ) -> XResult<Rc<ManagedXValue<W, R>>, W, R> {
         match value {
             Ok(value) => Self::new(value, runtime).map(Ok),
             Err(e) => Ok(Err(e)),
