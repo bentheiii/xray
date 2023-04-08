@@ -1,0 +1,11 @@
+fn main()->bool{
+    let m = mapping<int>()
+        .set(10, 0)
+        .set(41, 3)
+        .set(65, 1)
+        .set(3, 2);
+
+    assert(m.get(10,11) == 0)
+    && assert(m.get(9,11) == 11)
+    && assert(m.get(10,error("")) == 0)
+}

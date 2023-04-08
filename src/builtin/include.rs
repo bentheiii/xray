@@ -692,6 +692,10 @@ fn update<K,V>(m: Mapping<K,V>, s: Sequence<(K,V)>)->Mapping<K,V>{
     m.update(s.to_generator())
 }
 
+fn update<K,V>(m: Mapping<K,V>, s: Mapping<K,V>)->Mapping<K,V>{
+    m.update(s.to_generator())
+}
+
 fn update_from_keys<K,V>(m: Mapping<K,V>, s: Sequence<K>, on_empty: (K)->(V), on_occupied: (K,V)->(V))->Mapping<K,V>{
     m.update_from_keys(s.to_generator(), on_empty, on_occupied)
 }

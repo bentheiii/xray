@@ -80,9 +80,7 @@ pub(crate) fn add_str_is_whitespace<W, R>(
         "is_whitespace",
         XFuncSpec::new(&[&X_STRING], X_BOOL.clone()),
         ufunc!(String, |a: &FencedString, _rt| {
-            Ok(Ok(
-                XValue::Bool(a.iter().all(char::is_whitespace))
-            ))
+            Ok(Ok(XValue::Bool(a.iter().all(char::is_whitespace))))
         }),
     )
 }
@@ -94,9 +92,7 @@ pub(crate) fn add_str_is_lower<W, R>(
         "is_lower",
         XFuncSpec::new(&[&X_STRING], X_BOOL.clone()),
         ufunc!(String, |a: &FencedString, _rt| {
-            Ok(Ok(
-                XValue::Bool(a.iter().all(char::is_lowercase))
-            ))
+            Ok(Ok(XValue::Bool(a.iter().all(char::is_lowercase))))
         }),
     )
 }
@@ -108,9 +104,7 @@ pub(crate) fn add_str_is_upper<W, R>(
         "is_upper",
         XFuncSpec::new(&[&X_STRING], X_BOOL.clone()),
         ufunc!(String, |a: &FencedString, _rt| {
-            Ok(Ok(
-                XValue::Bool(a.iter().all(char::is_uppercase))
-            ))
+            Ok(Ok(XValue::Bool(a.iter().all(char::is_uppercase))))
         }),
     )
 }

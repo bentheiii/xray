@@ -106,7 +106,7 @@
   * [X] atan2
   * [X] geometric distribution
   * [ ] some things in python
-    * [ ] got to rpartition https://docs.python.org/3/library/stdtypes.html#str.rpartition
+    * [ ] got to https://docs.python.org/3/library/stdtypes.html#dict
   * [X] sequence::manifest
   * [ ] json?
   * [X] chain sequence?
@@ -214,6 +214,7 @@
 * [X] declarations in lambdas
 * [ ] cache xtypes?
 * [ ] create a native type registry, so we don't discern them by name
+* [ ] cache factory functions
 * [ ] forward references?
 * [ ] native dynamic functions?
 * [ ] line number in RTCELL?

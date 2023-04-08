@@ -222,11 +222,13 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
 
     add_mapping_type(scope).unwrap();
     add_mapping_discard(scope).unwrap();
+    add_mapping_get3(scope).unwrap();
     add_mapping_len(scope).unwrap();
     add_mapping_lookup(scope).unwrap();
     add_mapping_new(scope).unwrap();
     add_mapping_pop(scope).unwrap();
     add_mapping_set(scope).unwrap();
+    add_mapping_set_default(scope).unwrap();
     add_mapping_to_generator(scope).unwrap();
     add_mapping_update(scope).unwrap();
     add_mapping_update_from_keys(scope).unwrap();

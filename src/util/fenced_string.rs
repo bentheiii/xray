@@ -45,7 +45,7 @@ impl FencedString {
         if self.char_starts.is_empty() {
             Self {
                 buffer: (match end {
-                    Some(end) if end < self.len()=> self.buffer[start..end].to_string(),
+                    Some(end) if end < self.len() => self.buffer[start..end].to_string(),
                     _ => self.buffer[start..].to_string(),
                 }),
                 char_starts: Vec::new(),
@@ -234,7 +234,7 @@ mod tests {
                 c.clone().skip(start).collect::<String>()
             );
             assert_eq!(f.substring(start, None).as_str(), f.substr(start, None));
-            for end in start..f.len()+10 {
+            for end in start..f.len() + 10 {
                 assert_eq!(
                     f.substr(start, Some(end)),
                     c.clone().take(end).skip(start).collect::<String>()

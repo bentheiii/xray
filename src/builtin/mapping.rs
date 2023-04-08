@@ -48,7 +48,7 @@ impl NativeType for XMappingType {
 type MappingBucket<W, R, V> = Vec<(Rc<ManagedXValue<W, R>>, V)>;
 
 #[derive(Derivative)]
-#[derivative(Debug(bound = "V: Debug"))]
+#[derivative(Debug(bound = "V: Debug"), Clone(bound = "V:Clone"))]
 pub(super) struct XMapping<W, R, V = Rc<ManagedXValue<W, R>>> {
     inner: HashMap<u64, MappingBucket<W, R, V>>,
     len: usize,
@@ -102,12 +102,7 @@ impl<W: 'static, R: 'static, V: Debug + 'static> XMapping<W, R, V> {
     where
         V: Clone,
     {
-        let mut ret = Self::new(
-            self.hash_func.clone(),
-            self.eq_func.clone(),
-            self.inner.clone(),
-            self.len,
-        );
+        let mut ret = self.clone();
         for item in items {
             let (k, v) = xraise!(item?);
             xraise!(ret.put(&k, || v.clone(), |_| v.clone(), ns, rt.clone())?);
@@ -153,48 +148,13 @@ impl<W: 'static, R: 'static, V: Debug + 'static> XMapping<W, R, V> {
         &self.inner[&coordinates.0][coordinates.1].1
     }
 
-    pub(super) fn put(
+    fn try_put_located(
         &mut self,
-        k: &Rc<ManagedXValue<W, R>>,
-        on_empty: impl FnOnce() -> V,
-        on_found: impl FnOnce(&V) -> V,
-        ns: &RuntimeScope<W, R>,
-        rt: RTCell<W, R>,
-    ) -> XResult<&V, W, R> {
-        let loc = forward_err!(self.locate(k, ns, rt)?);
-        Ok(Ok(match loc {
-            KeyLocation::Found((hash_key, idx)) => {
-                let prev_v = &self.inner.get(&hash_key).unwrap()[idx].1;
-                let v = on_found(prev_v);
-                let spot = &mut self.inner.get_mut(&hash_key).unwrap()[idx];
-                spot.1 = v;
-                &spot.1
-            }
-            KeyLocation::Missing(hash_key) => {
-                let v = on_empty();
-                let bucket = self.inner.get_mut(&hash_key).unwrap();
-                bucket.push((k.clone(), v));
-                self.len += 1;
-                &bucket.last().unwrap().1
-            }
-            KeyLocation::Vacant(hash_key) => {
-                let v = on_empty();
-                let bucket = self.inner.entry(hash_key).or_insert(vec![(k.clone(), v)]);
-                self.len += 1;
-                &bucket.last().unwrap().1
-            }
-        }))
-    }
-
-    pub(super) fn try_put(
-        &mut self,
-        k: &Rc<ManagedXValue<W, R>>,
+        k: &Rc<ManagedXValue<W,R>>,
+        loc: KeyLocation,
         on_empty: impl FnOnce() -> XResult<V, W, R>,
         on_found: impl FnOnce(&V) -> XResult<V, W, R>,
-        ns: &RuntimeScope<W, R>,
-        rt: RTCell<W, R>,
     ) -> XResult<&V, W, R> {
-        let loc = forward_err!(self.locate(k, ns, rt)?);
         Ok(Ok(match loc {
             KeyLocation::Found((hash_key, idx)) => {
                 let prev_v = &self.inner.get(&hash_key).unwrap()[idx].1;
@@ -217,6 +177,40 @@ impl<W: 'static, R: 'static, V: Debug + 'static> XMapping<W, R, V> {
                 &bucket.last().unwrap().1
             }
         }))
+    }
+
+    fn put_located(
+        &mut self,
+        k: &Rc<ManagedXValue<W,R>>,
+        loc: KeyLocation,
+        on_empty: impl FnOnce() -> V,
+        on_found: impl FnOnce(&V) -> V,
+    ) -> XResult<&V, W, R> {
+        self.try_put_located(k, loc, || Ok(Ok(on_empty())), |v| Ok(Ok(on_found(v))))
+    }
+
+    pub(super) fn put(
+        &mut self,
+        k: &Rc<ManagedXValue<W, R>>,
+        on_empty: impl FnOnce() -> V,
+        on_found: impl FnOnce(&V) -> V,
+        ns: &RuntimeScope<W, R>,
+        rt: RTCell<W, R>,
+    ) -> XResult<&V, W, R> {
+        let loc = forward_err!(self.locate(k, ns, rt)?);
+        self.put_located(k, loc, on_empty, on_found)
+    }
+
+    pub(super) fn try_put(
+        &mut self,
+        k: &Rc<ManagedXValue<W, R>>,
+        on_empty: impl FnOnce() -> XResult<V, W, R>,
+        on_found: impl FnOnce(&V) -> XResult<V, W, R>,
+        ns: &RuntimeScope<W, R>,
+        rt: RTCell<W, R>,
+    ) -> XResult<&V, W, R> {
+        let loc = forward_err!(self.locate(k, ns, rt)?);
+        self.try_put_located(k, loc, on_empty, on_found)
     }
 
     pub(super) fn iter(&self) -> impl Iterator<Item = (Rc<ManagedXValue<W, R>>, V)> + '_
@@ -290,6 +284,32 @@ pub(crate) fn add_mapping_set<W, R>(
             let mapping = to_native!(a0, XMapping<W, R>);
             rt.borrow().can_allocate(mapping.len * 2)?;
             mapping.with_update(once(Ok(Ok((a1, a2)))), ns, rt)
+        }),
+    )
+}
+
+pub(crate) fn add_mapping_set_default<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
+    let mp = XMappingType::xtype(k.clone(), v.clone());
+
+    scope.add_func(
+        "set_default",
+        XFuncSpec::new(&[&mp, &k, &v], mp.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let mapping = to_native!(a0, XMapping<W, R>);
+            let loc = xraise!(mapping.locate(&a1, ns, rt.clone())?);
+            if let KeyLocation::Found(..) = loc{
+                return Ok(a0.into());
+            }
+            rt.borrow().can_allocate(mapping.len * 2)?;
+            let a2 = xraise!(eval(&args[2], ns, &rt)?);
+            let mut ret = mapping.clone();
+            xraise!(ret.put_located(&a1, loc, || a2, |_| unreachable!())?);
+            Ok(manage_native!(ret, rt))
         }),
     )
 }
@@ -422,6 +442,29 @@ pub(crate) fn add_mapping_lookup<W, R>(
                 },
                 rt
             ))
+        }),
+    )
+}
+
+pub(crate) fn add_mapping_get3<W, R>(
+    scope: &mut RootCompilationScope<W, R>,
+) -> Result<(), CompilationError> {
+    let ([k, v], params) = scope.generics_from_names(["K", "V"]);
+    let mp = XMappingType::xtype(k.clone(), v.clone());
+
+    scope.add_func(
+        "get",
+        XFuncSpec::new(&[&mp, &k, &v], v.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let mapping = to_native!(a0, XMapping<W, R>);
+            let val = match xraise!(mapping.locate(&a1, ns, rt.clone())?).found()
+            {
+                Some(f)=> mapping.get(f).clone(),
+                None => xraise!(eval(&args[2], ns, &rt)?)
+            };
+            Ok(Ok(val).into())
         }),
     )
 }

@@ -1,0 +1,8 @@
+fn main()->bool{
+    let m = mapping<int>()
+        .set(10, 0);
+
+    assert(m.set_default(10,11) == m)
+    && assert(m.set_default(9,11) == m.set(9,11))
+    && assert(m.set_default(10,error("")) == m)
+}
