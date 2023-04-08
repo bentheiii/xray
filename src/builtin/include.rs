@@ -446,6 +446,18 @@ fn cmp(d0: Datetime, d1: Datetime)->int{
     cmp(d0.members(), d1.members())
 }
 
+fn sub(d0: Datetime, d1: Datetime)->float{
+    d0.unix() - d1.unix()
+}
+
+fn add(d0: Datetime, d1: float)->Datetime{
+    datetime(d0.unix()+d1)
+}
+
+fn add(d0: float, d1: Datetime)->Datetime{
+    d1 + d0
+}
+
 //sequences
 fn reverse<T>(a: Sequence<T>)->Sequence<T>{
     let offset = a.len();

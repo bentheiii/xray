@@ -150,7 +150,7 @@ impl<W: 'static, R: 'static, V: Debug + 'static> XMapping<W, R, V> {
 
     fn try_put_located(
         &mut self,
-        k: &Rc<ManagedXValue<W,R>>,
+        k: &Rc<ManagedXValue<W, R>>,
         loc: KeyLocation,
         on_empty: impl FnOnce() -> XResult<V, W, R>,
         on_found: impl FnOnce(&V) -> XResult<V, W, R>,
@@ -181,7 +181,7 @@ impl<W: 'static, R: 'static, V: Debug + 'static> XMapping<W, R, V> {
 
     fn put_located(
         &mut self,
-        k: &Rc<ManagedXValue<W,R>>,
+        k: &Rc<ManagedXValue<W, R>>,
         loc: KeyLocation,
         on_empty: impl FnOnce() -> V,
         on_found: impl FnOnce(&V) -> V,
@@ -302,7 +302,7 @@ pub(crate) fn add_mapping_set_default<W, R>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let mapping = to_native!(a0, XMapping<W, R>);
             let loc = xraise!(mapping.locate(&a1, ns, rt.clone())?);
-            if let KeyLocation::Found(..) = loc{
+            if let KeyLocation::Found(..) = loc {
                 return Ok(a0.into());
             }
             rt.borrow().can_allocate(mapping.len * 2)?;
@@ -459,10 +459,9 @@ pub(crate) fn add_mapping_get3<W, R>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let mapping = to_native!(a0, XMapping<W, R>);
-            let val = match xraise!(mapping.locate(&a1, ns, rt.clone())?).found()
-            {
-                Some(f)=> mapping.get(f).clone(),
-                None => xraise!(eval(&args[2], ns, &rt)?)
+            let val = match xraise!(mapping.locate(&a1, ns, rt.clone())?).found() {
+                Some(f) => mapping.get(f).clone(),
+                None => xraise!(eval(&args[2], ns, &rt)?),
             };
             Ok(Ok(val).into())
         }),

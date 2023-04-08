@@ -184,6 +184,7 @@
   * [ ] dyn with with zero params
   * [ ] sum/product/mean/geomean? with complex types
   * [ ] str reverse
+  * [ ] negative datetimes
 * [X] reduce macros in builtin/core
 * [ ] better errors
   * [X] compilation error tracing
@@ -222,3 +223,4 @@
 * [ ] make [str].sum use join
 * [ ] custom seeding for hash
 * [ ] make sure nan inf and negzero are impossible
+* [ ] time provider?
