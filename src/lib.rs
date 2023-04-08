@@ -7,7 +7,6 @@ extern crate derivative;
 extern crate dyn_clone;
 
 pub mod builtin;
-//pub mod __compilation_scope;
 mod compilation_scope;
 pub mod compile_err;
 pub mod native_types;
@@ -19,6 +18,7 @@ pub mod runtime;
 mod runtime_scope;
 mod runtime_violation;
 mod units;
+pub mod time_provider;
 pub mod util;
 pub mod xexpr;
 pub mod xtype;
@@ -45,10 +45,11 @@ use string_interner::{DefaultBackend, DefaultSymbol};
 
 use crate::xexpr::{XStaticExpr, XStaticFunction};
 use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType};
+use crate::time_provider::TimeProvider;
 
 pub type Identifier = SpecialPrefixSymbol<DefaultBackend<DefaultSymbol>>;
 
-pub fn std_compilation_scope<W: Write, R: RngCore + SeedableRng>() -> RootCompilationScope<W, R> {
+pub fn std_compilation_scope<W: Write, R: RngCore + SeedableRng, T: TimeProvider>() -> RootCompilationScope<W, R, T> {
     let mut ret = RootCompilationScope::new();
 
     load_builtin(&mut ret);

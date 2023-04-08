@@ -9,7 +9,7 @@ use crate::runtime_scope::{EvaluationCell, RuntimeScope, RuntimeScopeTemplate};
 use crate::runtime_violation::RuntimeViolation;
 use crate::RootCompilationScope;
 
-pub type EvaluatedValue<W, R> = Result<Rc<ManagedXValue<W, R>>, Rc<ManagedXError<W, R>>>;
+pub type EvaluatedValue<W, R, T> = Result<Rc<ManagedXValue<W, R, T>>, Rc<ManagedXError<W, R, T>>>;
 
 #[derive(Debug)]
 pub enum GetValueError {
@@ -26,16 +26,16 @@ pub enum GetUniqueFunctionError {
     ForwardRefFunction(Vec<String>),
 }
 
-pub struct RootEvaluationScope<'c, W: 'static, R: 'static> {
-    scope: Rc<RuntimeScope<'static, W, R>>,
-    compilation_scope: &'c RootCompilationScope<W, R>,
-    runtime: RTCell<W, R>,
+pub struct RootEvaluationScope<'c, W: 'static, R: 'static, T: 'static> {
+    scope: Rc<RuntimeScope<'static, W, R, T>>,
+    compilation_scope: &'c RootCompilationScope<W, R, T>,
+    runtime: RTCell<W, R, T>,
 }
 
-impl<'c, W, R> RootEvaluationScope<'c, W, R> {
+impl<'c, W, R, T> RootEvaluationScope<'c, W, R, T> {
     pub fn from_compilation_scope(
-        comp_scope: &'c RootCompilationScope<W, R>,
-        runtime: RTCell<W, R>,
+        comp_scope: &'c RootCompilationScope<W, R, T>,
+        runtime: RTCell<W, R, T>,
     ) -> RuntimeResult<Self> {
         let cell_specs = comp_scope
             .scope
@@ -63,7 +63,7 @@ impl<'c, W, R> RootEvaluationScope<'c, W, R> {
         Ok(ret)
     }
 
-    pub fn get_value(&self, name: &str) -> Result<&EvaluatedValue<W, R>, GetValueError> {
+    pub fn get_value(&self, name: &str) -> Result<&EvaluatedValue<W, R, T>, GetValueError> {
         let id = self.compilation_scope.get_identifier(name);
         if let Some(id) = id {
             let cell_idx = self
@@ -85,7 +85,7 @@ impl<'c, W, R> RootEvaluationScope<'c, W, R> {
     pub fn get_user_defined_function(
         &self,
         name: &str,
-    ) -> Result<&XFunction<W, R>, GetUniqueFunctionError> {
+    ) -> Result<&XFunction<W, R, T>, GetUniqueFunctionError> {
         let id = self.compilation_scope.get_identifier(name);
         if let Some(id) = id {
             let overload = self
@@ -133,9 +133,9 @@ impl<'c, W, R> RootEvaluationScope<'c, W, R> {
 
     pub fn run_function(
         &self,
-        function: &XFunction<W, R>,
-        args: Vec<EvaluatedValue<W, R>>,
-    ) -> RuntimeResult<TailedEvalResult<W, R>> {
+        function: &XFunction<W, R, T>,
+        args: Vec<EvaluatedValue<W, R, T>>,
+    ) -> RuntimeResult<TailedEvalResult<W, R, T>> {
         self.scope
             .eval_func_with_values(function, args, self.runtime.clone(), false)
     }

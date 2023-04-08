@@ -43,7 +43,7 @@ impl NativeType for XSetType {
     }
 }
 
-type SetBucket<W, R> = Vec<Rc<ManagedXValue<W, R>>>;
+type SetBucket<W, R, T> = Vec<Rc<ManagedXValue<W, R, T>>>;
 
 enum KeyLocation {
     Missing(u64),
@@ -53,18 +53,18 @@ enum KeyLocation {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(crate) struct XSet<W, R> {
-    inner: HashMap<u64, SetBucket<W, R>>,
+pub(crate) struct XSet<W, R, T> {
+    inner: HashMap<u64, SetBucket<W, R, T>>,
     len: usize,
-    hash_func: Rc<ManagedXValue<W, R>>,
-    eq_func: Rc<ManagedXValue<W, R>>,
+    hash_func: Rc<ManagedXValue<W, R, T>>,
+    eq_func: Rc<ManagedXValue<W, R, T>>,
 }
 
-impl<W: 'static, R: 'static> XSet<W, R> {
+impl<W: 'static, R: 'static, T: 'static> XSet<W, R, T> {
     fn new(
-        hash_func: Rc<ManagedXValue<W, R>>,
-        eq_func: Rc<ManagedXValue<W, R>>,
-        table: HashMap<u64, SetBucket<W, R>>,
+        hash_func: Rc<ManagedXValue<W, R, T>>,
+        eq_func: Rc<ManagedXValue<W, R, T>>,
+        table: HashMap<u64, SetBucket<W, R, T>>,
         len: usize,
     ) -> Self {
         Self {
@@ -77,10 +77,10 @@ impl<W: 'static, R: 'static> XSet<W, R> {
 
     fn with_update(
         &self,
-        items: impl Iterator<Item = XResult<Rc<ManagedXValue<W, R>>, W, R>>,
-        ns: &RuntimeScope<W, R>,
-        rt: RTCell<W, R>,
-    ) -> RuntimeResult<TailedEvalResult<W, R>> {
+        items: impl Iterator<Item = XResult<Rc<ManagedXValue<W, R, T>>, W, R, T>>,
+        ns: &RuntimeScope<W, R, T>,
+        rt: RTCell<W, R, T>,
+    ) -> RuntimeResult<TailedEvalResult<W, R, T>> {
         let mut ret = Self::new(
             self.hash_func.clone(),
             self.eq_func.clone(),
@@ -108,10 +108,10 @@ impl<W: 'static, R: 'static> XSet<W, R> {
 
     fn locate(
         &self,
-        element: &Rc<ManagedXValue<W, R>>,
-        ns: &RuntimeScope<W, R>,
-        rt: RTCell<W, R>,
-    ) -> XResult<KeyLocation, W, R> {
+        element: &Rc<ManagedXValue<W, R, T>>,
+        ns: &RuntimeScope<W, R, T>,
+        rt: RTCell<W, R, T>,
+    ) -> XResult<KeyLocation, W, R, T> {
         let hash_func = to_primitive!(self.hash_func, Function);
         let raw_hash = forward_err!(ns
             .eval_func_with_values(hash_func, vec![Ok(element.clone())], rt.clone(), false)?
@@ -139,26 +139,26 @@ impl<W: 'static, R: 'static> XSet<W, R> {
         Ok(Ok(KeyLocation::Missing(hash_key)))
     }
 
-    pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue<W, R>>> + '_ {
+    pub(super) fn iter(&self) -> impl Iterator<Item = Rc<ManagedXValue<W, R, T>>> + '_ {
         self.inner.iter().flat_map(|(_, b)| b.iter()).cloned()
     }
 }
 
-impl<W: 'static, R: 'static> XNativeValue for XSet<W, R> {
+impl<W: 'static, R: 'static, T: 'static> XNativeValue for XSet<W, R, T> {
     fn dyn_size(&self) -> usize {
-        (self.len + self.inner.len() + 2) * size_of::<Rc<ManagedXValue<W, R>>>()
+        (self.len + self.inner.len() + 2) * size_of::<Rc<ManagedXValue<W, R, T>>>()
     }
 }
 
-pub(crate) fn add_set_type<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_set_type<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Set", XSetType::xtype(t))
 }
 
-pub(crate) fn add_set_new<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_set_new<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
@@ -189,8 +189,8 @@ pub(crate) fn add_set_new<W, R>(
     )
 }
 
-pub(crate) fn add_set_update<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_set_update<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let st = XSetType::xtype(t.clone());
@@ -201,15 +201,15 @@ pub(crate) fn add_set_update<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let set = to_native!(a0, XSet<W, R>);
-            let gen0 = to_native!(a1, XGenerator<W, R>);
+            let set = to_native!(a0, XSet<W, R, T>);
+            let gen0 = to_native!(a1, XGenerator<W, R, T>);
             set.with_update(gen0.iter(ns, rt.clone()), ns, rt)
         }),
     )
 }
 
-pub(crate) fn add_set_add<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_set_add<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let st = XSetType::xtype(t.clone());
@@ -220,15 +220,15 @@ pub(crate) fn add_set_add<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let mapping = to_native!(a0, XSet<W, R>);
+            let mapping = to_native!(a0, XSet<W, R, T>);
             rt.borrow().can_allocate(mapping.len * 2)?;
             mapping.with_update(once(Ok(Ok(a1))), ns, rt)
         }),
     )
 }
 
-pub(crate) fn add_set_contains<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_set_contains<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let st = XSetType::xtype(t.clone());
@@ -239,7 +239,7 @@ pub(crate) fn add_set_contains<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let set = to_native!(a0, XSet<W, R>);
+            let set = to_native!(a0, XSet<W, R, T>);
             let found = matches!(
                 xraise!(set.locate(&a1, ns, rt.clone())?),
                 KeyLocation::Found(_)
@@ -249,8 +249,8 @@ pub(crate) fn add_set_contains<W, R>(
     )
 }
 
-pub(crate) fn add_set_len<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_set_len<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let st = XSetType::xtype(t);
@@ -260,14 +260,14 @@ pub(crate) fn add_set_len<W, R>(
         XFuncSpec::new(&[&st], X_INT.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let set = to_native!(a0, XSet<W, R>);
+            let set = to_native!(a0, XSet<W, R, T>);
             Ok(ManagedXValue::new(XValue::Int(set.len.into()), rt)?.into())
         }),
     )
 }
 
-pub(crate) fn add_set_to_generator<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_set_to_generator<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let st = XSetType::xtype(t.clone());
@@ -282,8 +282,8 @@ pub(crate) fn add_set_to_generator<W, R>(
     )
 }
 
-pub(crate) fn add_set_remove<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_set_remove<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let st = XSetType::xtype(t.clone());
@@ -294,7 +294,7 @@ pub(crate) fn add_set_remove<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let set = to_native!(a0, XSet<W, R>);
+            let set = to_native!(a0, XSet<W, R, T>);
             if set.len == 0 {
                 return xerr(ManagedXError::new("item not found", rt)?);
             }
@@ -313,8 +313,8 @@ pub(crate) fn add_set_remove<W, R>(
     )
 }
 
-pub(crate) fn add_set_discard<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_set_discard<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let st = XSetType::xtype(t.clone());
@@ -325,7 +325,7 @@ pub(crate) fn add_set_discard<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let set = to_native!(a0, XSet<W, R>);
+            let set = to_native!(a0, XSet<W, R, T>);
             if set.len == 0 {
                 return Ok(a0.clone().into());
             }
@@ -344,8 +344,8 @@ pub(crate) fn add_set_discard<W, R>(
     )
 }
 
-pub(crate) fn add_set_clear<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_set_clear<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let st = XSetType::xtype(t);
@@ -355,7 +355,7 @@ pub(crate) fn add_set_clear<W, R>(
         XFuncSpec::new(&[&st], st.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let set0 = to_native!(a0, XSet<W, R>);
+            let set0 = to_native!(a0, XSet<W, R, T>);
             if set0.len == 0 {
                 return Ok(a0.clone().into());
             }
@@ -372,8 +372,8 @@ pub(crate) fn add_set_clear<W, R>(
     )
 }
 
-pub(crate) fn add_set_hash<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_set_hash<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let st = XSetType::xtype(t);
@@ -383,7 +383,7 @@ pub(crate) fn add_set_hash<W, R>(
         XFuncSpec::new(&[&st], X_INT.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let set0 = to_native!(a0, XSet<W, R>);
+            let set0 = to_native!(a0, XSet<W, R, T>);
             // note that since order is important to the default hasher, we'll just xor them together
             let mut ret = 0u64;
             for (hash, bucket) in set0.inner.iter() {
@@ -395,8 +395,8 @@ pub(crate) fn add_set_hash<W, R>(
     )
 }
 
-pub(crate) fn add_set_dyn_new<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_set_dyn_new<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
     let hash_symbol = scope.identifier("hash");

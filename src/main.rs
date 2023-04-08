@@ -2,6 +2,7 @@ extern crate core;
 extern crate pest;
 
 use rand::rngs::StdRng;
+use xray::time_provider::SystemTimeProvider;
 use std::io::stdout;
 
 use xray::root_runtime_scope::RootEvaluationScope;
@@ -30,7 +31,7 @@ fn main() {
     let limits = RuntimeLimits {
         ..RuntimeLimits::default()
     };
-    let runtime: RTCell<_, StdRng> = limits.to_runtime(stdout());
+    let runtime: RTCell<_, StdRng, _> = limits.to_runtime(stdout(), SystemTimeProvider);
 
     let mut root_scope = std_compilation_scope();
 

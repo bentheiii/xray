@@ -16,13 +16,13 @@ use derivative::Derivative;
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(crate) enum TemplatedEvaluationCell<W, R> {
-    Owned(EvaluationCell<W, R>),
+pub(crate) enum TemplatedEvaluationCell<W, R, T> {
+    Owned(EvaluationCell<W, R, T>),
     FromTemplate(usize),
 }
 
-impl<W, R> TemplatedEvaluationCell<W, R> {
-    fn put(&mut self, value: EvaluatedValue<W, R>) {
+impl<W, R, T> TemplatedEvaluationCell<W, R, T> {
+    fn put(&mut self, value: EvaluatedValue<W, R, T>) {
         match self {
             Self::FromTemplate(..) => panic!("attempted to write to templated cell"),
             Self::Owned(ref mut v) => {
@@ -30,7 +30,7 @@ impl<W, R> TemplatedEvaluationCell<W, R> {
             }
         }
     }
-    fn as_ref<'a>(&'a self, template: &'a RuntimeScopeTemplate<W, R>) -> &'a EvaluationCell<W, R> {
+    fn as_ref<'a>(&'a self, template: &'a RuntimeScopeTemplate<W, R, T>) -> &'a EvaluationCell<W, R, T> {
         match self {
             Self::FromTemplate(idx) => &template.cells[*idx],
             Self::Owned(r) => r,
@@ -40,10 +40,10 @@ impl<W, R> TemplatedEvaluationCell<W, R> {
 
 #[derive(Default, Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(crate) enum EvaluationCell<W, R> {
+pub(crate) enum EvaluationCell<W, R, T> {
     #[default]
     Uninitialized,
-    Value(EvaluatedValue<W, R>),
+    Value(EvaluatedValue<W, R, T>),
     // this will happen for forward functions from an outer scope
     PendingCapture {
         depth: ScopeDepth,
@@ -52,14 +52,14 @@ pub(crate) enum EvaluationCell<W, R> {
     LocalRecourse,
     Recourse {
         depth: ScopeDepth,
-        scope: XFunction<W, R>,
+        scope: XFunction<W, R, T>,
     },
 }
 
-impl<W: 'static, R: 'static> EvaluationCell<W, R> {
+impl<W: 'static, R: 'static, T: 'static> EvaluationCell<W, R, T> {
     fn from_spec(
         cell: &CellSpec,
-        parent: Option<&RuntimeScope<W, R>>,
+        parent: Option<&RuntimeScope<W, R, T>>,
     ) -> RuntimeResult<Self> {
         // todo I'm pretty sure this function always returns OK
         match cell {
@@ -92,18 +92,18 @@ impl<W: 'static, R: 'static> EvaluationCell<W, R> {
     }
 }
 
-pub struct RuntimeScopeTemplate<W, R> {
+pub struct RuntimeScopeTemplate<W, R, T> {
     pub(crate) id: usize,
-    pub(crate) cells: Vec<EvaluationCell<W, R>>,
-    pub(crate) declarations: Vec<Declaration<W, R>>,
+    pub(crate) cells: Vec<EvaluationCell<W, R, T>>,
+    pub(crate) declarations: Vec<Declaration<W, R, T>>,
     pub(crate) scope_parent_id: Option<usize>,
     pub(crate) param_count: usize,
-    defaults: Vec<EvaluatedValue<W, R>>,
-    output: Option<Box<XExpr<W, R>>>,
+    defaults: Vec<EvaluatedValue<W, R, T>>,
+    output: Option<Box<XExpr<W, R, T>>>,
 }
 
-impl<W: 'static, R: 'static> RuntimeScopeTemplate<W, R> {
-    fn to_function(self: Rc<Self>) -> XFunction<W, R> {
+impl<W: 'static, R: 'static, T: 'static> RuntimeScopeTemplate<W, R, T> {
+    fn to_function(self: Rc<Self>) -> XFunction<W, R, T> {
         XFunction::UserFunction {
             output: self.output.clone().unwrap(),
             template: self,
@@ -115,12 +115,12 @@ impl<W: 'static, R: 'static> RuntimeScopeTemplate<W, R> {
         id: usize,
         param_count: usize,
         cell_specs: &[CellSpec],
-        stack_parent: Option<&RuntimeScope<W, R>>,
+        stack_parent: Option<&RuntimeScope<W, R, T>>,
         parent_id: Option<usize>,
-        declarations: Vec<Declaration<W, R>>,
-        rt: RTCell<W, R>,
-        defaults: Vec<XExpr<W, R>>,
-        output: Option<Box<XExpr<W, R>>>,
+        declarations: Vec<Declaration<W, R, T>>,
+        rt: RTCell<W, R, T>,
+        defaults: Vec<XExpr<W, R, T>>,
+        output: Option<Box<XExpr<W, R, T>>>,
     ) -> RuntimeResult<Rc<Self>> {
         // in order to get the namespace parent, we need to go up the stack until we reach one with the same id
         let scope_parent = if let Some(parent_id) = parent_id {
@@ -165,19 +165,19 @@ impl<W: 'static, R: 'static> RuntimeScopeTemplate<W, R> {
     }
 }
 
-pub struct RuntimeScope<'a, W, R> {
-    pub(crate) cells: Vec<TemplatedEvaluationCell<W, R>>,
+pub struct RuntimeScope<'a, W, R, T> {
+    pub(crate) cells: Vec<TemplatedEvaluationCell<W, R, T>>,
     height: StackDepth,
     scope_parent: Option<&'a Self>,
-    template: Rc<RuntimeScopeTemplate<W, R>>,
+    template: Rc<RuntimeScopeTemplate<W, R, T>>,
 }
 
-impl<'a, W: 'static, R: 'static> RuntimeScope<'a, W, R> {
+impl<'a, W: 'static, R: 'static, T: 'static> RuntimeScope<'a, W, R, T> {
     pub(crate) fn from_template(
-        template: Rc<RuntimeScopeTemplate<W, R>>,
+        template: Rc<RuntimeScopeTemplate<W, R, T>>,
         stack_parent: Option<&'a Self>,
-        rt: RTCell<W, R>,
-        mut args: Vec<EvaluatedValue<W, R>>,
+        rt: RTCell<W, R, T>,
+        mut args: Vec<EvaluatedValue<W, R, T>>,
     ) -> RuntimeResult<Rc<Self>> {
         let scope_parent = if let Some(parent_id) = template.scope_parent_id {
             {
@@ -261,10 +261,10 @@ impl<'a, W: 'static, R: 'static> RuntimeScope<'a, W, R> {
 
     pub(crate) fn eval(
         &self,
-        expr: &XExpr<W, R>,
-        rt: RTCell<W, R>,
+        expr: &XExpr<W, R, T>,
+        rt: RTCell<W, R, T>,
         tail_available: bool,
-    ) -> RuntimeResult<TailedEvalResult<W, R>> {
+    ) -> RuntimeResult<TailedEvalResult<W, R, T>> {
         match expr {
             XExpr::LiteralBool(b) => Ok(ManagedXValue::new(XValue::Bool(*b), rt)?.into()),
             XExpr::LiteralInt(i) => {
@@ -322,7 +322,7 @@ impl<'a, W: 'static, R: 'static> RuntimeScope<'a, W, R> {
                         rt
                     )
                 } else {
-                    manage_native!(XOptional::<W, R> { value: None }, rt)
+                    manage_native!(XOptional::<W, R, T> { value: None }, rt)
                 })
             }
             XExpr::Value(cell_idx) => {
@@ -381,11 +381,11 @@ impl<'a, W: 'static, R: 'static> RuntimeScope<'a, W, R> {
 
     pub(crate) fn eval_func_with_expressions(
         &self,
-        func: &XFunction<W, R>,
-        args: &[XExpr<W, R>],
-        rt: RTCell<W, R>,
+        func: &XFunction<W, R, T>,
+        args: &[XExpr<W, R, T>],
+        rt: RTCell<W, R, T>,
         tail_available: bool,
-    ) -> RuntimeResult<TailedEvalResult<W, R>> {
+    ) -> RuntimeResult<TailedEvalResult<W, R, T>> {
         match func {
             XFunction::Native(nc) => nc(args, self, tail_available, rt),
             XFunction::UserFunction { .. } => {
@@ -400,11 +400,11 @@ impl<'a, W: 'static, R: 'static> RuntimeScope<'a, W, R> {
 
     pub(crate) fn eval_func_with_values(
         &'a self,
-        func: &XFunction<W, R>,
-        args: Vec<EvaluatedValue<W, R>>,
-        rt: RTCell<W, R>,
+        func: &XFunction<W, R, T>,
+        args: Vec<EvaluatedValue<W, R, T>>,
+        rt: RTCell<W, R, T>,
         tail_available: bool,
-    ) -> RuntimeResult<TailedEvalResult<W, R>> {
+    ) -> RuntimeResult<TailedEvalResult<W, R, T>> {
         match func {
             XFunction::Native(..) => {
                 let args = args.iter().cloned().map(XExpr::Dummy).collect::<Vec<_>>();
@@ -458,12 +458,12 @@ impl<'a, W: 'static, R: 'static> RuntimeScope<'a, W, R> {
         &self,
         depth: ScopeDepth,
         cell_idx: usize,
-    ) -> (&Self, &TemplatedEvaluationCell<W, R>) {
+    ) -> (&Self, &TemplatedEvaluationCell<W, R, T>) {
         let ancestor = self.scope_ancestor_at_depth(depth);
         (ancestor, &ancestor.cells[cell_idx])
     }
 
-    pub(crate) fn get_cell_value(&self, idx: usize) -> &EvaluationCell<W, R> {
+    pub(crate) fn get_cell_value(&self, idx: usize) -> &EvaluationCell<W, R, T> {
         self.cells[idx].as_ref(self.template.as_ref())
     }
 }

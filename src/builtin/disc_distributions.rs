@@ -273,14 +273,14 @@ impl XNativeValue for XDiscreteDistribution {
     }
 }
 
-pub(crate) fn add_discrete_distribution_type<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discrete_distribution_type<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_native_type("DiscreteDistribution", X_DISCDIST.clone())
 }
 
-pub(crate) fn add_discdist_binomial<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discdist_binomial<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "binomial_distribution",
@@ -303,21 +303,21 @@ pub(crate) fn add_discdist_binomial<W, R>(
     )
 }
 
-pub(crate) fn add_discdist_custom<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discdist_custom<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "custom_distribution",
         XFuncSpec::new(&[&XSequenceType::xtype(Arc::new(XType::Tuple(vec![X_INT.clone(), X_FLOAT.clone()]))), ], X_DISCDIST.clone()),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let s0 = to_native!(a0, XSequence::<W, R>);
+            let s0 = to_native!(a0, XSequence::<W, R, T>);
             let Some(len) = s0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             if len == 0 {
                 return xerr(ManagedXError::new("sequence is empty", rt)?);
             }
             rt.borrow().can_allocate_by(|| Some(len))?;
-            let arr = xraise!(s0.diter(ns, rt.clone()).unwrap().collect::<XResult<Vec<_>,_, _>>()?);
+            let arr = xraise!(s0.diter(ns, rt.clone()).unwrap().collect::<XResult<Vec<_>,_, _, _>>()?);
             let mut items = arr.iter().map(|item| {
                 let tup = to_primitive!(item, StructInstance);
                 let val = to_primitive!(tup[0], Int).clone();
@@ -346,8 +346,8 @@ pub(crate) fn add_discdist_custom<W, R>(
     )
 }
 
-pub(crate) fn add_discdist_hypergeometric<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discdist_hypergeometric<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "hypergeometric_distribution",
@@ -379,8 +379,8 @@ pub(crate) fn add_discdist_hypergeometric<W, R>(
     )
 }
 
-pub(crate) fn add_discdist_negative_binomial<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discdist_negative_binomial<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "negative_binomial_distribution",
@@ -404,8 +404,8 @@ pub(crate) fn add_discdist_negative_binomial<W, R>(
     )
 }
 
-pub(crate) fn add_discdist_poisson<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discdist_poisson<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "poisson_distribution",
@@ -424,8 +424,8 @@ pub(crate) fn add_discdist_poisson<W, R>(
     )
 }
 
-pub(crate) fn add_discdist_uniform<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discdist_uniform<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "uniform_distribution",
@@ -450,8 +450,8 @@ pub(crate) fn add_discdist_uniform<W, R>(
     )
 }
 
-pub(crate) fn add_discdist_cdf<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discdist_cdf<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "cdf",
@@ -466,8 +466,8 @@ pub(crate) fn add_discdist_cdf<W, R>(
     )
 }
 
-pub(crate) fn add_discdist_pmf<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discdist_pmf<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "pmf",
@@ -482,8 +482,8 @@ pub(crate) fn add_discdist_pmf<W, R>(
     )
 }
 
-pub(crate) fn add_discdist_quantile<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discdist_quantile<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "quantile",
@@ -501,8 +501,8 @@ pub(crate) fn add_discdist_quantile<W, R>(
     )
 }
 
-pub(crate) fn add_discdist_skewness<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discdist_skewness<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "skewness",
@@ -519,8 +519,8 @@ pub(crate) fn add_discdist_skewness<W, R>(
     )
 }
 
-pub(crate) fn add_discdist_mean<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discdist_mean<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "mean",
@@ -537,8 +537,8 @@ pub(crate) fn add_discdist_mean<W, R>(
     )
 }
 
-pub(crate) fn add_discdist_variance<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discdist_variance<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "variance",
@@ -555,8 +555,8 @@ pub(crate) fn add_discdist_variance<W, R>(
     )
 }
 
-pub(crate) fn add_discdist_sample<W, R: SeedableRng + RngCore>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_discdist_sample<W, R: SeedableRng + RngCore, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "sample",

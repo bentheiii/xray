@@ -8,6 +8,7 @@ use crate::builtin::sequence::*;
 use crate::builtin::stack::*;
 use crate::builtin::str::*;
 use crate::builtin::unknown::*;
+use crate::time_provider::TimeProvider;
 
 use rand::{RngCore, SeedableRng};
 use std::io::Write;
@@ -47,8 +48,8 @@ pub mod tuple;
 pub mod unions;
 pub mod unknown;
 
-pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) {
     add_int_type(scope).unwrap();
     add_int_add(scope).unwrap();

@@ -22,8 +22,8 @@ use std::hash::{Hash, Hasher};
 
 use std::rc;
 
-pub(crate) fn add_str_type<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_type<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_native_type("str", X_STRING.clone())
 }
@@ -38,14 +38,14 @@ add_binfunc!(
     X_STRING,
     String,
     X_STRING,
-    |a: &FencedString, b: &FencedString, rt: &RTCell<W, R>| {
+    |a: &FencedString, b: &FencedString, rt: &RTCell<W, R, T>| {
         rt.borrow().can_allocate(a.bytes() + b.bytes())?;
         Ok(Ok(XValue::String(Box::new(a + b))))
     }
 );
 
-pub(crate) fn add_str_hash<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_hash<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "hash",
@@ -61,8 +61,8 @@ pub(crate) fn add_str_hash<W, R>(
     )
 }
 
-pub(crate) fn add_str_len<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_len<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "len",
@@ -73,8 +73,8 @@ pub(crate) fn add_str_len<W, R>(
     )
 }
 
-pub(crate) fn add_str_is_whitespace<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_is_whitespace<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "is_whitespace",
@@ -85,8 +85,8 @@ pub(crate) fn add_str_is_whitespace<W, R>(
     )
 }
 
-pub(crate) fn add_str_is_lower<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_is_lower<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "is_lower",
@@ -97,8 +97,8 @@ pub(crate) fn add_str_is_lower<W, R>(
     )
 }
 
-pub(crate) fn add_str_is_upper<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_is_upper<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "is_upper",
@@ -109,8 +109,8 @@ pub(crate) fn add_str_is_upper<W, R>(
     )
 }
 
-pub(crate) fn add_str_to_str<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_to_str<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "to_str",
@@ -119,8 +119,8 @@ pub(crate) fn add_str_to_str<W, R>(
     )
 }
 
-pub(crate) fn add_str_get<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_get<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "get",
@@ -136,8 +136,8 @@ pub(crate) fn add_str_get<W, R>(
     )
 }
 
-pub(crate) fn add_str_find<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_find<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "find",
@@ -172,8 +172,8 @@ pub(crate) fn add_str_find<W, R>(
     )
 }
 
-pub(crate) fn add_str_rfind<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_rfind<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "rfind",
@@ -208,8 +208,8 @@ pub(crate) fn add_str_rfind<W, R>(
     )
 }
 
-pub(crate) fn add_str_substring<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_substring<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "substring",
@@ -231,8 +231,8 @@ pub(crate) fn add_str_substring<W, R>(
     )
 }
 
-pub(crate) fn add_str_code_point<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_code_point<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "code_point",
@@ -246,8 +246,8 @@ pub(crate) fn add_str_code_point<W, R>(
     )
 }
 
-pub(crate) fn add_str_lower<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_lower<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "lower",
@@ -265,8 +265,8 @@ pub(crate) fn add_str_lower<W, R>(
     )
 }
 
-pub(crate) fn add_str_upper<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_upper<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "upper",
@@ -284,8 +284,8 @@ pub(crate) fn add_str_upper<W, R>(
     )
 }
 
-pub(crate) fn add_str_to_int<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_to_int<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "to_int",
@@ -318,8 +318,8 @@ add_binfunc!(add_str_cmp, cmp, X_STRING, String, X_INT, |a, b, _rt| Ok(
     Ok(xcmp(a, b))
 ));
 
-pub(crate) fn add_str_format<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_str_format<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "format",

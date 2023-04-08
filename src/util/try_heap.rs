@@ -75,7 +75,7 @@ pub(crate) struct TryHeap<T, F> {
     is_le: F,
 }
 
-impl<T, W, R, F: FnMut(&T, &T) -> XResult<bool, W, R>> TryHeap<T, F> {
+impl<I, W, R, T, F: FnMut(&I, &I) -> XResult<bool, W, R, T>> TryHeap<I, F> {
     #[must_use]
     pub fn with_capacity(capacity: usize, is_le: F) -> Self {
         Self {
@@ -84,7 +84,7 @@ impl<T, W, R, F: FnMut(&T, &T) -> XResult<bool, W, R>> TryHeap<T, F> {
         }
     }
 
-    unsafe fn sift_up(&mut self, start: usize, pos: usize) -> XResult<usize, W, R> {
+    unsafe fn sift_up(&mut self, start: usize, pos: usize) -> XResult<usize, W, R, T> {
         // Take out the value at `pos` and create a hole.
         // SAFETY: The caller guarantees that pos < self.len()
         let mut hole = unsafe { Hole::new(&mut self.data, pos) };
@@ -108,7 +108,7 @@ impl<T, W, R, F: FnMut(&T, &T) -> XResult<bool, W, R>> TryHeap<T, F> {
         Ok(Ok(hole.pos()))
     }
 
-    unsafe fn sift_down_to_bottom(&mut self, mut pos: usize) -> XResult<(), W, R> {
+    unsafe fn sift_down_to_bottom(&mut self, mut pos: usize) -> XResult<(), W, R, T> {
         let end = self.len();
         let start = pos;
 
@@ -156,7 +156,7 @@ impl<T, W, R, F: FnMut(&T, &T) -> XResult<bool, W, R>> TryHeap<T, F> {
         self.len() == 0
     }
 
-    pub(crate) fn push(&mut self, item: T) -> XResult<(), W, R> {
+    pub(crate) fn push(&mut self, item: I) -> XResult<(), W, R, T> {
         let old_len = self.len();
         self.data.push(item);
         // SAFETY: Since we pushed a new item it means that
@@ -165,7 +165,7 @@ impl<T, W, R, F: FnMut(&T, &T) -> XResult<bool, W, R>> TryHeap<T, F> {
         Ok(Ok(()))
     }
 
-    pub(crate) fn pop(&mut self) -> XResult<Option<T>, W, R> {
+    pub(crate) fn pop(&mut self) -> XResult<Option<I>, W, R, T> {
         Ok(Ok(forward_err!(self
             .data
             .pop()

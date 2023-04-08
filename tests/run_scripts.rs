@@ -2,6 +2,7 @@ mod utils;
 
 use glob::glob;
 use itertools::Itertools;
+use xray::time_provider::SystemTimeProvider;
 use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::fs;
@@ -109,7 +110,7 @@ impl ScriptConfig {
             }
         }
 
-        let runtime: RTCell<_, StdRng> = limits.to_runtime(output);
+        let runtime: RTCell<_, StdRng, _> = limits.to_runtime(output, SystemTimeProvider);
 
         let eval_scope_results =
             RootEvaluationScope::from_compilation_scope(&comp_scope, runtime.clone());

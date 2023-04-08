@@ -23,7 +23,7 @@ use std::io::Write;
 use std::sync::Arc;
 use std::{iter, rc};
 
-pub(crate) fn add_if<W, R>(scope: &mut RootCompilationScope<W, R>) -> Result<(), CompilationError> {
+pub(crate) fn add_if<W, R, T>(scope: &mut RootCompilationScope<W, R, T>) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if",
@@ -35,27 +35,27 @@ pub(crate) fn add_if<W, R>(scope: &mut RootCompilationScope<W, R>) -> Result<(),
     )
 }
 
-pub(crate) fn add_error<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_error<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "error",
         XFuncSpec::new(&[&X_STRING], X_UNKNOWN.clone()),
-        ufunc!(String, |a: &FencedString, rt: RTCell<W, R>| {
+        ufunc!(String, |a: &FencedString, rt: RTCell<W, R, T>| {
             rt.borrow().can_allocate(a.bytes())?;
             Ok(Err(a.to_string()))
         }),
     )
 }
 
-pub(crate) fn add_debug<W: Write, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_debug<W: Write, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "debug",
         XFuncSpec::new_with_optional(&[&t], &[&X_STRING], t.clone()).generic(params),
-        XStaticFunction::from_native(|args: &[XExpr<W, R>], ns, _tca, rt| {
+        XStaticFunction::from_native(|args: &[XExpr<W, R, T>], ns, _tca, rt| {
             rt.borrow()
                 .limits
                 .check_permission(&builtin_permissions::PRINT_DEBUG)?;
@@ -73,8 +73,8 @@ pub(crate) fn add_debug<W: Write, R>(
     )
 }
 
-pub(crate) fn add_is_error<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_is_error<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
@@ -102,8 +102,8 @@ pub(crate) fn add_is_error<W, R>(
     )
 }
 
-pub(crate) fn add_if_error<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_if_error<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
@@ -120,8 +120,8 @@ pub(crate) fn add_if_error<W, R>(
     )
 }
 
-pub(crate) fn add_if_error_specific<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_if_error_specific<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
@@ -141,8 +141,8 @@ pub(crate) fn add_if_error_specific<W, R>(
     )
 }
 
-pub(crate) fn add_get_error<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_get_error<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "get_error",
@@ -166,7 +166,7 @@ pub(crate) fn add_get_error<W, R>(
     )
 }
 
-pub(crate) fn add_ne<W, R>(scope: &mut RootCompilationScope<W, R>) -> Result<(), CompilationError> {
+pub(crate) fn add_ne<W, R, T>(scope: &mut RootCompilationScope<W, R, T>) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
 
     scope.add_dyn_func("ne", "eq-inverse", move |_params, types, ns, bind| {
@@ -182,7 +182,7 @@ pub(crate) fn add_ne<W, R>(scope: &mut RootCompilationScope<W, R>) -> Result<(),
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&eq_expr, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                    move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                         let a0 = eval(&args[0], ns, &rt)?;
                         let a1 = eval(&args[1], ns, &rt)?;
                         let func = to_primitive!(inner_value, Function);
@@ -198,8 +198,8 @@ pub(crate) fn add_ne<W, R>(scope: &mut RootCompilationScope<W, R>) -> Result<(),
     })
 }
 
-pub(crate) fn add_display<W: Write, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_display<W: Write, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let to_str_symbol = scope.identifier("to_str");
 
@@ -227,10 +227,10 @@ pub(crate) fn add_display<W: Write, R>(
                     let inner_value =
                         forward_err!(ns.eval(&inner_to_str, rt, false)?.unwrap_value());
                     Ok(Ok(
-                        move |args: &[XExpr<W, R>],
-                              ns: &RuntimeScope<'_, W, R>,
+                        move |args: &[XExpr<W, R, T>],
+                              ns: &RuntimeScope<'_, W, R, T>,
                               _tca,
-                              rt: RTCell<W, R>| {
+                              rt: RTCell<W, R, T>| {
                             rt.borrow()
                                 .limits
                                 .check_permission(&builtin_permissions::PRINT)?;
@@ -258,8 +258,8 @@ pub(crate) fn add_display<W: Write, R>(
     )
 }
 
-pub(crate) fn add_cmp_lt<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_cmp_lt<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
 
@@ -276,7 +276,7 @@ pub(crate) fn add_cmp_lt<W, R>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner_func, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                    move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                         let a0 = eval(&args[0], ns, &rt)?;
                         let a1 = eval(&args[1], ns, &rt)?;
                         let func = to_primitive!(inner_value, Function);
@@ -295,8 +295,8 @@ pub(crate) fn add_cmp_lt<W, R>(
     })
 }
 
-pub(crate) fn add_cmp_gt<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_cmp_gt<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
 
@@ -314,7 +314,7 @@ pub(crate) fn add_cmp_gt<W, R>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner_func, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                    move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                         let a0 = eval(&args[0], ns, &rt)?;
                         let a1 = eval(&args[1], ns, &rt)?;
                         let func = to_primitive!(inner_value, Function);
@@ -333,8 +333,8 @@ pub(crate) fn add_cmp_gt<W, R>(
     })
 }
 
-pub(crate) fn add_cmp_ge<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_cmp_ge<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
 
@@ -351,7 +351,7 @@ pub(crate) fn add_cmp_ge<W, R>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner_func, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                    move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                         let a0 = eval(&args[0], ns, &rt)?;
                         let a1 = eval(&args[1], ns, &rt)?;
                         let func = to_primitive!(inner_value, Function);
@@ -370,8 +370,8 @@ pub(crate) fn add_cmp_ge<W, R>(
     })
 }
 
-pub(crate) fn add_cmp_le<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_cmp_le<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
 
@@ -389,7 +389,7 @@ pub(crate) fn add_cmp_le<W, R>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner_func, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                    move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                         let a0 = eval(&args[0], ns, &rt)?;
                         let a1 = eval(&args[1], ns, &rt)?;
                         let func = to_primitive!(inner_value, Function);
@@ -408,8 +408,8 @@ pub(crate) fn add_cmp_le<W, R>(
     })
 }
 
-pub(crate) fn add_cast<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_cast<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("cast", "", move |_params, _types, _ns, bind| {
         let bind_len = bind.map_or(0, |a| a.len());
@@ -427,8 +427,8 @@ pub(crate) fn add_cast<W, R>(
     })
 }
 
-pub(crate) fn add_partial<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_partial<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("partial", "currying", move |_params, types, _ns, bind| {
         if bind.is_some() {
@@ -480,8 +480,8 @@ pub(crate) fn add_partial<W, R>(
     })
 }
 
-pub(crate) fn add_generic_dyn_harmonic_mean<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_generic_dyn_harmonic_mean<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let mean_symbol = scope.identifier("mean");
     let div_symbol = scope.identifier("div");
@@ -522,7 +522,7 @@ pub(crate) fn add_generic_dyn_harmonic_mean<W, R>(
                     }))), rt)?;
 
                     Ok(Ok(
-                        move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt: RTCell<_, _>| {
+                        move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt: RTCell<_, _, _>| {
                             let a0 = xraise!(eval(&args[0], ns, &rt)?);
                             let XValue::Function(inner_map) = &inner_map.value else { unreachable!() };
                             let XValue::Function(inner_mean) = &inner_mean.value else { unreachable!() };
@@ -546,8 +546,8 @@ pub(crate) fn add_generic_dyn_harmonic_mean<W, R>(
     )
 }
 
-pub(crate) fn add_generic_dyn_product<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_generic_dyn_product<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("mul");
     let cb_symbol = scope.identifier("reduce");
@@ -576,8 +576,8 @@ pub(crate) fn add_generic_dyn_product<W, R>(
     })
 }
 
-pub(crate) fn add_generic_dyn_sum<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_generic_dyn_sum<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("add");
     let cb_symbol = scope.identifier("reduce");
@@ -606,8 +606,8 @@ pub(crate) fn add_generic_dyn_sum<W, R>(
     })
 }
 
-pub(crate) fn add_generic_dyn_max<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_generic_dyn_max<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("lt");
     let cb_symbol = scope.identifier("max");
@@ -633,8 +633,8 @@ pub(crate) fn add_generic_dyn_max<W, R>(
     })
 }
 
-pub(crate) fn add_generic_dyn_min<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_generic_dyn_min<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("lt");
     let cb_symbol = scope.identifier("min");
@@ -660,8 +660,8 @@ pub(crate) fn add_generic_dyn_min<W, R>(
     })
 }
 
-pub(crate) fn add_generic_dyn_max_iter<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_generic_dyn_max_iter<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("lt");
     let cb_symbol = scope.identifier("max");
@@ -688,8 +688,8 @@ pub(crate) fn add_generic_dyn_max_iter<W, R>(
     })
 }
 
-pub(crate) fn add_generic_dyn_min_iter<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_generic_dyn_min_iter<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("lt");
     let cb_symbol = scope.identifier("min");
@@ -716,8 +716,8 @@ pub(crate) fn add_generic_dyn_min_iter<W, R>(
     })
 }
 
-pub(crate) fn add_generic_dyn_contains<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_generic_dyn_contains<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("eq");
     let cb_symbol = scope.identifier("contains");

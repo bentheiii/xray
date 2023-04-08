@@ -23,17 +23,17 @@ macro_rules! xraise {
     }};
 }
 
-pub fn xerr<W, R>(
-    err: Rc<ManagedXError<W, R>>,
-) -> RuntimeResult<TailedEvalResult<W, R>> {
+pub fn xerr<W, R, T>(
+    err: Rc<ManagedXError<W, R, T>>,
+) -> RuntimeResult<TailedEvalResult<W, R, T>> {
     Ok(TailedEvalResult::Value(Err(err)))
 }
 
 #[macro_export]
 macro_rules! add_binfunc {
     ($fn_name:ident, $name:ident, $operand_type: expr, $operand_variant:ident, $return_type:expr, $func:expr) => {
-        pub(crate) fn $fn_name<W, R>(
-            scope: &mut RootCompilationScope<W, R>,
+        pub(crate) fn $fn_name<W, R, T>(
+            scope: &mut RootCompilationScope<W, R, T>,
         ) -> Result<(), $crate::CompilationError> {
             scope.add_func(
                 stringify!($name),
@@ -55,12 +55,12 @@ macro_rules! add_binfunc {
     };
 }
 
-pub fn ufunc_ref<W: 'static, R: 'static, F>(func: F) -> XStaticFunction<W, R>
+pub fn ufunc_ref<W: 'static, R: 'static, T: 'static, F>(func: F) -> XStaticFunction<W, R, T>
 where
     F: Fn(
-            Rc<ManagedXValue<W, R>>,
-            RTCell<W, R>,
-        ) -> RuntimeResult<TailedEvalResult<W, R>>
+            Rc<ManagedXValue<W, R, T>>,
+            RTCell<W, R, T>,
+        ) -> RuntimeResult<TailedEvalResult<W, R, T>>
         + 'static,
 {
     XStaticFunction::from_native(move |args, ns, _tca, rt| {
@@ -73,7 +73,7 @@ where
 macro_rules! ufunc {
     ($operand_variant:ident, $func:expr) => {{
         $crate::builtin::core::ufunc_ref(
-            |a: Rc<ManagedXValue<W, R>>, rt: $crate::runtime::RTCell<W, R>| {
+            |a: Rc<ManagedXValue<W, R, T>>, rt: $crate::runtime::RTCell<W, R, T>| {
                 let result: Result<_, String> =
                     $func(to_primitive!(a, $operand_variant), rt.clone())?;
                 let result = match result {
@@ -117,11 +117,11 @@ macro_rules! to_primitive {
     };
 }
 
-pub(super) fn eval<W: 'static, R: 'static>(
-    expr: &XExpr<W, R>,
-    ns: &RuntimeScope<W, R>,
-    rt: &RTCell<W, R>,
-) -> RuntimeResult<EvaluatedValue<W, R>> {
+pub(super) fn eval<W: 'static, R: 'static, T: 'static>(
+    expr: &XExpr<W, R, T>,
+    ns: &RuntimeScope<W, R, T>,
+    rt: &RTCell<W, R, T>,
+) -> RuntimeResult<EvaluatedValue<W, R, T>> {
     ns.eval(expr, rt.clone(), false).map(|i| i.unwrap_value())
 }
 
@@ -142,7 +142,7 @@ macro_rules! manage_native {
     };
 }
 
-pub(super) fn xcmp<W, R, T: PartialOrd>(rhs: T, lhs: T) -> XValue<W, R> {
+pub(super) fn xcmp<I: PartialOrd, W, R, T>(rhs: I, lhs: I) -> XValue<W, R, T> {
     XValue::Int(if rhs < lhs {
         LazyBigint::one().neg()
     } else if rhs > lhs {
@@ -228,21 +228,21 @@ pub(crate) fn unpack_natives<'a>(
     }
 }
 
-pub(super) fn get_func<W, R>(
-    scope: &mut CompilationScope<W, R>,
+pub(super) fn get_func<W, R, T>(
+    scope: &mut CompilationScope<W, R, T>,
     symbol: Identifier,
     arguments: &[Arc<XType>],
     expected_return_type: &Arc<XType>,
-) -> Result<XExpr<W, R>, String> {
+) -> Result<XExpr<W, R, T>, String> {
     get_func_with_type(scope, symbol, arguments, Some(expected_return_type)).map(|x| x.0)
 }
 
-pub(super) fn get_func_with_type<W, R>(
-    scope: &mut CompilationScope<W, R>,
+pub(super) fn get_func_with_type<W, R, T>(
+    scope: &mut CompilationScope<W, R, T>,
     symbol: Identifier,
     arguments: &[Arc<XType>],
     expected_return_type: Option<&Arc<XType>>,
-) -> Result<(XExpr<W, R>, CallbackType), String> {
+) -> Result<(XExpr<W, R, T>, CallbackType), String> {
     let ret = scope
         .get_func(&symbol, arguments)
         .map_err(|e| format!("{e:?}"))?;
@@ -271,9 +271,9 @@ macro_rules! parse_hash {
     }};
 }
 
-pub(crate) fn search<W, R, I: IntoIterator>(
+pub(crate) fn search<W, R, T, I: IntoIterator>(
     other: I,
-    rt: RTCell<W, R>,
+    rt: RTCell<W, R, T>,
 ) -> impl Iterator<Item = (I::Item, RuntimeResult<()>)> {
     let s = rt.borrow().limits.search_iter();
     other.into_iter().zip(s)
@@ -292,7 +292,7 @@ macro_rules! delegate {
             )*
             Ok(Ok(
                 #[allow(unused_variables)]
-                move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt: RTCell<_, _>| {
+                move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt: RTCell<_, _, _>| {
                     $(
                         let $arg = xraise!(eval(&args[$idx], ns, &rt)?);
                     )*

@@ -4,8 +4,8 @@ use crate::{CompilationError, RootCompilationScope, XFuncSpec};
 use crate::builtin::core::{unpack_dyn_types, xerr};
 use crate::xvalue::{ManagedXError, XFunctionFactoryOutput};
 
-pub(crate) fn add_unknown_eq<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_unknown_eq<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("eq", "unknown", move |_params, types, _ns, bind| {
         if bind.is_some() {
@@ -27,8 +27,8 @@ pub(crate) fn add_unknown_eq<W, R>(
     })
 }
 
-pub(crate) fn add_unknown_to_str<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_unknown_to_str<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("to_str", "unknown", move |_params, types, _ns, bind| {
         if bind.is_some() {
@@ -48,8 +48,8 @@ pub(crate) fn add_unknown_to_str<W, R>(
     })
 }
 
-pub(crate) fn add_unknown_hash<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_unknown_hash<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("hash", "unknown", move |_params, types, _ns, bind| {
         if bind.is_some() {

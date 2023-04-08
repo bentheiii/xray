@@ -19,8 +19,8 @@ use statrs::function::gamma::{gamma, ln_gamma};
 
 use std::rc;
 
-pub(crate) fn add_float_type<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_type<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_native_type("float", X_FLOAT.clone())
 }
@@ -34,8 +34,8 @@ macro_rules! add_float_binop {
 add_float_binop!(add_float_add, add, |a, b, _| Ok(Ok(XValue::Float(a + b))));
 add_float_binop!(add_float_sub, sub, |a, b, _| Ok(Ok(XValue::Float(a - b))));
 add_float_binop!(add_float_mul, mul, |a, b, _| Ok(Ok(XValue::Float(a * b))));
-pub(crate) fn add_float_mod<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_mod<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "mod",
@@ -54,8 +54,8 @@ pub(crate) fn add_float_mod<W, R>(
     )
 }
 
-pub(crate) fn add_float_div<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_div<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "div",
@@ -74,8 +74,8 @@ pub(crate) fn add_float_div<W, R>(
     )
 }
 
-pub(crate) fn add_float_pow<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_pow<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "pow",
@@ -101,8 +101,8 @@ add_binfunc!(
     X_BOOL,
     |a: &f64, b: &f64, _| { Ok(Ok(XValue::Bool(a == b))) }
 );
-pub(crate) fn add_float_is_close<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_is_close<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "is_close",
@@ -127,8 +127,8 @@ pub(crate) fn add_float_is_close<W, R>(
     )
 }
 
-pub(crate) fn add_float_floor<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_floor<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "floor",
@@ -139,8 +139,8 @@ pub(crate) fn add_float_floor<W, R>(
     )
 }
 
-pub(crate) fn add_float_ceil<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_ceil<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "ceil",
@@ -151,8 +151,8 @@ pub(crate) fn add_float_ceil<W, R>(
     )
 }
 
-pub(crate) fn add_float_trunc<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_trunc<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "trunc",
@@ -163,8 +163,8 @@ pub(crate) fn add_float_trunc<W, R>(
     )
 }
 
-pub(crate) fn add_float_neg<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_neg<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "neg",
@@ -173,8 +173,8 @@ pub(crate) fn add_float_neg<W, R>(
     )
 }
 
-pub(crate) fn add_float_sqrt<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_sqrt<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "sqrt",
@@ -187,8 +187,8 @@ pub(crate) fn add_float_sqrt<W, R>(
     )
 }
 
-pub(crate) fn add_float_cbrt<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_cbrt<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "cbrt",
@@ -197,8 +197,8 @@ pub(crate) fn add_float_cbrt<W, R>(
     )
 }
 
-pub(crate) fn add_float_acos<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_acos<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "acos",
@@ -211,8 +211,8 @@ pub(crate) fn add_float_acos<W, R>(
     )
 }
 
-pub(crate) fn add_float_acosh<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_acosh<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "acosh",
@@ -225,8 +225,8 @@ pub(crate) fn add_float_acosh<W, R>(
     )
 }
 
-pub(crate) fn add_float_asin<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_asin<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "asin",
@@ -239,8 +239,8 @@ pub(crate) fn add_float_asin<W, R>(
     )
 }
 
-pub(crate) fn add_float_asinh<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_asinh<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "asinh",
@@ -249,8 +249,8 @@ pub(crate) fn add_float_asinh<W, R>(
     )
 }
 
-pub(crate) fn add_float_atan<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_atan<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "atan",
@@ -259,8 +259,8 @@ pub(crate) fn add_float_atan<W, R>(
     )
 }
 
-pub(crate) fn add_float_atan2<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_atan2<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "atan",
@@ -275,8 +275,8 @@ pub(crate) fn add_float_atan2<W, R>(
     )
 }
 
-pub(crate) fn add_float_atanh<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_atanh<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "atanh",
@@ -289,8 +289,8 @@ pub(crate) fn add_float_atanh<W, R>(
     )
 }
 
-pub(crate) fn add_float_cos<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_cos<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "cos",
@@ -299,8 +299,8 @@ pub(crate) fn add_float_cos<W, R>(
     )
 }
 
-pub(crate) fn add_float_cosh<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_cosh<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "cosh",
@@ -309,8 +309,8 @@ pub(crate) fn add_float_cosh<W, R>(
     )
 }
 
-pub(crate) fn add_float_sin<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_sin<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "sin",
@@ -319,8 +319,8 @@ pub(crate) fn add_float_sin<W, R>(
     )
 }
 
-pub(crate) fn add_float_ln<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_ln<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "ln",
@@ -329,8 +329,8 @@ pub(crate) fn add_float_ln<W, R>(
     )
 }
 
-pub(crate) fn add_float_erf<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_erf<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "erf",
@@ -339,8 +339,8 @@ pub(crate) fn add_float_erf<W, R>(
     )
 }
 
-pub(crate) fn add_float_erfc<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_erfc<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "erfc",
@@ -349,8 +349,8 @@ pub(crate) fn add_float_erfc<W, R>(
     )
 }
 
-pub(crate) fn add_float_gamma<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_gamma<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "gamma",
@@ -365,8 +365,8 @@ pub(crate) fn add_float_gamma<W, R>(
     )
 }
 
-pub(crate) fn add_float_tan<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_tan<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "tan",
@@ -375,8 +375,8 @@ pub(crate) fn add_float_tan<W, R>(
     )
 }
 
-pub(crate) fn add_float_tanh<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_tanh<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "tanh",
@@ -385,8 +385,8 @@ pub(crate) fn add_float_tanh<W, R>(
     )
 }
 
-pub(crate) fn add_float_gammaln<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_gammaln<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "gammaln",
@@ -401,8 +401,8 @@ pub(crate) fn add_float_gammaln<W, R>(
     )
 }
 
-pub(crate) fn add_float_to_str<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_to_str<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "to_str",
@@ -419,8 +419,8 @@ add_binfunc!(add_float_cmp, cmp, X_FLOAT, Float, X_INT, |a, b, _| Ok(Ok(
     xcmp(a, b)
 )));
 
-pub(crate) fn add_float_format<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_float_format<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     fn get_body<'a>(
         mag: f64,

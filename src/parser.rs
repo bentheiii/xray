@@ -47,13 +47,13 @@ lazy_static! {
     };
 }
 
-type ParamSpecs<W, R> = Vec<(Identifier, Arc<XType>, Option<XStaticExpr<W, R>>)>;
+type ParamSpecs<W, R, T> = Vec<(Identifier, Arc<XType>, Option<XStaticExpr<W, R, T>>)>;
 
-struct ParsedFunctionHeader<'b, W, R> {
+struct ParsedFunctionHeader<'b, W, R, T> {
     param_names: Vec<Identifier>,
     fn_symbol: Identifier,
     spec: XFuncSpec,
-    defaults: Vec<XExpr<W, R>>,
+    defaults: Vec<XExpr<W, R, T>>,
     param_len: usize,
     inners: Pairs<'b, Rule>,
     params_pair: Pair<'b, Rule>,
@@ -61,13 +61,13 @@ struct ParsedFunctionHeader<'b, W, R> {
     specific_gen_params: Option<Vec<Identifier>>,
 }
 
-impl<'p, W, R> CompilationScope<'p, W, R> {
+impl<'p, W, R, T> CompilationScope<'p, W, R, T> {
     fn parse_function_header<'b>(
         &mut self,
         input: &Pair<'b, Rule>,
         parent_gen_param_names: &HashSet<String>,
         interner: &mut Interner,
-    ) -> Result<ParsedFunctionHeader<'b, W, R>, TracedCompilationError> {
+    ) -> Result<ParsedFunctionHeader<'b, W, R, T>, TracedCompilationError> {
         let mut inners = input.clone().into_inner();
         let fn_name = inners.next().unwrap().as_str();
         let fn_symbol = interner.get_or_intern(fn_name);
@@ -480,7 +480,7 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
         &mut self,
         input: Pair<Rule>,
         interner: &mut Interner,
-    ) -> Result<XStaticExpr<W, R>, TracedCompilationError> {
+    ) -> Result<XStaticExpr<W, R, T>, TracedCompilationError> {
         match input.as_rule() {
             Rule::expression => {
                 let (
@@ -847,7 +847,7 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
         gen_param_names: &HashSet<String>,
         interner: &mut Interner,
         function_name: Option<Identifier>,
-    ) -> Result<ParamSpecs<W, R>, TracedCompilationError> {
+    ) -> Result<ParamSpecs<W, R, T>, TracedCompilationError> {
         let ret = param_pairs
             .clone()
             .into_inner()

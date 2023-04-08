@@ -38,37 +38,37 @@ impl NativeType for XOptionalType {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub(crate) struct XOptional<W, R> {
-    pub(crate) value: Option<Rc<ManagedXValue<W, R>>>,
+pub(crate) struct XOptional<W, R, T> {
+    pub(crate) value: Option<Rc<ManagedXValue<W, R, T>>>,
 }
 
-impl<W: 'static, R: 'static> XNativeValue for XOptional<W, R> {
+impl<W: 'static, R: 'static, T: 'static> XNativeValue for XOptional<W, R, T> {
     fn dyn_size(&self) -> usize {
         0
     }
 }
 
-pub(crate) fn add_optional_type<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_optional_type<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Optional", XOptionalType::xtype(t))
 }
 
-pub(crate) fn add_optional_none<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_optional_none<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "none",
         XFuncSpec::new(&[], XOptionalType::xtype(X_UNKNOWN.clone())),
         XStaticFunction::from_native(|_args, _ns, _tca, rt| {
-            Ok(manage_native!(XOptional::<W, R> { value: None }, rt))
+            Ok(manage_native!(XOptional::<W, R, T> { value: None }, rt))
         }),
     )
 }
 
-pub(crate) fn add_optional_some<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_optional_some<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
@@ -81,8 +81,8 @@ pub(crate) fn add_optional_some<W, R>(
     )
 }
 
-pub(crate) fn add_optional_map<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_optional_map<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t_in, t_out], params) = scope.generics_from_names(["T_IN", "T_OUT"]);
     scope.add_func(
@@ -100,7 +100,7 @@ pub(crate) fn add_optional_map<W, R>(
         .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let opt0 = &to_native!(a0, XOptional<W, R>).value;
+            let opt0 = &to_native!(a0, XOptional<W, R, T>).value;
             Ok(match opt0 {
                 None => a0.into(),
                 Some(v) => {
@@ -120,8 +120,8 @@ pub(crate) fn add_optional_map<W, R>(
     )
 }
 
-pub(crate) fn add_optional_map_or<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_optional_map_or<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
@@ -140,7 +140,7 @@ pub(crate) fn add_optional_map_or<W, R>(
         .generic(params),
         XStaticFunction::from_native(|args, ns, tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let opt0 = &to_native!(a0, XOptional<W, R>).value;
+            let opt0 = &to_native!(a0, XOptional<W, R, T>).value;
             match opt0 {
                 None => Ok(ns.eval(&args[2], rt, tca)?),
                 Some(v) => {
@@ -156,8 +156,8 @@ pub(crate) fn add_optional_map_or<W, R>(
     )
 }
 
-pub(crate) fn add_optional_or_unwrap<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_optional_or_unwrap<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let opt_t = XOptionalType::xtype(t.clone());
@@ -166,7 +166,7 @@ pub(crate) fn add_optional_or_unwrap<W, R>(
         XFuncSpec::new(&[&opt_t, &t], t.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let opt0 = &to_native!(a0, XOptional<W, R>).value;
+            let opt0 = &to_native!(a0, XOptional<W, R, T>).value;
             Ok(match opt0 {
                 None => ns.eval(&args[1], rt, tca)?,
                 Some(v) => v.clone().into(),
@@ -175,8 +175,8 @@ pub(crate) fn add_optional_or_unwrap<W, R>(
     )
 }
 
-pub(crate) fn add_optional_or<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_optional_or<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let opt_t = XOptionalType::xtype(t);
@@ -185,7 +185,7 @@ pub(crate) fn add_optional_or<W, R>(
         XFuncSpec::new(&[&opt_t, &opt_t], opt_t.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let opt0 = &to_native!(a0, XOptional<W, R>).value;
+            let opt0 = &to_native!(a0, XOptional<W, R, T>).value;
             Ok(match opt0 {
                 None => ns.eval(&args[1], rt, tca)?,
                 Some(_) => a0.clone().into(),
@@ -194,8 +194,8 @@ pub(crate) fn add_optional_or<W, R>(
     )
 }
 
-pub(crate) fn add_optional_and<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_optional_and<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let opt_t = XOptionalType::xtype(t);
@@ -204,7 +204,7 @@ pub(crate) fn add_optional_and<W, R>(
         XFuncSpec::new(&[&opt_t, &opt_t], opt_t.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let opt0 = &to_native!(a0, XOptional<W, R>).value;
+            let opt0 = &to_native!(a0, XOptional<W, R, T>).value;
             Ok(match opt0 {
                 Some(_) => ns.eval(&args[1], rt, tca)?,
                 None => a0.clone().into(),
@@ -213,8 +213,8 @@ pub(crate) fn add_optional_and<W, R>(
     )
 }
 
-pub(crate) fn add_optional_has_value<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_optional_has_value<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let opt_t = XOptionalType::xtype(t);
@@ -223,14 +223,14 @@ pub(crate) fn add_optional_has_value<W, R>(
         XFuncSpec::new(&[&opt_t], X_BOOL.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let opt0 = &to_native!(a0, XOptional<W, R>).value;
+            let opt0 = &to_native!(a0, XOptional<W, R, T>).value;
             Ok(ManagedXValue::new(XValue::Bool(opt0.is_some()), rt)?.into())
         }),
     )
 }
 
-pub(crate) fn add_optional_value<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_optional_value<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let opt_t = XOptionalType::xtype(t.clone());
@@ -244,14 +244,14 @@ pub(crate) fn add_optional_value<W, R>(
                 None => "optional has no value",
                 Some(ref a) => to_primitive!(a, String).as_str(),
             };
-            let Some(ref opt0) = to_native!(a0, XOptional<W, R>).value else { return xerr(ManagedXError::new(err_msg, rt)?); };
+            let Some(ref opt0) = to_native!(a0, XOptional<W, R, T>).value else { return xerr(ManagedXError::new(err_msg, rt)?); };
             Ok(opt0.clone().into())
         }),
     )
 }
 
-pub(crate) fn add_optional_dyn_eq<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_optional_dyn_eq<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
 
@@ -276,11 +276,11 @@ pub(crate) fn add_optional_dyn_eq<W, R>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner_eq, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                    move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                         let a0 = xraise!(eval(&args[0], ns, &rt)?);
                         let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                        let opt0 = &to_native!(a0, XOptional<W, R>).value;
-                        let opt1 = &to_native!(a1, XOptional<W, R>).value;
+                        let opt0 = &to_native!(a0, XOptional<W, R, T>).value;
+                        let opt1 = &to_native!(a1, XOptional<W, R, T>).value;
                         if opt0.is_some() && opt1.is_some() {
                             let v0 = opt0.clone().unwrap();
                             let v1 = opt1.clone().unwrap();
@@ -303,8 +303,8 @@ pub(crate) fn add_optional_dyn_eq<W, R>(
     })
 }
 
-pub(crate) fn add_optional_dyn_hash<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_optional_dyn_hash<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("hash");
 
@@ -322,9 +322,9 @@ pub(crate) fn add_optional_dyn_hash<W, R>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                    move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                         let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                        let opt0 = &to_native!(a0, XOptional<W, R>).value;
+                        let opt0 = &to_native!(a0, XOptional<W, R, T>).value;
                         if let Some(v) = opt0 {
                             let func = to_primitive!(inner_value, Function);
                             let hash = xraise!(ns
@@ -341,8 +341,8 @@ pub(crate) fn add_optional_dyn_hash<W, R>(
     })
 }
 
-pub(crate) fn add_optional_dyn_to_string<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_optional_dyn_to_string<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("to_str");
 
@@ -360,9 +360,9 @@ pub(crate) fn add_optional_dyn_to_string<W, R>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                    move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                         let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                        let opt0 = &to_native!(a0, XOptional<W, R>).value;
+                        let opt0 = &to_native!(a0, XOptional<W, R, T>).value;
                         if let Some(v) = opt0 {
                             let func = to_primitive!(inner_value, Function);
                             let inner_v = xraise!(ns

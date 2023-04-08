@@ -11,5 +11,9 @@
         "xset",
         "xtype",
         "xvalue"
+    ],
+    "rust-analyzer.linkedProjects": [
+        ".\\Cargo.toml",
+        ".\\Cargo.toml"
     ]
 }

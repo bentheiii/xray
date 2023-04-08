@@ -80,7 +80,7 @@ pub(crate) enum CellSpec {
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
-pub(crate) enum Overload<W, R> {
+pub(crate) enum Overload<W, R, T> {
     /// will lead to one of:
     ///  * Cell::Recourse
     ///  * Variable
@@ -88,12 +88,12 @@ pub(crate) enum Overload<W, R> {
         cell_idx: usize,
         spec: XFuncSpec,
     },
-    Factory(&'static str, DynBind<W, R>),
+    Factory(&'static str, DynBind<W, R, T>),
 }
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
-pub(crate) enum OverloadWithForwardReq<W, R> {
+pub(crate) enum OverloadWithForwardReq<W, R, T> {
     /// will lead to one of:
     ///  * Cell::Recourse
     ///  * Variable
@@ -102,11 +102,11 @@ pub(crate) enum OverloadWithForwardReq<W, R> {
         spec: XFuncSpec,
         forward_requirements: Vec<ForwardRefRequirement>,
     },
-    Factory(&'static str, DynBind<W, R>),
+    Factory(&'static str, DynBind<W, R, T>),
 }
 
-impl<W, R> OverloadWithForwardReq<W, R> {
-    fn from_overload(ov: &Overload<W, R>, scope: &CompilationScope<W, R>) -> Self {
+impl<W, R, T> OverloadWithForwardReq<W, R, T> {
+    fn from_overload(ov: &Overload<W, R, T>, scope: &CompilationScope<W, R, T>) -> Self {
         match ov.clone() {
             Overload::Static { cell_idx, spec } => {
                 let forward_requirements = match &scope.cells[cell_idx] {
@@ -135,24 +135,24 @@ pub(crate) struct ForwardRef {
     pub(crate) fulfilled: bool,
 }
 
-pub struct CompilationScope<'p, W, R> {
+pub struct CompilationScope<'p, W, R, T> {
     /// in general: the cells of a scope are organized thus:
     /// * params first
     /// * the recursion value, if any
     /// * all the variables, factory made functions
     pub(crate) cells: IPush<Cell>,
-    pub(crate) declarations: Vec<Declaration<W, R>>,
+    pub(crate) declarations: Vec<Declaration<W, R, T>>,
     forwards: Vec<ForwardRef>,
     forward_requirements: HashSet<ForwardRefRequirement>,
 
     /// name to cell
     variables: HashMap<Identifier, usize>,
     /// name to overload
-    functions: HashMap<Identifier, Vec<Overload<W, R>>>,
+    functions: HashMap<Identifier, Vec<Overload<W, R, T>>>,
     /// name to type
     types: HashMap<Identifier, Arc<XType>>,
 
-    parent: Option<&'p CompilationScope<'p, W, R>>,
+    parent: Option<&'p CompilationScope<'p, W, R, T>>,
     // will be none for root or lambda
     recourse_xtype: Option<(Identifier, Arc<XType>)>,
     height: ScopeDepth,
@@ -165,7 +165,7 @@ fn next_id() -> usize {
     NEXT_ID.fetch_add(1, Ordering::SeqCst)
 }
 
-impl<'p, W, R> CompilationScope<'p, W, R> {
+impl<'p, W, R, T> CompilationScope<'p, W, R, T> {
     pub(crate) fn root() -> Self {
         Self {
             cells: Default::default(),
@@ -185,7 +185,7 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
     }
 
     pub(crate) fn from_parent_lambda(
-        parent: &'p CompilationScope<'p, W, R>,
+        parent: &'p CompilationScope<'p, W, R, T>,
         parameters: impl IntoIterator<Item = (Identifier, Arc<XType>)>,
     ) -> Result<Self, CompilationError> {
         let mut ret = Self {
@@ -201,7 +201,7 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
     }
 
     pub(crate) fn from_parent(
-        parent: &'p CompilationScope<'p, W, R>,
+        parent: &'p CompilationScope<'p, W, R, T>,
         parameter_names: impl IntoIterator<Item = Identifier>,
         recourse_name: Identifier,
         recourse_spec: XFuncSpec,
@@ -244,7 +244,7 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
         &mut self,
         name: Identifier,
         spec: XFuncSpec,
-        func: XStaticFunction<W, R>,
+        func: XStaticFunction<W, R, T>,
     ) -> Result<(), CompilationError> {
         if self._has_variable(&name) {
             return Err(CompilationError::IllegalShadowing {
@@ -297,8 +297,8 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
     pub(crate) fn add_anonymous_func(
         &mut self,
         spec: XFuncSpec,
-        func: XStaticFunction<W, R>,
-    ) -> Result<XExpr<W, R>, CompilationError> {
+        func: XStaticFunction<W, R, T>,
+    ) -> Result<XExpr<W, R, T>, CompilationError> {
         let cell_idx = self.cells.ipush(Cell::Variable {
             t: spec.xtype(),
             forward_requirements: Default::default(),
@@ -313,11 +313,11 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
         name: Identifier,
         description: &'static str,
         func: impl Fn(
-                Option<&[XExpr<W, R>]>,
+                Option<&[XExpr<W, R, T>]>,
                 Option<&[Arc<XType>]>,
-                &mut CompilationScope<'_, W, R>,
+                &mut CompilationScope<'_, W, R, T>,
                 Option<&[Arc<XType>]>,
-            ) -> Result<XFunctionFactoryOutput<W, R>, String>
+            ) -> Result<XFunctionFactoryOutput<W, R, T>, String>
             + 'static,
     ) -> Result<(), CompilationError> {
         if self._has_variable(&name) {
@@ -344,7 +344,7 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
     pub(crate) fn add_variable(
         &mut self,
         name: Identifier,
-        expr: XExpr<W, R>,
+        expr: XExpr<W, R, T>,
         xtype: Arc<XType>,
     ) -> Result<(), CompilationError> {
         if self._has_overloads(&name) {
@@ -539,11 +539,11 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
 
     pub(crate) fn into_static_ud(
         self,
-        defaults: Vec<XExpr<W, R>>,
+        defaults: Vec<XExpr<W, R, T>>,
         param_len: usize,
-        output: Box<XExpr<W, R>>,
+        output: Box<XExpr<W, R, T>>,
         parent_id: usize,
-    ) -> (StaticUserFunction<W, R>, Vec<Cell>) {
+    ) -> (StaticUserFunction<W, R, T>, Vec<Cell>) {
         /*
         what this function returns is an ugly patch
         basically the problem is we have no way to tell a parent a scope to capture something
@@ -600,7 +600,7 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
         )
     }
 
-    pub(crate) fn get_item(&self, name: &Identifier) -> Option<CompilationItem<W, R>> {
+    pub(crate) fn get_item(&self, name: &Identifier) -> Option<CompilationItem<W, R, T>> {
         if let Some(&cell_idx) = self.variables.get(name) {
             let Cell::Variable { forward_requirements, .. } = &self.cells[cell_idx] else { unreachable!() };
             Some(CompilationItem::Value((
@@ -665,8 +665,8 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
 
     pub(crate) fn compile(
         &mut self,
-        stat_expr: XStaticExpr<W, R>,
-    ) -> Result<XExpr<W, R>, CompilationError> {
+        stat_expr: XStaticExpr<W, R, T>,
+    ) -> Result<XExpr<W, R, T>, CompilationError> {
         match stat_expr {
             XStaticExpr::LiteralBool(v) => Ok(XExpr::LiteralBool(v)),
             XStaticExpr::LiteralInt(v) => Ok(XExpr::LiteralInt(v)),
@@ -789,7 +789,7 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
                 Ok(XExpr::Value(new_cell_idx))
             }
             XStaticExpr::Call(expr, args) => {
-                let args: Vec<XExpr<W, R>> = args
+                let args: Vec<XExpr<W, R, T>> = args
                     .into_iter()
                     .map(|a| self.compile(a))
                     .collect::<Result<_, _>>()?;
@@ -912,7 +912,7 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
         }
     }
 
-    pub(crate) fn type_of(&self, expr: &XExpr<W, R>) -> Result<Arc<XType>, CompilationError> {
+    pub(crate) fn type_of(&self, expr: &XExpr<W, R, T>) -> Result<Arc<XType>, CompilationError> {
         match expr {
             XExpr::LiteralBool(..) => Ok(X_BOOL.clone()),
             XExpr::LiteralInt(..) => Ok(X_INT.clone()),
@@ -1039,7 +1039,7 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
         &mut self,
         name: &Identifier,
         arg_types: &[Arc<XType>],
-    ) -> Result<XExpr<W, R>, CompilationError> {
+    ) -> Result<XExpr<W, R, T>, CompilationError> {
         let Some(CompilationItem::Overload(overloads)) = self.get_item(name) else { return Err(CompilationError::NoOverload { name: *name, param_types: Some(arg_types.to_vec()), dynamic_failures: Vec::new() }); };
         let overloads = overloads
             .into_iter()
@@ -1067,25 +1067,25 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
 
     pub(crate) fn resolve_overload(
         &mut self,
-        overloads: impl IntoIterator<Item = TracedOverload<W, R>>,
-        args: Option<&[XExpr<W, R>]>,
+        overloads: impl IntoIterator<Item = TracedOverload<W, R, T>>,
+        args: Option<&[XExpr<W, R, T>]>,
         specialization: OverloadSpecializationBorrowed<'_>,
         name: Identifier,
-    ) -> Result<XExpr<W, R>, CompilationError> {
+    ) -> Result<XExpr<W, R, T>, CompilationError> {
         #[derive(Derivative)]
         #[derivative(Debug(bound = ""))]
-        enum OverloadToConsider<W, R> {
+        enum OverloadToConsider<W, R, T> {
             /// height, cell
             FromCell(ScopeDepth, usize, Vec<ForwardRefRequirement>),
             FromFactory(
                 Arc<XType>,
-                #[derivative(Debug = "ignore")] DynEvalCallback<W, R>,
+                #[derivative(Debug = "ignore")] DynEvalCallback<W, R, T>,
             ),
         }
-        fn prepare_return<W, R>(
-            namespace: &mut CompilationScope<W, R>,
-            considered: OverloadToConsider<W, R>,
-        ) -> Result<XExpr<W, R>, CompilationError> {
+        fn prepare_return<W, R, T>(
+            namespace: &mut CompilationScope<W, R, T>,
+            considered: OverloadToConsider<W, R, T>,
+        ) -> Result<XExpr<W, R, T>, CompilationError> {
             let new_cell = match considered {
                 OverloadToConsider::FromCell(height, cell, forward_reqs) => {
                     namespace.require_forwards(forward_reqs)?;
@@ -1227,7 +1227,7 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
     pub(crate) fn get_unique_function<'a>(
         &'a self,
         name: &Identifier,
-    ) -> Result<Option<OverloadWithForwardReq<W, R>>, ExactlyOneError<impl Iterator + 'a>> {
+    ) -> Result<Option<OverloadWithForwardReq<W, R, T>>, ExactlyOneError<impl Iterator + 'a>> {
         Ok(self
             .functions
             .get(name)
@@ -1248,12 +1248,12 @@ impl<'p, W, R> CompilationScope<'p, W, R> {
     }
 }
 
-type TracedOverload<W, R> = (ScopeDepth, OverloadWithForwardReq<W, R>);
+type TracedOverload<W, R, T> = (ScopeDepth, OverloadWithForwardReq<W, R, T>);
 type TracedValue = (ScopeDepth, usize, Vec<ForwardRefRequirement>);
 
-pub(crate) enum CompilationItem<W, R> {
+pub(crate) enum CompilationItem<W, R, T> {
     Value(TracedValue),
     /// guaranteed to never be empty
-    Overload(Vec<TracedOverload<W, R>>),
+    Overload(Vec<TracedOverload<W, R, T>>),
     Type(Arc<XType>),
 }

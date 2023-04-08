@@ -59,30 +59,30 @@ impl NativeType for XSequenceType {
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub enum XSequence<W, R> {
+pub enum XSequence<W, R, T> {
     Empty,
-    Array(Vec<Rc<ManagedXValue<W, R>>>),
+    Array(Vec<Rc<ManagedXValue<W, R, T>>>),
     Range(i64, i64, i64),
-    Map(Rc<ManagedXValue<W, R>>, Rc<ManagedXValue<W, R>>),
+    Map(Rc<ManagedXValue<W, R, T>>, Rc<ManagedXValue<W, R, T>>),
     // todo store the length?
-    Zip(Vec<Rc<ManagedXValue<W, R>>>),
+    Zip(Vec<Rc<ManagedXValue<W, R, T>>>),
     // we are guaranteed that
     // a. there are at least two parts,
     // b. all parts except (possibly) the last are finite
     // c. there is exactly one more part than midpoints
     // d. none of the parts are empty
     Chain {
-        parts: Vec<Rc<ManagedXValue<W, R>>>,
+        parts: Vec<Rc<ManagedXValue<W, R, T>>>,
         midpoint_lengths: Vec<usize>,
     },
     // end is always at most the length of the sequence, start is always lower than end
     // end = None indicates an infinite sequence
-    Slice(Rc<ManagedXValue<W, R>>, usize, Option<usize>),
+    Slice(Rc<ManagedXValue<W, R, T>>, usize, Option<usize>),
     Count,
 }
 
-impl<W: 'static, R: 'static> XSequence<W, R> {
-    pub(crate) fn array(value: Vec<Rc<ManagedXValue<W, R>>>) -> Self {
+impl<W: 'static, R: 'static, T: 'static> XSequence<W, R, T> {
+    pub(crate) fn array(value: Vec<Rc<ManagedXValue<W, R, T>>>) -> Self {
         if value.is_empty() {
             Self::Empty
         } else {
@@ -120,9 +120,9 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
     pub(super) fn get(
         &self,
         idx: usize,
-        ns: &RuntimeScope<W, R>,
-        rt: RTCell<W, R>,
-    ) -> XResult<Rc<ManagedXValue<W, R>>, W, R> {
+        ns: &RuntimeScope<W, R, T>,
+        rt: RTCell<W, R, T>,
+    ) -> XResult<Rc<ManagedXValue<W, R, T>>, W, R, T> {
         match self {
             Self::Empty => unreachable!(),
             Self::Array(arr) => Ok(Ok(arr[idx].clone())),
@@ -163,9 +163,9 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
 
     pub(super) fn diter<'a>(
         &'a self,
-        ns: &'a RuntimeScope<W, R>,
-        rt: RTCell<W, R>,
-    ) -> Option<impl DoubleEndedIterator<Item = XResult<Rc<ManagedXValue<W, R>>, W, R>> + 'a> {
+        ns: &'a RuntimeScope<W, R, T>,
+        rt: RTCell<W, R, T>,
+    ) -> Option<impl DoubleEndedIterator<Item = XResult<Rc<ManagedXValue<W, R, T>>, W, R, T>> + 'a> {
         Some(match self {
             XSequence::Array(arr) => Either::Left(arr.iter().cloned().map(|i| Ok(Ok(i)))),
             _ => Either::Right((0..self.len()?).map(move |idx| self.get(idx, ns, rt.clone()))),
@@ -174,9 +174,9 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
 
     pub(super) fn iter<'a>(
         &'a self,
-        ns: &'a RuntimeScope<W, R>,
-        rt: RTCell<W, R>,
-    ) -> impl Iterator<Item = XResult<Rc<ManagedXValue<W, R>>, W, R>> + 'a {
+        ns: &'a RuntimeScope<W, R, T>,
+        rt: RTCell<W, R, T>,
+    ) -> impl Iterator<Item = XResult<Rc<ManagedXValue<W, R, T>>, W, R, T>> + 'a {
         self.diter(ns, rt.clone()).map_or_else(
             || Either::Left((0..).map(move |idx| self.get(idx, ns, rt.clone()))),
             Either::Right,
@@ -184,12 +184,12 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
     }
 
     pub(crate) fn slice(
-        base: &Rc<ManagedXValue<W, R>>,
+        base: &Rc<ManagedXValue<W, R, T>>,
         start: usize,
         mut end: Option<usize>,
     ) -> Option<Self> // todo return an error with a reference instead?
     {
-        let self_ = to_native!(base, XSequence<W, R>);
+        let self_ = to_native!(base, XSequence<W, R, T>);
         let len = self_.len();
         if end.map_or(true, |end| len.map_or(false, |len| end >= len)) {
             if start == 0 {
@@ -212,9 +212,9 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
 
     #[allow(clippy::type_complexity)]
     pub(crate) fn chain<'a>(
-        base0: &'a Rc<ManagedXValue<W, R>>,
-        base1: &'a Rc<ManagedXValue<W, R>>,
-    ) -> Result<Result<Self, &'a Rc<ManagedXValue<W, R>>>, &'static str> {
+        base0: &'a Rc<ManagedXValue<W, R, T>>,
+        base1: &'a Rc<ManagedXValue<W, R, T>>,
+    ) -> Result<Result<Self, &'a Rc<ManagedXValue<W, R, T>>>, &'static str> {
         let seq0 = to_native!(base0, Self);
         let seq1 = to_native!(base1, Self);
         if seq0.is_empty() {
@@ -296,10 +296,10 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
 
     fn sorted(
         &self,
-        cmp_func: &XFunction<W, R>,
-        ns: &RuntimeScope<W, R>,
-        rt: RTCell<W, R>,
-    ) -> XResult<Option<Self>, W, R> {
+        cmp_func: &XFunction<W, R, T>,
+        ns: &RuntimeScope<W, R, T>,
+        rt: RTCell<W, R, T>,
+    ) -> XResult<Option<Self>, W, R, T> {
         let arr = forward_err!(self
             .iter(ns, rt.clone())
             .collect::<Result<Result<Vec<_>, _>, _>>()?);
@@ -331,7 +331,7 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
             Ok(Ok(None))
         } else {
             let mut ret = arr;
-            forward_err!(try_sort(&mut ret, |a, b| -> XResult<_, _, _> {
+            forward_err!(try_sort(&mut ret, |a, b| -> XResult<_, _, _, _> {
                 Ok(Ok(to_primitive!(
                     forward_err!(ns
                         .eval_func_with_values(
@@ -352,13 +352,13 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
     fn n_largest<const DEC: bool>(
         &self,
         n: usize,
-        cmp_func: &XFunction<W, R>,
-        ns: &RuntimeScope<W, R>,
-        rt: RTCell<W, R>,
-    ) -> XResult<Vec<Rc<ManagedXValue<W, R>>>, W, R> {
-        let mut heap: TryHeap<Rc<ManagedXValue<W, R>>, _> = TryHeap::with_capacity(
+        cmp_func: &XFunction<W, R, T>,
+        ns: &RuntimeScope<W, R, T>,
+        rt: RTCell<W, R, T>,
+    ) -> XResult<Vec<Rc<ManagedXValue<W, R, T>>>, W, R, T> {
+        let mut heap: TryHeap<Rc<ManagedXValue<W, R, T>>, _> = TryHeap::with_capacity(
             self.len().unwrap(),
-            |a: &Rc<ManagedXValue<W, R>>, b| -> XResult<_, _, _> {
+            |a: &Rc<ManagedXValue<W, R, T>>, b| -> XResult<_, _, _, _> {
                 let result = forward_err!(ns
                     .eval_func_with_values(
                         cmp_func,
@@ -394,11 +394,11 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
     fn quickselect(
         &self,
         n: usize,
-        cmp_func: &XFunction<W, R>,
-        ns: &RuntimeScope<W, R>,
-        rt: RTCell<W, R>,
-    ) -> XResult<Rc<ManagedXValue<W, R>>, W, R> {
-        let cmp = |a, b| -> XResult<i8, W, R> {
+        cmp_func: &XFunction<W, R, T>,
+        ns: &RuntimeScope<W, R, T>,
+        rt: RTCell<W, R, T>,
+    ) -> XResult<Rc<ManagedXValue<W, R, T>>, W, R, T> {
+        let cmp = |a, b| -> XResult<i8, W, R, T> {
             Ok(Ok(to_primitive!(
                 forward_err!(ns
                     .eval_func_with_values(cmp_func, vec![Ok(a), Ok(b)], rt.clone(), false)?
@@ -411,16 +411,16 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
         let mut arr = forward_err!(self
             .diter(ns, rt.clone())
             .unwrap()
-            .collect::<XResult<Vec<_>, _, _>>()?);
+            .collect::<XResult<Vec<_>, _, _, _>>()?);
         let mut left = 0usize;
         let mut right = arr.len() - 1;
 
-        fn partition<W, R>(
-            items: &mut [Rc<ManagedXValue<W, R>>],
+        fn partition<W, R, T>(
+            items: &mut [Rc<ManagedXValue<W, R, T>>],
             left: usize,
             right: usize,
-            cmp: &impl Fn(Rc<ManagedXValue<W, R>>, Rc<ManagedXValue<W, R>>) -> XResult<i8, W, R>,
-        ) -> XResult<usize, W, R> {
+            cmp: &impl Fn(Rc<ManagedXValue<W, R, T>>, Rc<ManagedXValue<W, R, T>>) -> XResult<i8, W, R, T>,
+        ) -> XResult<usize, W, R, T> {
             if left == right {
                 return Ok(Ok(left));
             }
@@ -467,7 +467,7 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
         }
     }
 
-    fn value_to_idx(&self, i: &LazyBigint, rt: RTCell<W, R>) -> XResult<usize, W, R> {
+    fn value_to_idx(&self, i: &LazyBigint, rt: RTCell<W, R, T>) -> XResult<usize, W, R, T> {
         let mut i = Cow::Borrowed(i);
         let len = self.len();
         if i.is_negative() {
@@ -487,13 +487,13 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
     }
 }
 
-impl<W: 'static, R: 'static> XNativeValue for XSequence<W, R> {
+impl<W: 'static, R: 'static, T: 'static> XNativeValue for XSequence<W, R, T> {
     fn dyn_size(&self) -> usize {
         match self {
-            Self::Array(arr) => arr.len() * size_of::<Rc<ManagedXValue<W, R>>>(),
-            Self::Zip(arr) => arr.len() * size_of::<Rc<ManagedXValue<W, R>>>(),
+            Self::Array(arr) => arr.len() * size_of::<Rc<ManagedXValue<W, R, T>>>(),
+            Self::Zip(arr) => arr.len() * size_of::<Rc<ManagedXValue<W, R, T>>>(),
             Self::Chain { parts, .. } => {
-                parts.len() * size_of::<Rc<ManagedXValue<W, R>>>()
+                parts.len() * size_of::<Rc<ManagedXValue<W, R, T>>>()
                     + (parts.len() - 1) * size_of::<usize>()
             }
             _ => 0,
@@ -501,15 +501,15 @@ impl<W: 'static, R: 'static> XNativeValue for XSequence<W, R> {
     }
 }
 
-pub(crate) fn add_sequence_type<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_type<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], _) = scope.generics_from_names(["T"]);
     scope.add_native_type("Sequence", XSequenceType::xtype(t))
 }
 
-pub(crate) fn add_sequence_get<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_get<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
@@ -518,7 +518,7 @@ pub(crate) fn add_sequence_get<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let arr = &to_native!(a0, XSequence<W, R>);
+            let arr = &to_native!(a0, XSequence<W, R, T>);
             let idx = to_primitive!(a1, Int);
             let idx = xraise!(arr.value_to_idx(idx, rt.clone())?);
             Ok(arr.get(idx, ns, rt)?.into())
@@ -526,8 +526,8 @@ pub(crate) fn add_sequence_get<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_len<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_len<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
@@ -536,15 +536,15 @@ pub(crate) fn add_sequence_len<W, R>(
         XFuncSpec::new(&[&XSequenceType::xtype(t)], X_INT.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let arr = &to_native!(a0, XSequence<W, R>);
+            let arr = &to_native!(a0, XSequence<W, R, T>);
             let Some(len) = arr.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             Ok(ManagedXValue::new(XValue::Int(len.into()), rt)?.into())
         }),
     )
 }
 
-pub(crate) fn add_sequence_add<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_add<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
@@ -565,8 +565,8 @@ pub(crate) fn add_sequence_add<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_add_stack<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_add_stack<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -578,8 +578,8 @@ pub(crate) fn add_sequence_add_stack<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W, R>);
-            let stk1 = to_native!(a1, XStack<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
+            let stk1 = to_native!(a1, XStack<W, R, T>);
             if stk1.length == 0 {
                 Ok(a0.clone().into())
             } else {
@@ -598,8 +598,8 @@ pub(crate) fn add_sequence_add_stack<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_addrev_stack<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_addrev_stack<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -611,8 +611,8 @@ pub(crate) fn add_sequence_addrev_stack<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W, R>);
-            let stk1 = to_native!(a1, XStack<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
+            let stk1 = to_native!(a1, XStack<W, R, T>);
             if stk1.length == 0 {
                 Ok(a0.clone().into())
             } else {
@@ -633,8 +633,8 @@ pub(crate) fn add_sequence_addrev_stack<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_push<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_push<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -645,7 +645,7 @@ pub(crate) fn add_sequence_push<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             rt.as_ref().borrow().can_allocate(len0 + 1)?;
             let mut arr = xraise!(seq0
@@ -657,8 +657,8 @@ pub(crate) fn add_sequence_push<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_rpush<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_rpush<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -669,7 +669,7 @@ pub(crate) fn add_sequence_rpush<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             rt.as_ref().borrow().can_allocate(len0 + 1)?;
             let mut arr = vec![a1];
@@ -679,8 +679,8 @@ pub(crate) fn add_sequence_rpush<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_insert<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_insert<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -692,7 +692,7 @@ pub(crate) fn add_sequence_insert<W, R>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             rt.as_ref().borrow().can_allocate(len0 + 1)?;
             let idx = to_primitive!(a1, Int);
@@ -708,8 +708,8 @@ pub(crate) fn add_sequence_insert<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_pop<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_pop<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
@@ -720,13 +720,13 @@ pub(crate) fn add_sequence_pop<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             rt.as_ref().borrow().can_allocate(len0 - 1)?;
             let idx = to_primitive!(a1, Int);
             let idx = xraise!(seq0.value_to_idx(idx, rt.clone())?);
             if len0 == 1 {
-                return Ok(manage_native!(XSequence::<W, R>::Empty, rt));
+                return Ok(manage_native!(XSequence::<W, R, T>::Empty, rt));
             }
             let mut ret = xraise!(seq0
                 .iter(ns, rt.clone())
@@ -738,8 +738,8 @@ pub(crate) fn add_sequence_pop<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_set<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_set<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -751,7 +751,7 @@ pub(crate) fn add_sequence_set<W, R>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             rt.as_ref().borrow().can_allocate(len0)?;
             let idx = to_primitive!(a1, Int);
@@ -767,8 +767,8 @@ pub(crate) fn add_sequence_set<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_swap<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_swap<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
@@ -780,7 +780,7 @@ pub(crate) fn add_sequence_swap<W, R>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             rt.as_ref().borrow().can_allocate(len0)?;
             let idx1 = to_primitive!(a1, Int);
@@ -806,8 +806,8 @@ pub(crate) fn add_sequence_swap<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_to_stack<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_to_stack<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
@@ -816,7 +816,7 @@ pub(crate) fn add_sequence_to_stack<W, R>(
         XFuncSpec::new(&[&XSequenceType::xtype(t.clone())], XStackType::xtype(t)).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             rt.as_ref().borrow().can_allocate(len0)?;
             let mut ret = XStack::new();
@@ -828,8 +828,8 @@ pub(crate) fn add_sequence_to_stack<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_map<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_map<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([input_t, output_t], params) = scope.generics_from_names(["T_IN", "T_OUT"]);
 
@@ -854,8 +854,8 @@ pub(crate) fn add_sequence_map<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_to_array<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_to_array<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
@@ -865,7 +865,7 @@ pub(crate) fn add_sequence_to_array<W, R>(
             .generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             if let XSequence::Array(..) = seq0 {
                 return Ok(a0.into());
             }
@@ -879,8 +879,8 @@ pub(crate) fn add_sequence_to_array<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_sort<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_sort<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -901,7 +901,7 @@ pub(crate) fn add_sequence_sort<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             rt.as_ref().borrow().can_allocate(len0)?;
             let f = to_primitive!(a1, Function);
@@ -911,8 +911,8 @@ pub(crate) fn add_sequence_sort<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_n_largest<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_n_largest<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -936,7 +936,7 @@ pub(crate) fn add_sequence_n_largest<W, R>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             rt.as_ref().borrow().can_allocate(len0)?;
             let f = to_primitive!(a2, Function);
@@ -947,8 +947,8 @@ pub(crate) fn add_sequence_n_largest<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_n_smallest<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_n_smallest<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -972,7 +972,7 @@ pub(crate) fn add_sequence_n_smallest<W, R>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             rt.as_ref().borrow().can_allocate(len0)?;
             let f = to_primitive!(a2, Function);
@@ -983,8 +983,8 @@ pub(crate) fn add_sequence_n_smallest<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_nth_largest<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_nth_largest<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -1008,7 +1008,7 @@ pub(crate) fn add_sequence_nth_largest<W, R>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             if i1 >= len0{
                 return xerr(ManagedXError::new("index out of bounds", rt)?);
@@ -1021,8 +1021,8 @@ pub(crate) fn add_sequence_nth_largest<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_nth_smallest<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_nth_smallest<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -1046,7 +1046,7 @@ pub(crate) fn add_sequence_nth_smallest<W, R>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
             if i1 >= len0{
                 return xerr(ManagedXError::new("index out of bounds", rt)?);
@@ -1059,8 +1059,8 @@ pub(crate) fn add_sequence_nth_smallest<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_range<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_range<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let t_arr = XSequenceType::xtype(X_INT.clone());
 
@@ -1089,16 +1089,16 @@ pub(crate) fn add_sequence_range<W, R>(
             if step.is_zero() {
                 xerr(ManagedXError::new("invalid range, step size cannot be zero", rt)?)
             } else if (step.is_positive() && start >= end) || (step.is_negative() && start <= end) {
-                Ok(manage_native!(XSequence::<W, R>::Empty, rt))
+                Ok(manage_native!(XSequence::<W, R, T>::Empty, rt))
             } else {
-                Ok(manage_native!(XSequence::<W, R>::Range(start, end, step), rt))
+                Ok(manage_native!(XSequence::<W, R, T>::Range(start, end, step), rt))
             }
         }),
     )
 }
 
-pub(crate) fn add_sequence_nth<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_nth<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -1121,7 +1121,7 @@ pub(crate) fn add_sequence_nth<W, R>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
-            let seq0 = to_native!(a0, XSequence<W, R>);
+            let seq0 = to_native!(a0, XSequence<W, R, T>);
             let mut matches_left = to_primitive!(a1, Int).clone();
             let arr = if matches_left.is_negative() {
                 let Some(original_iter) = seq0.diter(ns, rt.clone()) else { return xerr(ManagedXError::new("negative match index cannot be used with infinite sequence", rt)?); };
@@ -1146,13 +1146,13 @@ pub(crate) fn add_sequence_nth<W, R>(
                     matches_left = matches_left - One::one();
                 }
             }
-            Ok(manage_native!(XOptional::<W, R> { value: None }, rt))
+            Ok(manage_native!(XOptional::<W, R, T> { value: None }, rt))
         }),
     )
 }
 
-pub(crate) fn add_sequence_take_while<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_take_while<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -1173,7 +1173,7 @@ pub(crate) fn add_sequence_take_while<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let seq = to_native!(a0, XSequence<W, R>);
+            let seq = to_native!(a0, XSequence<W, R, T>);
             let arr = seq.iter(ns, rt.clone());
             let f = to_primitive!(a1, Function);
             let mut end_idx = seq.len();
@@ -1198,8 +1198,8 @@ pub(crate) fn add_sequence_take_while<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_skip_until<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_skip_until<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -1220,7 +1220,7 @@ pub(crate) fn add_sequence_skip_until<W, R>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
-            let seq = to_native!(a0, XSequence<W, R>);
+            let seq = to_native!(a0, XSequence<W, R, T>);
             let arr = seq.iter(ns, rt.clone());
             let f = to_primitive!(a1, Function);
             // if the sequence is infinite, then we need a match anyway
@@ -1246,8 +1246,8 @@ pub(crate) fn add_sequence_skip_until<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_take<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_take<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
@@ -1267,8 +1267,8 @@ pub(crate) fn add_sequence_take<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_skip<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_skip<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t);
@@ -1288,20 +1288,20 @@ pub(crate) fn add_sequence_skip<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_count<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_count<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "count",
         XFuncSpec::new(&[], XSequenceType::xtype(X_INT.clone())),
         XStaticFunction::from_native(|_args, _ns, _tca, rt| {
-            Ok(manage_native!(XSequence::<W, R>::Count, rt))
+            Ok(manage_native!(XSequence::<W, R, T>::Count, rt))
         }),
     )
 }
 
-pub(crate) fn add_sequence_to_generator<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_to_generator<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     let t_arr = XSequenceType::xtype(t.clone());
@@ -1316,8 +1316,8 @@ pub(crate) fn add_sequence_to_generator<W, R>(
     )
 }
 
-pub(crate) fn add_sequence_dyn_eq<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_eq<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
 
@@ -1343,11 +1343,11 @@ pub(crate) fn add_sequence_dyn_eq<W, R>(
             move |ns, rt| {
                 let inner_equal_value = forward_err!(ns.eval(&inner_eq, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                    move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                         let a0 = xraise!(eval(&args[0], ns, &rt)?);
                         let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                        let seq0 = to_native!(a0, XSequence<W, R>);
-                        let seq1 = to_native!(a1, XSequence<W, R>);
+                        let seq0 = to_native!(a0, XSequence<W, R, T>);
+                        let seq1 = to_native!(a1, XSequence<W, R, T>);
                         if seq0.len() != seq1.len() {
                             return Ok(ManagedXValue::new(XValue::Bool(false), rt)?.into());
                         }
@@ -1380,8 +1380,8 @@ pub(crate) fn add_sequence_dyn_eq<W, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_sort<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_sort<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
     let cb_symbol = scope.identifier("sort");
@@ -1409,9 +1409,9 @@ pub(crate) fn add_sequence_dyn_sort<W, R>(
     })
 }
 
-fn add_delegate_cmp<W, R>(
+fn add_delegate_cmp<W, R, T>(
     name: &'static str,
-    scope: &mut RootCompilationScope<W, R>,
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
     let cb_symbol = scope.identifier(name);
@@ -1439,9 +1439,9 @@ fn add_delegate_cmp<W, R>(
     })
 }
 
-fn add_delegate_1arg_cmp<W, R>(
+fn add_delegate_1arg_cmp<W, R, T>(
     name: &'static str,
-    scope: &mut RootCompilationScope<W, R>,
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
     let cb_symbol = scope.identifier(name);
@@ -1474,9 +1474,9 @@ fn add_delegate_1arg_cmp<W, R>(
     })
 }
 
-fn add_delegate_1arg_partial_cmp<W, R>(
+fn add_delegate_1arg_partial_cmp<W, R, T>(
     name: &'static str,
-    scope: &mut RootCompilationScope<W, R>,
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
     let cb_symbol = scope.identifier(name);
@@ -1509,62 +1509,62 @@ fn add_delegate_1arg_partial_cmp<W, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_n_largest<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_n_largest<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     add_delegate_1arg_cmp("n_largest", scope)
 }
 
-pub(crate) fn add_sequence_dyn_n_smallest<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_n_smallest<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     add_delegate_1arg_cmp("n_smallest", scope)
 }
 
-pub(crate) fn add_sequence_dyn_nth_largest<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_nth_largest<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     add_delegate_1arg_cmp("nth_largest", scope)
 }
 
-pub(crate) fn add_sequence_dyn_nth_smallest<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_nth_smallest<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     add_delegate_1arg_cmp("nth_smallest", scope)
 }
 
-pub(crate) fn add_sequence_dyn_rank_eq<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_rank_eq<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     add_delegate_1arg_cmp("rank_eq", scope)
 }
 
-pub(crate) fn add_sequence_dyn_rank_avg<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_rank_avg<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     add_delegate_1arg_cmp("rank_avg", scope)
 }
 
-pub(crate) fn add_sequence_dyn_rank_sorted_eq<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_rank_sorted_eq<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     add_delegate_1arg_partial_cmp("rank_sorted_eq", scope)
 }
 
-pub(crate) fn add_sequence_dyn_rank_sorted_avg<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_rank_sorted_avg<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     add_delegate_1arg_partial_cmp("rank_sorted_avg", scope)
 }
 
-pub(crate) fn add_sequence_dyn_median<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_median<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     add_delegate_cmp("median", scope)
 }
 
-pub(crate) fn add_sequence_dyn_zip<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_zip<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("zip", "sequences", move |_params, types, _ns, bind| {
         if bind.is_some() {
@@ -1589,21 +1589,21 @@ pub(crate) fn add_sequence_dyn_zip<W, R>(
                 let mut seqs = vec![];
                 for a in args {
                     let a = xraise!(eval(a, ns, &rt)?);
-                    let seq = to_native!(a, XSequence<W, R>);
+                    let seq = to_native!(a, XSequence<W, R, T>);
                     if seq.is_empty() {
-                        return Ok(manage_native!(XSequence::<W, R>::Empty, rt));
+                        return Ok(manage_native!(XSequence::<W, R, T>::Empty, rt));
                     }
                     seqs.push(a);
                     rt.as_ref().borrow().can_afford(&seqs)?
                 }
-                Ok(manage_native!(XSequence::<W, R>::Zip(seqs), rt))
+                Ok(manage_native!(XSequence::<W, R, T>::Zip(seqs), rt))
             },
         ))
     })
 }
 
-pub(crate) fn add_sequence_dyn_unzip<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_unzip<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("unzip", "sequences", move |_params, types, _ns, bind| {
         if bind.is_some() {
@@ -1645,8 +1645,8 @@ pub(crate) fn add_sequence_dyn_unzip<W, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_to_str<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_to_str<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("to_str");
 
@@ -1665,9 +1665,9 @@ pub(crate) fn add_sequence_dyn_to_str<W, R>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                    move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                         let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                        let seq0 = to_native!(a0, XSequence<W, R>);
+                        let seq0 = to_native!(a0, XSequence<W, R, T>);
                         match seq0.len() {
                             None => return xerr(ManagedXError::new("infinite sequence", rt)?),
                             Some(len) => rt.borrow().can_allocate(len + 2)?,
@@ -1702,8 +1702,8 @@ pub(crate) fn add_sequence_dyn_to_str<W, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_hash<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_hash<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let symbol = scope.identifier("hash");
 
@@ -1724,9 +1724,9 @@ pub(crate) fn add_sequence_dyn_hash<W, R>(
                 let inner_value = forward_err!(ns.eval(&inner, rt, false)?.unwrap_value());
 
 
-                Ok(Ok(move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                Ok(Ok(move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
-                    let seq0 = to_native!(a0, XSequence<W, R>);
+                    let seq0 = to_native!(a0, XSequence<W, R, T>);
                     if seq0.len().is_none() {
                         return xerr(ManagedXError::new("infinite sequence", rt)?);
                     }
@@ -1751,8 +1751,8 @@ pub(crate) fn add_sequence_dyn_hash<W, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_cmp<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_cmp<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
 
@@ -1778,11 +1778,11 @@ pub(crate) fn add_sequence_dyn_cmp<W, R>(
             move |ns, rt| {
                 let inner_value = forward_err!(ns.eval(&inner, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                    move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                         let a0 = xraise!(eval(&args[0], ns, &rt)?);
                         let a1 = xraise!(eval(&args[1], ns, &rt)?);
-                        let seq0 = to_native!(a0, XSequence<W, R>);
-                        let seq1 = to_native!(a1, XSequence<W, R>);
+                        let seq0 = to_native!(a0, XSequence<W, R, T>);
+                        let seq1 = to_native!(a1, XSequence<W, R, T>);
                         let tie_breaker = match (seq0.len(), seq1.len()) {
                             (None, None) => 0isize,
                             (_, None) => -1,
@@ -1820,8 +1820,8 @@ pub(crate) fn add_sequence_dyn_cmp<W, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_mean<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_mean<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let sum_symbol = scope.identifier("sum");
     let len_symbol = scope.identifier("len");
@@ -1849,10 +1849,10 @@ pub(crate) fn add_sequence_dyn_mean<W, R>(
                     forward_err!(ns.eval(&inner_len, rt.clone(), false)?.unwrap_value());
                 let inner_div = forward_err!(ns.eval(&inner_div, rt, false)?.unwrap_value());
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>],
-                          ns: &RuntimeScope<'_, W, R>,
+                    move |args: &[XExpr<W, R, T>],
+                          ns: &RuntimeScope<'_, W, R, T>,
                           _tca,
-                          rt: RTCell<_, _>| {
+                          rt: RTCell<_, _, _>| {
                         let a0 = xraise!(eval(&args[0], ns, &rt)?);
                         let XValue::Function(inner_sum) = &inner_sum.value else { unreachable!() };
                         let XValue::Function(inner_len) = &inner_len.value else { unreachable!() };
@@ -1876,8 +1876,8 @@ pub(crate) fn add_sequence_dyn_mean<W, R>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_geo_mean<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_sequence_dyn_geo_mean<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let prod_symbol = scope.identifier("product");
     let len_symbol = scope.identifier("len");
@@ -1911,7 +1911,7 @@ pub(crate) fn add_sequence_dyn_geo_mean<W, R>(
                     forward_err!(ns.eval(&inner_pow, rt.clone(), false)?.unwrap_value());
                 let one = ManagedXValue::new(XValue::Int(LazyBigint::from(1)), rt)?;
                 Ok(Ok(
-                    move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt: RTCell<_, _>| {
+                    move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt: RTCell<_, _, _>| {
                         let a0 = xraise!(eval(&args[0], ns, &rt)?);
                         let XValue::Function(inner_prod) = &inner_prod.value else { unreachable!() };
                         let XValue::Function(inner_len) = &inner_len.value else { unreachable!() };

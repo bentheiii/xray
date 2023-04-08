@@ -1,11 +1,14 @@
 use crate::permissions::{Permission, PermissionSet};
 use crate::root_runtime_scope::RuntimeResult;
 use crate::runtime_violation::RuntimeViolation;
+use crate::time_provider::SystemTimeProvider;
 use crate::util::lazy_bigint::LazyBigint;
 use either::Either;
 use rand::SeedableRng;
+use rand::rngs::StdRng;
 use std::cell::RefCell;
 use std::fmt::Debug;
+use std::io::Stdout;
 use std::iter;
 use std::mem::size_of;
 use std::rc::Rc;
@@ -24,12 +27,13 @@ pub struct RuntimeLimits {
 }
 
 impl RuntimeLimits {
-    pub fn to_runtime<W, R>(self, output: W) -> RTCell<W, R> {
+    pub fn to_runtime<W, R, T>(self, output: W, time_provider: T) -> RTCell<W, R, T> {
         Rc::new(RefCell::new(Runtime {
             size: 0,
             stdout: output,
             ud_calls: 0,
             timeout: self.time_limit.map(|ti| Instant::now() + ti),
+            time_provider,
             rng: None,
             limits: self,
         }))
@@ -57,18 +61,19 @@ impl RuntimeLimits {
     }
 }
 
-pub struct Runtime<W, R> {
+pub struct Runtime<W, R, T> {
     pub limits: RuntimeLimits,
     pub(crate) size: usize, // this will be zero if the runtime has no size limit
     pub(crate) ud_calls: usize, // this will be zero if the runtime has no us_call limit
     pub stdout: W,
     pub rng: Option<R>,
+    pub time_provider: T,
     pub(crate) timeout: Option<Instant>,
 }
 
-pub type RTCell<W, R> = Rc<RefCell<Runtime<W, R>>>;
+pub type RTCell<W=Stdout, R=StdRng, T=SystemTimeProvider> = Rc<RefCell<Runtime<W, R, T>>>;
 
-impl<W, R> Runtime<W, R> {
+impl<W, R, T> Runtime<W, R, T> {
     pub fn can_allocate(&self, new_size: usize) -> RuntimeResult<()> {
         self.can_allocate_by(|| Some(new_size))
     }
@@ -112,7 +117,7 @@ impl<W, R> Runtime<W, R> {
     }
 }
 
-impl<W, R: SeedableRng> Runtime<W, R> {
+impl<W, R: SeedableRng, T> Runtime<W, R, T> {
     pub fn get_rng(&mut self) -> &mut R {
         self.rng.get_or_insert_with(|| R::from_entropy())
     }

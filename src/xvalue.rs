@@ -19,54 +19,54 @@ use std::sync::Arc;
 
 const VERBOSE_ALLOC: bool = false;
 
-pub(crate) type UnionInstance<W, R> = (usize, Rc<ManagedXValue<W, R>>);
+pub(crate) type UnionInstance<W, R, T> = (usize, Rc<ManagedXValue<W, R, T>>);
 
 #[derive(Derivative)]
 #[derivative(Debug(bound = ""))]
-pub enum XValue<W, R> {
+pub enum XValue<W, R, T> {
     Int(LazyBigint),
     Float(f64),
     String(Box<FencedString>),
     Bool(bool),
-    Function(XFunction<W, R>),
-    StructInstance(Vec<Rc<ManagedXValue<W, R>>>),
-    UnionInstance(UnionInstance<W, R>),
+    Function(XFunction<W, R, T>),
+    StructInstance(Vec<Rc<ManagedXValue<W, R, T>>>),
+    UnionInstance(UnionInstance<W, R, T>),
     Native(Box<dyn XNativeValue>),
 }
 
-pub(crate) type NativeCallback<W, R> = dyn Fn(
-    &[XExpr<W, R>],
-    &RuntimeScope<'_, W, R>,
+pub(crate) type NativeCallback<W, R, T> = dyn Fn(
+    &[XExpr<W, R, T>],
+    &RuntimeScope<'_, W, R, T>,
     bool,
-    RTCell<W, R>,
-) -> RuntimeResult<TailedEvalResult<W, R>>;
+    RTCell<W, R, T>,
+) -> RuntimeResult<TailedEvalResult<W, R, T>>;
 
-type DynBindCallback<W, R> = dyn Fn(
-    Option<&[XExpr<W, R>]>,
+type DynBindCallback<W, R, T> = dyn Fn(
+    Option<&[XExpr<W, R, T>]>,
     Option<&[Arc<XType>]>,
-    &mut CompilationScope<'_, W, R>,
+    &mut CompilationScope<'_, W, R, T>,
     Option<&[Arc<XType>]>,
-) -> Result<XFunctionFactoryOutput<W, R>, String>;
-pub(crate) type DynEvalCallback<W, R> =
-    Rc<dyn Fn(&RuntimeScope<W, R>, RTCell<W, R>) -> XResult<XStaticFunction<W, R>, W, R>>;
+) -> Result<XFunctionFactoryOutput<W, R, T>, String>;
+pub(crate) type DynEvalCallback<W, R, T> =
+    Rc<dyn Fn(&RuntimeScope<W, R, T>, RTCell<W, R, T>) -> XResult<XStaticFunction<W, R, T>, W, R, T>>;
 
-pub type NativeCallable<W, R> = Rc<NativeCallback<W, R>>;
-pub type DynBind<W, R> = Rc<DynBindCallback<W, R>>;
+pub type NativeCallable<W, R, T> = Rc<NativeCallback<W, R, T>>;
+pub type DynBind<W, R, T> = Rc<DynBindCallback<W, R, T>>;
 
-pub struct XFunctionFactoryOutput<W, R> {
+pub struct XFunctionFactoryOutput<W, R, T> {
     pub(crate) spec: XFuncSpec,
-    pub(crate) func: DynEvalCallback<W, R>,
+    pub(crate) func: DynEvalCallback<W, R, T>,
 }
 
-impl<W: 'static, R: 'static> XFunctionFactoryOutput<W, R> {
+impl<W: 'static, R: 'static, T: 'static> XFunctionFactoryOutput<W, R, T> {
     pub(crate) fn from_native(
         spec: XFuncSpec,
         callable: impl Fn(
-                &[XExpr<W, R>],
-                &RuntimeScope<'_, W, R>,
+                &[XExpr<W, R, T>],
+                &RuntimeScope<'_, W, R, T>,
                 bool,
-                RTCell<W, R>,
-            ) -> RuntimeResult<TailedEvalResult<W, R>>
+                RTCell<W, R, T>,
+            ) -> RuntimeResult<TailedEvalResult<W, R, T>>
             + Clone
             + 'static,
     ) -> Self {
@@ -78,15 +78,15 @@ impl<W: 'static, R: 'static> XFunctionFactoryOutput<W, R> {
 
     pub(crate) fn from_delayed_native<F>(
         spec: XFuncSpec,
-        callable: impl Fn(&RuntimeScope<W, R>, RTCell<W, R>) -> XResult<F, W, R> + 'static,
+        callable: impl Fn(&RuntimeScope<W, R, T>, RTCell<W, R, T>) -> XResult<F, W, R, T> + 'static,
     ) -> Self
     where
         F: Fn(
-                &[XExpr<W, R>],
-                &RuntimeScope<'_, W, R>,
+                &[XExpr<W, R, T>],
+                &RuntimeScope<'_, W, R, T>,
                 bool,
-                RTCell<W, R>,
-            ) -> RuntimeResult<TailedEvalResult<W, R>>
+                RTCell<W, R, T>,
+            ) -> RuntimeResult<TailedEvalResult<W, R, T>>
             + 'static,
     {
         Self {
@@ -103,15 +103,15 @@ impl<W: 'static, R: 'static> XFunctionFactoryOutput<W, R> {
 
 #[derive(Derivative)]
 #[derivative(Clone(bound = ""))]
-pub enum XFunction<W, R> {
-    Native(NativeCallable<W, R>),
+pub enum XFunction<W, R, T> {
+    Native(NativeCallable<W, R, T>),
     UserFunction {
-        template: Rc<RuntimeScopeTemplate<W, R>>,
-        output: Box<XExpr<W, R>>,
+        template: Rc<RuntimeScopeTemplate<W, R, T>>,
+        output: Box<XExpr<W, R, T>>,
     },
 }
 
-impl<W, R> Debug for XFunction<W, R> {
+impl<W, R, T> Debug for XFunction<W, R, T> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         match self {
             Self::Native(..) => {
@@ -124,7 +124,7 @@ impl<W, R> Debug for XFunction<W, R> {
     }
 }
 
-impl<W, R> XValue<W, R> {
+impl<W, R, T> XValue<W, R, T> {
     pub(crate) fn size(&self) -> usize {
         let base = size_of::<Self>();
         base + match self {
@@ -140,29 +140,29 @@ impl<W, R> XValue<W, R> {
     }
 }
 
-pub struct ManagedXValue<W, R> {
-    runtime: RTCell<W, R>,
+pub struct ManagedXValue<W, R, T> {
+    runtime: RTCell<W, R, T>,
     /// this will be zero if the runtime has no size limit
     size: usize,
-    pub value: XValue<W, R>,
+    pub value: XValue<W, R, T>,
 }
 
-impl<W, R> Debug for ManagedXValue<W, R> {
+impl<W, R, T> Debug for ManagedXValue<W, R, T> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "ManagedXValue({:?})", self.value)
     }
 }
 
-impl<W, R> Drop for ManagedXValue<W, R> {
+impl<W, R, T> Drop for ManagedXValue<W, R, T> {
     fn drop(&mut self) {
         self.runtime.borrow_mut().size -= self.size;
     }
 }
 
-impl<W, R> ManagedXValue<W, R> {
+impl<W, R, T> ManagedXValue<W, R, T> {
     pub(crate) fn new(
-        value: XValue<W, R>,
-        runtime: RTCell<W, R>,
+        value: XValue<W, R, T>,
+        runtime: RTCell<W, R, T>,
     ) -> RuntimeResult<Rc<Self>> {
         let size;
         {
@@ -191,9 +191,9 @@ impl<W, R> ManagedXValue<W, R> {
     }
 
     pub(crate) fn from_result(
-        value: Result<XValue<W, R>, Rc<ManagedXError<W, R>>>,
-        runtime: RTCell<W, R>,
-    ) -> XResult<Rc<ManagedXValue<W, R>>, W, R> {
+        value: Result<XValue<W, R, T>, Rc<ManagedXError<W, R, T>>>,
+        runtime: RTCell<W, R, T>,
+    ) -> XResult<Rc<ManagedXValue<W, R, T>>, W, R, T> {
         match value {
             Ok(value) => Self::new(value, runtime).map(Ok),
             Err(e) => Ok(Err(e)),
@@ -201,29 +201,29 @@ impl<W, R> ManagedXValue<W, R> {
     }
 }
 
-pub struct ManagedXError<W, R> {
-    runtime: RTCell<W, R>,
+pub struct ManagedXError<W, R, T> {
+    runtime: RTCell<W, R, T>,
     /// this will be zero if the runtime has no size limit
     size: usize,
     pub error: String,
 }
 
-impl<W, R> Debug for ManagedXError<W, R> {
+impl<W, R, T> Debug for ManagedXError<W, R, T> {
     fn fmt(&self, f: &mut Formatter) -> Result<(), Error> {
         write!(f, "ManagedXError({:?})", self.error)
     }
 }
 
-impl<W, R> Drop for ManagedXError<W, R> {
+impl<W, R, T> Drop for ManagedXError<W, R, T> {
     fn drop(&mut self) {
         self.runtime.borrow_mut().size -= self.size;
     }
 }
 
-impl<W, R> ManagedXError<W, R> {
-    pub(crate) fn new<T: Into<String>>(
-        error: T,
-        runtime: RTCell<W, R>,
+impl<W, R, T> ManagedXError<W, R, T> {
+    pub(crate) fn new<E: Into<String>>(
+        error: E,
+        runtime: RTCell<W, R, T>,
     ) -> RuntimeResult<Rc<Self>> {
         let size;
         let error = error.into();
@@ -247,4 +247,4 @@ impl<W, R> ManagedXError<W, R> {
     }
 }
 
-pub type XResult<T, W, R> = RuntimeResult<Result<T, Rc<ManagedXError<W, R>>>>;
+pub type XResult<I, W, R, T> = RuntimeResult<Result<I, Rc<ManagedXError<W, R, T>>>>;

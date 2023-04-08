@@ -191,14 +191,14 @@ impl XNativeValue for XContinuousDistribution {
     }
 }
 
-pub(crate) fn add_continuous_distribution_type<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_continuous_distribution_type<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_native_type("ContinuousDistribution", X_CONTDIST.clone())
 }
 
-pub(crate) fn add_contdist_beta<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_beta<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "beta_distribution",
@@ -219,8 +219,8 @@ pub(crate) fn add_contdist_beta<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_lognormal<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_lognormal<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "lognormal_distribution",
@@ -244,8 +244,8 @@ pub(crate) fn add_contdist_lognormal<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_exp<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_exp<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "exp_distribution",
@@ -267,8 +267,8 @@ pub(crate) fn add_contdist_exp<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_fs<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_fs<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "fisher_snedecor_distribution",
@@ -292,8 +292,8 @@ pub(crate) fn add_contdist_fs<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_normal<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_normal<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "normal_distribution",
@@ -314,8 +314,8 @@ pub(crate) fn add_contdist_normal<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_weibull<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_weibull<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "weibull_distribution",
@@ -336,8 +336,8 @@ pub(crate) fn add_contdist_weibull<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_gamma<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_gamma<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "gamma_distribution",
@@ -358,8 +358,8 @@ pub(crate) fn add_contdist_gamma<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_rectangular<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_rectangular<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "rectangular_distribution",
@@ -380,8 +380,8 @@ pub(crate) fn add_contdist_rectangular<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_students_t<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_students_t<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "students_t_distribution",
@@ -404,8 +404,8 @@ pub(crate) fn add_contdist_students_t<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_cdf<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_cdf<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "cdf",
@@ -420,8 +420,8 @@ pub(crate) fn add_contdist_cdf<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_pdf<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_pdf<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "pdf",
@@ -436,8 +436,8 @@ pub(crate) fn add_contdist_pdf<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_quantile<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_quantile<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "quantile",
@@ -459,8 +459,8 @@ pub(crate) fn add_contdist_quantile<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_skewness<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_skewness<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "skewness",
@@ -477,8 +477,8 @@ pub(crate) fn add_contdist_skewness<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_mean<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_mean<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "mean",
@@ -495,8 +495,8 @@ pub(crate) fn add_contdist_mean<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_variance<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_variance<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "variance",
@@ -513,8 +513,8 @@ pub(crate) fn add_contdist_variance<W, R>(
     )
 }
 
-pub(crate) fn add_contdist_sample<W, R: SeedableRng + RngCore>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_contdist_sample<W, R: SeedableRng + RngCore, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "sample",

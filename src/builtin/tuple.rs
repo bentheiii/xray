@@ -13,8 +13,8 @@ use num_traits::{ToPrimitive, Zero};
 
 use std::sync::Arc;
 
-pub(crate) fn add_tuple_empty_and<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_tuple_empty_and<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
 
@@ -28,8 +28,8 @@ pub(crate) fn add_tuple_empty_and<W, R>(
     )
 }
 
-pub(crate) fn add_tuple_dyn_eq<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_tuple_dyn_eq<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
 
@@ -59,7 +59,7 @@ pub(crate) fn add_tuple_dyn_eq<W, R>(
                     }
                     inner_values
                 };
-                Ok(Ok(move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                Ok(Ok(move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
                     let a1 = xraise!(eval(&args[1], ns, &rt)?);
                     let t0 = to_primitive!(a0, StructInstance);
@@ -81,8 +81,8 @@ pub(crate) fn add_tuple_dyn_eq<W, R>(
     })
 }
 
-pub(crate) fn add_tuple_dyn_cmp<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_tuple_dyn_cmp<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("cmp");
 
@@ -113,7 +113,7 @@ pub(crate) fn add_tuple_dyn_cmp<W, R>(
                     }
                     inner_values
                 };
-                Ok(Ok(move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                Ok(Ok(move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
                     let a1 = xraise!(eval(&args[1], ns, &rt)?);
                     let t0 = to_primitive!(a0, StructInstance);
@@ -133,8 +133,8 @@ pub(crate) fn add_tuple_dyn_cmp<W, R>(
     })
 }
 
-pub(crate) fn add_tuple_dyn_hash<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_tuple_dyn_hash<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("hash");
 
@@ -160,7 +160,7 @@ pub(crate) fn add_tuple_dyn_hash<W, R>(
                     }
                     inner_values
                 };
-                Ok(Ok(move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                Ok(Ok(move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
                     let t0 = to_primitive!(a0, StructInstance);
                     let mut hasher = DefaultHasher::new();
@@ -179,8 +179,8 @@ pub(crate) fn add_tuple_dyn_hash<W, R>(
     })
 }
 
-pub(crate) fn add_tuple_dyn_to_str<W, R>(
-    scope: &mut RootCompilationScope<W, R>,
+pub(crate) fn add_tuple_dyn_to_str<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("to_str");
 
@@ -206,7 +206,7 @@ pub(crate) fn add_tuple_dyn_to_str<W, R>(
                     }
                     inner_values
                 };
-                Ok(Ok(move |args: &[XExpr<W, R>], ns: &RuntimeScope<'_, W, R>, _tca, rt| {
+                Ok(Ok(move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt| {
                     let a0 = xraise!(eval(&args[0], ns, &rt)?);
                     let t0 = to_primitive!(a0, StructInstance);
                     let mut ret = FencedString::from_str("(");
