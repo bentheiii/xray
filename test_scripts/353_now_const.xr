@@ -1,0 +1,5 @@
+fn main()->bool{
+    let d0 = now();
+
+    assert(d0 == datetime(1250.3))
+}

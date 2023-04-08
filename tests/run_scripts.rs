@@ -2,7 +2,7 @@ mod utils;
 
 use glob::glob;
 use itertools::Itertools;
-use xray::time_provider::SystemTimeProvider;
+use utils::time_provider::mk_time_provider;
 use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::fs;
@@ -38,8 +38,8 @@ pub struct RuntimeLimitsConfig {
 impl RuntimeLimitsConfig {
     fn to_runtime_limits(&self) -> RuntimeLimits {
         let forbidden: HashSet<_> = self
-            .forbidden_permissions
-            .iter()
+        .forbidden_permissions
+        .iter()
             .map(|s| s.borrow())
             .collect();
         let allowed: HashSet<_> = self
@@ -82,6 +82,7 @@ pub struct ScriptConfig {
     expected_stdout: Option<String>,
     expected_compilation_error: Option<String>,
     expected_violation: Option<String>,
+    now: Option<f64>,
     limits: RuntimeLimitsConfig,
 }
 
@@ -110,7 +111,9 @@ impl ScriptConfig {
             }
         }
 
-        let runtime: RTCell<_, StdRng, _> = limits.to_runtime(output, SystemTimeProvider);
+        let time_provider = mk_time_provider(self.now);
+
+        let runtime: RTCell<_, StdRng, _> = limits.to_runtime(output, time_provider);
 
         let eval_scope_results =
             RootEvaluationScope::from_compilation_scope(&comp_scope, runtime.clone());
@@ -1941,5 +1944,11 @@ fn test_script_351() {
 
 #[test]
 fn test_script_352() {
+    run_script_from_name(function_name!())
+}
+
+
+#[test]
+fn test_script_353() {
     run_script_from_name(function_name!())
 }

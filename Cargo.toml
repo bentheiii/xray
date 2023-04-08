@@ -29,3 +29,7 @@ glob = "0.3.0"
 serde = {version="1", features = ["derive"]}
 toml = "0.7.2"
 stdext = "0.3.1"
+
+[features]
+default = ["either"]
+either = []
