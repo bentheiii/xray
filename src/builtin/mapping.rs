@@ -4,6 +4,7 @@ use crate::builtin::core::{
 use crate::builtin::generators::{XGenerator, XGeneratorType};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::native_types::{NativeType, XNativeValue};
+use crate::root_runtime_scope::RuntimeResult;
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
@@ -98,7 +99,7 @@ impl<W: 'static, R: 'static, V: Debug + 'static> XMapping<W, R, V> {
         >,
         ns: &RuntimeScope<W, R>,
         rt: RTCell<W, R>,
-    ) -> Result<TailedEvalResult<W, R>, RuntimeViolation>
+    ) -> RuntimeResult<TailedEvalResult<W, R>>
     where
         V: Clone,
     {

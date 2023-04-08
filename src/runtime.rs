@@ -1,4 +1,5 @@
 use crate::permissions::{Permission, PermissionSet};
+use crate::root_runtime_scope::RuntimeResult;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
 use either::Either;
@@ -34,7 +35,7 @@ impl RuntimeLimits {
         }))
     }
 
-    pub fn search_iter(&self) -> impl Iterator<Item = Result<(), RuntimeViolation>> + 'static {
+    pub fn search_iter(&self) -> impl Iterator<Item = RuntimeResult<()>> + 'static {
         self.maximum_search.map_or_else(
             || Either::Left(iter::repeat_with(|| Ok(()))),
             |maximum_search| {
@@ -47,7 +48,7 @@ impl RuntimeLimits {
         )
     }
 
-    pub fn check_permission(&self, permission: &Permission) -> Result<(), RuntimeViolation> {
+    pub fn check_permission(&self, permission: &Permission) -> RuntimeResult<()> {
         if self.permissions[permission] {
             Ok(())
         } else {
@@ -68,11 +69,11 @@ pub struct Runtime<W, R> {
 pub type RTCell<W, R> = Rc<RefCell<Runtime<W, R>>>;
 
 impl<W, R> Runtime<W, R> {
-    pub fn can_allocate(&self, new_size: usize) -> Result<(), RuntimeViolation> {
+    pub fn can_allocate(&self, new_size: usize) -> RuntimeResult<()> {
         self.can_allocate_by(|| Some(new_size))
     }
 
-    pub fn can_allocate_by(&self, f: impl Fn() -> Option<usize>) -> Result<(), RuntimeViolation> {
+    pub fn can_allocate_by(&self, f: impl Fn() -> Option<usize>) -> RuntimeResult<()> {
         if let Some(size_limit) = self.limits.size_limit {
             if f().map_or(true, |size| {
                 self.size + size * size_of::<usize>() >= size_limit
@@ -83,7 +84,7 @@ impl<W, R> Runtime<W, R> {
         Ok(())
     }
 
-    pub fn can_afford(&self, x: &impl ProspectiveSize) -> Result<(), RuntimeViolation> {
+    pub fn can_afford(&self, x: &impl ProspectiveSize) -> RuntimeResult<()> {
         self.can_allocate_by(|| Some(x.prospective_size()))
     }
 
@@ -103,7 +104,7 @@ impl<W, R> Runtime<W, R> {
         self.timeout = self.limits.time_limit.map(|tl| Instant::now() + tl)
     }
 
-    pub fn check_timeout(&self) -> Result<(), RuntimeViolation> {
+    pub fn check_timeout(&self) -> RuntimeResult<()> {
         self.timeout
             .map_or(true, |timeout| timeout > Instant::now())
             .then_some(())

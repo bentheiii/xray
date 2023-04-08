@@ -8,7 +8,7 @@ use std::rc::Rc;
 
 use crate::builtin::optional::XOptional;
 use crate::builtin::sequence::XSequence;
-use crate::root_runtime_scope::EvaluatedValue;
+use crate::root_runtime_scope::{EvaluatedValue, RuntimeResult};
 use crate::runtime_violation::RuntimeViolation;
 use crate::units::{ScopeDepth, StackDepth};
 use crate::util::fenced_string::FencedString;
@@ -60,7 +60,7 @@ impl<W: 'static, R: 'static> EvaluationCell<W, R> {
     fn from_spec(
         cell: &CellSpec,
         parent: Option<&RuntimeScope<W, R>>,
-    ) -> Result<Self, RuntimeViolation> {
+    ) -> RuntimeResult<Self> {
         // todo I'm pretty sure this function always returns OK
         match cell {
             CellSpec::Variable => Ok(Self::Uninitialized),
@@ -121,7 +121,7 @@ impl<W: 'static, R: 'static> RuntimeScopeTemplate<W, R> {
         rt: RTCell<W, R>,
         defaults: Vec<XExpr<W, R>>,
         output: Option<Box<XExpr<W, R>>>,
-    ) -> Result<Rc<Self>, RuntimeViolation> {
+    ) -> RuntimeResult<Rc<Self>> {
         // in order to get the namespace parent, we need to go up the stack until we reach one with the same id
         let scope_parent = if let Some(parent_id) = parent_id {
             {
@@ -178,7 +178,7 @@ impl<'a, W: 'static, R: 'static> RuntimeScope<'a, W, R> {
         stack_parent: Option<&'a Self>,
         rt: RTCell<W, R>,
         mut args: Vec<EvaluatedValue<W, R>>,
-    ) -> Result<Rc<Self>, RuntimeViolation> {
+    ) -> RuntimeResult<Rc<Self>> {
         let scope_parent = if let Some(parent_id) = template.scope_parent_id {
             {
                 let mut ancestor = stack_parent;
@@ -264,7 +264,7 @@ impl<'a, W: 'static, R: 'static> RuntimeScope<'a, W, R> {
         expr: &XExpr<W, R>,
         rt: RTCell<W, R>,
         tail_available: bool,
-    ) -> Result<TailedEvalResult<W, R>, RuntimeViolation> {
+    ) -> RuntimeResult<TailedEvalResult<W, R>> {
         match expr {
             XExpr::LiteralBool(b) => Ok(ManagedXValue::new(XValue::Bool(*b), rt)?.into()),
             XExpr::LiteralInt(i) => {
@@ -385,7 +385,7 @@ impl<'a, W: 'static, R: 'static> RuntimeScope<'a, W, R> {
         args: &[XExpr<W, R>],
         rt: RTCell<W, R>,
         tail_available: bool,
-    ) -> Result<TailedEvalResult<W, R>, RuntimeViolation> {
+    ) -> RuntimeResult<TailedEvalResult<W, R>> {
         match func {
             XFunction::Native(nc) => nc(args, self, tail_available, rt),
             XFunction::UserFunction { .. } => {
@@ -404,7 +404,7 @@ impl<'a, W: 'static, R: 'static> RuntimeScope<'a, W, R> {
         args: Vec<EvaluatedValue<W, R>>,
         rt: RTCell<W, R>,
         tail_available: bool,
-    ) -> Result<TailedEvalResult<W, R>, RuntimeViolation> {
+    ) -> RuntimeResult<TailedEvalResult<W, R>> {
         match func {
             XFunction::Native(..) => {
                 let args = args.iter().cloned().map(XExpr::Dummy).collect::<Vec<_>>();

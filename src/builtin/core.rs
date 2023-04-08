@@ -2,9 +2,8 @@ use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use num_traits::{One, Zero};
 
 use crate::compilation_scope::CompilationScope;
-use crate::root_runtime_scope::EvaluatedValue;
+use crate::root_runtime_scope::{EvaluatedValue, RuntimeResult};
 use crate::runtime_scope::RuntimeScope;
-use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xexpr::{TailedEvalResult, XExpr};
 use crate::xtype::CallbackType;
@@ -26,7 +25,7 @@ macro_rules! xraise {
 
 pub fn xerr<W, R>(
     err: Rc<ManagedXError<W, R>>,
-) -> Result<TailedEvalResult<W, R>, RuntimeViolation> {
+) -> RuntimeResult<TailedEvalResult<W, R>> {
     Ok(TailedEvalResult::Value(Err(err)))
 }
 
@@ -61,7 +60,7 @@ where
     F: Fn(
             Rc<ManagedXValue<W, R>>,
             RTCell<W, R>,
-        ) -> Result<TailedEvalResult<W, R>, RuntimeViolation>
+        ) -> RuntimeResult<TailedEvalResult<W, R>>
         + 'static,
 {
     XStaticFunction::from_native(move |args, ns, _tca, rt| {
@@ -122,7 +121,7 @@ pub(super) fn eval<W: 'static, R: 'static>(
     expr: &XExpr<W, R>,
     ns: &RuntimeScope<W, R>,
     rt: &RTCell<W, R>,
-) -> Result<EvaluatedValue<W, R>, RuntimeViolation> {
+) -> RuntimeResult<EvaluatedValue<W, R>> {
     ns.eval(expr, rt.clone(), false).map(|i| i.unwrap_value())
 }
 
@@ -275,7 +274,7 @@ macro_rules! parse_hash {
 pub(crate) fn search<W, R, I: IntoIterator>(
     other: I,
     rt: RTCell<W, R>,
-) -> impl Iterator<Item = (I::Item, Result<(), RuntimeViolation>)> {
+) -> impl Iterator<Item = (I::Item, RuntimeResult<()>)> {
     let s = rt.borrow().limits.search_iter();
     other.into_iter().zip(s)
 }

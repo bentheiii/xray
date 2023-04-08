@@ -1,4 +1,4 @@
-use crate::root_runtime_scope::EvaluatedValue;
+use crate::root_runtime_scope::{EvaluatedValue, RuntimeResult};
 use crate::runtime::RTCell;
 use crate::xtype::{Bind, XCompoundSpec, XFuncSpec, XType};
 use crate::xvalue::{ManagedXValue, NativeCallable, XFunction};
@@ -10,7 +10,6 @@ use derivative::Derivative;
 
 use crate::compilation_scope::{CellSpec, ForwardRefRequirement};
 use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
-use crate::runtime_violation::RuntimeViolation;
 use std::fmt::{Debug, Error, Formatter};
 use std::rc::Rc;
 use std::sync::Arc;
@@ -115,7 +114,7 @@ impl<W: 'static, R: 'static> XStaticFunction<W, R> {
         &self,
         closure: &RuntimeScope<'_, W, R>,
         rt: RTCell<W, R>,
-    ) -> Result<XFunction<W, R>, RuntimeViolation> {
+    ) -> RuntimeResult<XFunction<W, R>> {
         Ok(match self {
             Self::Native(native) => XFunction::Native(native.clone()),
             Self::UserFunction(uf) => XFunction::UserFunction {
@@ -141,7 +140,7 @@ impl<W: 'static, R: 'static> XStaticFunction<W, R> {
                 &RuntimeScope<'_, W, R>,
                 bool,
                 RTCell<W, R>,
-            ) -> Result<TailedEvalResult<W, R>, RuntimeViolation>
+            ) -> RuntimeResult<TailedEvalResult<W, R>>
             + 'static,
     ) -> Self {
         Self::Native(Rc::new(f))

@@ -36,7 +36,7 @@ impl<'c, W, R> RootEvaluationScope<'c, W, R> {
     pub fn from_compilation_scope(
         comp_scope: &'c RootCompilationScope<W, R>,
         runtime: RTCell<W, R>,
-    ) -> Result<Self, RuntimeViolation> {
+    ) -> RuntimeResult<Self> {
         let cell_specs = comp_scope
             .scope
             .cells
@@ -135,8 +135,10 @@ impl<'c, W, R> RootEvaluationScope<'c, W, R> {
         &self,
         function: &XFunction<W, R>,
         args: Vec<EvaluatedValue<W, R>>,
-    ) -> Result<TailedEvalResult<W, R>, RuntimeViolation> {
+    ) -> RuntimeResult<TailedEvalResult<W, R>> {
         self.scope
             .eval_func_with_values(function, args, self.runtime.clone(), false)
     }
 }
+
+pub type RuntimeResult<T> = Result<T, RuntimeViolation>;

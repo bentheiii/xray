@@ -1,5 +1,6 @@
 use crate::native_types::XNativeValue;
 
+use crate::root_runtime_scope::RuntimeResult;
 use crate::runtime::RTCell;
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
 use crate::{XFuncSpec, XType};
@@ -38,7 +39,7 @@ pub(crate) type NativeCallback<W, R> = dyn Fn(
     &RuntimeScope<'_, W, R>,
     bool,
     RTCell<W, R>,
-) -> Result<TailedEvalResult<W, R>, RuntimeViolation>;
+) -> RuntimeResult<TailedEvalResult<W, R>>;
 
 type DynBindCallback<W, R> = dyn Fn(
     Option<&[XExpr<W, R>]>,
@@ -65,7 +66,7 @@ impl<W: 'static, R: 'static> XFunctionFactoryOutput<W, R> {
                 &RuntimeScope<'_, W, R>,
                 bool,
                 RTCell<W, R>,
-            ) -> Result<TailedEvalResult<W, R>, RuntimeViolation>
+            ) -> RuntimeResult<TailedEvalResult<W, R>>
             + Clone
             + 'static,
     ) -> Self {
@@ -85,7 +86,7 @@ impl<W: 'static, R: 'static> XFunctionFactoryOutput<W, R> {
                 &RuntimeScope<'_, W, R>,
                 bool,
                 RTCell<W, R>,
-            ) -> Result<TailedEvalResult<W, R>, RuntimeViolation>
+            ) -> RuntimeResult<TailedEvalResult<W, R>>
             + 'static,
     {
         Self {
@@ -162,7 +163,7 @@ impl<W, R> ManagedXValue<W, R> {
     pub(crate) fn new(
         value: XValue<W, R>,
         runtime: RTCell<W, R>,
-    ) -> Result<Rc<Self>, RuntimeViolation> {
+    ) -> RuntimeResult<Rc<Self>> {
         let size;
         {
             let size_limit = runtime.borrow().limits.size_limit;
@@ -223,7 +224,7 @@ impl<W, R> ManagedXError<W, R> {
     pub(crate) fn new<T: Into<String>>(
         error: T,
         runtime: RTCell<W, R>,
-    ) -> Result<Rc<Self>, RuntimeViolation> {
+    ) -> RuntimeResult<Rc<Self>> {
         let size;
         let error = error.into();
         {
@@ -246,4 +247,4 @@ impl<W, R> ManagedXError<W, R> {
     }
 }
 
-pub type XResult<T, W, R> = Result<Result<T, Rc<ManagedXError<W, R>>>, RuntimeViolation>;
+pub type XResult<T, W, R> = RuntimeResult<Result<T, Rc<ManagedXError<W, R>>>>;
