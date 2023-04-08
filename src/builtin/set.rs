@@ -1,12 +1,12 @@
 use crate::builtin::core::{eval, get_func_with_type, unpack_dyn_types, xerr};
 use crate::builtin::generators::{XGenerator, XGeneratorType};
 use crate::native_types::{NativeType, XNativeValue};
-use crate::root_runtime_scope::EvaluatedValue;
+
 use crate::runtime_scope::RuntimeScope;
 use crate::runtime_violation::RuntimeViolation;
 use crate::util::lazy_bigint::LazyBigint;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT};
-use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XValue, XResult};
+use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XResult, XValue};
 use crate::XType::XCallable;
 use crate::{
     delegate, forward_err, manage_native, to_native, to_primitive, xraise, CompilationError,
@@ -77,7 +77,7 @@ impl<W: 'static, R: 'static> XSet<W, R> {
 
     fn with_update(
         &self,
-        items: impl Iterator<Item = XResult<Rc<ManagedXValue<W,R>>, W, R>>,
+        items: impl Iterator<Item = XResult<Rc<ManagedXValue<W, R>>, W, R>>,
         ns: &RuntimeScope<W, R>,
         rt: RTCell<W, R>,
     ) -> Result<TailedEvalResult<W, R>, RuntimeViolation> {

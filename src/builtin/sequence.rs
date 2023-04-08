@@ -5,9 +5,9 @@ use crate::builtin::generators::{XGenerator, XGeneratorType};
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::stack::{XStack, XStackType};
 use crate::native_types::{NativeType, XNativeValue};
-use crate::root_runtime_scope::EvaluatedValue;
+
 use crate::runtime_scope::RuntimeScope;
-use crate::runtime_violation::RuntimeViolation;
+
 use crate::util::fenced_string::FencedString;
 use crate::util::trysort::try_sort;
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
@@ -122,7 +122,7 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
         idx: usize,
         ns: &RuntimeScope<W, R>,
         rt: RTCell<W, R>,
-    ) -> XResult<Rc<ManagedXValue<W,R>>, W, R> {
+    ) -> XResult<Rc<ManagedXValue<W, R>>, W, R> {
         match self {
             Self::Empty => unreachable!(),
             Self::Array(arr) => Ok(Ok(arr[idx].clone())),
@@ -165,8 +165,7 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
         &'a self,
         ns: &'a RuntimeScope<W, R>,
         rt: RTCell<W, R>,
-    ) -> Option<impl DoubleEndedIterator<Item = XResult<Rc<ManagedXValue<W,R>>, W, R>> + 'a>
-    {
+    ) -> Option<impl DoubleEndedIterator<Item = XResult<Rc<ManagedXValue<W, R>>, W, R>> + 'a> {
         Some(match self {
             XSequence::Array(arr) => Either::Left(arr.iter().cloned().map(|i| Ok(Ok(i)))),
             _ => Either::Right((0..self.len()?).map(move |idx| self.get(idx, ns, rt.clone()))),
@@ -177,7 +176,7 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
         &'a self,
         ns: &'a RuntimeScope<W, R>,
         rt: RTCell<W, R>,
-    ) -> impl Iterator<Item = XResult<Rc<ManagedXValue<W,R>>, W, R>> + 'a {
+    ) -> impl Iterator<Item = XResult<Rc<ManagedXValue<W, R>>, W, R>> + 'a {
         self.diter(ns, rt.clone()).map_or_else(
             || Either::Left((0..).map(move |idx| self.get(idx, ns, rt.clone()))),
             Either::Right,
@@ -468,11 +467,7 @@ impl<W: 'static, R: 'static> XSequence<W, R> {
         }
     }
 
-    fn value_to_idx(
-        &self,
-        i: &LazyBigint,
-        rt: RTCell<W, R>,
-    ) -> XResult<usize, W, R> {
+    fn value_to_idx(&self, i: &LazyBigint, rt: RTCell<W, R>) -> XResult<usize, W, R> {
         let mut i = Cow::Borrowed(i);
         let len = self.len();
         if i.is_negative() {

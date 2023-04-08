@@ -3,12 +3,13 @@ use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 
 use crate::native_types::{NativeType, XNativeValue};
-use crate::root_runtime_scope::EvaluatedValue;
+
 use crate::runtime_scope::RuntimeScope;
-use crate::runtime_violation::RuntimeViolation;
 
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
-use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue, XResult};
+use crate::xvalue::{
+    ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XResult, XValue,
+};
 use crate::XType::XCallable;
 use crate::{
     delegate, forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt,
@@ -99,8 +100,7 @@ impl<W: 'static, R: 'static> XGenerator<W, R> {
         ns: &'a RuntimeScope<W, R>,
         rt: RTCell<W, R>,
     ) -> impl Iterator<Item = XResult<Rc<ManagedXValue<W, R>>, W, R>> + 'a {
-        type InnerIter<'a, W, R> =
-            dyn Iterator<Item = XResult<Rc<ManagedXValue<W, R>>, W, R>> + 'a;
+        type InnerIter<'a, W, R> = dyn Iterator<Item = XResult<Rc<ManagedXValue<W, R>>, W, R>> + 'a;
         type BIter<'a, W, R> = Box<InnerIter<'a, W, R>>;
 
         match self {
@@ -283,7 +283,7 @@ impl<W: 'static, R: 'static> XGenerator<W, R> {
         &'a self,
         ns: &'a RuntimeScope<W, R>,
         rt: RTCell<W, R>,
-    ) -> impl Iterator<Item = XResult<Rc<ManagedXValue<W,R>>, W, R>> + 'a {
+    ) -> impl Iterator<Item = XResult<Rc<ManagedXValue<W, R>>, W, R>> + 'a {
         self._iter(ns, rt.clone())
             .zip(rt.borrow().limits.search_iter())
             .map(|(v, search)| {

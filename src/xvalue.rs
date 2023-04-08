@@ -1,5 +1,5 @@
 use crate::native_types::XNativeValue;
-use crate::root_runtime_scope::EvaluatedValue;
+
 use crate::runtime::RTCell;
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
 use crate::{XFuncSpec, XType};
@@ -46,12 +46,8 @@ type DynBindCallback<W, R> = dyn Fn(
     &mut CompilationScope<'_, W, R>,
     Option<&[Arc<XType>]>,
 ) -> Result<XFunctionFactoryOutput<W, R>, String>;
-pub(crate) type DynEvalCallback<W, R> = Rc<
-    dyn Fn(
-        &RuntimeScope<W, R>,
-        RTCell<W, R>,
-    ) -> XResult<XStaticFunction<W, R>, W, R>,
->;
+pub(crate) type DynEvalCallback<W, R> =
+    Rc<dyn Fn(&RuntimeScope<W, R>, RTCell<W, R>) -> XResult<XStaticFunction<W, R>, W, R>>;
 
 pub type NativeCallable<W, R> = Rc<NativeCallback<W, R>>;
 pub type DynBind<W, R> = Rc<DynBindCallback<W, R>>;
@@ -81,11 +77,7 @@ impl<W: 'static, R: 'static> XFunctionFactoryOutput<W, R> {
 
     pub(crate) fn from_delayed_native<F>(
         spec: XFuncSpec,
-        callable: impl Fn(
-                &RuntimeScope<W, R>,
-                RTCell<W, R>,
-            ) -> XResult<F, W, R>
-            + 'static,
+        callable: impl Fn(&RuntimeScope<W, R>, RTCell<W, R>) -> XResult<F, W, R> + 'static,
     ) -> Self
     where
         F: Fn(
