@@ -4,6 +4,6 @@ fn main()->bool{
 
     let f = d1 - d0;
 
-    assert(f.is_close(0.85))
+    assert(f.seconds().is_close(0.85))
     && assert(d0 + f == d1)
 }

@@ -106,7 +106,7 @@
   * [X] atan2
   * [X] geometric distribution
   * [ ] some things in python
-    * [ ] got to https://docs.python.org/3/library/stdtypes.html#dict
+    * [ ] got to https://docs.python.org/3/library/datetime.html#datetime.date.weekday
   * [X] sequence::manifest
   * [ ] json?
   * [X] chain sequence?
@@ -185,6 +185,10 @@
   * [ ] sum/product/mean/geomean? with complex types
   * [ ] str reverse
   * [ ] negative datetimes
+  * [ ] duration operations
+  * [ ] negative duration
+  * [ ] date sub/add
+  * [ ] date/datetime str
 * [X] reduce macros in builtin/core
 * [ ] better errors
   * [X] compilation error tracing

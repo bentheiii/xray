@@ -383,6 +383,80 @@ fn z_score(d: ContinuousDistribution, x: float)->float{
 }
 
 // dates
+struct Duration(seconds: float)
+
+fn mul(self: Duration, m: float)->Duration{
+    Duration(self::seconds * m)
+}
+
+fn mul(self: Duration, m: int)->Duration{
+    Duration(self::seconds * m)
+}
+
+fn mul(m: float, self: Duration)->Duration{
+    self * m
+}
+
+fn mul(m: int, self: Duration)->Duration{
+    self * m
+}
+
+fn div(self: Duration, m: float)->Duration{
+    Duration(self::seconds / m)
+}
+
+fn div(self: Duration, m: int)->Duration{
+    Duration(self::seconds / m)
+}
+
+fn div(d0: Duration, d1: Duration)->float{
+    d0::seconds / d1::seconds
+}
+
+fn add(d0: Duration, d1: Duration)->Duration{
+    Duration(d0::seconds + d1::seconds)
+}
+
+fn seconds(self: Duration)->float{
+    self::seconds
+}
+
+fn minutes(self: Duration)->float{
+    self.seconds()/60.0
+}
+
+fn hours(self: Duration)->float{
+    self.seconds()/3600.0
+}
+
+fn days(self: Duration)->float{
+    self.seconds()/86400.0
+}
+
+fn years(self: Duration)->float{
+    self.seconds()/31556926.0
+}
+
+fn seconds(self: float)->Duration{
+    Duration(self)
+}
+
+fn minutes(self: float)->Duration{
+    seconds(self*60.0)
+}
+
+fn hours(self: float)->Duration{
+    seconds(self*3600.0)
+}
+
+fn days(self: float)->Duration{
+    seconds(self*86400.0)
+}
+
+fn years(self: float)->Duration{
+    seconds(self*31556926.0)
+}
+
 struct Date(year: int, month: int, day: int)
 
 fn date(jd: int)->Date{
@@ -413,6 +487,23 @@ fn eq(d0: Date, d1: Date)->bool{
 
 fn cmp(d0: Date, d1: Date)->int{
     cmp(d0.members(), d1.members())
+}
+
+fn sub(d0: Date, d1: Date)->Duration{
+    (d0.julian_day() - d1.julian_day()).to_float().days()
+}
+
+fn add(d0: Date, dur: Duration)->Date{
+    date(d0.julian_day() + dur.seconds().trunc())
+}
+
+fn weekday(d: Date)->int{
+    // monday is 0, sunday is 6
+    (d.julian_day())%7
+}
+
+fn to_str(d: Date)->str{
+    f"Date{d.members()}"
 }
 
 // datetime
@@ -446,16 +537,20 @@ fn cmp(d0: Datetime, d1: Datetime)->int{
     cmp(d0.members(), d1.members())
 }
 
-fn sub(d0: Datetime, d1: Datetime)->float{
-    d0.unix() - d1.unix()
+fn sub(d0: Datetime, d1: Datetime)->Duration{
+    seconds(d0.unix() - d1.unix())
 }
 
-fn add(d0: Datetime, d1: float)->Datetime{
-    datetime(d0.unix()+d1)
+fn add(d0: Datetime, d1: Duration)->Datetime{
+    datetime(d0.unix()+d1.seconds())
 }
 
-fn add(d0: float, d1: Datetime)->Datetime{
+fn add(d0: Duration, d1: Datetime)->Datetime{
     d1 + d0
+}
+
+fn to_str(d: Datetime)->str{
+    f"Datetime{d.members()}"
 }
 
 //sequences
