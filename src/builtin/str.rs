@@ -1,13 +1,15 @@
 use crate::builtin::core::{eval, xcmp, xerr};
 use crate::util::xformatter::{Alignment, FillSpecs, XFormatting};
-use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
+use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING, XType, XCallableSpec};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 
 use crate::util::lazy_bigint::LazyBigint;
 use rc::Rc;
+use regex::Regex;
 use std::borrow::Cow;
 use std::cmp::max;
 use std::collections::hash_map::DefaultHasher;
+use std::sync::Arc;
 
 use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::compile_err::CompilationError;
@@ -224,6 +226,9 @@ pub(crate) fn add_str_substring<W, R, T>(
             let raw_end = if raw_end.is_negative() { Cow::Owned(raw_end + string.len()) } else { Cow::Borrowed(raw_end) };
             let Some(end) = raw_end.to_usize() else { return xerr(ManagedXError::new("index out of bounds", rt)?); };
             if end < start { return xerr(ManagedXError::new("index out of bounds", rt)?); }
+            if start == 0 && end == string.len(){
+                return Ok(a0.into());
+            }
 
             let ret = string.substring(start, Some(end));
             Ok(ManagedXValue::new(XValue::String(Box::new(ret)), rt)?.into())
@@ -280,6 +285,41 @@ pub(crate) fn add_str_upper<W, R, T>(
                 a0.clone()
             };
             Ok(ret.into())
+        }),
+    )
+}
+
+pub(crate) fn add_str_format_replace<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    lazy_static! {
+        static ref RE: Regex = Regex::new("%.").unwrap();
+    }
+    scope.add_func(
+        "format_replace",
+        XFuncSpec::new(&[&X_STRING, &Arc::new(XType::XCallable(XCallableSpec {
+            param_types: vec![X_STRING.clone()],
+            return_type: X_STRING.clone(),
+        }))], X_STRING.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let pat = to_primitive!(a0, String);
+            let replacement_func = to_primitive!(a1, Function);
+            
+            let mut ret = FencedString::default();
+            let mut prev_end = 0;
+            for m in RE.find_iter(pat.as_str()){
+                let end = m.start();
+                ret.push(&pat.substring(prev_end, Some(end)));
+                let substr = ManagedXValue::new(XValue::String(Box::new(pat.substring(m.start()+1, Some(m.end())))), rt.clone())?;
+                let replacement = xraise!(ns.eval_func_with_values(replacement_func, vec![Ok(substr)], rt.clone(), false)?.unwrap_value());
+                let repl_str = to_primitive!(replacement, String);
+                ret.push(repl_str.as_ref());
+                prev_end = end+2;
+            }
+            ret.push(&pat.substring(prev_end, None));
+            Ok(ManagedXValue::new(XValue::String(Box::new(ret)), rt)?.into())
         }),
     )
 }

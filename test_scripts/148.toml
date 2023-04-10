@@ -1,4 +1,4 @@
 expected_violation="AllocationLimitReached"
 
 [limits]
-size_limit=40_000
+size_limit=60_000

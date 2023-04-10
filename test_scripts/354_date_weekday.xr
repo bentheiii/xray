@@ -1,6 +1,4 @@
 fn main()->bool{
-    let d0 = Date(1965, 3, 4);
-
     assert(Date(1965, 3, 4).weekday() == 3)
     && assert(Date(2198, 4, 2).weekday() == 0)
 }

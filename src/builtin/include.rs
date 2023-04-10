@@ -506,6 +506,22 @@ fn to_str(d: Date)->str{
     f"Date{d.members()}"
 }
 
+fn format(self: Date, fmt: str)->str{
+    fn repl(s: str)->str{
+        if(s=="w", to_str((self.weekday() + 1)%7), 
+        if(s=="a", ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][self.weekday()-6],
+        if(s=="A", ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][self.weekday()-6],
+        if(s=="b", ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][self::month-1],
+        if(s=="B", ["January", "Febuary", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][self::month-1],
+        if(s=="d", self::day.format("02"),
+        if(s=="m", self::month.format("02"),
+        if(s=="y", (self::year%100).format("02"),
+        if(s=="Y", self::year.format("04"), "%"
+        )))))))))
+    }
+    fmt.format_replace(repl)
+}
+
 // datetime
 struct Datetime(date: Date, hours: int, minutes: int, seconds: float)
 let __std_unix_epoch = Date(1970,1,1);
@@ -551,6 +567,30 @@ fn add(d0: Duration, d1: Datetime)->Datetime{
 
 fn to_str(d: Datetime)->str{
     f"Datetime{d.members()}"
+}
+
+fn format(self: Datetime, fmt: str)->str{
+    fn repl(s: str)->str{
+        if(s=="w", to_str((self::date.weekday() + 1)%7), 
+        if(s=="a", ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][self::date.weekday()-6],
+        if(s=="A", ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"][self::date.weekday()-6],
+        if(s=="b", ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][self::date::month-1],
+        if(s=="B", ["January", "Febuary", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][self::date::month-1],
+        if(s=="d", self::date::day.format("02"),
+        if(s=="m", self::date::month.format("02"),
+        if(s=="y", (self::date::year%100).format("02"),
+        if(s=="Y", self::date::year.format("04"),
+        if(s=="H", self::hours.format("02"),
+        if(s=="I", self::hours.sub(1).mod(12).add(1).format("02"),
+        if(s=="P", self::hours.ge(12).if("PM", "AM"),
+        if(s=="p", self::hours.ge(12).if("pm", "am"),
+        if(s=="M", self::minutes.format("02"),
+        if(s=="S", self::seconds.floor().format("02"),
+        if(s=="f", self::seconds.mod(1.0).mul(1000000.0).trunc().format("06"),
+        "%"
+        ))))))))))))))))
+    }
+    fmt.format_replace(repl)
 }
 
 //sequences

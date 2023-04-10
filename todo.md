@@ -189,6 +189,7 @@
   * [ ] negative duration
   * [ ] date sub/add
   * [ ] date/datetime str
+  * [ ] format_replace
 * [X] reduce macros in builtin/core
 * [ ] better errors
   * [X] compilation error tracing

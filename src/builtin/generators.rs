@@ -10,7 +10,6 @@ use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{
     ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XResult, XValue,
 };
-use crate::XType::XCallable;
 use crate::{
     delegate, forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt,
     CompilationError, RTCell, RootCompilationScope, XCallableSpec, XStaticFunction, XType,
@@ -353,7 +352,7 @@ pub(crate) fn add_generator_successors_until<W, R, T>(
         XFuncSpec::new(
             &[
                 &t,
-                &Arc::new(XCallable(XCallableSpec {
+                &Arc::new(XType::XCallable(XCallableSpec {
                     param_types: vec![t.clone()],
                     return_type: XOptionalType::xtype(t.clone()),
                 })),
@@ -400,7 +399,7 @@ pub(crate) fn add_generator_nth<W, R, T>(
             &[
                 &t_gen,
                 &X_INT,
-                &Arc::new(XCallable(XCallableSpec {
+                &Arc::new(XType::XCallable(XCallableSpec {
                     param_types: vec![t.clone()],
                     return_type: X_BOOL.clone(),
                 })),
@@ -488,7 +487,7 @@ pub(crate) fn add_generator_filter<W, R, T>(
         XFuncSpec::new(
             &[
                 &t_gen.clone(),
-                &Arc::new(XCallable(XCallableSpec {
+                &Arc::new(XType::XCallable(XCallableSpec {
                     param_types: vec![t],
                     return_type: X_BOOL.clone(),
                 })),
@@ -516,11 +515,11 @@ pub(crate) fn add_generator_with_count<W, R, T>(
         XFuncSpec::new(
             &[
                 &t_gen,
-                &Arc::new(XCallable(XCallableSpec {
+                &Arc::new(XType::XCallable(XCallableSpec {
                     param_types: vec![t.clone()],
                     return_type: X_INT.clone(),
                 })),
-                &Arc::new(XCallable(XCallableSpec {
+                &Arc::new(XType::XCallable(XCallableSpec {
                     param_types: vec![t.clone(), t.clone()],
                     return_type: X_BOOL.clone(),
                 })),
@@ -557,7 +556,7 @@ pub(crate) fn add_generator_map<W, R, T>(
         XFuncSpec::new(
             &[
                 &t0_gen,
-                &Arc::new(XCallable(XCallableSpec {
+                &Arc::new(XType::XCallable(XCallableSpec {
                     param_types: vec![t0],
                     return_type: t1,
                 })),
@@ -587,7 +586,7 @@ pub(crate) fn add_generator_aggregate<W, R, T>(
             &[
                 &t0_gen,
                 &t1,
-                &Arc::new(XCallable(XCallableSpec {
+                &Arc::new(XType::XCallable(XCallableSpec {
                     param_types: vec![t1.clone(), t0],
                     return_type: t1.clone(),
                 })),
@@ -667,7 +666,7 @@ pub(crate) fn add_generator_skip_until<W, R, T>(
         XFuncSpec::new(
             &[
                 &t_gen.clone(),
-                &Arc::new(XCallable(XCallableSpec {
+                &Arc::new(XType::XCallable(XCallableSpec {
                     param_types: vec![t],
                     return_type: X_BOOL.clone(),
                 })),
@@ -695,7 +694,7 @@ pub(crate) fn add_generator_take_while<W, R, T>(
         XFuncSpec::new(
             &[
                 &t_gen.clone(),
-                &Arc::new(XCallable(XCallableSpec {
+                &Arc::new(XType::XCallable(XCallableSpec {
                     param_types: vec![t],
                     return_type: X_BOOL.clone(),
                 })),

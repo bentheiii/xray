@@ -121,6 +121,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_str_eq(scope).unwrap();
     add_str_find(scope).unwrap();
     add_str_format(scope).unwrap();
+    add_str_format_replace(scope).unwrap();
     add_str_get(scope).unwrap();
     add_str_hash(scope).unwrap();
     add_str_is_lower(scope).unwrap();
