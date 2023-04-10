@@ -30,7 +30,10 @@ impl<W, R, T> TemplatedEvaluationCell<W, R, T> {
             }
         }
     }
-    fn as_ref<'a>(&'a self, template: &'a RuntimeScopeTemplate<W, R, T>) -> &'a EvaluationCell<W, R, T> {
+    fn as_ref<'a>(
+        &'a self,
+        template: &'a RuntimeScopeTemplate<W, R, T>,
+    ) -> &'a EvaluationCell<W, R, T> {
         match self {
             Self::FromTemplate(idx) => &template.cells[*idx],
             Self::Owned(r) => r,
@@ -57,10 +60,7 @@ pub(crate) enum EvaluationCell<W, R, T> {
 }
 
 impl<W: 'static, R: 'static, T: 'static> EvaluationCell<W, R, T> {
-    fn from_spec(
-        cell: &CellSpec,
-        parent: Option<&RuntimeScope<W, R, T>>,
-    ) -> RuntimeResult<Self> {
+    fn from_spec(cell: &CellSpec, parent: Option<&RuntimeScope<W, R, T>>) -> RuntimeResult<Self> {
         // todo I'm pretty sure this function always returns OK
         match cell {
             CellSpec::Variable => Ok(Self::Uninitialized),

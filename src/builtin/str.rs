@@ -1,6 +1,6 @@
 use crate::builtin::core::{eval, xcmp, xerr};
 use crate::util::xformatter::{Alignment, FillSpecs, XFormatting};
-use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING, XType, XCallableSpec};
+use crate::xtype::{XCallableSpec, XFuncSpec, XType, X_BOOL, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 
 use crate::util::lazy_bigint::LazyBigint;
@@ -297,26 +297,37 @@ pub(crate) fn add_str_format_replace<W, R, T>(
     }
     scope.add_func(
         "format_replace",
-        XFuncSpec::new(&[&X_STRING, &Arc::new(XType::XCallable(XCallableSpec {
-            param_types: vec![X_STRING.clone()],
-            return_type: X_STRING.clone(),
-        }))], X_STRING.clone()),
+        XFuncSpec::new(
+            &[
+                &X_STRING,
+                &Arc::new(XType::XCallable(XCallableSpec {
+                    param_types: vec![X_STRING.clone()],
+                    return_type: X_STRING.clone(),
+                })),
+            ],
+            X_STRING.clone(),
+        ),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let pat = to_primitive!(a0, String);
             let replacement_func = to_primitive!(a1, Function);
-            
+
             let mut ret = FencedString::default();
             let mut prev_end = 0;
-            for m in RE.find_iter(pat.as_str()){
+            for m in RE.find_iter(pat.as_str()) {
                 let end = m.start();
                 ret.push(&pat.substring(prev_end, Some(end)));
-                let substr = ManagedXValue::new(XValue::String(Box::new(pat.substring(m.start()+1, Some(m.end())))), rt.clone())?;
-                let replacement = xraise!(ns.eval_func_with_values(replacement_func, vec![Ok(substr)], rt.clone(), false)?.unwrap_value());
+                let substr = ManagedXValue::new(
+                    XValue::String(Box::new(pat.substring(m.start() + 1, Some(m.end())))),
+                    rt.clone(),
+                )?;
+                let replacement = xraise!(ns
+                    .eval_func_with_values(replacement_func, vec![Ok(substr)], rt.clone(), false)?
+                    .unwrap_value());
                 let repl_str = to_primitive!(replacement, String);
                 ret.push(repl_str.as_ref());
-                prev_end = end+2;
+                prev_end = end + 2;
             }
             ret.push(&pat.substring(prev_end, None));
             Ok(ManagedXValue::new(XValue::String(Box::new(ret)), rt)?.into())

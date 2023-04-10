@@ -23,7 +23,9 @@ use std::io::Write;
 use std::sync::Arc;
 use std::{iter, rc};
 
-pub(crate) fn add_if<W, R, T>(scope: &mut RootCompilationScope<W, R, T>) -> Result<(), CompilationError> {
+pub(crate) fn add_if<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
     scope.add_func(
         "if",
@@ -166,7 +168,9 @@ pub(crate) fn add_get_error<W, R, T>(
     )
 }
 
-pub(crate) fn add_ne<W, R, T>(scope: &mut RootCompilationScope<W, R, T>) -> Result<(), CompilationError> {
+pub(crate) fn add_ne<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
 
     scope.add_dyn_func("ne", "eq-inverse", move |_params, types, ns, bind| {

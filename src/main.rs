@@ -2,8 +2,8 @@ extern crate core;
 extern crate pest;
 
 use rand::rngs::StdRng;
-use xray::time_provider::SystemTimeProvider;
 use std::io::stdout;
+use xray::time_provider::SystemTimeProvider;
 
 use xray::root_runtime_scope::RootEvaluationScope;
 

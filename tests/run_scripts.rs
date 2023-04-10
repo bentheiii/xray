@@ -2,11 +2,11 @@ mod utils;
 
 use glob::glob;
 use itertools::Itertools;
-use utils::time_provider::mk_time_provider;
 use std::borrow::Borrow;
 use std::collections::HashSet;
 use std::fs;
 use std::time::Duration;
+use utils::time_provider::mk_time_provider;
 
 use crate::utils::capture_writer::CaptureWriter;
 use crate::utils::memory_writer::MemoryWriter;
@@ -38,8 +38,8 @@ pub struct RuntimeLimitsConfig {
 impl RuntimeLimitsConfig {
     fn to_runtime_limits(&self) -> RuntimeLimits {
         let forbidden: HashSet<_> = self
-        .forbidden_permissions
-        .iter()
+            .forbidden_permissions
+            .iter()
             .map(|s| s.borrow())
             .collect();
         let allowed: HashSet<_> = self
@@ -1946,7 +1946,6 @@ fn test_script_351() {
 fn test_script_352() {
     run_script_from_name(function_name!())
 }
-
 
 #[test]
 fn test_script_353() {

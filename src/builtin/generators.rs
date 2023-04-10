@@ -87,7 +87,9 @@ pub(crate) enum XGenerator<W, R, T> {
 impl<W: 'static, R: 'static, T: 'static> XNativeValue for XGenerator<W, R, T> {
     fn dyn_size(&self) -> usize {
         match self {
-            Self::Zip(arr) | Self::Chain(arr) => arr.len() * size_of::<Rc<ManagedXValue<W, R, T>>>(),
+            Self::Zip(arr) | Self::Chain(arr) => {
+                arr.len() * size_of::<Rc<ManagedXValue<W, R, T>>>()
+            }
             _ => 0,
         }
     }
@@ -99,7 +101,8 @@ impl<W: 'static, R: 'static, T: 'static> XGenerator<W, R, T> {
         ns: &'a RuntimeScope<W, R, T>,
         rt: RTCell<W, R, T>,
     ) -> impl Iterator<Item = XResult<Rc<ManagedXValue<W, R, T>>, W, R, T>> + 'a {
-        type InnerIter<'a, W, R, T> = dyn Iterator<Item = XResult<Rc<ManagedXValue<W, R, T>>, W, R, T>> + 'a;
+        type InnerIter<'a, W, R, T> =
+            dyn Iterator<Item = XResult<Rc<ManagedXValue<W, R, T>>, W, R, T>> + 'a;
         type BIter<'a, W, R, T> = Box<InnerIter<'a, W, R, T>>;
 
         match self {
@@ -248,15 +251,19 @@ impl<W: 'static, R: 'static, T: 'static> XGenerator<W, R, T> {
                     found_first.then_some(Ok(value))
                 })
             }),
-            Self::FromSet(set) => either_l(to_native!(set, XSet<W, R, T>).iter().map(|e| Ok(Ok(e)))),
-            Self::FromMapping(mapping) => either_m(to_native!(mapping, XMapping<W, R, T>).iter().map(
-                move |(k, v)| {
-                    Ok(Ok(ManagedXValue::new(
-                        XValue::StructInstance(vec![k, v]),
-                        rt.clone(),
-                    )?))
-                },
-            )),
+            Self::FromSet(set) => {
+                either_l(to_native!(set, XSet<W, R, T>).iter().map(|e| Ok(Ok(e))))
+            }
+            Self::FromMapping(mapping) => either_m(
+                to_native!(mapping, XMapping<W, R, T>)
+                    .iter()
+                    .map(move |(k, v)| {
+                        Ok(Ok(ManagedXValue::new(
+                            XValue::StructInstance(vec![k, v]),
+                            rt.clone(),
+                        )?))
+                    }),
+            ),
             Self::WithCount {
                 inner,
                 hash_func,
@@ -291,7 +298,10 @@ impl<W: 'static, R: 'static, T: 'static> XGenerator<W, R, T> {
             })
     }
 
-    fn chain<'a>(base0: &'a Rc<ManagedXValue<W, R, T>>, base1: &'a Rc<ManagedXValue<W, R, T>>) -> Self {
+    fn chain<'a>(
+        base0: &'a Rc<ManagedXValue<W, R, T>>,
+        base1: &'a Rc<ManagedXValue<W, R, T>>,
+    ) -> Self {
         let gen0 = to_native!(base0, Self);
         let gen1 = to_native!(base1, Self);
         let parts = match (gen0, gen1) {

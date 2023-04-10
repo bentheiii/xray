@@ -117,13 +117,14 @@ add_binfunc!(add_int_div, div, X_INT, Int, X_FLOAT, |a: &LazyBigint,
         Ok(XValue::Float(a.clone().true_div(b.clone())))
     })
 });
-add_binfunc!(
-    add_int_pow,
-    pow,
-    X_INT,
-    Int,
-    X_INT,
-    |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W, R, T>| Ok(if b.is_negative() {
+add_binfunc!(add_int_pow, pow, X_INT, Int, X_INT, |a: &LazyBigint,
+                                                   b: &LazyBigint,
+                                                   rt: &RTCell<
+    W,
+    R,
+    T,
+>| Ok(
+    if b.is_negative() {
         Err(String::from("cannot raise integer to a negative power"))
     } else if b.is_zero() && a.is_zero() {
         Err(String::from("cannot raise zero to a zero power"))
@@ -134,8 +135,8 @@ add_binfunc!(
                 .map(|(b, a_bits)| (a_bits / 8) * b)
         })?;
         Ok(XValue::Int(a.clone().pow(b.clone())))
-    })
-);
+    }
+));
 add_binfunc!(add_int_lt, lt, X_INT, Int, X_BOOL, |a, b, _rt| Ok(Ok(
     XValue::Bool(a < b)
 )));

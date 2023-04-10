@@ -1,0 +1,5 @@
+fn main()->bool{
+    let d = datetime(1643673540.9999);
+
+    assert(d.format("%a %d %b %Y, %I:%M%p") == "Mon 31 Jan 2022, 11:59pm")
+}

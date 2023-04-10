@@ -4,8 +4,8 @@ use crate::runtime_violation::RuntimeViolation;
 use crate::time_provider::SystemTimeProvider;
 use crate::util::lazy_bigint::LazyBigint;
 use either::Either;
-use rand::SeedableRng;
 use rand::rngs::StdRng;
+use rand::SeedableRng;
 use std::cell::RefCell;
 use std::fmt::Debug;
 use std::io::Stdout;
@@ -71,7 +71,7 @@ pub struct Runtime<W, R, T> {
     pub(crate) timeout: Option<Instant>,
 }
 
-pub type RTCell<W=Stdout, R=StdRng, T=SystemTimeProvider> = Rc<RefCell<Runtime<W, R, T>>>;
+pub type RTCell<W = Stdout, R = StdRng, T = SystemTimeProvider> = Rc<RefCell<Runtime<W, R, T>>>;
 
 impl<W, R, T> Runtime<W, R, T> {
     pub fn can_allocate(&self, new_size: usize) -> RuntimeResult<()> {

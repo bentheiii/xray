@@ -47,8 +47,9 @@ type DynBindCallback<W, R, T> = dyn Fn(
     &mut CompilationScope<'_, W, R, T>,
     Option<&[Arc<XType>]>,
 ) -> Result<XFunctionFactoryOutput<W, R, T>, String>;
-pub(crate) type DynEvalCallback<W, R, T> =
-    Rc<dyn Fn(&RuntimeScope<W, R, T>, RTCell<W, R, T>) -> XResult<XStaticFunction<W, R, T>, W, R, T>>;
+pub(crate) type DynEvalCallback<W, R, T> = Rc<
+    dyn Fn(&RuntimeScope<W, R, T>, RTCell<W, R, T>) -> XResult<XStaticFunction<W, R, T>, W, R, T>,
+>;
 
 pub type NativeCallable<W, R, T> = Rc<NativeCallback<W, R, T>>;
 pub type DynBind<W, R, T> = Rc<DynBindCallback<W, R, T>>;
@@ -160,10 +161,7 @@ impl<W, R, T> Drop for ManagedXValue<W, R, T> {
 }
 
 impl<W, R, T> ManagedXValue<W, R, T> {
-    pub(crate) fn new(
-        value: XValue<W, R, T>,
-        runtime: RTCell<W, R, T>,
-    ) -> RuntimeResult<Rc<Self>> {
+    pub(crate) fn new(value: XValue<W, R, T>, runtime: RTCell<W, R, T>) -> RuntimeResult<Rc<Self>> {
         let size;
         {
             let size_limit = runtime.borrow().limits.size_limit;
@@ -190,6 +188,7 @@ impl<W, R, T> ManagedXValue<W, R, T> {
         }))
     }
 
+    #[allow(clippy::type_complexity)]
     pub(crate) fn from_result(
         value: Result<XValue<W, R, T>, Rc<ManagedXError<W, R, T>>>,
         runtime: RTCell<W, R, T>,

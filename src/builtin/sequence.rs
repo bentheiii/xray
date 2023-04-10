@@ -165,7 +165,8 @@ impl<W: 'static, R: 'static, T: 'static> XSequence<W, R, T> {
         &'a self,
         ns: &'a RuntimeScope<W, R, T>,
         rt: RTCell<W, R, T>,
-    ) -> Option<impl DoubleEndedIterator<Item = XResult<Rc<ManagedXValue<W, R, T>>, W, R, T>> + 'a> {
+    ) -> Option<impl DoubleEndedIterator<Item = XResult<Rc<ManagedXValue<W, R, T>>, W, R, T>> + 'a>
+    {
         Some(match self {
             XSequence::Array(arr) => Either::Left(arr.iter().cloned().map(|i| Ok(Ok(i)))),
             _ => Either::Right((0..self.len()?).map(move |idx| self.get(idx, ns, rt.clone()))),
@@ -349,6 +350,7 @@ impl<W: 'static, R: 'static, T: 'static> XSequence<W, R, T> {
         }
     }
 
+    #[allow(clippy::type_complexity)]
     fn n_largest<const DEC: bool>(
         &self,
         n: usize,
@@ -419,7 +421,10 @@ impl<W: 'static, R: 'static, T: 'static> XSequence<W, R, T> {
             items: &mut [Rc<ManagedXValue<W, R, T>>],
             left: usize,
             right: usize,
-            cmp: &impl Fn(Rc<ManagedXValue<W, R, T>>, Rc<ManagedXValue<W, R, T>>) -> XResult<i8, W, R, T>,
+            cmp: &impl Fn(
+                Rc<ManagedXValue<W, R, T>>,
+                Rc<ManagedXValue<W, R, T>>,
+            ) -> XResult<i8, W, R, T>,
         ) -> XResult<usize, W, R, T> {
             if left == right {
                 return Ok(Ok(left));

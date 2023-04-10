@@ -17,8 +17,8 @@ pub mod root_runtime_scope;
 pub mod runtime;
 mod runtime_scope;
 mod runtime_violation;
-mod units;
 pub mod time_provider;
+mod units;
 pub mod util;
 pub mod xexpr;
 pub mod xtype;
@@ -43,13 +43,14 @@ use crate::builtin::load_builtin;
 use crate::util::special_prefix_interner::SpecialPrefixSymbol;
 use string_interner::{DefaultBackend, DefaultSymbol};
 
+use crate::time_provider::TimeProvider;
 use crate::xexpr::{XStaticExpr, XStaticFunction};
 use crate::xtype::{Bind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType};
-use crate::time_provider::TimeProvider;
 
 pub type Identifier = SpecialPrefixSymbol<DefaultBackend<DefaultSymbol>>;
 
-pub fn std_compilation_scope<W: Write, R: RngCore + SeedableRng, T: TimeProvider>() -> RootCompilationScope<W, R, T> {
+pub fn std_compilation_scope<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
+) -> RootCompilationScope<W, R, T> {
     let mut ret = RootCompilationScope::new();
 
     load_builtin(&mut ret);

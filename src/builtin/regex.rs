@@ -131,7 +131,10 @@ pub(crate) fn add_regex_match<W, R, T>(
             }
 
             let arr = manage_native!(XSequence::array(pairs), rt.clone());
-            Ok(manage_native!(XOptional::<W, R, T> { value: Some(arr) }, rt))
+            Ok(manage_native!(
+                XOptional::<W, R, T> { value: Some(arr) },
+                rt
+            ))
         }),
     )
 }
