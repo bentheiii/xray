@@ -1675,7 +1675,7 @@ pub(crate) fn add_sequence_dyn_to_str<W, R, T>(
                         let seq0 = to_native!(a0, XSequence<W, R, T>);
                         match seq0.len() {
                             None => return xerr(ManagedXError::new("infinite sequence", rt)?),
-                            Some(len) => rt.can_allocate((len + 2)* size_of::<usize>())?,
+                            Some(len) => rt.can_allocate((len + 2) * size_of::<usize>())?,
                         }
                         let arr0 = seq0.iter(ns, rt.clone());
                         let inner_func = to_primitive!(inner_value, Function);

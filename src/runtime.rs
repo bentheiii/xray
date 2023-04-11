@@ -35,9 +35,7 @@ pub struct RuntimeLimits {
 impl RuntimeLimits {
     pub fn to_runtime<W, R, T>(self, output: W, time_provider: T) -> RTCell<W, R, T> {
         Rc::new(Runtime {
-            stats: RefCell::new(
-                RuntimeStats::new(output, self.time_limit)
-            ),
+            stats: RefCell::new(RuntimeStats::new(output, self.time_limit)),
             time_provider,
             limits: self,
         })
@@ -66,9 +64,9 @@ impl RuntimeLimits {
 }
 
 #[derive(Debug)]
-pub struct RuntimeStats<W, R, T>{
+pub struct RuntimeStats<W, R, T> {
     pub(crate) size: AllocatedMemory, // this will be zero if the runtime has no size limit
-    pub(crate) ud_calls: usize, // this will be zero if the runtime has no us_call limit
+    pub(crate) ud_calls: usize,       // this will be zero if the runtime has no us_call limit
     pub(crate) timeout: Option<Instant>,
     pub(crate) rng: Option<R>,
     pub stdout: W,
@@ -76,21 +74,27 @@ pub struct RuntimeStats<W, R, T>{
     _t: PhantomData<T>,
 }
 
-impl<W, R, T> RuntimeStats<W, R, T>{
-    fn new(stdout: W, time_limit: Option<Duration>)->Self{
-        let mut ret = Self { size: Zero::zero(), ud_calls: 0, timeout: None, rng: None, stdout, _t: PhantomData};
+impl<W, R, T> RuntimeStats<W, R, T> {
+    fn new(stdout: W, time_limit: Option<Duration>) -> Self {
+        let mut ret = Self {
+            size: Zero::zero(),
+            ud_calls: 0,
+            timeout: None,
+            rng: None,
+            stdout,
+            _t: PhantomData,
+        };
         ret.reset_timeout(time_limit);
         ret
     }
 
-    fn reset_timeout(&mut self, time_limit: Option<Duration>){
+    fn reset_timeout(&mut self, time_limit: Option<Duration>) {
         self.timeout = time_limit.map(|ti| Instant::now() + ti)
     }
-
 }
 
-impl<W, R: SeedableRng,  T> RuntimeStats<W, R, T>{
-    pub(crate) fn get_rng(&mut self)-> &mut R{
+impl<W, R: SeedableRng, T> RuntimeStats<W, R, T> {
+    pub(crate) fn get_rng(&mut self) -> &mut R {
         self.rng.get_or_insert_with(|| R::from_entropy())
     }
 }
@@ -110,9 +114,9 @@ impl<W, R, T> Runtime<W, R, T> {
 
     pub fn can_allocate_by(&self, f: impl Fn() -> Option<usize>) -> RuntimeResult<()> {
         if let Some(size_limit) = self.limits.size_limit {
-            if let Some(size) = f(){
+            if let Some(size) = f() {
                 let stat = self.stats.borrow();
-                if usize::from(stat.size) + size > size_limit{
+                if usize::from(stat.size) + size > size_limit {
                     return Err(RuntimeViolation::AllocationLimitReached);
                 }
             }
@@ -137,17 +141,21 @@ impl<W, R, T> Runtime<W, R, T> {
     }
 
     pub fn reset_timeout(&self) {
-        self.stats.borrow_mut().reset_timeout(self.limits.time_limit)
+        self.stats
+            .borrow_mut()
+            .reset_timeout(self.limits.time_limit)
     }
 
     pub fn check_timeout(&self) -> RuntimeResult<()> {
-        self.stats.borrow().timeout
+        self.stats
+            .borrow()
+            .timeout
             .map_or(true, |timeout| timeout > Instant::now())
             .then_some(())
             .ok_or(RuntimeViolation::Timeout)
     }
 
-    pub(crate) fn increment_call_limit(&self)->RuntimeResult<()> {
+    pub(crate) fn increment_call_limit(&self) -> RuntimeResult<()> {
         if let Some(ud_limit) = self.limits.ud_call_limit {
             let mut stats = self.stats.borrow_mut();
             stats.ud_calls += 1;
@@ -162,8 +170,11 @@ impl<W, R, T> Runtime<W, R, T> {
         self.stats.borrow_mut().ud_calls = 0
     }
 
-    pub(crate) fn allocate<A: Allocateable + Debug>(&self, value: &A)->RuntimeResult<AllocatedMemory>{
-        if let Some(max_size) = self.limits.size_limit{
+    pub(crate) fn allocate<A: Allocateable + Debug>(
+        &self,
+        value: &A,
+    ) -> RuntimeResult<AllocatedMemory> {
+        if let Some(max_size) = self.limits.size_limit {
             let size = value.byte_size();
             let mut stats = self.stats.borrow_mut();
             stats.size += size;
@@ -176,15 +187,15 @@ impl<W, R, T> Runtime<W, R, T> {
             if usize::from(stats.size) > max_size {
                 Err(RuntimeViolation::AllocationLimitReached)
             } else {
-                Ok(size.into())
+                Ok(size)
             }
         } else {
             Ok(0.into())
         }
     }
 
-    pub(crate) fn deallocate(&self, size: AllocatedMemory){
-        if !size.is_zero(){
+    pub(crate) fn deallocate(&self, size: AllocatedMemory) {
+        if !size.is_zero() {
             self.stats.borrow_mut().size -= size
         }
     }

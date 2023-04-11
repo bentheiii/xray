@@ -234,8 +234,7 @@ pub(crate) fn add_display<W: Write, R, T>(
                               ns: &RuntimeScope<'_, W, R, T>,
                               _tca,
                               rt: RTCell<W, R, T>| {
-                            rt.limits
-                                .check_permission(&builtin_permissions::PRINT)?;
+                            rt.limits.check_permission(&builtin_permissions::PRINT)?;
                             let a0 = eval(&args[0], ns, &rt)?;
                             let a1 =
                                 xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);

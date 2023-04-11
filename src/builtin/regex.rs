@@ -62,8 +62,7 @@ pub(crate) fn add_regex_new<W, R, T>(
         "regex",
         XFuncSpec::new(&[&X_STRING], X_REGEX.clone()),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
-            rt.limits
-                .check_permission(&builtin_permissions::REGEX)?;
+            rt.limits.check_permission(&builtin_permissions::REGEX)?;
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s0 = to_primitive!(a0, String);
             let mut builder = RegexBuilder::new(s0.as_str());

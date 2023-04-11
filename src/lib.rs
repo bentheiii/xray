@@ -6,6 +6,7 @@ extern crate lazy_static;
 extern crate derivative;
 extern crate dyn_clone;
 
+pub mod allocations;
 pub mod builtin;
 mod compilation_scope;
 pub mod compile_err;
@@ -23,7 +24,6 @@ pub mod util;
 pub mod xexpr;
 pub mod xtype;
 pub mod xvalue;
-pub mod allocations;
 
 extern crate pest;
 #[macro_use]
