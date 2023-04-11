@@ -1,46 +1,25 @@
-use num_traits::Zero;
-use std::ops::{Add, Sub};
+use std::fmt::Display;
 
-#[derive(Eq, PartialEq, Debug, Ord, PartialOrd, Copy, Clone, Hash)]
+use num_traits::Zero;
+use derive_more::{Add, Sub, From, Into, AddAssign, SubAssign};
+
+#[derive(Eq, PartialEq, Debug, Ord, PartialOrd, Copy, Clone, Hash, Add, Sub, From, Into, AddAssign, SubAssign)]
 pub(crate) struct ScopeDepth(pub usize);
 
-#[derive(Eq, PartialEq, Debug, Ord, PartialOrd, Copy, Clone)]
+#[derive(Eq, PartialEq, Debug, Ord, PartialOrd, Copy, Clone, Hash, Add, Sub, From, Into, AddAssign, SubAssign)]
 pub(crate) struct StackDepth(pub usize);
+
+#[derive(Eq, PartialEq, Debug, Ord, PartialOrd, Copy, Clone, Hash, Add, Sub, From, Into, AddAssign, SubAssign)]
+pub(crate) struct AllocatedMemory(pub usize);
+
+impl Display for AllocatedMemory{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{} bytes", self.0)
+    }
+}
 
 macro_rules! arith {
     ($t:ty) => {
-        impl Add<Self> for $t {
-            type Output = Self;
-
-            fn add(self, rhs: Self) -> Self::Output {
-                Self(self.0 + rhs.0)
-            }
-        }
-
-        impl Add<usize> for $t {
-            type Output = Self;
-
-            fn add(self, rhs: usize) -> Self::Output {
-                Self(self.0 + rhs)
-            }
-        }
-
-        impl Sub<Self> for $t {
-            type Output = Self;
-
-            fn sub(self, rhs: Self) -> Self::Output {
-                Self(self.0 - rhs.0)
-            }
-        }
-
-        impl Sub<usize> for $t {
-            type Output = Self;
-
-            fn sub(self, rhs: usize) -> Self::Output {
-                Self(self.0 - rhs)
-            }
-        }
-
         impl Zero for $t {
             fn is_zero(&self) -> bool {
                 self.0.is_zero()
@@ -55,3 +34,4 @@ macro_rules! arith {
 
 arith!(ScopeDepth);
 arith!(StackDepth);
+arith!(AllocatedMemory);

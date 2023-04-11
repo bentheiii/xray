@@ -2,6 +2,7 @@ use crate::native_types::XNativeValue;
 
 use crate::root_runtime_scope::RuntimeResult;
 use crate::runtime::RTCell;
+use crate::units::AllocatedMemory;
 use crate::xexpr::{TailedEvalResult, XExpr, XStaticFunction};
 use crate::{XFuncSpec, XType};
 
@@ -10,14 +11,11 @@ use derivative::Derivative;
 
 use crate::compilation_scope::CompilationScope;
 use crate::runtime_scope::{RuntimeScope, RuntimeScopeTemplate};
-use crate::runtime_violation::RuntimeViolation;
 use crate::util::fenced_string::FencedString;
 use std::fmt::{Debug, Error, Formatter};
 use std::mem::size_of;
 use std::rc::Rc;
 use std::sync::Arc;
-
-const VERBOSE_ALLOC: bool = false;
 
 pub(crate) type UnionInstance<W, R, T> = (usize, Rc<ManagedXValue<W, R, T>>);
 
@@ -144,7 +142,7 @@ impl<W, R, T> XValue<W, R, T> {
 pub struct ManagedXValue<W, R, T> {
     runtime: RTCell<W, R, T>,
     /// this will be zero if the runtime has no size limit
-    size: usize,
+    size: AllocatedMemory,
     pub value: XValue<W, R, T>,
 }
 
@@ -156,31 +154,13 @@ impl<W, R, T> Debug for ManagedXValue<W, R, T> {
 
 impl<W, R, T> Drop for ManagedXValue<W, R, T> {
     fn drop(&mut self) {
-        self.runtime.borrow_mut().size -= self.size;
+        self.runtime.deallocate(self.size);
     }
 }
 
 impl<W, R, T> ManagedXValue<W, R, T> {
     pub(crate) fn new(value: XValue<W, R, T>, runtime: RTCell<W, R, T>) -> RuntimeResult<Rc<Self>> {
-        let size;
-        {
-            let size_limit = runtime.borrow().limits.size_limit;
-            if let Some(max_size) = size_limit {
-                size = value.size();
-                runtime.borrow_mut().size += size;
-                if VERBOSE_ALLOC {
-                    println!(
-                        "Allocated {size} bytes (total {}) for {value:?}",
-                        runtime.borrow().size
-                    );
-                }
-                if runtime.borrow().size > max_size {
-                    return Err(RuntimeViolation::AllocationLimitReached);
-                }
-            } else {
-                size = 0;
-            }
-        }
+        let size = runtime.allocate(&value)?;
         Ok(Rc::new(Self {
             runtime,
             size,
@@ -203,7 +183,7 @@ impl<W, R, T> ManagedXValue<W, R, T> {
 pub struct ManagedXError<W, R, T> {
     runtime: RTCell<W, R, T>,
     /// this will be zero if the runtime has no size limit
-    size: usize,
+    size: AllocatedMemory,
     pub error: String,
 }
 
@@ -215,7 +195,7 @@ impl<W, R, T> Debug for ManagedXError<W, R, T> {
 
 impl<W, R, T> Drop for ManagedXError<W, R, T> {
     fn drop(&mut self) {
-        self.runtime.borrow_mut().size -= self.size;
+        self.runtime.deallocate(self.size);
     }
 }
 
@@ -224,20 +204,8 @@ impl<W, R, T> ManagedXError<W, R, T> {
         error: E,
         runtime: RTCell<W, R, T>,
     ) -> RuntimeResult<Rc<Self>> {
-        let size;
         let error = error.into();
-        {
-            let size_limit = runtime.borrow().limits.size_limit;
-            if let Some(max_size) = size_limit {
-                size = error.len();
-                runtime.borrow_mut().size += size;
-                if runtime.borrow().size > max_size {
-                    return Err(RuntimeViolation::AllocationLimitReached);
-                }
-            } else {
-                size = 0;
-            }
-        }
+        let size = runtime.allocate(&error)?;
         Ok(Rc::new(Self {
             runtime,
             size,

@@ -14,6 +14,7 @@ use statrs::distribution::{
 use statrs::function::erf::erf_inv;
 use statrs::statistics::{Distribution, Max, Min};
 use std::fmt::Debug;
+use std::mem::size_of;
 
 use crate::builtin::builtin_permissions;
 use crate::builtin::sequence::{XSequence, XSequenceType};
@@ -524,11 +525,9 @@ pub(crate) fn add_contdist_sample<W, R: SeedableRng + RngCore, T>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let d0 = to_native!(a0, XContinuousDistribution);
             let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
-            rt.borrow()
-                .limits
-                .check_permission(&builtin_permissions::RANDOM)?;
-            rt.borrow().can_allocate(i1)?;
-            let nums = d0.sample(i1, rt.borrow_mut().get_rng());
+            rt.limits.check_permission(&builtin_permissions::RANDOM)?;
+            rt.can_allocate(i1*size_of::<usize>())?;
+            let nums = d0.sample(i1, rt.stats.borrow_mut().get_rng());
             let nums = nums.into_iter().map(|v| ManagedXValue::new(XValue::Float(v), rt.clone())).collect::<Result<Vec<_>, _>>()?;
             let ret = XSequence::array(nums);
             Ok(manage_native!(ret, rt))

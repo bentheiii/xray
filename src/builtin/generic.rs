@@ -44,7 +44,7 @@ pub(crate) fn add_error<W, R, T>(
         "error",
         XFuncSpec::new(&[&X_STRING], X_UNKNOWN.clone()),
         ufunc!(String, |a: &FencedString, rt: RTCell<W, R, T>| {
-            rt.borrow().can_allocate(a.bytes())?;
+            rt.can_allocate(a.bytes())?;
             Ok(Err(a.to_string()))
         }),
     )
@@ -58,16 +58,15 @@ pub(crate) fn add_debug<W: Write, R, T>(
         "debug",
         XFuncSpec::new_with_optional(&[&t], &[&X_STRING], t.clone()).generic(params),
         XStaticFunction::from_native(|args: &[XExpr<W, R, T>], ns, _tca, rt| {
-            rt.borrow()
-                .limits
+            rt.limits
                 .check_permission(&builtin_permissions::PRINT_DEBUG)?;
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise_opt!(args.get(1).map(|e| eval(e, ns, &rt)).transpose()?);
             if let Some(a1) = a1 {
                 let b = to_primitive!(a1, String).as_str();
-                writeln!(rt.borrow_mut().stdout, "{b}{a0:?}")
+                writeln!(rt.stats.borrow_mut().stdout, "{b}{a0:?}")
             } else {
-                writeln!(rt.borrow_mut().stdout, "{a0:?}")
+                writeln!(rt.stats.borrow_mut().stdout, "{a0:?}")
             }
             .map_err(|e| RuntimeViolation::OutputFailure(Rc::new(e)))?;
             Ok(a0.into())
@@ -235,8 +234,7 @@ pub(crate) fn add_display<W: Write, R, T>(
                               ns: &RuntimeScope<'_, W, R, T>,
                               _tca,
                               rt: RTCell<W, R, T>| {
-                            rt.borrow()
-                                .limits
+                            rt.limits
                                 .check_permission(&builtin_permissions::PRINT)?;
                             let a0 = eval(&args[0], ns, &rt)?;
                             let a1 =
@@ -248,9 +246,9 @@ pub(crate) fn add_display<W: Write, R, T>(
                             let str_slice = to_primitive!(string, String);
                             if let Some(a1) = a1 {
                                 let b = to_primitive!(a1, String).as_str();
-                                writeln!(rt.borrow_mut().stdout, "{b}{str_slice}")
+                                writeln!(rt.stats.borrow_mut().stdout, "{b}{str_slice}")
                             } else {
-                                writeln!(rt.borrow_mut().stdout, "{str_slice}")
+                                writeln!(rt.stats.borrow_mut().stdout, "{str_slice}")
                             }
                             .map_err(|e| RuntimeViolation::OutputFailure(Rc::new(e)))?;
                             Ok(a0.into())

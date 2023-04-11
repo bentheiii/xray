@@ -221,7 +221,7 @@ pub(crate) fn add_set_add<W, R, T>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let mapping = to_native!(a0, XSet<W, R, T>);
-            rt.borrow().can_allocate(mapping.len * 2)?;
+            rt.can_allocate(mapping.len * 2 * size_of::<usize>())?;
             mapping.with_update(once(Ok(Ok(a1))), ns, rt)
         }),
     )
@@ -301,7 +301,7 @@ pub(crate) fn add_set_remove<W, R, T>(
             let KeyLocation::Found((hash_key, idx)) = xraise!(set.locate(&a1, ns, rt.clone())?) else {
                 return xerr(ManagedXError::new("key not found", rt)?);
             };
-            rt.borrow().can_allocate(set.len - 1)?;
+            rt.can_allocate((set.len - 1)* size_of::<usize>())?;
             let mut new_dict = HashMap::from_iter(set.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (*k, b.clone())));
             let old_bucket = &set.inner[&hash_key];
             new_dict.insert(hash_key, old_bucket.iter().take(idx).chain(old_bucket.iter().skip(idx + 1)).cloned().collect());
@@ -332,7 +332,7 @@ pub(crate) fn add_set_discard<W, R, T>(
             let KeyLocation::Found((hash_key, idx)) = xraise!(set.locate(&a1, ns, rt.clone())?) else {
                 return Ok(a0.clone().into());
             };
-            rt.borrow().can_allocate(set.len - 1)?;
+            rt.can_allocate((set.len - 1)* size_of::<usize>())?;
             let mut new_dict = HashMap::from_iter(set.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (*k, b.clone())));
             let old_bucket = &set.inner[&hash_key];
             new_dict.insert(hash_key, old_bucket.iter().take(idx).chain(old_bucket.iter().skip(idx + 1)).cloned().collect());

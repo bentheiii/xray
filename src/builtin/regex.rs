@@ -62,14 +62,13 @@ pub(crate) fn add_regex_new<W, R, T>(
         "regex",
         XFuncSpec::new(&[&X_STRING], X_REGEX.clone()),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
-            rt.borrow()
-                .limits
+            rt.limits
                 .check_permission(&builtin_permissions::REGEX)?;
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let s0 = to_primitive!(a0, String);
             let mut builder = RegexBuilder::new(s0.as_str());
-            if rt.borrow().limits.size_limit.is_some() {
-                builder.size_limit(rt.borrow().size_left());
+            if rt.limits.size_limit.is_some() {
+                builder.size_limit(rt.size_left());
             }
 
             let regex = match builder.build() {

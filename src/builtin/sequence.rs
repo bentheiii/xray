@@ -589,7 +589,7 @@ pub(crate) fn add_sequence_add_stack<W, R, T>(
                 Ok(a0.clone().into())
             } else {
                 let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-                rt.as_ref().borrow().can_allocate(len0 + stk1.length)?;
+                rt.as_ref().can_allocate((len0 + stk1.length)* size_of::<usize>())?;
                 let mut arr = xraise!(seq0
                     .iter(ns, rt.clone())
                     .collect::<Result<Result<Vec<_>, _>, _>>()?);
@@ -622,7 +622,7 @@ pub(crate) fn add_sequence_addrev_stack<W, R, T>(
                 Ok(a0.clone().into())
             } else {
                 let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-                rt.as_ref().borrow().can_allocate(len0 + stk1.length)?;
+                rt.can_allocate((len0 + stk1.length)* size_of::<usize>())?;
                 let mut arr = xraise!(seq0
                     .iter(ns, rt.clone())
                     .collect::<Result<Result<Vec<_>, _>, _>>()?);
@@ -652,7 +652,7 @@ pub(crate) fn add_sequence_push<W, R, T>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-            rt.as_ref().borrow().can_allocate(len0 + 1)?;
+            rt.can_allocate((len0 + 1)* size_of::<usize>())?;
             let mut arr = xraise!(seq0
                 .iter(ns, rt.clone())
                 .collect::<Result<Result<Vec<_>, _>, _>>()?);
@@ -676,7 +676,7 @@ pub(crate) fn add_sequence_rpush<W, R, T>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-            rt.as_ref().borrow().can_allocate(len0 + 1)?;
+            rt.can_allocate((len0 + 1)* size_of::<usize>())?;
             let mut arr = vec![a1];
             xraise!(arr.try_extend(seq0.iter(ns, rt.clone()))?);
             Ok(manage_native!(XSequence::array(arr), rt))
@@ -699,7 +699,7 @@ pub(crate) fn add_sequence_insert<W, R, T>(
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-            rt.as_ref().borrow().can_allocate(len0 + 1)?;
+            rt.can_allocate((len0 + 1)* size_of::<usize>())?;
             let idx = to_primitive!(a1, Int);
             let idx = xraise!(seq0.value_to_idx(idx, rt.clone())?);
             let mut ret = xraise!(seq0
@@ -727,7 +727,7 @@ pub(crate) fn add_sequence_pop<W, R, T>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-            rt.as_ref().borrow().can_allocate(len0 - 1)?;
+            rt.can_allocate((len0 - 1)* size_of::<usize>())?;
             let idx = to_primitive!(a1, Int);
             let idx = xraise!(seq0.value_to_idx(idx, rt.clone())?);
             if len0 == 1 {
@@ -758,7 +758,7 @@ pub(crate) fn add_sequence_set<W, R, T>(
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-            rt.as_ref().borrow().can_allocate(len0)?;
+            rt.can_allocate(len0* size_of::<usize>())?;
             let idx = to_primitive!(a1, Int);
             let idx = xraise!(seq0.value_to_idx(idx, rt.clone())?);
             let mut ret = xraise!(seq0
@@ -787,7 +787,7 @@ pub(crate) fn add_sequence_swap<W, R, T>(
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-            rt.as_ref().borrow().can_allocate(len0)?;
+            rt.can_allocate(len0* size_of::<usize>())?;
             let idx1 = to_primitive!(a1, Int);
             let idx2 = to_primitive!(a2, Int);
             let mut idx1 = xraise!(seq0.value_to_idx(idx1, rt.clone())?);
@@ -823,7 +823,7 @@ pub(crate) fn add_sequence_to_stack<W, R, T>(
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-            rt.as_ref().borrow().can_allocate(len0)?;
+            rt.can_allocate(len0* size_of::<usize>())?;
             let mut ret = XStack::new();
             for x in seq0.iter(ns, rt.clone()) {
                 ret = ret.push(xraise!(x?));
@@ -875,7 +875,7 @@ pub(crate) fn add_sequence_to_array<W, R, T>(
                 return Ok(a0.into());
             }
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-            rt.as_ref().borrow().can_allocate(len0)?;
+            rt.can_allocate(len0* size_of::<usize>())?;
             let ret = xraise!(seq0
                 .iter(ns, rt.clone())
                 .collect::<Result<Result<Vec<_>, _>, _>>()?);
@@ -908,7 +908,7 @@ pub(crate) fn add_sequence_sort<W, R, T>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-            rt.as_ref().borrow().can_allocate(len0)?;
+            rt.can_allocate(len0* size_of::<usize>())?;
             let f = to_primitive!(a1, Function);
             xraise!(seq0.sorted(f, ns, rt.clone())?)
                 .map_or_else(|| Ok(a0.clone().into()), |s| Ok(manage_native!(s, rt)))
@@ -943,7 +943,7 @@ pub(crate) fn add_sequence_n_largest<W, R, T>(
             let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
             let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-            rt.as_ref().borrow().can_allocate(len0)?;
+            rt.can_allocate(len0* size_of::<usize>())?;
             let f = to_primitive!(a2, Function);
             let ret = xraise!(seq0.n_largest::<true>(i1, f, ns, rt.clone())?);
             let ret_seq = XSequence::Array(ret);
@@ -979,7 +979,7 @@ pub(crate) fn add_sequence_n_smallest<W, R, T>(
             let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("count out of bounds", rt)?); };
             let seq0 = to_native!(a0, XSequence<W, R, T>);
             let Some(len0) = seq0.len() else { return xerr(ManagedXError::new("sequence is infinite", rt)?); };
-            rt.as_ref().borrow().can_allocate(len0)?;
+            rt.can_allocate(len0* size_of::<usize>())?;
             let f = to_primitive!(a2, Function);
             let ret = xraise!(seq0.n_largest::<false>(i1, f, ns, rt.clone())?);
             let ret_seq = XSequence::Array(ret);
@@ -1018,7 +1018,7 @@ pub(crate) fn add_sequence_nth_largest<W, R, T>(
             if i1 >= len0{
                 return xerr(ManagedXError::new("index out of bounds", rt)?);
             }
-            rt.as_ref().borrow().can_allocate(len0)?;
+            rt.can_allocate(len0* size_of::<usize>())?;
             let f = to_primitive!(a2, Function);
             let ret = xraise!(seq0.quickselect(seq0.len().unwrap()-i1-1, f, ns, rt)?);
             Ok(ret.into())
@@ -1056,7 +1056,7 @@ pub(crate) fn add_sequence_nth_smallest<W, R, T>(
             if i1 >= len0{
                 return xerr(ManagedXError::new("index out of bounds", rt)?);
             }
-            rt.as_ref().borrow().can_allocate(len0)?;
+            rt.can_allocate(len0* size_of::<usize>())?;
             let f = to_primitive!(a2, Function);
             let ret = xraise!(seq0.quickselect(i1, f, ns, rt)?);
             Ok(ret.into())
@@ -1599,7 +1599,7 @@ pub(crate) fn add_sequence_dyn_zip<W, R, T>(
                         return Ok(manage_native!(XSequence::<W, R, T>::Empty, rt));
                     }
                     seqs.push(a);
-                    rt.as_ref().borrow().can_afford(&seqs)?
+                    rt.can_afford(&seqs)?
                 }
                 Ok(manage_native!(XSequence::<W, R, T>::Zip(seqs), rt))
             },
@@ -1629,7 +1629,7 @@ pub(crate) fn add_sequence_dyn_unzip<W, R, T>(
                 let a = xraise!(eval(&args[0], ns, &rt)?);
 
                 let mut items = vec![];
-                rt.as_ref().borrow().can_allocate(t_len * 2 + 1)?;
+                rt.can_allocate((t_len * 2 + 1)* size_of::<usize>())?;
                 for i in 0..t_len {
                     let func = ManagedXValue::new(XValue::Function(XFunction::Native(Rc::new(
                         move |args, ns, _tca, rt| {
@@ -1675,7 +1675,7 @@ pub(crate) fn add_sequence_dyn_to_str<W, R, T>(
                         let seq0 = to_native!(a0, XSequence<W, R, T>);
                         match seq0.len() {
                             None => return xerr(ManagedXError::new("infinite sequence", rt)?),
-                            Some(len) => rt.borrow().can_allocate(len + 2)?,
+                            Some(len) => rt.can_allocate((len + 2)* size_of::<usize>())?,
                         }
                         let arr0 = seq0.iter(ns, rt.clone());
                         let inner_func = to_primitive!(inner_value, Function);
@@ -1693,7 +1693,7 @@ pub(crate) fn add_sequence_dyn_to_str<W, R, T>(
                                 .unwrap_value());
                             let f = to_primitive!(to_str, String);
                             ret.push(f);
-                            rt.borrow().can_allocate_by(|| Some(ret.size()))?;
+                            rt.can_allocate(ret.size())?;
                             first = false;
                         }
                         ret.push_ascii("]");

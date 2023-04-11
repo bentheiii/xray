@@ -270,7 +270,7 @@ pub(crate) fn search<W, R, T, I: IntoIterator>(
     other: I,
     rt: RTCell<W, R, T>,
 ) -> impl Iterator<Item = (I::Item, RuntimeResult<()>)> {
-    let s = rt.borrow().limits.search_iter();
+    let s = rt.limits.search_iter();
     other.into_iter().zip(s)
 }
 

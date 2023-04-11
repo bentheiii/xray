@@ -283,7 +283,7 @@ pub(crate) fn add_mapping_set<W, R, T>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let mapping = to_native!(a0, XMapping<W, R, T>);
-            rt.borrow().can_allocate(mapping.len * 2)?;
+            rt.can_allocate(mapping.len * 2 * size_of::<usize>())?;
             mapping.with_update(once(Ok(Ok((a1, a2)))), ns, rt)
         }),
     )
@@ -306,7 +306,7 @@ pub(crate) fn add_mapping_set_default<W, R, T>(
             if let KeyLocation::Found(..) = loc {
                 return Ok(a0.into());
             }
-            rt.borrow().can_allocate(mapping.len * 2)?;
+            rt.can_allocate(mapping.len * 2 * size_of::<usize>())?;
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             let mut ret = mapping.clone();
             xraise!(ret.put_located(&a1, loc, || a2, |_| unreachable!())?);
@@ -526,7 +526,7 @@ pub(crate) fn add_mapping_pop<W, R, T>(
             let KeyLocation::Found((hash_key, idx)) = xraise!(mapping.locate(&a1, ns, rt.clone())?) else {
                 return xerr(ManagedXError::new("key not found", rt)?);
             };
-            rt.borrow().can_allocate((mapping.len - 1) * 2)?;
+            rt.can_allocate((mapping.len - 1) * 2 * size_of::<usize>())?;
             let mut new_dict = HashMap::from_iter(mapping.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (*k, b.clone())));
             let old_bucket = &mapping.inner[&hash_key];
             new_dict.insert(hash_key, old_bucket.iter().take(idx).chain(old_bucket.iter().skip(idx + 1)).cloned().collect());
@@ -557,7 +557,7 @@ pub(crate) fn add_mapping_discard<W, R, T>(
             let KeyLocation::Found((hash_key, idx)) = xraise!(mapping.locate(&a1, ns, rt.clone())?) else {
                 return Ok(a0.clone().into());
             };
-            rt.borrow().can_allocate((mapping.len - 1) * 2)?;
+            rt.can_allocate((mapping.len - 1) * 2* size_of::<usize>())?;
             let mut new_dict = HashMap::from_iter(mapping.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (*k, b.clone())));
             let old_bucket = &mapping.inner[&hash_key];
             new_dict.insert(hash_key, old_bucket.iter().take(idx).chain(old_bucket.iter().skip(idx + 1)).cloned().collect());

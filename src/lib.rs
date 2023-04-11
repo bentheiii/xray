@@ -23,6 +23,7 @@ pub mod util;
 pub mod xexpr;
 pub mod xtype;
 pub mod xvalue;
+pub mod allocations;
 
 extern crate pest;
 #[macro_use]

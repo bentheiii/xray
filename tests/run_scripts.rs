@@ -142,14 +142,14 @@ impl ScriptConfig {
         }
 
         if let Some(expected_output) = &self.expected_stdout {
-            let actual_stdout = runtime
-                .as_ref()
-                .borrow()
-                .stdout
+            let output = &runtime
+            .stats
+            .borrow()
+            .stdout;
+            let actual_stdout = output
                 .as_ref()
                 .unwrap_left()
-                .memory
-                .clone();
+                .memory.clone();
             assert_eq!(expected_output, &String::from_utf8(actual_stdout).unwrap())
         }
     }

@@ -190,7 +190,7 @@ impl<'p, W, R, T> CompilationScope<'p, W, R, T> {
     ) -> Result<Self, CompilationError> {
         let mut ret = Self {
             parent: Some(parent),
-            height: parent.height + 1,
+            height: parent.height + ScopeDepth(1),
 
             ..Self::root()
         };
@@ -566,7 +566,7 @@ impl<'p, W, R, T> CompilationScope<'p, W, R, T> {
                 {
                     if ancestor_depth.0 > 1 {
                         parent_capture_requests.push(Cell::Capture {
-                            ancestor_depth: ancestor_depth - 1,
+                            ancestor_depth: ancestor_depth - ScopeDepth(1),
                             cell_idx,
                         });
                         parent_new_cell_idx += 1;

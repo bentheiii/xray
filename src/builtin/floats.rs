@@ -470,7 +470,7 @@ pub(crate) fn add_float_format<W, R, T>(
             let s1 = to_primitive!(a1, String);
             let Some(specs) = XFormatting::from_str(s1.as_str()) else {return xerr(ManagedXError::new("invalid format spec", rt)?);};
 
-            rt.borrow().can_allocate_by(|| Some(specs.min_width()))?;
+            rt.can_allocate(specs.min_width())?;
 
             let mag = f0.abs();
             if specs.ty.alternative{

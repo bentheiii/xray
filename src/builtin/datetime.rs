@@ -14,10 +14,9 @@ pub(crate) fn add_datetime_now<W, R, T: TimeProvider>(
         "__std_unix_now",
         XFuncSpec::new(&[], X_FLOAT.clone()),
         XStaticFunction::from_native(|_args, _ns, _tca, rt: RTCell<_, _, T>| {
-            rt.borrow()
-                .limits
+            rt.limits
                 .check_permission(&builtin_permissions::NOW)?;
-            let utc = rt.borrow().time_provider.unix_now();
+            let utc = rt.time_provider.unix_now();
             Ok(ManagedXValue::new(XValue::Float(utc), rt)?.into())
         }),
     )

@@ -72,7 +72,7 @@ impl<W: 'static, R: 'static, T: 'static> EvaluationCell<W, R, T> {
                 // note that the parent is already one-deep so we need to subtract one from the depth
                 let (ancestor, cell) = parent
                     .unwrap()
-                    .scope_ancestor_and_cell(*ancestor_depth - 1, *cell_idx);
+                    .scope_ancestor_and_cell(*ancestor_depth - ScopeDepth(1), *cell_idx);
                 match cell.as_ref(ancestor.template.as_ref()) {
                     Self::Uninitialized | Self::PendingCapture { .. } => Ok(Self::PendingCapture {
                         depth: *ancestor_depth,
@@ -206,12 +206,11 @@ impl<'a, W: 'static, R: 'static, T: 'static> RuntimeScope<'a, W, R, T> {
                     }
                 })
                 .collect(),
-            height: stack_parent.map_or(StackDepth(0), |p| p.height + 1),
+            height: stack_parent.map_or(StackDepth(0), |p| p.height + StackDepth(1)),
             scope_parent,
             template: template.clone(),
         };
         if rt
-            .borrow()
             .limits
             .depth_limit
             .map_or(false, |limit| ret.height.0 >= limit)
@@ -412,13 +411,7 @@ impl<'a, W: 'static, R: 'static, T: 'static> RuntimeScope<'a, W, R, T> {
             }
             XFunction::UserFunction { template, output } => {
                 {
-                    let mut rt = rt.borrow_mut();
-                    if let Some(ud_limit) = rt.limits.ud_call_limit {
-                        rt.ud_calls += 1;
-                        if rt.ud_calls >= ud_limit {
-                            return Err(RuntimeViolation::MaximumUDCall);
-                        }
-                    }
+                    rt.increment_call_limit()?;
                     rt.check_timeout()?;
                 }
                 let mut args = args;
@@ -430,7 +423,7 @@ impl<'a, W: 'static, R: 'static, T: 'static> RuntimeScope<'a, W, R, T> {
                     match v? {
                         TailedEvalResult::TailCall(new_args) => {
                             recursion_depth += 1;
-                            if let Some(recursion_limit) = rt.borrow().limits.recursion_limit {
+                            if let Some(recursion_limit) = rt.limits.recursion_limit {
                                 if recursion_depth > recursion_limit {
                                     return Err(RuntimeViolation::MaximumRecursion);
                                 }

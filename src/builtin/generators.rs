@@ -275,7 +275,7 @@ impl<W: 'static, R: 'static, T: 'static> XGenerator<W, R, T> {
                     XMapping::new(hash_func.clone(), eq_func.clone(), Default::default(), 0);
                 inner.map(move |i| {
                     let i = forward_err!(i?);
-                    rt.borrow().can_allocate(counter.dyn_size())?;
+                    rt.can_allocate(counter.dyn_size())?;
                     let v = forward_err!(counter.put(&i, || 1usize, |v| v + 1, ns, rt.clone())?);
                     let v = ManagedXValue::new(XValue::Int(LazyBigint::from(*v)), rt.clone())?;
                     let tup = ManagedXValue::new(XValue::StructInstance(vec![i, v]), rt.clone())?;
@@ -291,7 +291,7 @@ impl<W: 'static, R: 'static, T: 'static> XGenerator<W, R, T> {
         rt: RTCell<W, R, T>,
     ) -> impl Iterator<Item = XResult<Rc<ManagedXValue<W, R, T>>, W, R, T>> + 'a {
         self._iter(ns, rt.clone())
-            .zip(rt.borrow().limits.search_iter())
+            .zip(rt.limits.search_iter())
             .map(|(v, search)| {
                 search?;
                 v
@@ -754,7 +754,7 @@ pub(crate) fn add_generator_to_array<W, R, T>(
             for value in gen0.iter(ns, rt.clone()) {
                 let value = xraise!(value?);
                 ret.push(value);
-                rt.borrow().can_afford(&ret)?;
+                rt.can_afford(&ret)?;
             }
             Ok(manage_native!(XSequence::Array(ret), rt))
         }),
@@ -836,7 +836,7 @@ pub(crate) fn add_generator_join<W, R, T>(
 
                 let f = to_primitive!(item, String);
                 ret.push(f.as_ref());
-                rt.borrow().can_allocate_by(|| Some(ret.size()))?;
+                rt.can_allocate(ret.size())?;
                 first = false;
             }
             ret.shrink_to_fit();
@@ -1084,7 +1084,7 @@ pub(crate) fn add_generator_dyn_zip<W, R, T>(
                         a = manage_native!(XGenerator::FromSequence(a), rt.clone());
                     }
                     gens.push(a);
-                    rt.as_ref().borrow().can_afford(&gens)?
+                    rt.can_afford(&gens)?
                 }
                 Ok(manage_native!(XGenerator::<W, R, T>::Zip(gens), rt))
             },
@@ -1114,7 +1114,7 @@ pub(crate) fn add_generator_dyn_unzip<W, R, T>(
                 let a = xraise!(eval(&args[0], ns, &rt)?);
 
                 let mut items = vec![];
-                rt.as_ref().borrow().can_allocate(t_len * 2 + 1)?;
+                rt.can_allocate((t_len * 2 + 1)*size_of::<usize>())?;
                 for i in 0..t_len {
                     let func = ManagedXValue::new(XValue::Function(XFunction::Native(Rc::new(
                         move |args, ns, _tca, rt| {

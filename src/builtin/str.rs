@@ -41,7 +41,7 @@ add_binfunc!(
     String,
     X_STRING,
     |a: &FencedString, b: &FencedString, rt: &RTCell<W, R, T>| {
-        rt.borrow().can_allocate(a.bytes() + b.bytes())?;
+        rt.can_allocate(a.bytes() + b.bytes())?;
         Ok(Ok(XValue::String(Box::new(a + b))))
     }
 );
@@ -401,7 +401,7 @@ pub(crate) fn add_str_format<W, R, T>(
                 return xerr(ManagedXError::new("str cannot be formatted with sign-sensitivity", rt)?);
             }
 
-            rt.borrow().can_allocate_by(|| {
+            rt.can_allocate_by(|| {
                 Some(max(
                     s0.len(),
                     specs.min_width(),
