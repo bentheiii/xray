@@ -9,8 +9,6 @@ use std::collections::HashSet;
 use std::convert::TryInto;
 
 use std::ops::{Deref, DerefMut};
-use std::rc::Rc;
-
 use std::sync::Arc;
 use string_interner::{DefaultBackend, DefaultSymbol, StringInterner};
 
@@ -49,14 +47,14 @@ pub(crate) type Interner = StringInterner<SpecialPrefixBackend<DefaultBackend<De
 
 pub struct RootCompilationScope<W: 'static, R: 'static, T: 'static> {
     pub(crate) scope: CompilationScope<'static, W, R, T>,
-    pub(crate) interner: Rc<RefCell<Interner>>,
+    pub(crate) interner: RefCell<Interner>,
 }
 
 impl<W, R, T> RootCompilationScope<W, R, T> {
     pub fn new() -> Self {
         Self {
             scope: CompilationScope::root(),
-            interner: Rc::new(RefCell::new(Interner::new())),
+            interner: RefCell::new(Interner::new()),
         }
     }
 
@@ -130,7 +128,7 @@ impl<W, R, T> RootCompilationScope<W, R, T> {
     }
 
     pub fn describe_type(&self, t: impl Deref<Target = XType>) -> String {
-        t.to_string_with_interner(&self.interner.as_ref().borrow())
+        t.to_string_with_interner(&self.interner.borrow())
     }
 }
 

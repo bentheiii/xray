@@ -106,7 +106,7 @@
   * [X] atan2
   * [X] geometric distribution
   * [ ] some things in python
-    * [ ] got to https://docs.python.org/3/library/datetime.html#datetime.date.weekday
+    * [ ] got to https://docs.python.org/3/library/collections.html
   * [X] sequence::manifest
   * [ ] json?
   * [X] chain sequence?
