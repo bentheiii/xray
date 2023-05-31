@@ -2,7 +2,7 @@ use crate::xvalue::XResult;
 use std::mem::{swap, ManuallyDrop};
 use std::ptr;
 
-struct Hole<'a, T: 'a> {
+struct Hole<'a, T> {
     data: &'a mut [T],
     elt: ManuallyDrop<T>,
     pos: usize,
@@ -77,7 +77,7 @@ pub(crate) struct TryHeap<T, F> {
 
 impl<I, W, R, T, F: FnMut(&I, &I) -> XResult<bool, W, R, T>> TryHeap<I, F> {
     #[must_use]
-    pub fn with_capacity(capacity: usize, is_le: F) -> Self {
+    pub(crate) fn with_capacity(capacity: usize, is_le: F) -> Self {
         Self {
             data: Vec::with_capacity(capacity),
             is_le,

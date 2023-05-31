@@ -9,7 +9,7 @@ pub(crate) struct StrParts<'a> {
     len: usize,
 }
 
-impl<'a> StrParts<'a> {
+impl StrParts<'_> {
     pub(crate) fn len(&self) -> usize {
         self.len
     }
@@ -50,7 +50,7 @@ impl<'a> Extend<&'a str> for StrParts<'a> {
     }
 }
 
-impl<'a> Extend<String> for StrParts<'a> {
+impl Extend<String> for StrParts<'_> {
     fn extend<T: IntoIterator<Item = String>>(&mut self, iter: T) {
         let mut total_len = 0usize;
         let i = iter
@@ -71,7 +71,7 @@ impl<'a> Extend<Cow<'a, str>> for StrParts<'a> {
     }
 }
 
-impl<'a> Extend<Self> for StrParts<'a> {
+impl Extend<Self> for StrParts<'_> {
     fn extend<T: IntoIterator<Item = Self>>(&mut self, iter: T) {
         let mut total_len = 0usize;
         let i = iter

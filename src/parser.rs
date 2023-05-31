@@ -61,7 +61,7 @@ struct ParsedFunctionHeader<'b, W, R, T> {
     specific_gen_params: Option<Vec<Identifier>>,
 }
 
-impl<'p, W, R, T> CompilationScope<'p, W, R, T> {
+impl<W, R, T> CompilationScope<'_, W, R, T> {
     fn parse_function_header<'b>(
         &mut self,
         input: &Pair<'b, Rule>,

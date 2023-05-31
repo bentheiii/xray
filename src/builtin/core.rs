@@ -23,7 +23,7 @@ macro_rules! xraise {
     }};
 }
 
-pub fn xerr<W, R, T>(err: Rc<ManagedXError<W, R, T>>) -> RuntimeResult<TailedEvalResult<W, R, T>> {
+pub(crate) fn xerr<W, R, T>(err: Rc<ManagedXError<W, R, T>>) -> RuntimeResult<TailedEvalResult<W, R, T>> {
     Ok(TailedEvalResult::Value(Err(err)))
 }
 
@@ -53,7 +53,7 @@ macro_rules! add_binfunc {
     };
 }
 
-pub fn ufunc_ref<W: 'static, R: 'static, T: 'static, F>(func: F) -> XStaticFunction<W, R, T>
+pub(crate) fn ufunc_ref<W: 'static, R: 'static, T: 'static, F>(func: F) -> XStaticFunction<W, R, T>
 where
     F: Fn(Rc<ManagedXValue<W, R, T>>, RTCell<W, R, T>) -> RuntimeResult<TailedEvalResult<W, R, T>>
         + 'static,

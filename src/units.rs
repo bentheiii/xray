@@ -19,7 +19,7 @@ use num_traits::Zero;
     AddAssign,
     SubAssign,
 )]
-pub(crate) struct ScopeDepth(pub usize);
+pub(crate) struct ScopeDepth(pub(crate) usize);
 
 #[derive(
     Eq,
@@ -37,7 +37,7 @@ pub(crate) struct ScopeDepth(pub usize);
     AddAssign,
     SubAssign,
 )]
-pub(crate) struct StackDepth(pub usize);
+pub(crate) struct StackDepth(pub(crate) usize);
 
 #[derive(
     Eq,
@@ -55,7 +55,7 @@ pub(crate) struct StackDepth(pub usize);
     AddAssign,
     SubAssign,
 )]
-pub(crate) struct AllocatedMemory(pub usize);
+pub(crate) struct AllocatedMemory(pub(crate) usize);
 
 impl Display for AllocatedMemory {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
