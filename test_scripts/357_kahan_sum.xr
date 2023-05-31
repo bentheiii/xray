@@ -1,0 +1,6 @@
+fn main()->bool{
+    let s = [1.0/6.0].to_generator().repeat().take(6);
+
+    assert(s.sum(0.0) == 1.0)
+    && assert(s.sum() == 1.0)
+}
