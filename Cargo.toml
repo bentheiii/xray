@@ -24,6 +24,7 @@ regex = "1.7.0"
 statrs = "0.16.0"
 rand = "0.8.5"
 derive_more = "0.99.17"
+libm = "0.2.7"
 
 [dev-dependencies]
 glob = "0.3.0"

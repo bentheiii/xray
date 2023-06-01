@@ -96,6 +96,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_float_eq(scope).unwrap();
     add_float_erf(scope).unwrap();
     add_float_erfc(scope).unwrap();
+    add_float_expm1(scope).unwrap();
     add_float_floor(scope).unwrap();
     add_float_format(scope).unwrap();
     add_float_gamma(scope).unwrap();

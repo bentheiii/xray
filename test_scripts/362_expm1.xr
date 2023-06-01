@@ -1,0 +1,4 @@
+fn main()->bool{
+    assert(expm1(25.0).is_close(e**25.0 - 1.0))
+    && assert(expm1(1e-5) == 1.0000050000166668e-05)
+}

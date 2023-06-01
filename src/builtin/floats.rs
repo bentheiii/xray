@@ -18,6 +18,7 @@ use statrs::function::erf::{erf, erfc};
 use statrs::function::gamma::{gamma, ln_gamma};
 
 use std::rc;
+use libm::expm1;
 
 pub(crate) fn add_float_type<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
@@ -401,6 +402,18 @@ pub(crate) fn add_float_gammaln<W, R, T>(
     )
 }
 
+pub(crate) fn add_float_expm1<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "expm1",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| {
+            Ok(Ok(XValue::Float(expm1(*a))))
+        }),
+    )
+}
+
 pub(crate) fn add_float_to_str<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
@@ -417,6 +430,7 @@ pub(crate) fn add_float_to_str<W, R, T>(
 
 add_binfunc!(add_float_cmp, cmp, X_FLOAT, Float, X_INT, |a, b, _| Ok(Ok(
     xcmp(a, b)
+
 )));
 
 pub(crate) fn add_float_format<W, R, T>(
