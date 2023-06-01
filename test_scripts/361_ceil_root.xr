@@ -1,0 +1,7 @@
+fn main()->bool{
+    assert(25.ceil_root(2) == 5)
+    && assert(25.ceil_root(3) == 3)
+    && assert(0.ceil_root(3) == 0)
+    && assert(is_error((-1).ceil_root(3)))
+    && assert(is_error(25.ceil_root(-1)))
+}

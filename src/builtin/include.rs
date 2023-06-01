@@ -31,7 +31,7 @@ fn gcd(a: int, b: int)->int{
 
 fn lcm(a: int, b: int)->int{
     let g = gcd(a,b);
-    trunc(a.abs()/g)*b.abs()
+    if(g == 0, 0, trunc(a.abs()/g)*b.abs())
 }
 
 fn harmonic_mean(a: int, b:int)->float{
@@ -670,6 +670,7 @@ fn binary_search<T>(seq: Sequence<T>, cmp_: (T)->(int))->Optional<int>{
     helper(seq, 0)
 }
 
+/// returns the number of elements from the beginning of the sequence that satisfy the predicate
 fn bisect<T>(seq: Sequence<T>, left_predicate: (T)->(bool))->int{
     fn helper(seq: Sequence<T>, offset: int)->int{
         let mid = floor(seq.len()/2);
@@ -881,6 +882,14 @@ fn values<K, V>(m: Mapping<K,V>)->Generator<V>{
 
 
 // gen 2:
+// ints
+fn floor_root(a: int, b: int ?= 2)->int{
+    if(a<0, error("a must be non-negative"), range(1, a).bisect((x:int)->{x**b <= a}))
+}
+fn ceil_root(a: int, b: int ?= 2)->int{
+    if(a==0, 0, 1+floor_root(a-1, b))
+}
+
 // floats
 fn covariance(s: Generator<(float, float)>)->float{
     let agg = (n: (int,float,float), i: (float, float))->{(n::item0+1, n::item1+i::item0, n::item2+i::item1)};

@@ -4,4 +4,5 @@ fn main()->bool{
     && assert(1071.gcd(-462) == 21)
     && assert(60.gcd(1) == 1)
     && assert(0.gcd(11) == 11)
+    && assert(0.gcd(0) == 0)
 }
