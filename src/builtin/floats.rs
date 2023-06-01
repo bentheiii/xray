@@ -1,7 +1,8 @@
 use crate::builtin::core::{eval, xcmp, xerr};
+use crate::runtime::Runtime;
 use crate::util::str_parts::StrParts;
 use crate::util::xformatter::{group_string, XFormatting};
-use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
+use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING, XType};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use crate::{
     add_binfunc, to_primitive, ufunc, xraise, xraise_opt, CompilationError, RootCompilationScope,
@@ -9,9 +10,11 @@ use crate::{
 };
 
 use crate::util::lazy_bigint::LazyBigint;
-use num_traits::{FromPrimitive, Zero};
+use num_bigint::{BigInt, BigUint, Sign};
+use num_traits::{FromPrimitive, Zero, Float, One};
 use rc::Rc;
 use std::cmp::max_by;
+use std::sync::Arc;
 
 use crate::util::fenced_string::FencedString;
 use statrs::function::erf::{erf, erfc};
@@ -440,6 +443,43 @@ pub(crate) fn add_float_to_str<W, R, T>(
             Ok(Ok(XValue::String(Box::new(FencedString::from_string(
                 format!("{:?}", if *a == -0.0 { 0.0 } else { *a }),
             )))))
+        }),
+    )
+}
+
+pub(crate) fn add_float_tpl<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "__xray_tpl",
+        XFuncSpec::new(&[&X_FLOAT], Arc::new(XType::Tuple(vec![X_INT.clone(), X_INT.clone()]))),
+        ufunc!(Float, |a: &f64, rt: Rc<Runtime<W, R, T>>| {
+            let (num, denom) = {
+                if a == &0.0 {
+                    (BigInt::zero(), One::one())
+                } else {
+                    let (mantissa, exponent, sign) = a.integer_decode();
+                    let bigint_sign = if sign == 1 { Sign::Plus } else { Sign::Minus };
+                    if exponent < 0 {
+                        let one: BigInt = One::one();
+                        let denom = one << ((-exponent) as usize);
+                        let numer: BigUint = FromPrimitive::from_u64(mantissa).unwrap();
+                        (BigInt::from_biguint(bigint_sign, numer), denom)
+                    } else {
+                        let mut numer = FromPrimitive::from_u64(mantissa).unwrap();
+                        numer <<= exponent as usize;
+                        (BigInt::from_biguint(
+                            bigint_sign,
+                            numer,
+                        ), One::one())
+                    }
+                }
+            };
+            let num = ManagedXValue::new(XValue::Int(LazyBigint::from(num)), rt.clone())?;
+            let denom = ManagedXValue::new(XValue::Int(LazyBigint::from(denom)), rt)?;
+            Ok(Ok(
+                XValue::StructInstance(vec![num, denom])
+            ))
         }),
     )
 }

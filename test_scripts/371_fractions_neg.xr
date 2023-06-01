@@ -1,0 +1,4 @@
+fn main()->bool{
+    assert(-fraction(2,3) == Fraction(-2,3))
+    && assert(-fraction(-2,3) == Fraction(2,3))
+}

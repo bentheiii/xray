@@ -14,7 +14,7 @@ fn total(x: Sequence<int>) -> int {
 
 fn do(m: msg) -> int {
     m?:x.map(total)
-    || m?:y.map(floor).value()
+    || m?:y.map(floor{float}).value()
 }
 
 fn main()->bool {

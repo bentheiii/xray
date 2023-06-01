@@ -239,6 +239,83 @@ fn is_close(a: Complex, b: Complex, rel_tol: float ?= 1e-9, abs_tol: float ?= 1e
     diff.abs().is_close(0.0, rel_tol, abs_tol)
 }
 
+// fractions
+struct Fraction(n: int, d: int)
+
+fn eq(a: Fraction, b: Fraction)->bool{
+    a::n == b::n && a::d == b::d
+}
+
+fn hash(a: Fraction)->int{
+    (a::n, a::d).hash()
+}
+
+fn neg(a: Fraction)->Fraction{
+    Fraction(-a::n, a::d)
+}
+
+fn fraction(n: int)->Fraction{
+    Fraction(n, 1)
+}
+
+fn fraction(n: int, d: int)->Fraction{
+    let g = gcd(n, d);
+    Fraction(trunc((n/g)/sign(d)), trunc(abs(d)/g))
+}
+
+fn fraction(f: float)->Fraction{
+    let tpl = __xray_tpl(f);
+    fraction(tpl::item0, tpl::item1)
+}
+
+fn mul(a: Fraction, b: Fraction)->Fraction{
+    fraction(a::n*b::n, a::d*b::d)
+}
+
+fn div(a: Fraction, b: Fraction)->Fraction{
+    fraction(a::n*b::d, a::d*b::n)
+}
+
+fn pow(a: Fraction, b: int)->Fraction{
+    if(b >= 0, fraction(a::n**b, a::d**b), fraction(a::d**-b, a::n**-b))
+}
+
+fn add(a: Fraction, b: Fraction)->Fraction{
+    fraction(a::n*b::d + b::n*a::d, a::d*b::d)
+}
+
+fn sub(a: Fraction, b: Fraction)->Fraction{
+    fraction(a::n*b::d - b::n*a::d, a::d*b::d)
+}
+
+fn mod(a: Fraction, b: Fraction)->Fraction{
+    fraction((a::n * b::d) % (b::n * a::d), a::d * b::d)
+}
+
+fn sign(a: Fraction)->int{
+    sign(a::n)
+}
+
+fn abs(a: Fraction)->Fraction{
+    fraction(abs(a::n), a::d)
+}
+
+fn cmp(a: Fraction, b: Fraction)->int{
+    (a-b)::n
+}
+
+fn floor(a: Fraction)->int{
+    div_floor(a::n,a::d)
+}
+
+fn ceil(a: Fraction)->int{
+    div_ceil(a::n,a::d)
+}
+
+fn trunc(a: Fraction)->int{
+    if(a::n >= 0, floor(a), ceil(a))
+}
+
 // bool
 fn bit_xor(a: bool, b: bool)->bool{
     a != b

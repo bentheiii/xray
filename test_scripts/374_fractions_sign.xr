@@ -1,0 +1,8 @@
+fn main()->bool{
+    assert(fraction(1,3).sign() == 1)
+    && assert(fraction(-1,3).sign() == -1)
+    && assert(fraction(1,-3).sign() == -1)
+    && assert(fraction(-1,-3).sign() == 1)
+    && assert(fraction(0,3).sign() == 0)
+    && assert(fraction(0,-3).sign() == 0)
+}

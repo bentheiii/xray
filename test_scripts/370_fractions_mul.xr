@@ -1,0 +1,6 @@
+fn main()->bool{
+    assert(fraction(2,3)*fraction(9,5) == Fraction(6,5))
+    && assert(fraction(2,3)*fraction(9,-5) == Fraction(-6,5))
+    && assert(fraction(2,3)/fraction(9,5) == Fraction(10,27))
+    && assert(fraction(2,-3)/fraction(9,5) == Fraction(-10,27))
+}

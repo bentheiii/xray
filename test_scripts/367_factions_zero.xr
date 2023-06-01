@@ -1,0 +1,6 @@
+fn main()->bool{
+    assert(fraction(0,55) == Fraction(0,1))
+    && assert(fraction(0,-55) == Fraction(0,1))
+    && assert(fraction(0.0) == Fraction(0,1))
+    && assert(fraction(0) == Fraction(0,1))
+}

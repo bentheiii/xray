@@ -1,0 +1,10 @@
+fn main()->bool{
+    assert(fraction(55,55) == Fraction(1,1))
+    && assert(fraction(-55,-55) == Fraction(1,1))
+    && assert(fraction(55,-55) == Fraction(-1,1))
+    && assert(fraction(-55,55) == Fraction(-1,1))
+    && assert(fraction(1.0) == Fraction(1,1))
+    && assert(fraction(-1.0) == Fraction(-1,1))
+    && assert(fraction(1) == Fraction(1,1))
+    && assert(fraction(-1) == Fraction(-1,1))
+}

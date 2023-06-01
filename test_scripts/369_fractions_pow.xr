@@ -1,0 +1,7 @@
+fn main()->bool{
+    assert(fraction(2,3)**3 == Fraction(8,27))
+    && assert(fraction(-2,3)**3 == Fraction(-8,27))
+    && assert(fraction(0.625)**-2 == Fraction(64,25))
+    && assert(fraction(-0.625)**-2 == Fraction(64,25))
+    && assert(fraction(6, 32)**0 == Fraction(1,1))
+}

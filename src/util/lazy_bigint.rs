@@ -2,6 +2,7 @@ use either::Either;
 use num_bigint::{BigInt, BigUint, ParseBigIntError};
 use num_rational::BigRational;
 use num_traits::{FromPrimitive, Inv, Num, One, Pow, Signed, ToPrimitive, Zero};
+use num_integer::{div_floor, div_ceil};
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Display, Formatter};
@@ -29,6 +30,24 @@ impl LazyBigint {
                 BigRational::new(b, BigInt::from(s)).to_f64().unwrap()
             }
             (Self::Long(b0), Self::Long(b1)) => BigRational::new(b0, b1).to_f64().unwrap(),
+        }
+    }
+
+    pub(crate) fn div_floor(self, rhs: Self) -> Self {
+        match (self, rhs) {
+            (Self::Short(s1), Self::Short(s2)) => Self::Short(div_floor(s1, s2)),
+            (Self::Short(s), Self::Long(b)) => Self::from(div_floor(BigInt::from(s), b)),
+            (Self::Long(b), Self::Short(s)) => Self::from(div_floor(b, BigInt::from(s))),
+            (Self::Long(b0), Self::Long(b1)) => Self::from(div_floor(b0, b1)),
+        }
+    }
+
+    pub(crate) fn div_ceil(self, rhs: Self) -> Self {
+        match (self, rhs) {
+            (Self::Short(s1), Self::Short(s2)) => Self::Short(div_ceil(s1, s2)),
+            (Self::Short(s), Self::Long(b)) => Self::from(div_ceil(BigInt::from(s), b)),
+            (Self::Long(b), Self::Short(s)) => Self::from(div_ceil(b, BigInt::from(s))),
+            (Self::Long(b0), Self::Long(b1)) => Self::from(div_ceil(b0, b1)),
         }
     }
 

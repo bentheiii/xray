@@ -2006,3 +2006,64 @@ fn test_script_364() {
 fn test_script_365() {
     run_script_from_name(function_name!())
 }
+
+#[test]
+fn test_script_366() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_367() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_368() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_369() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_370() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_371() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_372() {
+    run_script_from_name(function_name!())
+}
+
+
+#[test]
+fn test_script_373() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_374() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_375() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_376() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_377() {
+    run_script_from_name(function_name!())
+}

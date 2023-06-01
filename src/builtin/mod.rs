@@ -59,6 +59,8 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_int_chr(scope).unwrap();
     add_int_cmp(scope).unwrap();
     add_int_div(scope).unwrap();
+    add_int_div_ceil(scope).unwrap();
+    add_int_div_floor(scope).unwrap();
     add_int_digits(scope).unwrap();
     add_int_eq(scope).unwrap();
     add_int_format(scope).unwrap();
@@ -114,6 +116,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_float_tan(scope).unwrap();
     add_float_tanh(scope).unwrap();
     add_float_to_str(scope).unwrap();
+    add_float_tpl(scope).unwrap();
     add_float_trunc(scope).unwrap();
 
     add_str_type(scope).unwrap();

@@ -106,7 +106,7 @@
   * [X] atan2
   * [X] geometric distribution
   * [ ] some things in python
-    * [ ] got to https://docs.python.org/3/library/math.html#math.fsum
+    * [ ] got to https://docs.python.org/3/library/random.html
   * [X] sequence::manifest
   * [ ] json?
   * [X] chain sequence?
