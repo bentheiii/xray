@@ -708,38 +708,34 @@ fn rank_avg<T0>(seq: Sequence<T0>, t: T0, cmp: (T0, T0)->(int))->float{
 }
 
 //generators
-fn any<T>(a: Generator<T>, f: (T)->(bool))->bool{
-    a.nth(0, f).has_value()
+fn aggregate<T>(g: Generator<T>, f: (T, T)->(T))->Generator<T>{
+    g.aggregate(none(),
+        (prev: Optional<T>, next: T)->{if(prev.has_value(), some(f(prev.value(), next)), some(next))}
+    ).skip(1).map(value{Optional<T>})
 }
 
 fn all<T>(a: Generator<T>, f: (T)->(bool))->bool{
     !a.nth(0, (t: T) -> {!f(t)}).has_value()
 }
 
-fn first<T>(a: Generator<T>, f: (T)->(bool))->Optional<T>{
-     a.nth(0, f)
-}
-
-fn enumerate<T>(a: Generator<T>, start: int ?= 0, offset: int ?= 1)->Generator<(int, T)>{
-    count(start, offset).zip(a)
-}
-
-fn successors<T>(start: T, f: (T)->(T))->Generator<T>{
-    successors_until(start, (t: T) -> {some(f(t))})
-}
-
-fn count<T>(s: Generator<T>, f: (T)->(bool))->int{
-    s.filter(f).len()
+fn any<T>(a: Generator<T>, f: (T)->(bool))->bool{
+    a.nth(0, f).has_value()
 }
 
 fn contains<T>(s: Generator<T>, i: T, eq_: (T,T)->(bool))->bool{
     s.any((t: T)->{eq_(t, i)})
 }
 
-fn aggregate<T>(g: Generator<T>, f: (T, T)->(T))->Generator<T>{
-    g.aggregate(none(),
-        (prev: Optional<T>, next: T)->{if(prev.has_value(), some(f(prev.value(), next)), some(next))}
-    ).skip(1).map(value{Optional<T>})
+fn count<T>(s: Generator<T>, f: (T)->(bool))->int{
+    s.filter(f).len()
+}
+
+fn enumerate<T>(a: Generator<T>, start: int ?= 0, offset: int ?= 1)->Generator<(int, T)>{
+    count(start, offset).zip(a)
+}
+
+fn first<T>(a: Generator<T>, f: (T)->(bool))->Optional<T>{
+     a.nth(0, f)
 }
 
 fn reduce<T0, T1>(g: Generator<T0>, initial_state: T1, func: (T1, T0)->(T1)) -> T1{
@@ -750,12 +746,8 @@ fn reduce<T>(g: Generator<T>, func: (T, T)->(T)) -> T{
     g.aggregate(func).last()
 }
 
-fn min<T>(g: Generator<T>, lt: (T,T)->(bool)) -> T {
-    g.reduce((a: T, b: T)->{min(a,b,lt)})
-}
-
-fn max<T>(g: Generator<T>, lt: (T,T)->(bool)) -> T {
-    g.reduce((a: T, b: T)->{max(a,b,lt)})
+fn successors<T>(start: T, f: (T)->(T))->Generator<T>{
+    successors_until(start, (t: T) -> {some(f(t))})
 }
 
 fn sum(g: Generator<int>)->int{
@@ -777,14 +769,6 @@ fn sum(g: Generator<float>, initial: float)->float{
 
 fn sum(g: Generator<float>)->float{
     g.sum(0.0)
-}
-
-fn product(g: Generator<int>)->int{
-    g.product(1)
-}
-
-fn product(g: Generator<float>)->float{
-    g.product(1.0)
 }
 
 fn unique<T>(g: Generator<T>, h: (T)->(int), e: (T,T)->(bool))->Generator<T>{
@@ -967,8 +951,20 @@ fn strip(s: str)->str{
     s.strip(is_whitespace)
 }
 
-// sequences
+// generators
+fn flatten<T>(g: Generator<Generator<T>>)->Generator<T>{
+    g.reduce(add{Generator<T>, Generator<T>})
+}
 
+fn max<T>(g: Generator<T>, lt: (T,T)->(bool)) -> T {
+    g.reduce((a: T, b: T)->{max(a,b,lt)})
+}
+
+fn min<T>(g: Generator<T>, lt: (T,T)->(bool)) -> T {
+    g.reduce((a: T, b: T)->{min(a,b,lt)})
+}
+
+// sequences
 fn aggregate<T>(seq: Sequence<T>,  f: (T, T)->(T))->Generator<T>{
     seq.to_generator().aggregate(f)
 }
@@ -983,6 +979,10 @@ fn contains<T>(s: Sequence<T>, i: T, eq_: (T,T)->(bool))->bool{
 
 fn reduce<T>(g: Sequence<T>, func: (T, T)->(T)) -> T{
     g.to_generator().reduce(func)
+}
+
+fn flatten<T>(g: Sequence<Generator<T>>)->Generator<T>{
+    g.reduce(add{Generator<T>, Generator<T>})
 }
 
 fn min<T>(g: Sequence<T>, lt: (T,T)->(bool)) -> T {
@@ -1023,5 +1023,19 @@ fn pearson_correlation(s: Sequence<(float, float)>)->float{
     });
     (s.len() * agg::prod - agg::sum0 * agg::sum1)
     / (sqrt(s.len()*agg::sq0-agg::sum0**2) * sqrt(s.len()*agg::sq1-agg::sum1**2))
+}
+
+// gen 3
+// generators
+fn product(g: Generator<int>)->int{
+    g.product(1)
+}
+
+fn product(g: Generator<float>)->float{
+    g.product(1.0)
+}
+
+fn repeat<T>(g: Generator<T>, n: int)->Generator<T>{
+    [g].repeat().take(n).flatten()
 }
 "#;

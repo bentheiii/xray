@@ -1,0 +1,5 @@
+fn main()->bool{
+    let g = range(5).to_generator().repeat(4);
+
+    assert(g.to_array() == [0,1,2,3,4,0,1,2,3,4,0,1,2,3,4,0,1,2,3,4])
+}

@@ -1,0 +1,5 @@
+fn main()->bool{
+    let g = range(5).to_generator().map((i: int)->{range(i).to_generator()});
+
+    assert(g.flatten().to_array() == [0,0,1,0,1,2,0,1,2,3])
+}

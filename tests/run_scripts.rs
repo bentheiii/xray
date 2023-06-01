@@ -1965,3 +1965,13 @@ fn test_script_356() {
 fn test_script_357() {
     run_script_from_name(function_name!())
 }
+
+#[test]
+fn test_script_358() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_359() {
+    run_script_from_name(function_name!())
+}

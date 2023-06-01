@@ -106,7 +106,7 @@
   * [X] atan2
   * [X] geometric distribution
   * [ ] some things in python
-    * [ ] got to https://docs.python.org/3/library/collections.html
+    * [ ] got to https://docs.python.org/3/library/math.html#math.fsum
   * [X] sequence::manifest
   * [ ] json?
   * [X] chain sequence?
@@ -130,6 +130,7 @@
   * [ ] list shuffle
   * [ ] numerically safe addition
   * [ ] byte types?
+  * [ ] better flatten
 * [ ] tests for:
   * [X] is_error
   * [X] if error (inc. tail recursion)
