@@ -214,6 +214,18 @@ fn pow(a: Complex, b: int)->Complex{
     a**b.to_float()
 }
 
+fn pow(a: Complex, b: Complex)->Complex{
+    fn pow(a: float, b: Complex)->Complex{
+        // a must be positive
+        complex_from_polar(a**b::r, b::i * a.ln())
+    }
+    (a::r**2 + a::i**2) ** (b/2) * e**(Complex(0.0, 1.0) * b * a.arg())
+}
+
+fn pow(a: float, b: Complex)->Complex{
+    complex(a)**b
+}
+
 fn conjugate(a: Complex) -> Complex{
     Complex(a::r, -a::i)
 }

@@ -1,0 +1,4 @@
+fn main()->bool{
+    assert(log1p(10.0) == 2.3978952727983707)
+    && assert(log1p(1e-5).is_close(9.99995000033332e-06))
+}

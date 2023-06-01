@@ -1,0 +1,7 @@
+fn main()->bool{
+    let a = Complex(1.0,1.0);
+    let b = Complex(5.6,-7.2);
+
+    assert(is_close(a**b, Complex(-648.6674625582997, 1880.866670138677)))
+    && assert(is_close(b**a, Complex(6.041158186283929, 21.834596109220143)))
+}

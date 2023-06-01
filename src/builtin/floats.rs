@@ -18,7 +18,7 @@ use statrs::function::erf::{erf, erfc};
 use statrs::function::gamma::{gamma, ln_gamma};
 
 use std::rc;
-use libm::expm1;
+use libm::{expm1, log1p};
 
 pub(crate) fn add_float_type<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
@@ -410,6 +410,22 @@ pub(crate) fn add_float_expm1<W, R, T>(
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
         ufunc!(Float, |a: &f64, _rt| {
             Ok(Ok(XValue::Float(expm1(*a))))
+        }),
+    )
+}
+
+pub(crate) fn add_float_log1p<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "log1p",
+        XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
+        ufunc!(Float, |a: &f64, _rt| {
+            Ok(if a <= &-1.0 {
+                Err("invalid value".to_string())
+            } else {
+                Ok(XValue::Float(log1p(*a)))
+            })
         }),
     )
 }
