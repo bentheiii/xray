@@ -226,6 +226,10 @@ fn pow(a: float, b: Complex)->Complex{
     complex(a)**b
 }
 
+fn ln(a: Complex)->Complex{
+    if(a==Complex(0.0,0.0),error("undefined complex log"),ln(a.abs()) + Complex(0.0, a.arg()))
+}
+
 fn conjugate(a: Complex) -> Complex{
     Complex(a::r, -a::i)
 }

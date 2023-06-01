@@ -128,9 +128,10 @@
   * [ ] matrices
   * [ ] time of day?
   * [ ] list shuffle
-  * [ ] numerically safe addition
+  * [X] numerically safe addition
   * [ ] byte types?
   * [ ] better flatten
+  * [ ] complex trig?
 * [ ] tests for:
   * [X] is_error
   * [X] if error (inc. tail recursion)

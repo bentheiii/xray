@@ -2001,3 +2001,8 @@ fn test_script_363() {
 fn test_script_364() {
     run_script_from_name(function_name!())
 }
+
+#[test]
+fn test_script_365() {
+    run_script_from_name(function_name!())
+}
