@@ -9,7 +9,7 @@ use crate::{
 use num_traits::{Float, ToPrimitive};
 use statrs::distribution::{
     Beta, Continuous, ContinuousCDF, Exp, FisherSnedecor, Gamma, LogNormal, Normal, StudentsT,
-    Uniform, Weibull, Triangular
+    Triangular, Uniform, Weibull,
 };
 use statrs::function::erf::erf_inv;
 use statrs::statistics::{Distribution, Max, Min, Mode};
@@ -128,19 +128,20 @@ impl XContinuousDistribution {
             Self::Normal(i) => i.inverse_cdf(x),
             Self::StudentsT(i) => i.inverse_cdf(x),
             Self::Triangular(i) => {
-                if x <= 0.0{
-                    return i.min()
+                if x <= 0.0 {
+                    return i.min();
                 }
-                let cdf_at_peak = (i.mode().unwrap()-i.min())/(i.max()-i.min());
-                if x <= cdf_at_peak{
+                let cdf_at_peak = (i.mode().unwrap() - i.min()) / (i.max() - i.min());
+                if x <= cdf_at_peak {
                     // we are betwen a and c
-                    return i.min() + (x * (i.max() - i.min()) * (i.mode().unwrap() - i.min())).sqrt();
+                    return i.min()
+                        + (x * (i.max() - i.min()) * (i.mode().unwrap() - i.min())).sqrt();
                 }
-                if x >= 1.0{
-                    return i.max()
+                if x >= 1.0 {
+                    return i.max();
                 }
                 // we are between c and b
-                return i.max() - ((1.0-x) * (i.max() - i.min()) * (i.max() - i.mode().unwrap())).sqrt();
+                i.max() - ((1.0 - x) * (i.max() - i.min()) * (i.max() - i.mode().unwrap())).sqrt()
             }
             Self::Uniform(i) => x * (i.max() - i.min()) + i.min(),
             Self::Weibull(i) => deep_inverse_cdf(i, x),
@@ -439,7 +440,7 @@ pub(crate) fn add_contdist_triangle<W, R, T>(
             let a2 = xraise_opt!(args.get(2).map(|e| eval(e, ns, &rt)).transpose()?);
             let f0 = to_primitive!(a0, Float);
             let f1 = to_primitive!(a1, Float);
-            let f2 = a2.map_or((f0+f1)/2.0, |a| *to_primitive!(a, Float));
+            let f2 = a2.map_or((f0 + f1) / 2.0, |a| *to_primitive!(a, Float));
             let ret = match Triangular::new(*f0, *f1, f2) {
                 Ok(ret) => ret,
                 Err(e) => {

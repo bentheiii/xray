@@ -790,8 +790,7 @@ pub(crate) fn add_generic_dyn_group<W, R, T>(
 
         let (inner_f, f_t) =
             get_func_with_type(ns, f_symbol, &[inner0.clone(), inner0.clone()], None)?;
-        let (cb, cb_t) =
-            get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
+        let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
 
         Ok(XFunctionFactoryOutput::from_delayed_native(
             XFuncSpec::new(&[t0], cb_t.rtype()),
