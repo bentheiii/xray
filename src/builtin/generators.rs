@@ -35,7 +35,7 @@ use std::{iter, rc};
 
 use crate::util::multieither::{
     either_a, either_b, either_c, either_d, either_e, either_f, either_g, either_h, either_i,
-    either_j, either_k, either_l, either_m, either_n, either_o, either_p_last,
+    either_j, either_k, either_l, either_m, either_n, either_o, either_q_last, either_p,
 };
 use crate::xexpr::{TailedEvalResult, XExpr};
 
@@ -90,6 +90,7 @@ pub(crate) enum XGenerator<W, R, T> {
         inner: Rc<ManagedXValue<W, R, T>>,
         size: usize,
     },
+    Product(Vec<Rc<ManagedXValue<W, R, T>>>),
 }
 
 impl<W: 'static, R: 'static, T: 'static> XNativeValue for XGenerator<W, R, T> {
@@ -352,7 +353,7 @@ impl<W: 'static, R: 'static, T: 'static> XGenerator<W, R, T> {
                         }
                     })
             }),
-            Self::Windows { inner, size } => either_p_last({
+            Self::Windows { inner, size } => either_p({
                 let inner: BIter<_, _, _> = Box::new(to_native!(inner, Self)._iter(ns, rt.clone()));
                 let mut memory = VecDeque::with_capacity(*size);
                 inner.zip(rt.limits.search_iter()).filter_map(move |(i, s)| {
@@ -376,7 +377,77 @@ impl<W: 'static, R: 'static, T: 'static> XGenerator<W, R, T> {
                         Some(i)
                     }
                 })
-            })
+            }),
+            Self::Product(inners) => either_q_last({
+                let inners = inners
+                    .iter()
+                    .map(|gen| {
+                        to_native!(gen, Self)
+                    })
+                    .collect::<Vec<_>>();
+                let mut iters = inners
+                    .iter()
+                    .map(|gen| {
+                        let ret: BIter<_, _, _> =
+                            Box::new(gen._iter(ns, rt.clone()));
+                        ret
+                    })
+                    .collect::<Vec<BIter<_, _, _>>>();
+                let mut current: Option<Vec<Rc<ManagedXValue<W,R,T>>>> = None;
+                let rt2 = rt.clone();
+                iter::from_fn(move ||{
+                    if let Some(ref mut current) = current{
+                        let mut found = false;
+                        for idx_to_bump in (0..current.len()).rev(){
+                            let next_value = iters[idx_to_bump].next();
+                            match next_value{
+                                None => {
+                                    iters[idx_to_bump] = Box::new(inners[idx_to_bump]._iter(ns, rt.clone()));
+                                    let next_value = iters[idx_to_bump].next().unwrap();
+                                    // we can be sure the iterator is not empty because it wan't empty before
+                                    match next_value{
+                                        Ok(Ok(next_value)) => {
+                                            current[idx_to_bump] = next_value;
+                                        },
+                                        Err(other) => return Some(Err(other)),
+                                        Ok(Err(other)) => return Some(Ok(Err(other))),
+                                    }
+                                    continue;
+                                },
+                                Some(Ok(Ok(next_value))) => {
+                                    current[idx_to_bump] = next_value;
+                                    found = true;
+                                    break;
+                                },
+                                Some(Err(other)) => return Some(Err(other)),
+                                Some(Ok(Err(other))) => return Some(Ok(Err(other))),
+                            }
+                        }
+                        if found{
+                            Some(Ok(Ok(current.clone())))
+                        } else {
+                            None 
+                        }
+                    } else {
+                        let firsts = iters.iter_mut().map(|i| i.next()).collect::<Option<XResult<Vec<_>,_,_,_>>>();
+                        match firsts{
+                            Some(Ok(Ok(firsts))) => {
+                                current = Some(firsts);
+                                Some(Ok(Ok(current.clone().unwrap())))
+                            },
+                            Some(Err(other)) => return Some(Err(other)),
+                            Some(Ok(Err(other))) => return Some(Ok(Err(other))),
+                            None => None,
+                        }
+                    }
+                }).map(move |v| {
+                    let v = forward_err!(v?);
+                    ManagedXValue::new(
+                        XValue::StructInstance(v),
+                        rt2.clone(),
+                    ).map(Ok)
+                })
+            }),
         }
     }
 
@@ -1293,6 +1364,57 @@ pub(crate) fn add_generator_dyn_unzip<W, R, T>(
                 Ok(ManagedXValue::new(
                     XValue::StructInstance(items), rt,
                 )?.into())
+            },
+        ))
+    })
+}
+
+pub(crate) fn add_generator_dyn_product<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    scope.add_dyn_func("product", "generators", move |_params, types, _ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+
+        let mut inner_types = vec![];
+        let mut is_seq = vec![];
+        let mut any_gen = false;
+        // todo try zip without args
+        for t in types.unwrap() {
+            if let Ok(as_gen) = unpack_native(t, "Generator") {
+                inner_types.push(as_gen[0].clone());
+                is_seq.push(false);
+                any_gen = true;
+            } else {
+                let [inner] = unpack_native(t, "Sequence")? else { unreachable!() };
+                inner_types.push(inner.clone());
+                is_seq.push(true);
+            }
+        }
+
+        if !any_gen {
+            return Err("this function requires at least one generator".to_string());
+        }
+
+        let arg_types = types.unwrap().iter().collect::<Vec<_>>();
+
+        Ok(XFunctionFactoryOutput::from_native(
+            XFuncSpec::new(
+                &arg_types,
+                XGeneratorType::xtype(Arc::new(XType::Tuple(inner_types))),
+            ),
+            move |args, ns, _tca, rt| {
+                let mut gens = vec![];
+                for (a, is_seq) in args.iter().zip(is_seq.iter()) {
+                    let mut a = xraise!(eval(a, ns, &rt)?);
+                    if *is_seq {
+                        a = manage_native!(XGenerator::FromSequence(a), rt.clone());
+                    }
+                    gens.push(a);
+                    rt.can_afford(&gens)?
+                }
+                Ok(manage_native!(XGenerator::<W, R, T>::Product(gens), rt))
             },
         ))
     })

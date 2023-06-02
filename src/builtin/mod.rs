@@ -289,6 +289,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_generator_dyn_unzip(scope).unwrap();
     add_generator_dyn_with_count(scope).unwrap();
     add_generator_dyn_zip(scope).unwrap();
+    add_generator_dyn_product(scope).unwrap();
 
     add_regex_type(scope).unwrap();
     add_regex_match(scope).unwrap();

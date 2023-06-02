@@ -1,0 +1,6 @@
+fn main()->bool{
+    let g = [3,6,9].to_generator();
+    let g2 = "ABCA".chars().to_generator();
+
+    assert(g.product(g2).to_array() == [(3,'A'),(3,'B'),(3,'C'),(3,'A'),(6,'A'),(6,'B'),(6,'C'),(6,'A'),(9,'A'),(9,'B'),(9,'C'),(9,'A')])
+}
