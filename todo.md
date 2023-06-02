@@ -132,6 +132,7 @@
   * [ ] byte types?
   * [ ] better flatten
   * [ ] complex trig?
+  * [ ] generatoe/seq count(i, eq)
 * [ ] tests for:
   * [X] is_error
   * [X] if error (inc. tail recursion)
@@ -192,6 +193,7 @@
   * [ ] date sub/add
   * [ ] date/datetime str
   * [ ] format_replace
+  * [ ] flatten with empty
 * [X] reduce macros in builtin/core
 * [ ] better errors
   * [X] compilation error tracing
