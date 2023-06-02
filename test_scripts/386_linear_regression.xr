@@ -1,0 +1,9 @@
+fn main()->bool{
+    let x = [1971.0, 1975.0, 1979.0, 1982.0, 1983.0].to_generator();
+    let y = range(1,6).map(to_float{int}).to_generator();
+
+    let lr = linear_regression_least_squares(x,y);
+    assert(lr.predict(2019.0).is_close(15.71))
+    && assert(lr::intercept.is_close(-610.18))
+    && assert(lr::slope.is_close(0.31))
+}

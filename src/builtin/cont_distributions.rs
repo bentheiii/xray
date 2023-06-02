@@ -9,10 +9,10 @@ use crate::{
 use num_traits::{Float, ToPrimitive};
 use statrs::distribution::{
     Beta, Continuous, ContinuousCDF, Exp, FisherSnedecor, Gamma, LogNormal, Normal, StudentsT,
-    Uniform, Weibull,
+    Uniform, Weibull, Triangular
 };
 use statrs::function::erf::erf_inv;
-use statrs::statistics::{Distribution, Max, Min};
+use statrs::statistics::{Distribution, Max, Min, Mode};
 use std::fmt::Debug;
 use std::mem::size_of;
 
@@ -79,8 +79,9 @@ pub(crate) enum XContinuousDistribution {
     Gamma(Gamma),
     LogNormal(LogNormal, f64, f64),
     Normal(Normal),
-    Uniform(Uniform),
     StudentsT(StudentsT),
+    Triangular(Triangular),
+    Uniform(Uniform),
     Weibull(Weibull),
 }
 
@@ -93,8 +94,9 @@ impl XContinuousDistribution {
             Self::Gamma(i) => i.cdf(x),
             Self::LogNormal(i, ..) => i.cdf(x),
             Self::Normal(i) => i.cdf(x),
-            Self::Uniform(i) => i.cdf(x),
             Self::StudentsT(i) => i.cdf(x),
+            Self::Triangular(i) => i.cdf(x),
+            Self::Uniform(i) => i.cdf(x),
             Self::Weibull(i) => i.cdf(x),
         }
     }
@@ -107,8 +109,9 @@ impl XContinuousDistribution {
             Self::Gamma(i) => i.pdf(x),
             Self::LogNormal(i, ..) => i.pdf(x),
             Self::Normal(i) => i.pdf(x),
-            Self::Uniform(i) => i.pdf(x),
+            Self::Triangular(i) => i.pdf(x),
             Self::StudentsT(i) => i.pdf(x),
+            Self::Uniform(i) => i.pdf(x),
             Self::Weibull(i) => i.pdf(x),
         }
     }
@@ -123,8 +126,23 @@ impl XContinuousDistribution {
                 (location + (2.0 * scale * scale).sqrt() * erf_inv(2.0 * x - 1.0)).exp()
             }
             Self::Normal(i) => i.inverse_cdf(x),
-            Self::Uniform(i) => x * (i.max() - i.min()) + i.min(),
             Self::StudentsT(i) => i.inverse_cdf(x),
+            Self::Triangular(i) => {
+                if x <= 0.0{
+                    return i.min()
+                }
+                let cdf_at_peak = (i.mode().unwrap()-i.min())/(i.max()-i.min());
+                if x <= cdf_at_peak{
+                    // we are betwen a and c
+                    return i.min() + (x * (i.max() - i.min()) * (i.mode().unwrap() - i.min())).sqrt();
+                }
+                if x >= 1.0{
+                    return i.max()
+                }
+                // we are between c and b
+                return i.max() - ((1.0-x) * (i.max() - i.min()) * (i.max() - i.mode().unwrap())).sqrt();
+            }
+            Self::Uniform(i) => x * (i.max() - i.min()) + i.min(),
             Self::Weibull(i) => deep_inverse_cdf(i, x),
         }
     }
@@ -137,8 +155,9 @@ impl XContinuousDistribution {
             Self::Gamma(i) => i.sample_iter(rng).take(n).collect(),
             Self::LogNormal(i, ..) => i.sample_iter(rng).take(n).collect(),
             Self::Normal(i) => i.sample_iter(rng).take(n).collect(),
-            Self::Uniform(i) => i.sample_iter(rng).take(n).collect(),
             Self::StudentsT(i) => i.sample_iter(rng).take(n).collect(),
+            Self::Triangular(i) => i.sample_iter(rng).take(n).collect(),
+            Self::Uniform(i) => i.sample_iter(rng).take(n).collect(),
             Self::Weibull(i) => i.sample_iter(rng).take(n).collect(),
         }
     }
@@ -151,8 +170,9 @@ impl XContinuousDistribution {
             Self::Gamma(i) => i.skewness(),
             Self::LogNormal(i, ..) => i.skewness(),
             Self::Normal(i) => i.skewness(),
-            Self::Uniform(i) => i.skewness(),
             Self::StudentsT(i) => i.skewness(),
+            Self::Triangular(i) => i.skewness(),
+            Self::Uniform(i) => i.skewness(),
             Self::Weibull(i) => i.skewness(),
         }
     }
@@ -165,8 +185,9 @@ impl XContinuousDistribution {
             Self::Gamma(i) => i.mean(),
             Self::LogNormal(i, ..) => i.mean(),
             Self::Normal(i) => i.mean(),
-            Self::Uniform(i) => i.mean(),
             Self::StudentsT(i) => i.mean(),
+            Self::Triangular(i) => i.mean(),
+            Self::Uniform(i) => i.mean(),
             Self::Weibull(i) => i.mean(),
         }
     }
@@ -179,8 +200,9 @@ impl XContinuousDistribution {
             Self::Gamma(i) => i.variance(),
             Self::LogNormal(i, ..) => i.variance(),
             Self::Normal(i) => i.variance(),
-            Self::Uniform(i) => i.variance(),
             Self::StudentsT(i) => i.variance(),
+            Self::Triangular(i) => i.variance(),
+            Self::Uniform(i) => i.variance(),
             Self::Weibull(i) => i.variance(),
         }
     }
@@ -401,6 +423,30 @@ pub(crate) fn add_contdist_students_t<W, R, T>(
                 }
             };
             Ok(manage_native!(XContinuousDistribution::StudentsT(ret), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_contdist_triangle<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "triangular_distribution",
+        XFuncSpec::new_with_optional(&[&X_FLOAT, &X_FLOAT], &[&X_FLOAT], X_CONTDIST.clone()),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise_opt!(args.get(2).map(|e| eval(e, ns, &rt)).transpose()?);
+            let f0 = to_primitive!(a0, Float);
+            let f1 = to_primitive!(a1, Float);
+            let f2 = a2.map_or((f0+f1)/2.0, |a| *to_primitive!(a, Float));
+            let ret = match Triangular::new(*f0, *f1, f2) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    return xerr(ManagedXError::new(format!("{e:?}"), rt)?);
+                }
+            };
+            Ok(manage_native!(XContinuousDistribution::Triangular(ret), rt))
         }),
     )
 }

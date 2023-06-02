@@ -1,0 +1,9 @@
+fn main()->bool{
+    let d = triangular_distribution(1.6, 6.8, 5.0);
+
+    assert(d.cdf(2.2).is_close(0.020361990950226255))
+    && assert(d.pdf(3.0).is_close(0.15837104072398192))
+    && assert(d.quantile(0.819).is_close(5.4984009834054115))
+    && assert(d.quantile(0.020361990950226255).is_close(2.2))
+    && assert(is_error(d.quantile(1.1)))
+}

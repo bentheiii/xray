@@ -303,6 +303,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_contdist_normal(scope).unwrap();
     add_contdist_pdf(scope).unwrap();
     add_contdist_quantile(scope).unwrap();
+    add_contdist_triangle(scope).unwrap();
     add_contdist_rectangular(scope).unwrap();
     add_contdist_sample(scope).unwrap();
     add_contdist_skewness(scope).unwrap();

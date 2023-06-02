@@ -2100,3 +2100,13 @@ fn test_script_383() {
 fn test_script_384() {
     run_script_from_name(function_name!())
 }
+
+#[test]
+fn test_script_385() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_386() {
+    run_script_from_name(function_name!())
+}

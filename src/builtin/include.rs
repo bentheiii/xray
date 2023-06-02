@@ -892,6 +892,32 @@ fn trunc(a: Fraction)->int{
     if(a::n >= 0, floor(a), ceil(a))
 }
 
+/// LinearRegression 1
+struct LinearRegression(
+    slope: float,
+    intercept: float,
+)
+
+fn eq(a: LinearRegression, b: LinearRegression)->bool{
+    a::slope == b::slope && a::intercept == b::intercept
+}
+
+fn linear_regression_least_squares(x: Generator<float>, y: Generator<float>)->LinearRegression{
+    let s = zip(x, y);
+
+    let agg = (n: (int,float,float), i: (float, float))->{(n::item0+1, n::item1+i::item0, n::item2+i::item1)};
+    let agg = s.reduce((0,0.0,0.0), agg);
+    let mean_x = agg::item1/agg::item0;
+    let mean_y = agg::item2/agg::item0;
+
+    let beta = s.map((t:(float, float))->{(t::item0-mean_x)*(t::item1-mean_y)}).sum() / x.map((t:float)->{(t-mean_x)**2}).sum();
+    LinearRegression(beta, mean_y - beta*mean_x)
+}
+
+fn predict(self: LinearRegression, x: float)->float{
+    self::slope*x + self::intercept
+}
+
 //// gen 2
 /// int 2
 fn floor_root(a: int, b: int ?= 2)->int{
