@@ -1,0 +1,10 @@
+fn main()->bool{
+    let s = [55, 6, 9, 17];
+    let c2 = s.random_choices(2);
+    let c20 = s.random_choices(20);
+
+    assert(c2.len() == 2)
+    && assert(c20.len() == 20)
+    && assert(set<int>().update(c2) < set<int>().update(s))
+    && assert(set<int>().update(c20) <= set<int>().update(s))
+}

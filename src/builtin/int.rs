@@ -110,35 +110,37 @@ add_binfunc!(add_int_div, div, X_INT, Int, X_FLOAT, |a: &LazyBigint,
         Ok(XValue::Float(a.clone().true_div(b.clone())))
     })
 });
-add_binfunc!(add_int_div_floor, div_floor, X_INT, Int, X_INT, |a: &LazyBigint,
-                                                     b: &LazyBigint,
-                                                     rt: &RTCell<
-    W,
-    R,
-    T,
->| {
-    Ok(if b.is_zero() {
-        Err(String::from("Division by zero"))
-    } else {
-        rt.can_allocate(a.prospective_size() - b.prospective_size())?;
-        Ok(XValue::Int(a.clone().div_floor(b.clone())))
-    })
-});
+add_binfunc!(
+    add_int_div_floor,
+    div_floor,
+    X_INT,
+    Int,
+    X_INT,
+    |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W, R, T>| {
+        Ok(if b.is_zero() {
+            Err(String::from("Division by zero"))
+        } else {
+            rt.can_allocate(a.prospective_size() - b.prospective_size())?;
+            Ok(XValue::Int(a.clone().div_floor(b.clone())))
+        })
+    }
+);
 
-add_binfunc!(add_int_div_ceil, div_ceil, X_INT, Int, X_INT, |a: &LazyBigint,
-                                                     b: &LazyBigint,
-                                                     rt: &RTCell<
-    W,
-    R,
-    T,
->| {
-    Ok(if b.is_zero() {
-        Err(String::from("Division by zero"))
-    } else {
-        rt.can_allocate(a.prospective_size() - b.prospective_size())?;
-        Ok(XValue::Int(a.clone().div_ceil(b.clone())))
-    })
-});
+add_binfunc!(
+    add_int_div_ceil,
+    div_ceil,
+    X_INT,
+    Int,
+    X_INT,
+    |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W, R, T>| {
+        Ok(if b.is_zero() {
+            Err(String::from("Division by zero"))
+        } else {
+            rt.can_allocate(a.prospective_size() - b.prospective_size())?;
+            Ok(XValue::Int(a.clone().div_ceil(b.clone())))
+        })
+    }
+);
 
 add_binfunc!(add_int_pow, pow, X_INT, Int, X_INT, |a: &LazyBigint,
                                                    b: &LazyBigint,

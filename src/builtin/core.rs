@@ -23,7 +23,9 @@ macro_rules! xraise {
     }};
 }
 
-pub(crate) fn xerr<W, R, T>(err: Rc<ManagedXError<W, R, T>>) -> RuntimeResult<TailedEvalResult<W, R, T>> {
+pub(crate) fn xerr<W, R, T>(
+    err: Rc<ManagedXError<W, R, T>>,
+) -> RuntimeResult<TailedEvalResult<W, R, T>> {
     Ok(TailedEvalResult::Value(Err(err)))
 }
 

@@ -1,0 +1,7 @@
+fn main()->bool{
+    let s = range(20);
+    let sh = s.shuffle();
+
+    assert(set<int>().update(sh) == set<int>().update(s))
+    && assert(len(sh) == len(s))
+}

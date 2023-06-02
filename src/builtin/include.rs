@@ -687,13 +687,8 @@ fn format(self: Datetime, fmt: str)->str{
 }
 
 //sequences
-fn reverse<T>(a: Sequence<T>)->Sequence<T>{
-    let offset = a.len();
-    range(offset).map((idx: int)->{a[offset-1-idx]})
-}
-
-fn any<T>(a: Sequence<T>, f: (T)->(bool))->bool{
-    a.nth(0, f).has_value()
+fn all(a: Sequence<bool>)->bool{
+    !a.nth(0, (t: bool) -> {!t}).has_value()
 }
 
 fn all<T>(a: Sequence<T>, f: (T)->(bool))->bool{
@@ -704,25 +699,46 @@ fn any(a: Sequence<bool>)->bool{
     a.nth(0, (t: bool) -> {t}).has_value()
 }
 
-fn all(a: Sequence<bool>)->bool{
-    !a.nth(0, (t: bool) -> {!t}).has_value()
+fn any<T>(a: Sequence<T>, f: (T)->(bool))->bool{
+    a.nth(0, f).has_value()
+}
+
+fn binary_search<T>(seq: Sequence<T>, cmp_: (T)->(int))->Optional<int>{
+    fn helper(seq: Sequence<T>, offset: int)->Optional<int>{
+        let mid = floor(seq.len()/2);
+        let res = if(mid==seq.len(), -1, cmp_(seq[mid]));
+        if(res == 0, some(mid+offset),
+            if(res > 0, helper(seq.take(mid), offset),
+                if(mid==seq.len(), none(),
+                    helper(seq.skip(mid+1), offset+mid+1)
+                )
+            )
+        )
+    }
+    helper(seq, 0)
+}
+
+fn enumerate<T>(a: Sequence<T>, start: int ?= 0, offset: int ?= 1)->Sequence<(int, T)>{
+    count(start, offset).zip(a)
+}
+
+fn filter<T>(s: Sequence<T>, f: (T)->(bool))->Generator<T>{
+    s.to_generator().filter(f)
 }
 
 fn first<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{
-     a.nth(0, f)
+    a.nth(0, f)
 }
 
+
 fn last<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{
-     a.nth(-1, f)
+    a.nth(-1, f)
 }
 
 fn median<T>(a: Sequence<T>, f: (T, T)->(int))->T{
     a.nth_smallest((a.len()/2).floor(), f)
 }
 
-fn enumerate<T>(a: Sequence<T>, start: int ?= 0, offset: int ?= 1)->Sequence<(int, T)>{
-    count(start, offset).zip(a)
-}
 
 fn repeat<T>(a: Sequence<T>)->Sequence<T>{
     let length = a.len();
@@ -740,27 +756,29 @@ fn repeat<T>(a: Sequence<T>, n: int)->Sequence<T>{
     )
 }
 
-fn mul<T>(a: Sequence<T>, b: int)->Sequence<T>{
-    a.repeat(b)
+fn reverse<T>(a: Sequence<T>)->Sequence<T>{
+    let offset = a.len();
+    range(offset).map((idx: int)->{a[offset-1-idx]})
 }
 
-fn filter<T>(s: Sequence<T>, f: (T)->(bool))->Generator<T>{
-    s.to_generator().filter(f)
+fn random_choices<T>(a: Sequence<T>, n: int)->Sequence<T>{
+    let dist = uniform_distribution(0, a.len()-1);
+    dist.sample(n).map((idx: int)->{a[idx]})
 }
 
-fn binary_search<T>(seq: Sequence<T>, cmp_: (T)->(int))->Optional<int>{
-    fn helper(seq: Sequence<T>, offset: int)->Optional<int>{
-        let mid = floor(seq.len()/2);
-        let res = if(mid==seq.len(), -1, cmp_(seq[mid]));
-        if(res == 0, some(mid+offset),
-            if(res > 0, helper(seq.take(mid), offset),
-                if(mid==seq.len(), none(),
-                    helper(seq.skip(mid+1), offset+mid+1)
-                )
-            )
-        )
+fn random_choices<T>(a: Sequence<T>, n: int, weights: Sequence<float>)->Sequence<T>{
+    fn main()->Sequence<T>{
+        let dist = custom_distribution(weights.enumerate());
+        dist.sample(n).map((idx: int)->{a[idx]})
     }
-    helper(seq, 0)
+    if(weights.len() != a.len(),
+        error("random_choices: weights and a must have the same length"),
+        main()
+    )
+}
+
+fn shuffle<T>(a: Sequence<T>)->Sequence<T>{
+    a.sample(a.len())
 }
 
 /// returns the number of elements from the beginning of the sequence that satisfy the predicate
@@ -868,10 +886,6 @@ fn sum(g: Generator<float>)->float{
 fn unique<T>(g: Generator<T>, h: (T)->(int), e: (T,T)->(bool))->Generator<T>{
     g.with_count(h,e).filter((i: (T, int))->{i::item1==1}).map((i: (T, int))->{i::item0})
 }
-
-//fn repeat<T>(g: Generator<T>, n: int)->Generator<T>{
-//    g.repeat().take()
-//}
 
 // sets
 fn __std_xset_order_by_cardinality<T>(a: Set<T>, b: Set<T>) -> (Set<T>, Set<T>){
@@ -1125,6 +1139,10 @@ fn pearson_correlation(s: Sequence<(float, float)>)->float{
     });
     (s.len() * agg::prod - agg::sum0 * agg::sum1)
     / (sqrt(s.len()*agg::sq0-agg::sum0**2) * sqrt(s.len()*agg::sq1-agg::sum1**2))
+}
+
+fn mul<T>(a: Sequence<T>, b: int)->Sequence<T>{
+    a.repeat(b)
 }
 
 // gen 3

@@ -1986,7 +1986,6 @@ fn test_script_361() {
     run_script_from_name(function_name!())
 }
 
-
 #[test]
 fn test_script_362() {
     run_script_from_name(function_name!())
@@ -2042,7 +2041,6 @@ fn test_script_372() {
     run_script_from_name(function_name!())
 }
 
-
 #[test]
 fn test_script_373() {
     run_script_from_name(function_name!())
@@ -2065,5 +2063,30 @@ fn test_script_376() {
 
 #[test]
 fn test_script_377() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_378() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_379() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_380() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_381() {
+    run_script_from_name(function_name!())
+}
+
+#[test]
+fn test_script_382() {
     run_script_from_name(function_name!())
 }

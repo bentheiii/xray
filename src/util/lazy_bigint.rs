@@ -1,8 +1,8 @@
 use either::Either;
 use num_bigint::{BigInt, BigUint, ParseBigIntError};
+use num_integer::{div_ceil, div_floor};
 use num_rational::BigRational;
 use num_traits::{FromPrimitive, Inv, Num, One, Pow, Signed, ToPrimitive, Zero};
-use num_integer::{div_floor, div_ceil};
 use std::cmp::Ordering;
 use std::convert::{TryFrom, TryInto};
 use std::fmt::{Debug, Display, Formatter};

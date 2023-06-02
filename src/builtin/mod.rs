@@ -173,6 +173,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_sequence_push(scope).unwrap();
     add_sequence_range(scope).unwrap();
     add_sequence_rpush(scope).unwrap();
+    add_sequence_sample(scope).unwrap();
     add_sequence_set(scope).unwrap();
     add_sequence_skip(scope).unwrap();
     add_sequence_skip_until(scope).unwrap();

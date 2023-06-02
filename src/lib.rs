@@ -1,6 +1,14 @@
 #![allow(incomplete_features)]
 #![warn(clippy::all)]
-#![warn(explicit_outlives_requirements, keyword_idents, single_use_lifetimes, unreachable_pub, unused_lifetimes, unused_macro_rules, unused_qualifications)]
+#![warn(
+    explicit_outlives_requirements,
+    keyword_idents,
+    single_use_lifetimes,
+    unreachable_pub,
+    unused_lifetimes,
+    unused_macro_rules,
+    unused_qualifications
+)]
 
 #[macro_use]
 extern crate lazy_static;

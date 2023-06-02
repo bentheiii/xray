@@ -21,7 +21,11 @@ use crate::{
 };
 use derivative::Derivative;
 use either::Either;
+use itertools::Itertools;
 use num_traits::{One, Signed, ToPrimitive, Zero};
+use rand::distributions::Uniform;
+use rand::seq::SliceRandom;
+use rand::{Rng, RngCore, SeedableRng};
 use rc::Rc;
 use std::borrow::Cow;
 use std::cmp::Ordering;
@@ -489,6 +493,57 @@ impl<W: 'static, R: 'static, T: 'static> XSequence<W, R, T> {
             return Ok(Err(ManagedXError::new("index out of bounds", rt)?));
         }
         Ok(Ok(idx))
+    }
+}
+
+impl<W: 'static, R: SeedableRng + RngCore + 'static, T: 'static> XSequence<W, R, T> {
+    fn sample(
+        &self,
+        k: usize,
+        ns: &RuntimeScope<W, R, T>,
+        rt: RTCell<W, R, T>,
+    ) -> XResult<XSequence<W, R, T>, W, R, T> {
+        if k == 0 {
+            return Ok(Ok(XSequence::Empty));
+        };
+        let Some(len) = self.len() else {return Ok(Err(ManagedXError::new("cannot sample infinite sequence", rt)?));};
+        if k > len {
+            return Ok(Err(ManagedXError::new(
+                "cannot sample more elements than there are in the sequence",
+                rt,
+            )?));
+        };
+        // we have two options here, either we copy and entire array and shuffle it up to k (the "pool" method), or we remember which indices we have already picked and re-roll those if we see them(the "pick" method)
+        // the pool method is better for large k, but the pick method is better for small k
+        let use_pool = {
+            let exp = u64::BITS - (3 * k).leading_zeros();
+            let size_of_set = 6 + 4usize.pow(exp / 2);
+            len <= size_of_set
+        };
+
+        if use_pool {
+            let mut pool =
+                forward_err!(self
+                    .diter(ns, rt.clone())
+                    .unwrap()
+                    .collect::<XResult<Vec<_>, _, _, _>>()?);
+            pool.partial_shuffle(rt.stats.borrow_mut().get_rng(), k);
+            Ok(Ok(XSequence::Array(pool.into_iter().take(k).collect())))
+        } else {
+            let indices = rt
+                .stats
+                .borrow_mut()
+                .get_rng()
+                .sample_iter(Uniform::new(0, len))
+                .unique()
+                .take(k)
+                .collect::<Vec<_>>();
+            let values = forward_err!(indices
+                .into_iter()
+                .map(|idx| self.get(idx, ns, rt.clone()))
+                .collect::<XResult<Vec<_>, _, _, _>>()?);
+            Ok(Ok(XSequence::Array(values)))
+        }
     }
 }
 
@@ -1317,6 +1372,26 @@ pub(crate) fn add_sequence_to_generator<W, R, T>(
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             Ok(manage_native!(XGenerator::FromSequence(a0), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_sequence_sample<W, R: RngCore + SeedableRng, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+    let t_arr = XSequenceType::xtype(t);
+
+    scope.add_func(
+        "sample",
+        XFuncSpec::new(&[&t_arr, &X_INT], t_arr.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let s0 = to_native!(a0, XSequence<W, R, T>);
+            let Some(i1) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("index too large", rt)?); };
+            let ret = xraise!(s0.sample(i1, ns, rt.clone())?);
+            Ok(manage_native!(ret, rt))
         }),
     )
 }

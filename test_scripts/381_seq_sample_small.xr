@@ -1,0 +1,8 @@
+fn main()->bool{
+    let s = range(2000);
+    let sh = s.sample(3);
+
+    assert(set<int>().update(sh) < set<int>().update(s))
+    && assert(len(sh) == 3)
+    && assert(sh.to_generator().unique().len() == 3)
+}

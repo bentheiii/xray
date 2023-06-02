@@ -2,7 +2,7 @@ use crate::builtin::core::{eval, xcmp, xerr};
 use crate::runtime::Runtime;
 use crate::util::str_parts::StrParts;
 use crate::util::xformatter::{group_string, XFormatting};
-use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING, XType};
+use crate::xtype::{XFuncSpec, XType, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use crate::{
     add_binfunc, to_primitive, ufunc, xraise, xraise_opt, CompilationError, RootCompilationScope,
@@ -11,7 +11,7 @@ use crate::{
 
 use crate::util::lazy_bigint::LazyBigint;
 use num_bigint::{BigInt, BigUint, Sign};
-use num_traits::{FromPrimitive, Zero, Float, One};
+use num_traits::{Float, FromPrimitive, One, Zero};
 use rc::Rc;
 use std::cmp::max_by;
 use std::sync::Arc;
@@ -20,8 +20,8 @@ use crate::util::fenced_string::FencedString;
 use statrs::function::erf::{erf, erfc};
 use statrs::function::gamma::{gamma, ln_gamma};
 
-use std::rc;
 use libm::{expm1, log1p};
+use std::rc;
 
 pub(crate) fn add_float_type<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
@@ -411,9 +411,7 @@ pub(crate) fn add_float_expm1<W, R, T>(
     scope.add_func(
         "expm1",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| {
-            Ok(Ok(XValue::Float(expm1(*a))))
-        }),
+        ufunc!(Float, |a: &f64, _rt| { Ok(Ok(XValue::Float(expm1(*a)))) }),
     )
 }
 
@@ -452,7 +450,10 @@ pub(crate) fn add_float_tpl<W, R, T>(
 ) -> Result<(), CompilationError> {
     scope.add_func(
         "__xray_tpl",
-        XFuncSpec::new(&[&X_FLOAT], Arc::new(XType::Tuple(vec![X_INT.clone(), X_INT.clone()]))),
+        XFuncSpec::new(
+            &[&X_FLOAT],
+            Arc::new(XType::Tuple(vec![X_INT.clone(), X_INT.clone()])),
+        ),
         ufunc!(Float, |a: &f64, rt: Rc<Runtime<W, R, T>>| {
             let (num, denom) = {
                 if a == &0.0 {
@@ -468,25 +469,19 @@ pub(crate) fn add_float_tpl<W, R, T>(
                     } else {
                         let mut numer = FromPrimitive::from_u64(mantissa).unwrap();
                         numer <<= exponent as usize;
-                        (BigInt::from_biguint(
-                            bigint_sign,
-                            numer,
-                        ), One::one())
+                        (BigInt::from_biguint(bigint_sign, numer), One::one())
                     }
                 }
             };
             let num = ManagedXValue::new(XValue::Int(LazyBigint::from(num)), rt.clone())?;
             let denom = ManagedXValue::new(XValue::Int(LazyBigint::from(denom)), rt)?;
-            Ok(Ok(
-                XValue::StructInstance(vec![num, denom])
-            ))
+            Ok(Ok(XValue::StructInstance(vec![num, denom])))
         }),
     )
 }
 
 add_binfunc!(add_float_cmp, cmp, X_FLOAT, Float, X_INT, |a, b, _| Ok(Ok(
     xcmp(a, b)
-
 )));
 
 pub(crate) fn add_float_format<W, R, T>(
