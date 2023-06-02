@@ -20,6 +20,7 @@ use either::Either;
 use num_traits::{One, Signed, ToPrimitive, Zero};
 use rc::Rc;
 
+use std::collections::VecDeque;
 use std::fmt::Debug;
 
 use std::mem::{size_of, take};
@@ -34,7 +35,7 @@ use std::{iter, rc};
 
 use crate::util::multieither::{
     either_a, either_b, either_c, either_d, either_e, either_f, either_g, either_h, either_i,
-    either_j, either_k, either_l, either_m, either_n, either_o_last,
+    either_j, either_k, either_l, either_m, either_n, either_o, either_p_last,
 };
 use crate::xexpr::{TailedEvalResult, XExpr};
 
@@ -84,6 +85,10 @@ pub(crate) enum XGenerator<W, R, T> {
     Group {
         inner: Rc<ManagedXValue<W, R, T>>,
         eq_func: Rc<ManagedXValue<W, R, T>>,
+    },
+    Windows {
+        inner: Rc<ManagedXValue<W, R, T>>,
+        size: usize,
     },
 }
 
@@ -285,7 +290,7 @@ impl<W: 'static, R: 'static, T: 'static> XGenerator<W, R, T> {
                     Ok(Ok(tup))
                 })
             }),
-            Self::Group { inner, eq_func } => either_o_last({
+            Self::Group { inner, eq_func } => either_o({
                 let inner: BIter<_, _, _> = Box::new(to_native!(inner, Self)._iter(ns, rt.clone()));
                 let eq_f = to_primitive!(eq_func, Function);
                 let mut current_group: Vec<Rc<ManagedXValue<W, R, T>>> = Vec::new();
@@ -347,6 +352,31 @@ impl<W: 'static, R: 'static, T: 'static> XGenerator<W, R, T> {
                         }
                     })
             }),
+            Self::Windows { inner, size } => either_p_last({
+                let inner: BIter<_, _, _> = Box::new(to_native!(inner, Self)._iter(ns, rt.clone()));
+                let mut memory = VecDeque::with_capacity(*size);
+                inner.zip(rt.limits.search_iter()).filter_map(move |(i, s)| {
+                    if let Err(violation) = s {
+                        return Some(Err(violation));
+                    }
+
+                    if let Ok(Ok(i)) = i {
+                        memory.push_back(i);
+                        if memory.len() == *size {
+                            let seq = ManagedXValue::new(
+                                XValue::Native(Box::new(XSequence::array(memory.iter().cloned().collect()))),
+                                rt.clone(),
+                            );
+                            memory.pop_front();
+                            Some(seq.map(Ok))
+                        } else {
+                            None
+                        }
+                    } else {
+                        Some(i)
+                    }
+                })
+            })
         }
     }
 
@@ -476,6 +506,41 @@ pub(crate) fn add_generator_group<W, R, T>(
         }),
     )
 }
+
+pub(crate) fn add_generator_windows<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+    let t_gen = XGeneratorType::xtype(t.clone());
+
+    scope.add_func(
+        "windows",
+        XFuncSpec::new(
+            &[
+                &t_gen,
+                &X_INT,
+            ],
+            XGeneratorType::xtype(XSequenceType::xtype(t)),
+        )
+        .generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let Some(size) = to_primitive!(a1, Int).to_usize() else {return xerr(ManagedXError::new(
+                "window size out of bounds",
+                rt,
+            )?)};
+            Ok(manage_native!(
+                XGenerator::Windows {
+                    inner: a0,
+                    size
+                },
+                rt
+            ))
+        }),
+    )
+}
+
 
 pub(crate) fn add_generator_add<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,

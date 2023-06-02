@@ -12,6 +12,7 @@ macro_rules! mk_either_types {
 
 mk_either_types!(
     type [
+        Either16,
         Either15,
         Either14,
         Either13,
@@ -27,6 +28,7 @@ mk_either_types!(
         Either3,
         Either2
     ]<
+        T15,
         T14,
         T13,
         T12,
@@ -72,6 +74,7 @@ macro_rules! mk_eithers {
 
 mk_eithers!(
     [
+        either_o/either_p_last,
         either_n/either_o_last,
         either_m/either_n_last,
         either_l/either_m_last,
@@ -87,6 +90,7 @@ mk_eithers!(
         either_b/either_c_last,
         either_a/either_b_last
     ]<
+        T15,
         T14,
         T13,
         T12,
@@ -103,6 +107,7 @@ mk_eithers!(
         T1,
         T0
     > => {
+        Either16,
         Either15,
         Either14,
         Either13,
