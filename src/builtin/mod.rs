@@ -272,6 +272,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_generator_last(scope).unwrap();
     add_generator_len(scope).unwrap();
     add_generator_map(scope).unwrap();
+    add_generator_group(scope).unwrap();
     add_generator_nth(scope).unwrap();
     add_generator_repeat(scope).unwrap();
     add_generator_skip(scope).unwrap();
@@ -351,6 +352,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_generic_dyn_min_iter(scope).unwrap();
     add_generic_dyn_product(scope).unwrap();
     add_generic_dyn_sum(scope).unwrap();
+    add_generic_dyn_group(scope).unwrap();
 
     add_datetime_now(scope).unwrap();
 

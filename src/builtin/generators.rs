@@ -3,7 +3,6 @@ use crate::builtin::optional::{XOptional, XOptionalType};
 use crate::builtin::sequence::{XSequence, XSequenceType};
 
 use crate::native_types::{NativeType, XNativeValue};
-
 use crate::runtime_scope::RuntimeScope;
 
 use crate::xtype::{XFuncSpec, X_BOOL, X_INT, X_STRING};
@@ -23,7 +22,7 @@ use rc::Rc;
 
 use std::fmt::Debug;
 
-use std::mem::size_of;
+use std::mem::{size_of, take};
 
 use crate::builtin::mapping::XMapping;
 use crate::builtin::set::XSet;
@@ -35,9 +34,9 @@ use std::{iter, rc};
 
 use crate::util::multieither::{
     either_a, either_b, either_c, either_d, either_e, either_f, either_g, either_h, either_i,
-    either_j, either_k, either_l, either_m, either_n_last,
+    either_j, either_k, either_l, either_m, either_o_last, either_n,
 };
-use crate::xexpr::XExpr;
+use crate::xexpr::{XExpr, TailedEvalResult};
 
 #[derive(Debug, Clone)]
 pub(crate) struct XGeneratorType;
@@ -82,6 +81,10 @@ pub(crate) enum XGenerator<W, R, T> {
         eq_func: Rc<ManagedXValue<W, R, T>>,
         hash_func: Rc<ManagedXValue<W, R, T>>,
     },
+    Group{
+        inner: Rc<ManagedXValue<W, R, T>>,
+        eq_func: Rc<ManagedXValue<W, R, T>>,
+    }
 }
 
 impl<W: 'static, R: 'static, T: 'static> XNativeValue for XGenerator<W, R, T> {
@@ -268,7 +271,7 @@ impl<W: 'static, R: 'static, T: 'static> XGenerator<W, R, T> {
                 inner,
                 hash_func,
                 eq_func,
-            } => either_n_last({
+            } => either_n({
                 let inner: BIter<_, _, _> = Box::new(to_native!(inner, Self)._iter(ns, rt.clone()));
 
                 let mut counter =
@@ -280,6 +283,52 @@ impl<W: 'static, R: 'static, T: 'static> XGenerator<W, R, T> {
                     let v = ManagedXValue::new(XValue::Int(LazyBigint::from(*v)), rt.clone())?;
                     let tup = ManagedXValue::new(XValue::StructInstance(vec![i, v]), rt.clone())?;
                     Ok(Ok(tup))
+                })
+            }),
+            Self::Group { inner, eq_func } => either_o_last({
+                let inner: BIter<_, _, _> = Box::new(to_native!(inner, Self)._iter(ns, rt.clone()));
+                let eq_f = to_primitive!(eq_func, Function);
+                let mut current_group: Vec<Rc<ManagedXValue<W, R, T>>> = Vec::new();
+
+                inner.map(Some).chain(iter::once(None)).zip(rt.limits.search_iter()).filter_map(move |(i, s)| {
+                    if let Err(violation) = s {
+                        return Some(Err(violation));
+                    }
+
+                    if let Some(i) = i{
+                        if let Ok(Ok(i)) = i{
+                            if let Some(cgk) = current_group.first(){
+                                let eq = ns.eval_func_with_values(eq_f, vec![Ok(cgk.clone()), Ok(i.clone())], rt.clone(), false).map(TailedEvalResult::unwrap_value);
+                                if let Ok(Ok(eq)) = eq{
+                                    let &eq = to_primitive!(eq, Bool);
+                                    if eq{
+                                        current_group.push(i);
+                                        return None;
+                                    } else {
+                                        let group = take(&mut current_group);
+                                        let seq = ManagedXValue::new(XValue::Native(Box::new(XSequence::array(group))), rt.clone());
+                                        current_group.push(i);
+                                        return Some(seq.map(Ok));
+                                    }
+                                } else {
+                                    return Some(eq);
+                                }
+                            } else{
+                                current_group.push(i);
+                                return None;
+                            }
+
+                        } else {
+                            return Some(i);
+                        }
+                    } else if !current_group.is_empty(){
+                        // we're at the end of the generator, so we need to return the last group
+                        let group = take(&mut current_group);
+                        let seq = ManagedXValue::new(XValue::Native(Box::new(XSequence::array(group))), rt.clone());
+                        Some(seq.map(Ok))
+                    } else {
+                        return None;
+                    }
                 })
             }),
         }
@@ -375,6 +424,33 @@ pub(crate) fn add_generator_successors_until<W, R, T>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
 
             Ok(manage_native!(XGenerator::SuccessorsUntil(a0, a1), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_generator_group<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+    let t_gen = XGeneratorType::xtype(t.clone());
+
+    scope.add_func(
+        "group",
+        XFuncSpec::new(
+            &[
+                &t_gen,
+                &Arc::new(XType::XCallable(XCallableSpec {
+                    param_types: vec![t.clone(), t.clone()],
+                    return_type: X_BOOL.clone(),
+                })),
+            ],
+            XGeneratorType::xtype(XSequenceType::xtype(t.clone())),
+        )
+        .generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            Ok(manage_native!(XGenerator::Group{inner: a0, eq_func: a1}, rt))
         }),
     )
 }
