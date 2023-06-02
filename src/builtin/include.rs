@@ -133,12 +133,16 @@ fn any<T>(a: Generator<T>, f: (T)->(bool))->bool{
     a.nth(0, f).has_value()
 }
 
-fn contains<T>(s: Generator<T>, i: T, eq_: (T,T)->(bool))->bool{
-    s.any((t: T)->{eq_(t, i)})
+fn contains<T, U>(s: Generator<T>, i: U, eq_: (T,U)->(bool))->bool{
+    s.any((t: U)->{eq_(i, t)})
 }
 
 fn count<T>(s: Generator<T>, f: (T)->(bool))->int{
     s.filter(f).len()
+}
+
+fn count<T, U>(s: Generator<T>, i: U, eq_: (T,U)->(bool))->int{
+    s.filter((t: U)->{eq_(i, t)}).len()
 }
 
 fn enumerate<T>(a: Generator<T>, start: int ?= 0, offset: int ?= 1)->Generator<(int, T)>{
@@ -333,7 +337,7 @@ fn bisect<T>(seq: Sequence<T>, left_predicate: (T)->(bool))->int{
     helper(seq, 0)
 }
 
-fn contains<T>(s: Sequence<T>, i: T, eq_: (T,T)->(bool))->bool{
+fn contains<T, U>(s: Sequence<T>, i: U, eq_: (T,U)->(bool))->bool{
     s.to_generator().contains(i, eq_)
 }
 
@@ -1067,6 +1071,10 @@ fn bit_xor<T>(a: Set<T>, b: Set<T>)->Set<T>{
 /// Sequence 2
 fn count<T>(s: Sequence<T>, f: (T)->(bool))->int{
     s.filter(f).len()
+}
+
+fn count<T, U>(s: Sequence<T>, i: U, eq_: (T,U)->(bool))->int{
+    s.filter((t: U)->{eq_(i, t)}).len()
 }
 
 fn flatten<T>(g: Sequence<Generator<T>>)->Generator<T>{

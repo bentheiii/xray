@@ -342,6 +342,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_partial(scope).unwrap();
 
     add_generic_dyn_contains(scope).unwrap();
+    add_generic_dyn_count(scope).unwrap();
     add_generic_dyn_harmonic_mean(scope).unwrap();
     add_generic_dyn_max(scope).unwrap();
     add_generic_dyn_min(scope).unwrap();

@@ -132,7 +132,7 @@
   * [ ] byte types?
   * [ ] better flatten
   * [ ] complex trig?
-  * [ ] generatoe/seq count(i, eq)
+  * [X] generatoe/seq count(i, eq)
 * [ ] tests for:
   * [X] is_error
   * [X] if error (inc. tail recursion)

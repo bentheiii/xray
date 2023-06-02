@@ -1,0 +1,9 @@
+fn main()->bool{
+    let s = [1,2,3];
+    let counts = [3,0,1];
+    let sh = debug(s.sample(3, counts));
+
+    assert(sh.len() == 3)
+    && assert(sh.count((i: int)->{i == 1}) >= 2)
+    && assert(sh.count((i: int)->{i == 2}) == 0)
+}

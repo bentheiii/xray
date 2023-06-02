@@ -1,0 +1,9 @@
+fn main()->bool{
+    let s = [1, 1, 2, 2, 2, 1, 3, 3, 3];
+    let g = s.to_generator();
+
+    assert(g.count(1) == 3)
+    && assert(g.count(4) == 0)
+    && assert(s.count(1) == 3)
+    && assert(s.count(4) == 0)
+}
