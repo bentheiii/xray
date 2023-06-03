@@ -101,6 +101,10 @@ fn lcm(a: int, b: int)->int{
     if(g == 0, 0, trunc(a.abs()/g)*b.abs())
 }
 
+fn permutation(n: int, i: int)->Sequence<int>{
+    permutation(n,i,n)
+}
+
 fn sign(a: int)->int{
     if(a>0, 1, if(a<0, -1, 0))
 }
@@ -359,6 +363,16 @@ fn last<T>(a: Sequence<T>, f: (T)->(bool))->Optional<T>{
 
 fn median<T>(a: Sequence<T>, f: (T, T)->(int))->T{
     a.nth_smallest((a.len()/2).floor(), f)
+}
+
+fn permutation<T>(a: Sequence<T>, i: int)->Sequence<T>{
+    let i_perm = a.len().permutation(i);
+    i_perm.map((idx: int)->{a[idx]})
+}
+
+fn permutation<T>(a: Sequence<T>, i: int, k: int)->Sequence<T>{
+    let i_perm = a.len().permutation(i, k);
+    i_perm.map((idx: int)->{a[idx]})
 }
 
 fn random_choices<T>(a: Sequence<T>, n: int)->Sequence<T>{
@@ -920,6 +934,11 @@ fn predict(self: LinearRegression, x: float)->float{
 
 //// gen 2
 /// int 2
+fn factorial(n: int, step: int ?= 1)->int{
+    if(n < 0, error("cannot get factorial of negative number"),
+        range(n,0,-step).to_generator().reduce(1, mul{int, int}))
+}
+
 fn floor_root(a: int, b: int ?= 2)->int{
     if(a<0, error("a must be non-negative"), range(1, a).bisect((x:int)->{x**b <= a}))
 }
@@ -931,11 +950,6 @@ fn covariance(s: Generator<(float, float)>)->float{
     let mean_x = agg::item1/agg::item0;
     let mean_y = agg::item2/agg::item0;
     s.map((t:(float, float))->{(t::item0-mean_x)*(t::item1-mean_y)}).mean()
-}
-
-fn factorial(n: int, step: int ?= 1)->int{
-    if(n < 0, error("cannot get factorial of negative number"),
-        range(n,0,-step).to_generator().reduce(1, mul{int, int}))
 }
 
 /// str 2
@@ -1135,6 +1149,11 @@ fn pearson_correlation(s: Sequence<(float, float)>)->float{
     / (sqrt(s.len()*agg::sq0-agg::sum0**2) * sqrt(s.len()*agg::sq1-agg::sum1**2))
 }
 
+fn permutations<T>(a: Sequence<T>)->Sequence<Sequence<T>>{
+    let n = a.len().factorial();
+    range(n).map((i: int)->{permutation(a, i)})
+}
+
 fn product(g: Sequence<int>)->int{
     g.product(1)
 }
@@ -1211,7 +1230,7 @@ fn ceil_root(a: int, b: int ?= 2)->int{
     if(a==0, 0, 1+floor_root(a-1, b))
 }
 
-// str 3
+/// str 3
 fn mul(a: str, n: int)->str{
     ([a]*n).join()
 }
@@ -1228,5 +1247,11 @@ fn replace(s: str, old: str, new: str, count: int)->str{
     let parts = s.split(old, count).to_array();
     parts.take(count+1).join(new)
     + parts.skip(count+1).map((s: str)->{old + s}).join()
+}
+
+/// Sequence 3
+fn permutations<T>(a: Sequence<T>, k: int)->Sequence<Sequence<T>>{
+    let n = range(a.len()-k+1, a.len()+1).product();
+    range(n).map((i: int)->{permutation(a, i, k)})
 }
 "#;

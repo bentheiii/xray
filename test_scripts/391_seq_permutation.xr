@@ -1,0 +1,6 @@
+fn main()->bool{
+    let s = ["a", "b", "c", "d", "e"];
+    assert(s.permutation(9, 2) == ["c", "b"])
+    && assert(s.permutation(15, 2) == ["d", "e"])
+    && assert(s.permutation(8) == ["a", "c", "d", "b", "e"])
+}

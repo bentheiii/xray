@@ -106,7 +106,7 @@
   * [X] atan2
   * [X] geometric distribution
   * [ ] some things in python
-    * [ ] got to https://docs.python.org/3/library/random.html
+    * [ ] got to https://docs.python.org/3/library/itertools.html#itertools.permutations
   * [X] sequence::manifest
   * [ ] json?
   * [X] chain sequence?

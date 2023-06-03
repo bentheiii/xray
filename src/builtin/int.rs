@@ -1,5 +1,6 @@
 use crate::builtin::core::{eval, search, ufunc_ref, xcmp, xerr};
 use crate::builtin::sequence::{XSequence, XSequenceType};
+use crate::root_runtime_scope::RuntimeResult;
 use crate::util::xformatter::XFormatting;
 use crate::xtype::{XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XResult, XValue};
@@ -353,6 +354,49 @@ pub(crate) fn add_int_multinom<W, R, T>(
                 num_ctr += item;
             }
             Ok(ManagedXValue::new(XValue::Int(num / denum), rt)?.into())
+        }),
+    )
+}
+
+pub(crate) fn add_int_permutation<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "permutation",
+        XFuncSpec::new(&[&X_INT, &X_INT, &X_INT], XSequenceType::xtype(X_INT.clone())),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise!(eval(&args[2], ns, &rt)?);
+            
+            let Some(n) = to_primitive!(a0, Int).to_usize() else { return xerr(ManagedXError::new("n out of bounds", rt)?); };
+            let Some(i) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("k out of bounds", rt)?); };
+            let Some(k) = to_primitive!(a2, Int).to_usize() else { return xerr(ManagedXError::new("i out of bounds", rt)?); };
+
+            if k > n{
+                return xerr(ManagedXError::new("k cannot be greater than n", rt)?);
+            }
+            let total = (n-k+1..=n).product();
+            if i >= total{
+                return xerr(ManagedXError::new("i too large", rt)?);
+            }
+            let mut i = i;
+            rt.can_allocate(k)?;
+            let mut ret = Vec::with_capacity(k as usize);
+            for j in (0..k).rev(){
+                ret.push(i % (n-j));
+                i /= n-j;
+            }
+            ret.reverse();
+            for t0 in (1..k).rev(){
+                for t1 in (0..t0).rev(){
+                    if ret[t1] <= ret[t0]{
+                        ret[t0] += 1;
+                    }
+                }
+            }
+            let arr = ret.into_iter().map(|i| ManagedXValue::new(XValue::Int(LazyBigint::from(i)), rt.clone())).collect::<RuntimeResult<Vec<_>>>()?;
+            Ok(manage_native!(XSequence::Array(arr), rt))
         }),
     )
 }

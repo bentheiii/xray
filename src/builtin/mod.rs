@@ -75,6 +75,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_int_ne(scope).unwrap();
     add_int_neg(scope).unwrap();
     add_int_pow(scope).unwrap();
+    add_int_permutation(scope).unwrap();
     add_int_sub(scope).unwrap();
     add_int_to_float(scope).unwrap();
     add_int_to_str(scope).unwrap();
