@@ -1,0 +1,6 @@
+fn main()->bool{
+    let s = ["a", "b", "c", "d", "e"];
+    assert(s.combination_with_replacement(5, 2) == ["b", "b"])
+    && assert(s.combination_with_replacement(9, 2) == ["c", "c"])
+    && assert(s.combination_with_replacement(24, 4) == ["a", "b", "e", "e"])
+}

@@ -1,0 +1,5 @@
+fn main()->bool{
+    assert(5.combination_with_replacement(9, 2) == [2,2])
+    && assert(5.combination_with_replacement(5, 2) == [1,1])
+    && assert(5.combination_with_replacement(26, 4) == [0,2,2,3])
+}

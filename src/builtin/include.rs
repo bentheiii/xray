@@ -346,9 +346,19 @@ fn combination<T>(a: Sequence<T>, i: int, k: int)->Sequence<T>{
     i_perm.map((idx: int)->{a[idx]})
 }
 
+fn combination_with_replacement<T>(a: Sequence<T>, i: int, k: int)->Sequence<T>{
+    let i_perm = a.len().combination_with_replacement(i, k);
+    i_perm.map((idx: int)->{a[idx]})
+}
+
 fn combinations<T>(a: Sequence<T>, k: int)->Sequence<Sequence<T>>{
     let len = binom(a.len(), k);
     range(len).map((idx: int)->{a.combination(idx, k)})
+}
+
+fn combinations_with_replacement<T>(a: Sequence<T>, k: int)->Sequence<Sequence<T>>{
+    let len = binom(a.len()+k-1, k);
+    range(len).map((idx: int)->{a.combination_with_replacement(idx, k)})
 }
 
 fn contains<T, U>(s: Sequence<T>, i: U, eq_: (T,U)->(bool))->bool{
