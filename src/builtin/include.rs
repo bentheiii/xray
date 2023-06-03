@@ -341,6 +341,16 @@ fn bisect<T>(seq: Sequence<T>, left_predicate: (T)->(bool))->int{
     helper(seq, 0)
 }
 
+fn combination<T>(a: Sequence<T>, i: int, k: int)->Sequence<T>{
+    let i_perm = a.len().combination(i, k);
+    i_perm.map((idx: int)->{a[idx]})
+}
+
+fn combinations<T>(a: Sequence<T>, k: int)->Sequence<Sequence<T>>{
+    let len = binom(a.len(), k);
+    range(len).map((idx: int)->{a.combination(idx, k)})
+}
+
 fn contains<T, U>(s: Sequence<T>, i: U, eq_: (T,U)->(bool))->bool{
     s.to_generator().contains(i, eq_)
 }

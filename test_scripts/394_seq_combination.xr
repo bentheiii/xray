@@ -1,0 +1,6 @@
+fn main()->bool{
+    let s = ["a", "b", "c", "d", "e"];
+    assert(s.combination(5, 2) == ["b", "d"])
+    && assert(s.combination(9, 2) == ["d", "e"])
+    && assert(s.combination(3, 4) == ["a", "c", "d", "e"])
+}

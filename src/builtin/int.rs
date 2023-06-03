@@ -9,6 +9,7 @@ use crate::{
     CompilationError, XStaticFunction,
 };
 
+use num_integer::binomial;
 use num_traits::{One, Pow, Signed, ToPrimitive, Zero};
 
 use rc::Rc;
@@ -370,7 +371,7 @@ pub(crate) fn add_int_permutation<W, R, T>(
             let a2 = xraise!(eval(&args[2], ns, &rt)?);
             
             let Some(n) = to_primitive!(a0, Int).to_usize() else { return xerr(ManagedXError::new("n out of bounds", rt)?); };
-            let Some(i) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("k out of bounds", rt)?); };
+            let Some(mut i) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("k out of bounds", rt)?); };
             let Some(k) = to_primitive!(a2, Int).to_usize() else { return xerr(ManagedXError::new("i out of bounds", rt)?); };
 
             if k > n{
@@ -380,7 +381,6 @@ pub(crate) fn add_int_permutation<W, R, T>(
             if i >= total{
                 return xerr(ManagedXError::new("i too large", rt)?);
             }
-            let mut i = i;
             rt.can_allocate(k)?;
             let mut ret = Vec::with_capacity(k as usize);
             for j in (0..k).rev(){
@@ -393,6 +393,52 @@ pub(crate) fn add_int_permutation<W, R, T>(
                     if ret[t1] <= ret[t0]{
                         ret[t0] += 1;
                     }
+                }
+            }
+            let arr = ret.into_iter().map(|i| ManagedXValue::new(XValue::Int(LazyBigint::from(i)), rt.clone())).collect::<RuntimeResult<Vec<_>>>()?;
+            Ok(manage_native!(XSequence::Array(arr), rt))
+        }),
+    )
+}
+
+pub(crate) fn add_int_combination<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    scope.add_func(
+        "combination",
+        XFuncSpec::new(&[&X_INT, &X_INT, &X_INT], XSequenceType::xtype(X_INT.clone())),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+            let a2 = xraise!(eval(&args[2], ns, &rt)?);
+            
+            let Some(n) = to_primitive!(a0, Int).to_usize() else { return xerr(ManagedXError::new("n out of bounds", rt)?); };
+            let Some(mut i) = to_primitive!(a1, Int).to_usize() else { return xerr(ManagedXError::new("k out of bounds", rt)?); };
+            let Some(mut k) = to_primitive!(a2, Int).to_usize() else { return xerr(ManagedXError::new("i out of bounds", rt)?); };
+
+            if k > n{
+                return xerr(ManagedXError::new("k cannot be greater than n", rt)?);
+            }
+            let mut s_cutoff = binomial(n-1,k-1);
+            let total = s_cutoff*n/k;
+            if i >= total{
+                return xerr(ManagedXError::new("i too large", rt)?);
+            }
+            let mut s = 0;
+            rt.can_allocate(k)?;
+            let mut ret = Vec::with_capacity(k as usize);
+            while k > 0{
+                if i < s_cutoff{
+                    ret.push(s);
+                    if k > 1{
+                        s_cutoff = s_cutoff*(k-1)/(n-s-1);
+                    }
+                    k -= 1;
+                    s+=1;
+                } else {
+                    i -= s_cutoff;
+                    s_cutoff = s_cutoff*(n-s-k)/(n-s-1);
+                    s+=1;
                 }
             }
             let arr = ret.into_iter().map(|i| ManagedXValue::new(XValue::Int(LazyBigint::from(i)), rt.clone())).collect::<RuntimeResult<Vec<_>>>()?;
