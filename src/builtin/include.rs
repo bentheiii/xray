@@ -13,6 +13,19 @@ fn min<T>(a: T, b: T, lt: (T,T)->(bool))->T{
     if(lt(a,b), a, b)
 }
 
+fn to_cmp<T, U>(key: (T)->(U), cmp_: (U,U)->(int))->(T,T)->(int){
+    (a: T, b: T)->{cmp_(key(a), key(b))}
+}
+
+fn to_eq<T, U>(key: (T)->(U), eq_: (U,U)->(bool))->(T,T)->(bool){
+    (a: T, b: T)->{eq_(key(a), key(b))}
+}
+
+fn to_lt<T, U>(key: (T)->(U), lt_: (U,U)->(bool))->(T,T)->(bool){
+    (a: T, b: T)->{lt_(key(a), key(b))}
+}
+
+
 /// bool 1
 fn bit_xor(a: bool, b: bool)->bool{
     a != b

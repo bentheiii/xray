@@ -1,0 +1,8 @@
+fn main()->bool{
+    let k = (i: int)->{i%3};
+    let eq_ = k.to_eq();
+
+    assert(eq_(3,3))
+    && assert(!eq_(3,4))
+    && assert(eq_(3,15))
+}

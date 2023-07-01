@@ -23,7 +23,7 @@ use std::io::Write;
 use std::sync::Arc;
 use std::{iter, rc};
 
-pub(crate) fn add_if<W, R, T>(
+pub(crate) fn add_generic_if<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -37,7 +37,7 @@ pub(crate) fn add_if<W, R, T>(
     )
 }
 
-pub(crate) fn add_error<W, R, T>(
+pub(crate) fn add_generic_error<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -50,7 +50,7 @@ pub(crate) fn add_error<W, R, T>(
     )
 }
 
-pub(crate) fn add_debug<W: Write, R, T>(
+pub(crate) fn add_generic_debug<W: Write, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -74,7 +74,7 @@ pub(crate) fn add_debug<W: Write, R, T>(
     )
 }
 
-pub(crate) fn add_is_error<W, R, T>(
+pub(crate) fn add_generic_is_error<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -103,7 +103,7 @@ pub(crate) fn add_is_error<W, R, T>(
     )
 }
 
-pub(crate) fn add_if_error<W, R, T>(
+pub(crate) fn add_generic_if_error<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -121,7 +121,7 @@ pub(crate) fn add_if_error<W, R, T>(
     )
 }
 
-pub(crate) fn add_if_error_specific<W, R, T>(
+pub(crate) fn add_generic_if_error_specific<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let ([t], params) = scope.generics_from_names(["T"]);
@@ -142,7 +142,7 @@ pub(crate) fn add_if_error_specific<W, R, T>(
     )
 }
 
-pub(crate) fn add_get_error<W, R, T>(
+pub(crate) fn add_generic_get_error<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
@@ -167,7 +167,7 @@ pub(crate) fn add_get_error<W, R, T>(
     )
 }
 
-pub(crate) fn add_ne<W, R, T>(
+pub(crate) fn add_generic_dyn_ne<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let eq_symbol = scope.identifier("eq");
@@ -201,7 +201,7 @@ pub(crate) fn add_ne<W, R, T>(
     })
 }
 
-pub(crate) fn add_display<W: Write, R, T>(
+pub(crate) fn add_generic_dyn_display<W: Write, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let to_str_symbol = scope.identifier("to_str");
@@ -259,7 +259,7 @@ pub(crate) fn add_display<W: Write, R, T>(
     )
 }
 
-pub(crate) fn add_cmp_lt<W, R, T>(
+pub(crate) fn add_generic_dyn_cmp_lt<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
@@ -296,7 +296,7 @@ pub(crate) fn add_cmp_lt<W, R, T>(
     })
 }
 
-pub(crate) fn add_cmp_gt<W, R, T>(
+pub(crate) fn add_generic_dyn_cmp_gt<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
@@ -334,7 +334,7 @@ pub(crate) fn add_cmp_gt<W, R, T>(
     })
 }
 
-pub(crate) fn add_cmp_ge<W, R, T>(
+pub(crate) fn add_generic_dyn_cmp_ge<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
@@ -371,7 +371,7 @@ pub(crate) fn add_cmp_ge<W, R, T>(
     })
 }
 
-pub(crate) fn add_cmp_le<W, R, T>(
+pub(crate) fn add_generic_dyn_cmp_le<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let cmp_symbol = scope.identifier("cmp");
@@ -409,7 +409,7 @@ pub(crate) fn add_cmp_le<W, R, T>(
     })
 }
 
-pub(crate) fn add_cast<W, R, T>(
+pub(crate) fn add_generic_dyn_cast<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("cast", "", move |_params, _types, _ns, bind| {
@@ -428,7 +428,7 @@ pub(crate) fn add_cast<W, R, T>(
     })
 }
 
-pub(crate) fn add_partial<W, R, T>(
+pub(crate) fn add_generic_dyn_partial<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_dyn_func("partial", "currying", move |_params, types, _ns, bind| {
@@ -790,6 +790,93 @@ pub(crate) fn add_generic_dyn_group<W, R, T>(
 
         let (inner_f, f_t) =
             get_func_with_type(ns, f_symbol, &[inner0.clone(), inner0.clone()], None)?;
+        let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
+
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[t0], cb_t.rtype()),
+            delegate!(
+                with [inner_f, cb],
+                args [0->a0],
+                cb(a0, inner_f)
+            ),
+        ))
+    })
+}
+
+pub(crate) fn add_generic_dyn_to_eq<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    let f_symbol = scope.identifier("eq");
+    let cb_symbol = scope.identifier("to_eq");
+
+    scope.add_dyn_func("to_eq", "eq", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+        let [t0] = unpack_dyn_types(types)?;
+        let XType::XFunc(spec) = t0.as_ref() else { return Err("first argument must be a function".to_string()); };
+        let out = spec.ret.clone();
+
+        let (inner_f, f_t) =
+            get_func_with_type(ns, f_symbol, &[out.clone(), out.clone()], None)?;
+        let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
+
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[t0], cb_t.rtype()),
+            delegate!(
+                with [inner_f, cb],
+                args [0->a0],
+                cb(a0, inner_f)
+            ),
+        ))
+    })
+}
+
+pub(crate) fn add_generic_dyn_to_cmp<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    let f_symbol = scope.identifier("cmp");
+    let cb_symbol = scope.identifier("to_cmp");
+
+    scope.add_dyn_func("to_cmp", "cmp", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+        let [t0] = unpack_dyn_types(types)?;
+        let XType::XFunc(spec) = t0.as_ref() else { return Err("first argument must be a function".to_string()); };
+        let out = spec.ret.clone();
+
+        let (inner_f, f_t) =
+            get_func_with_type(ns, f_symbol, &[out.clone(), out.clone()], None)?;
+        let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
+
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[t0], cb_t.rtype()),
+            delegate!(
+                with [inner_f, cb],
+                args [0->a0],
+                cb(a0, inner_f)
+            ),
+        ))
+    })
+}
+
+pub(crate) fn add_generic_dyn_to_lt<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    let f_symbol = scope.identifier("lt");
+    let cb_symbol = scope.identifier("to_kt");
+
+    scope.add_dyn_func("to_lt", "lt", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+        let [t0] = unpack_dyn_types(types)?;
+        let XType::XFunc(spec) = t0.as_ref() else { return Err("first argument must be a function".to_string()); };
+        let out = spec.ret.clone();
+
+        let (inner_f, f_t) =
+            get_func_with_type(ns, f_symbol, &[out.clone(), out.clone()], None)?;
         let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
 
         Ok(XFunctionFactoryOutput::from_delayed_native(

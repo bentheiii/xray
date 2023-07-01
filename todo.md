@@ -106,7 +106,7 @@
   * [X] atan2
   * [X] geometric distribution
   * [ ] some things in python
-    * [ ] got to https://docs.python.org/3/library/itertools.html#itertools.permutations
+    * [ ] got to https://docs.python.org/3/library/functools.html#functools.cmp_to_key
   * [X] sequence::manifest
   * [ ] json?
   * [X] chain sequence?
@@ -132,6 +132,7 @@
   * [ ] byte types?
   * [ ] better flatten
   * [ ] complex trig?
+  * [ ] lru_cache?
   * [X] generatoe/seq count(i, eq)
 * [ ] tests for:
   * [X] is_error
