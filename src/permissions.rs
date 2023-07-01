@@ -1,39 +1,35 @@
-use crate::builtin::builtin_permissions::{REGEX, SLEEP};
 use std::collections::HashMap;
-use std::ops::Index;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub struct Permission(pub &'static str);
+pub struct Permission{pub id: &'static str, pub default: bool}
 
-#[derive(Debug)]
-pub struct PermissionSet {
-    default: bool,
-    specific: HashMap<Permission, bool>,
-}
+impl Permission {
+    pub const fn new(id: &'static str, default: bool) -> Self {
+        Self { id, default }
+    }
 
-impl Default for PermissionSet {
-    fn default() -> Self {
-        Self {
-            default: true,
-            specific: HashMap::from([(REGEX, false), (SLEEP, false)]),
-        }
+    pub const fn new_default_allowed(id: &'static str) -> Self {
+        Self::new(id, true)
+    }
+
+    pub const fn new_default_forbidden(id: &'static str) -> Self {
+        Self::new(id, false)
     }
 }
 
-impl Index<&Permission> for PermissionSet {
-    type Output = bool;
-
-    fn index(&self, index: &Permission) -> &Self::Output {
-        self.specific.get(index).unwrap_or(&self.default)
-    }
-}
+#[derive(Debug, Default)]
+pub struct PermissionSet (HashMap<&'static str, bool>);
 
 impl PermissionSet {
+    pub fn get(&self, permission: &Permission) -> bool {
+        self.0.get(permission.id).unwrap_or(&permission.default).clone()
+    }
+
     pub fn allow(&mut self, permission: &Permission) {
-        self.specific.insert(*permission, true);
+        self.0.insert(permission.id, true);
     }
 
     pub fn forbid(&mut self, permission: &Permission) {
-        self.specific.insert(*permission, false);
+        self.0.insert(permission.id, false);
     }
 }

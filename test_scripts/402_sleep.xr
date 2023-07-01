@@ -1,0 +1,9 @@
+fn main()->bool{
+    let bef = now();
+    let s = sleep(seconds(0.01), "goob");
+    let aft = now();
+    let dur = aft - bef;
+
+    assert(dur.seconds() >= 0.01)
+    && assert(s == "goob")
+}

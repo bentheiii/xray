@@ -55,10 +55,10 @@ impl RuntimeLimits {
     }
 
     pub fn check_permission(&self, permission: &Permission) -> RuntimeResult<()> {
-        if self.permissions[permission] {
+        if self.permissions.get(permission) {
             Ok(())
         } else {
-            Err(RuntimeViolation::PermissionError(permission.0))
+            Err(RuntimeViolation::PermissionError(permission.id))
         }
     }
 }

@@ -445,11 +445,11 @@ pub(crate) fn add_float_to_str<W, R, T>(
     )
 }
 
-pub(crate) fn add_float_tpl<W, R, T>(
+pub(crate) fn add_float_priv_tpl<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     scope.add_func(
-        "__xray_tpl",
+        "__std_tpl",
         XFuncSpec::new(
             &[&X_FLOAT],
             Arc::new(XType::Tuple(vec![X_INT.clone(), X_INT.clone()])),

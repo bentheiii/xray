@@ -133,6 +133,7 @@
   * [ ] better flatten
   * [ ] complex trig?
   * [ ] lru_cache?
+  * [ ] compression/encryption/hashing
   * [X] generatoe/seq count(i, eq)
 * [ ] tests for:
   * [X] is_error

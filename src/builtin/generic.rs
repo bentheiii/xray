@@ -1,6 +1,6 @@
 use crate::xexpr::XExpr;
-use crate::xtype::{Bind, XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN};
-use crate::xvalue::{ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
+use crate::xtype::{Bind, XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN, X_FLOAT};
+use crate::xvalue::{ManagedXValue, XFunction, XFunctionFactoryOutput, XValue, ManagedXError};
 use crate::{
     delegate, forward_err, manage_native, to_primitive, ufunc, xraise, xraise_opt,
     CompilationError, RootCompilationScope, XStaticFunction, XType,
@@ -21,7 +21,10 @@ use crate::util::lazy_bigint::LazyBigint;
 use num_traits::Signed;
 use std::io::Write;
 use std::sync::Arc;
-use std::{iter, rc};
+use std::time::Duration;
+use std::{iter, rc, thread};
+
+use super::core::xerr;
 
 pub(crate) fn add_generic_if<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
@@ -865,7 +868,7 @@ pub(crate) fn add_generic_dyn_to_lt<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
     let f_symbol = scope.identifier("lt");
-    let cb_symbol = scope.identifier("to_kt");
+    let cb_symbol = scope.identifier("to_lt");
 
     scope.add_dyn_func("to_lt", "lt", move |_params, types, ns, bind| {
         if bind.is_some() {
@@ -888,4 +891,28 @@ pub(crate) fn add_generic_dyn_to_lt<W, R, T>(
             ),
         ))
     })
+}
+
+pub(crate) fn add_generic_priv_sleep<W: Write, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+    scope.add_func(
+        "__std_sleep",
+        XFuncSpec::new(&[&X_FLOAT, &t], t.clone()).generic(params),
+        XStaticFunction::from_native(|args: &[XExpr<W, R, T>], ns, _tca, rt| {
+            rt.limits
+                .check_permission(&builtin_permissions::SLEEP)?;
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let a1 = xraise!(eval(&args[1], ns, &rt)?);
+
+            let &secs = to_primitive!(a0, Float);
+            if secs < 0.0 {
+                return xerr(ManagedXError::new("sleep time must be non-negative", rt)?);
+            }
+            thread::sleep(Duration::from_secs_f64(secs));
+            
+            Ok(a1.into())
+        }),
+    )
 }

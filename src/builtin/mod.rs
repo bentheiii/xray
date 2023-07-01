@@ -134,8 +134,8 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_float_tan(scope).unwrap();
     add_float_tanh(scope).unwrap();
     add_float_to_str(scope).unwrap();
-    add_float_tpl(scope).unwrap();
     add_float_trunc(scope).unwrap();
+    add_float_priv_tpl(scope).unwrap();
 
     add_generator_type(scope).unwrap();
     add_generator_add(scope).unwrap();
@@ -193,6 +193,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_generic_dyn_to_cmp(scope).unwrap();
     add_generic_dyn_to_eq(scope).unwrap();
     add_generic_dyn_to_lt(scope).unwrap();
+    add_generic_priv_sleep(scope).unwrap();
 
     add_int_type(scope).unwrap();
     add_int_add(scope).unwrap();

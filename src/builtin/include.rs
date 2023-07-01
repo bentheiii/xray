@@ -854,6 +854,14 @@ fn seconds(self: float)->Duration{
     Duration(self)
 }
 
+fn sleep<T>(d: Duration)->(){
+    __std_sleep(d::seconds, ())
+}
+
+fn sleep<T>(d: Duration, f: T)->T{
+    __std_sleep(d::seconds, f)
+}
+
 fn years(self: Duration)->float{
     self.seconds()/31556926.0
 }
@@ -875,7 +883,7 @@ fn fraction(n: int, d: int)->Fraction{
 }
 
 fn fraction(f: float)->Fraction{
-    let tpl = __xray_tpl(f);
+    let tpl = __std_tpl(f);
     fraction(tpl::item0, tpl::item1)
 }
 

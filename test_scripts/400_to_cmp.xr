@@ -1,0 +1,8 @@
+fn main()->bool{
+    let k = (i: int)->{i%3};
+    let cmp_ = k.to_cmp();
+
+    assert(cmp_(3,3) == 0)
+    && assert(cmp_(3,4) == -1)
+    && assert(cmp_(4,15) == 1)
+}
