@@ -2,6 +2,7 @@ use crate::builtin::bool::*;
 use crate::builtin::floats::*;
 use crate::builtin::generic::*;
 use crate::builtin::int::*;
+use crate::builtin::json::*;
 use crate::builtin::mapping::*;
 use crate::builtin::optional::*;
 use crate::builtin::sequence::*;
@@ -36,6 +37,7 @@ pub mod generators;
 pub mod generic;
 pub mod include;
 pub mod int;
+pub mod json;
 pub mod mapping;
 pub mod optional;
 pub mod regex;
@@ -227,7 +229,13 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_int_to_float(scope).unwrap();
     add_int_to_str(scope).unwrap();
 
+    add_json_type(scope).unwrap();
+    add_json_dyn_json_array(scope).unwrap();
+    add_json_dyn_json_object(scope).unwrap();
+    add_json_priv_str_ser(scope).unwrap();
+
     add_mapping_type(scope).unwrap();
+    add_mapping_clear(scope).unwrap();
     add_mapping_discard(scope).unwrap();
     add_mapping_get3(scope).unwrap();
     add_mapping_len(scope).unwrap();

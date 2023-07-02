@@ -382,7 +382,7 @@ pub(crate) fn add_int_permutation<W, R, T>(
                 return xerr(ManagedXError::new("i too large", rt)?);
             }
             rt.can_allocate(k)?;
-            let mut ret = Vec::with_capacity(k as usize);
+            let mut ret = Vec::with_capacity(k);
             for j in (0..k).rev(){
                 ret.push(i % (n-j));
                 i /= n-j;
@@ -426,7 +426,7 @@ pub(crate) fn add_int_combination<W, R, T>(
             }
             let mut s = 0;
             rt.can_allocate(k)?;
-            let mut ret = Vec::with_capacity(k as usize);
+            let mut ret = Vec::with_capacity(k);
             while k > 0{
                 if i < s_cutoff{
                     ret.push(s);
@@ -472,7 +472,7 @@ pub(crate) fn add_int_combination_with_replacement<W, R, T>(
             }
             let mut s = 0;
             rt.can_allocate(k)?;
-            let mut ret = Vec::with_capacity(k as usize);
+            let mut ret = Vec::with_capacity(k);
             while k > 0{
                 if i < s_cutoff{
                     ret.push(s);

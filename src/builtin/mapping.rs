@@ -29,10 +29,10 @@ use std::sync::Arc;
 use crate::xexpr::{TailedEvalResult, XExpr};
 
 #[derive(Debug, Clone)]
-struct XMappingType;
+pub(crate) struct XMappingType;
 
 impl XMappingType {
-    fn xtype(k: Arc<XType>, v: Arc<XType>) -> Arc<XType> {
+    pub(crate) fn xtype(k: Arc<XType>, v: Arc<XType>) -> Arc<XType> {
         Arc::new(XType::XNative(Box::new(Self {}), vec![k, v]))
     }
 }
@@ -263,6 +263,34 @@ pub(crate) fn add_mapping_new<W, R, T>(
             let eq_func = xraise!(eval(&args[1], ns, &rt)?);
             Ok(manage_native!(
                 XMapping::<W, R, T>::new(hash_func, eq_func, Default::default(), 0),
+                rt
+            ))
+        }),
+    )
+}
+
+pub(crate) fn add_mapping_clear<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["K"]);
+    let mt = XMappingType::xtype(t, X_UNKNOWN.clone());
+
+    scope.add_func(
+        "clear",
+        XFuncSpec::new(&[&mt], mt.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let map0 = to_native!(a0, XMapping<W, R, T>);
+            if map0.len == 0 {
+                return Ok(a0.clone().into());
+            }
+            Ok(manage_native!(
+                XMapping::<_, _, _, Rc<ManagedXValue<W, R, T>>>::new(
+                    map0.hash_func.clone(),
+                    map0.eq_func.clone(),
+                    Default::default(),
+                    0,
+                ),
                 rt
             ))
         }),

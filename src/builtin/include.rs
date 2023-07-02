@@ -127,6 +127,10 @@ fn chars(a: str)->Sequence<str>{
     range(a.len()).map((i: int)->{a[i]})
 }
 
+fn contains(a: str, b: str, start_ind: int ?= 0)->bool{
+    a.find(b, start_ind).has_value()
+}
+
 fn join(s: Sequence<str>, delimiter: str ?= "")->str{
     s.to_generator().join(delimiter)
 }
@@ -229,6 +233,10 @@ fn get<K,V>(m: Mapping<K,V>, k: K)->V{
 
 fn keys<K, V>(m: Mapping<K,V>)->Generator<K>{
     m.to_generator().map((t: (K,V)) -> {t::item0})
+}
+
+fn map_values<K, V0, V1>(m: Mapping<K,V0>, f: (V0)->(V1))->Mapping<K,V1>{
+    m.clear().update_from_keys(m.keys(), (k: K)->{f(m[k])}, (k: K, v: V1)->{error("unreachable")})
 }
 
 fn update<K,V>(m: Mapping<K,V>, s: Sequence<(K,V)>)->Mapping<K,V>{
@@ -945,6 +953,64 @@ fn sub(a: Fraction, b: Fraction)->Fraction{
 
 fn trunc(a: Fraction)->int{
     if(a::n >= 0, floor(a), ceil(a))
+}
+
+/// JSON 1
+/*
+union JSON(
+    number: float,
+    bool: bool,
+    string: str,
+    null: (),
+    array: Sequence<JSON>,
+    object: Mapping<str, JSON>,
+)
+*/
+
+fn json(a: Sequence<JSON>)->JSON{
+    JSON::array(a)
+}
+
+fn json(a: Mapping<str, JSON>)->JSON{
+    JSON::object(a)
+}
+
+fn json(s: str)->JSON{
+    JSON::string(s)
+}
+
+fn json(b: bool)->JSON{
+    JSON::bool(b)
+}
+
+fn json(n: float)->JSON{
+    JSON::number(n)
+}
+
+fn json(n: int)->JSON{
+    JSON::number(n.to_float())
+}
+
+fn json(n: ())->JSON{
+    JSON::null(())
+}
+
+fn serialize(a: JSON)->str{
+    fn serialize_array(s: Sequence<JSON>)->str{
+        "[" + s.map(serialize).join(",") + "]"
+    }
+
+    fn serialize_object(m: Mapping<str, JSON>)->str{
+        "{" + m.to_generator().map((item: (str, JSON))->{[__std_json_serialize_str(item::item0), ":", serialize(item::item1)].join()}).join(",") + "}"
+    }
+
+    a?:number.map((n:float)->{n.to_str()})
+    || a?:bool.map((b:bool)->{b.to_str()})
+    || a?:string.map(__std_json_serialize_str)
+    || a?:null.map((n:())->{"null"})
+    || a?:array.map(serialize_array)
+    || serialize_object(a!:object)
+
 }
 
 /// LinearRegression 1

@@ -83,9 +83,13 @@ impl<W: 'static, R: 'static, T: 'static> EvaluationCell<W, R, T> {
                         depth: *ancestor_depth,
                         scope: ancestor.template.clone().to_function(),
                     }),
-                    Self::Recourse { .. } => {
-                        panic!("I don't think this happens")
-                    }
+                    Self::Recourse { depth, scope } => Ok(
+                        // todo this defintly needs testing (json_serialize causes this to happen)
+                        Self::Recourse {
+                            depth: *depth + *ancestor_depth,
+                            scope: scope.clone(),
+                        },
+                    ),
                 }
             }
         }

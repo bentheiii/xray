@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-pub struct Permission{pub id: &'static str, pub default: bool}
+pub struct Permission {
+    pub id: &'static str,
+    pub default: bool,
+}
 
 impl Permission {
     pub const fn new(id: &'static str, default: bool) -> Self {
@@ -18,11 +21,13 @@ impl Permission {
 }
 
 #[derive(Debug, Default)]
-pub struct PermissionSet (HashMap<&'static str, bool>);
+pub struct PermissionSet(HashMap<&'static str, bool>);
 
 impl PermissionSet {
     pub fn get(&self, permission: &Permission) -> bool {
-        self.0.get(permission.id).unwrap_or(&permission.default).clone()
+        *self.0
+            .get(permission.id)
+            .unwrap_or(&permission.default)
     }
 
     pub fn allow(&mut self, permission: &Permission) {

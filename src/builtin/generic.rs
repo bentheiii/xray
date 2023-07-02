@@ -1,6 +1,6 @@
 use crate::xexpr::XExpr;
-use crate::xtype::{Bind, XFuncSpec, X_BOOL, X_INT, X_STRING, X_UNKNOWN, X_FLOAT};
-use crate::xvalue::{ManagedXValue, XFunction, XFunctionFactoryOutput, XValue, ManagedXError};
+use crate::xtype::{Bind, XFuncSpec, X_BOOL, X_FLOAT, X_INT, X_STRING, X_UNKNOWN};
+use crate::xvalue::{ManagedXError, ManagedXValue, XFunction, XFunctionFactoryOutput, XValue};
 use crate::{
     delegate, forward_err, manage_native, to_primitive, ufunc, xraise, xraise_opt,
     CompilationError, RootCompilationScope, XStaticFunction, XType,
@@ -821,7 +821,7 @@ pub(crate) fn add_generic_dyn_to_eq<W, R, T>(
         let out = spec.ret.clone();
 
         let (inner_f, f_t) =
-            get_func_with_type(ns, f_symbol, &[out.clone(), out.clone()], None)?;
+            get_func_with_type(ns, f_symbol, &[out.clone(), out], None)?;
         let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
 
         Ok(XFunctionFactoryOutput::from_delayed_native(
@@ -850,7 +850,7 @@ pub(crate) fn add_generic_dyn_to_cmp<W, R, T>(
         let out = spec.ret.clone();
 
         let (inner_f, f_t) =
-            get_func_with_type(ns, f_symbol, &[out.clone(), out.clone()], None)?;
+            get_func_with_type(ns, f_symbol, &[out.clone(), out], None)?;
         let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
 
         Ok(XFunctionFactoryOutput::from_delayed_native(
@@ -879,7 +879,7 @@ pub(crate) fn add_generic_dyn_to_lt<W, R, T>(
         let out = spec.ret.clone();
 
         let (inner_f, f_t) =
-            get_func_with_type(ns, f_symbol, &[out.clone(), out.clone()], None)?;
+            get_func_with_type(ns, f_symbol, &[out.clone(), out], None)?;
         let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[t0.clone(), f_t.xtype()], None)?;
 
         Ok(XFunctionFactoryOutput::from_delayed_native(
@@ -901,8 +901,7 @@ pub(crate) fn add_generic_priv_sleep<W: Write, R, T>(
         "__std_sleep",
         XFuncSpec::new(&[&X_FLOAT, &t], t.clone()).generic(params),
         XStaticFunction::from_native(|args: &[XExpr<W, R, T>], ns, _tca, rt| {
-            rt.limits
-                .check_permission(&builtin_permissions::SLEEP)?;
+            rt.limits.check_permission(&builtin_permissions::SLEEP)?;
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
 
@@ -911,7 +910,7 @@ pub(crate) fn add_generic_priv_sleep<W: Write, R, T>(
                 return xerr(ManagedXError::new("sleep time must be non-negative", rt)?);
             }
             thread::sleep(Duration::from_secs_f64(secs));
-            
+
             Ok(a1.into())
         }),
     )

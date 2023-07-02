@@ -169,6 +169,12 @@ pub struct XCompoundFieldSpec {
     pub type_: Arc<XType>,
 }
 
+impl XCompoundFieldSpec {
+    pub(crate) fn new(name: Identifier, type_: Arc<XType>) -> Self {
+        Self { name, type_ }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct XCallableSpec {
     pub param_types: Vec<Arc<XType>>,

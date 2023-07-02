@@ -106,7 +106,7 @@
   * [X] atan2
   * [X] geometric distribution
   * [ ] some things in python
-    * [ ] got to https://docs.python.org/3/library/functools.html#functools.cmp_to_key
+    * [ ] got to https://docs.python.org/3/library/json.html
   * [X] sequence::manifest
   * [ ] json?
   * [X] chain sequence?
@@ -135,6 +135,8 @@
   * [ ] lru_cache?
   * [ ] compression/encryption/hashing
   * [X] generatoe/seq count(i, eq)
+  * [ ] threading??
+  * [ ] json of option
 * [ ] tests for:
   * [X] is_error
   * [X] if error (inc. tail recursion)
@@ -196,6 +198,9 @@
   * [ ] date/datetime str
   * [ ] format_replace
   * [ ] flatten with empty
+  * [ ] map_values
+  * [ ] mapping::clear
+  * [ ] str::contains
 * [X] reduce macros in builtin/core
 * [ ] better errors
   * [X] compilation error tracing
