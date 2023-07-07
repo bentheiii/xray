@@ -1,0 +1,5 @@
+fn main()->bool{
+    let pat = regex(r"[0-9](?:(?P<postscript>[a-z]+)|(?P<ws>\s))");
+    assert(pat.match("bla 10 9two", 5).value()[0] == some("0 "))
+    && assert(!pat.match("bla 10 9two", 6).has_value())
+}

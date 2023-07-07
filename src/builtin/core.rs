@@ -87,7 +87,11 @@ macro_rules! ufunc {
 macro_rules! to_native {
     ($x: expr, $t: ty) => {
         match &$x.value {
-            XValue::Native(__b) => __b.as_ref()._as_any().downcast_ref::<$t>().unwrap(),
+            XValue::Native(__b) => __b
+                .as_ref()
+                ._as_any()
+                .downcast_ref::<$t>()
+                .unwrap_or_else(|| panic!("to_native: expected native value, got {:?}", $x.value)),
             _ => panic!("to_native: expected native value, got {:?}", $x.value),
         }
     };

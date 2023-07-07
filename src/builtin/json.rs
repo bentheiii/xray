@@ -4,7 +4,8 @@ use crate::compilation_scope::CompilationItem;
 use crate::runtime_scope::RuntimeScope;
 use crate::xexpr::XExpr;
 use crate::xtype::{
-    Bind, CompoundKind, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType, X_BOOL, X_FLOAT, X_STRING, X_UNKNOWN, XCallableSpec, X_INT,
+    Bind, CompoundKind, XCallableSpec, XCompoundFieldSpec, XCompoundSpec, XFuncSpec, XType, X_BOOL,
+    X_FLOAT, X_INT, X_STRING, X_UNKNOWN,
 };
 use crate::xvalue::{ManagedXError, ManagedXValue, XFunctionFactoryOutput, XResult, XValue};
 use crate::{
@@ -21,7 +22,7 @@ use serde::ser::Serializer as _;
 use serde_json::Serializer;
 
 use super::core::{get_func_with_type, unpack_dyn_types, unpack_native};
-use super::mapping::{XMappingType, XMapping};
+use super::mapping::{XMapping, XMappingType};
 use super::optional::XOptional;
 
 const JSON_TAG_NUM: usize = 0;
@@ -68,16 +69,31 @@ fn json_type<W, R, T>(
     }
 }
 
-fn value_to_json<W: 'static,R: 'static,T: 'static>(v: serde_json::Value, ns: &RuntimeScope<'_, W, R, T>, rt: RTCell<W, R, T>, str_hash: &Rc<ManagedXValue<W, R,T>>, str_eq: &Rc<ManagedXValue<W, R,T>>)->XResult<Rc<ManagedXValue<W,R,T>>, W,R,T>{
+fn value_to_json<W: 'static, R: 'static, T: 'static>(
+    v: serde_json::Value,
+    ns: &RuntimeScope<'_, W, R, T>,
+    rt: RTCell<W, R, T>,
+    str_hash: &Rc<ManagedXValue<W, R, T>>,
+    str_eq: &Rc<ManagedXValue<W, R, T>>,
+) -> XResult<Rc<ManagedXValue<W, R, T>>, W, R, T> {
     let (tag, inner) = match v {
         serde_json::Value::Number(n) => (JSON_TAG_NUM, XValue::Float(n.as_f64().unwrap())),
-        serde_json::Value::String(s) => (JSON_TAG_STR, XValue::String(Box::new(FencedString::from_string(s)))),
+        serde_json::Value::String(s) => (
+            JSON_TAG_STR,
+            XValue::String(Box::new(FencedString::from_string(s))),
+        ),
         serde_json::Value::Bool(b) => (JSON_TAG_BOOL, XValue::Bool(b)),
         serde_json::Value::Null => (JSON_TAG_NULL, XValue::StructInstance(vec![])),
         serde_json::Value::Array(a) => {
             let mut seq = Vec::with_capacity(a.len());
             for v in a {
-                seq.push(forward_err!(value_to_json(v, ns, rt.clone(), str_hash, str_eq)?));
+                seq.push(forward_err!(value_to_json(
+                    v,
+                    ns,
+                    rt.clone(),
+                    str_hash,
+                    str_eq
+                )?));
             }
             let seq = XSequence::array(seq);
             (JSON_TAG_ARR, XValue::Native(Box::new(seq)))
@@ -85,7 +101,10 @@ fn value_to_json<W: 'static,R: 'static,T: 'static>(v: serde_json::Value, ns: &Ru
         serde_json::Value::Object(ob) => {
             let mut fields = XMapping::new(str_hash.clone(), str_eq.clone(), Default::default(), 0);
             for (key, value) in ob {
-                let key = ManagedXValue::new(XValue::String(Box::new(FencedString::from_string(key))), rt.clone())?;
+                let key = ManagedXValue::new(
+                    XValue::String(Box::new(FencedString::from_string(key))),
+                    rt.clone(),
+                )?;
                 let value = forward_err!(value_to_json(value, ns, rt.clone(), str_hash, str_eq)?);
                 forward_err!(fields.put(&key, || value, |_| unreachable!(), ns, rt.clone())?);
             }
@@ -93,7 +112,10 @@ fn value_to_json<W: 'static,R: 'static,T: 'static>(v: serde_json::Value, ns: &Ru
         }
     };
     let outer = ManagedXValue::new(inner, rt.clone())?;
-    return Ok(Ok(ManagedXValue::new(XValue::UnionInstance((tag, outer)), rt)?));
+    return Ok(Ok(ManagedXValue::new(
+        XValue::UnionInstance((tag, outer)),
+        rt,
+    )?));
 }
 
 pub(crate) fn add_json_priv_json_deserialzie<W, R, T>(
@@ -103,27 +125,32 @@ pub(crate) fn add_json_priv_json_deserialzie<W, R, T>(
     scope.add_func(
         "__std_json_deserialize",
         XFuncSpec::new(
-            &[&X_STRING, &Arc::new(XType::XCallable(XCallableSpec{
-                param_types: vec![X_STRING.clone()],
-                return_type: X_INT.clone(),
-            })),
-            &Arc::new(
-                XType::XCallable(XCallableSpec{
+            &[
+                &X_STRING,
+                &Arc::new(XType::XCallable(XCallableSpec {
+                    param_types: vec![X_STRING.clone()],
+                    return_type: X_INT.clone(),
+                })),
+                &Arc::new(XType::XCallable(XCallableSpec {
                     param_types: vec![X_STRING.clone(), X_STRING.clone()],
                     return_type: X_BOOL.clone(),
-                })
-            )
+                })),
             ],
-            j_type
+            j_type,
         ),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
-            let a1 = xraise!(eval(&args[1], ns, &rt)?);  // hash
-            let a2 = xraise!(eval(&args[2], ns, &rt)?);  // eq
+            let a1 = xraise!(eval(&args[1], ns, &rt)?); // hash
+            let a2 = xraise!(eval(&args[2], ns, &rt)?); // eq
             let string = to_primitive!(a0, String);
-            let v = match serde_json::from_str::<serde_json::Value>(string.as_str()){
+            let v = match serde_json::from_str::<serde_json::Value>(string.as_str()) {
                 Ok(v) => v,
-                Err(e) => {return xerr(ManagedXError::new(format!("error deserializing json {e}"), rt)?)}
+                Err(e) => {
+                    return xerr(ManagedXError::new(
+                        format!("error deserializing json {e}"),
+                        rt,
+                    )?)
+                }
             };
             Ok(value_to_json(v, ns, rt, &a1, &a2)?.into())
         }),

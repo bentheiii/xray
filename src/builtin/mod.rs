@@ -363,8 +363,9 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_struct_members(scope).unwrap();
 
     add_regex_type(scope).unwrap();
-    add_regex_match(scope).unwrap();
     add_regex_new(scope).unwrap();
+    add_regex_prov_group_names(scope).unwrap();
+    add_regex_priv_match(scope).unwrap();
 
     add_tuple_empty_and(scope).unwrap();
     add_tuple_dyn_cmp(scope).unwrap();

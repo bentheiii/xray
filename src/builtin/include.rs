@@ -255,6 +255,40 @@ fn values<K, V>(m: Mapping<K,V>)->Generator<V>{
     m.to_generator().map((t: (K,V)) -> {t::item1})
 }
 
+/// Regex 1
+struct Match(
+    haystak: str,
+    named_groups: Mapping<str, int>,
+    groups: Sequence<Optional<(int,int)>>,
+)
+
+fn get(m: Match, i: int)->Optional<str>{
+    m::groups[i].map((g: (int,int))->{
+        m::haystak.substring(g::item0,g::item1)
+    })
+}
+
+fn get(m: Match, n: str)->Optional<str>{
+    m[m::named_groups[n]]
+}
+
+fn named_groups(r: Regex)->Mapping<str, int>{
+    let inner = __std_group_names(r);
+    mapping<str>().update(inner.to_generator().enumerate().filter((t: (int, Optional<str>))->{t::item1.has_value()}).map((t: (int, Optional<str>))->{(t::item1.value(), t::item0)}))
+}
+
+fn search(r: Regex, s: str, i: int ?= 0, j: Optional<int> ?= none())->Optional<Match>{
+    let groups = r.__std_match(s, i, j || s.len());
+    groups.map((g: Sequence<Optional<(int,int)>>)->{
+        Match(s, r.named_groups(), g)
+    })
+}
+
+fn search(r: Regex, s: str, i: int , j: int)->Optional<Match>{
+    r.search(s, i, some(j))
+}
+
+
 /// Set 1
 fn __std_xset_order_by_cardinality<T>(a: Set<T>, b: Set<T>) -> (Set<T>, Set<T>){
     if(a.len() < b.len(), (a,b), (b,a))
@@ -1216,6 +1250,11 @@ fn repeat<T>(g: Generator<T>, n: int)->Generator<T>{
 /// Mapping 2
 fn update_counter<K>(m: Mapping<K, int>, g: Generator<K>)->Mapping<K, int>{
     m.update_from_keys(g, (_: K)->{1}, (_: K, v: int)->{v+1})
+}
+
+/// Regex 2
+fn match(r: Regex, s: str, i: int ?= 0)->Optional<Match>{
+    r.search(s,i,i)
 }
 
 /// Set 2

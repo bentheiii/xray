@@ -128,14 +128,6 @@ impl<W, R, T> Runtime<W, R, T> {
         self.can_allocate_by(|| Some(x.prospective_size()))
     }
 
-    pub(crate) fn size_left(&self) -> usize {
-        if let Some(size_limit) = self.limits.size_limit {
-            size_limit - usize::from(self.stats.borrow().size)
-        } else {
-            usize::MAX
-        }
-    }
-
     pub fn reset_ud_calls(&self) {
         self.stats.borrow_mut().ud_calls = 0
     }

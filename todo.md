@@ -105,16 +105,15 @@
   * [X] everything in excel
   * [X] atan2
   * [X] geometric distribution
-  * [ ] some things in python
-    * [ ] got to https://docs.python.org/3/library/json.html
+  * [X] some things in python
   * [X] sequence::manifest
-  * [ ] json?
+  * [X] json?
   * [X] chain sequence?
-  * [ ] set xor
-  * [ ] xors
-  * [ ] sleep
+  * [X] set xor
+  * [X] xors
+  * [X] sleep
   * [ ] chunks
-  * [ ] random
+  * [X] random
   * [ ] is_infinite
   * [ ] fold?
   * [ ] str len
@@ -241,3 +240,4 @@
 * [ ] custom seeding for hash
 * [ ] make sure nan inf and negzero are impossible
 * [ ] time provider?
+* [ ] managedXError should be a cow

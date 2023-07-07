@@ -27,6 +27,7 @@ derive_more = "0.99.17"
 libm = "0.2.7"
 serde_json = "1.0.99"
 serde = "1"
+regex-automata = "0.3.0"
 
 [dev-dependencies]
 glob = "0.3.0"

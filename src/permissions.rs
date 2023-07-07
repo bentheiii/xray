@@ -25,9 +25,7 @@ pub struct PermissionSet(HashMap<&'static str, bool>);
 
 impl PermissionSet {
     pub fn get(&self, permission: &Permission) -> bool {
-        *self.0
-            .get(permission.id)
-            .unwrap_or(&permission.default)
+        *self.0.get(permission.id).unwrap_or(&permission.default)
     }
 
     pub fn allow(&mut self, permission: &Permission) {
