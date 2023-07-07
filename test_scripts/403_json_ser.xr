@@ -1,0 +1,26 @@
+fn main()->bool{
+    let j = json(
+        mapping<str>()
+        .set("s", json("hi there"))
+        .set("dur", json(0.01))
+        .set("b", json(true))
+        .set("f", json(false))
+        .set("i", json(1))
+        .set("n", json(()))
+        .set("a", json([1, 5, 6]))
+        .set("a_dyn", json([json(1), json(5), json(6), json("hi")]))
+        .set("o", json(mapping<str>().set("a", 1)))
+    );
+    let serialized = j.serialize();
+    // we can't actually check for equality since the order of the keys is not guaranteed
+    // but we can check that the serialized string contains all the keys
+    assert(serialized.contains(#""s":"hi there""#))
+    && assert(serialized.contains(#""dur":0.01"#))
+    && assert(serialized.contains(#""b":true"#))
+    && assert(serialized.contains(#""f":false"#))
+    && assert(serialized.contains(#""i":1.0"#))
+    && assert(serialized.contains(#""n":null"#))
+    && assert(serialized.contains(#""a":[1.0,5.0,6.0]"#))
+    && assert(serialized.contains(#""a_dyn":[1.0,5.0,6.0,"hi"]"#))
+    && assert(serialized.contains(#""o":{"a":1.0}"#))
+}

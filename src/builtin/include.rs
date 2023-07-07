@@ -995,6 +995,14 @@ fn json(n: ())->JSON{
     JSON::null(())
 }
 
+fn eq(a: JSON, b: JSON)->bool{
+    a.members() == b.members()
+}
+
+fn json_deserialize(s: str)->JSON{
+    __std_json_deserialize(s, hash{str}, eq{str, str})
+}
+
 fn serialize(a: JSON)->str{
     fn serialize_array(s: Sequence<JSON>)->str{
         "[" + s.map(serialize).join(",") + "]"

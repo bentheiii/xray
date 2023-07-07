@@ -1,0 +1,16 @@
+fn main()->bool{
+    let j = json(
+        mapping<str>()
+        .set("s", json("hi there"))
+        .set("dur", json(0.01))
+        .set("b", json(true))
+        .set("f", json(false))
+        .set("i", json(1))
+        .set("n", json(()))
+        .set("a", json([1, 5, 6]))
+        .set("a_dyn", json([json(1), json(5), json(6), json("hi")]))
+        .set("o", json(mapping<str>().set("a", 1)))
+    );
+    let de = json_deserialize(#"{"s": "hi there", "dur": 0.01, "b": true, "f": false, "i": 1, "n": null, "a":[1,5,6], "a_dyn": [1,5,6,"hi"], "o": {"a":1}}"#);
+    assert(j == de)
+}
