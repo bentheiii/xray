@@ -1,0 +1,6 @@
+fn main()->bool{
+    let j = json(
+        [some(5), none(), some(6)]
+    );
+    assert(j == JSON::array([JSON::number(5.0), JSON::null(()), JSON::number(6.0)]))
+}
