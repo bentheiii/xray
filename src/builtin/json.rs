@@ -112,10 +112,10 @@ fn value_to_json<W: 'static, R: 'static, T: 'static>(
         }
     };
     let outer = ManagedXValue::new(inner, rt.clone())?;
-    return Ok(Ok(ManagedXValue::new(
+    Ok(Ok(ManagedXValue::new(
         XValue::UnionInstance((tag, outer)),
         rt,
-    )?));
+    )?))
 }
 
 pub(crate) fn add_json_priv_json_deserialzie<W, R, T>(

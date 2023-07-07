@@ -168,7 +168,7 @@ fn match_at<W, R, T>(
     if state.is_match() {
         longest = Some(inp.haystack().len() - inp.start());
     }
-    return Ok(Ok(longest));
+    Ok(Ok(longest))
 }
 
 pub(crate) fn add_regex_priv_match<W, R, T>(
@@ -287,7 +287,7 @@ pub(crate) fn add_regex_prov_group_names<W, R, T>(
                     }
                 })
             }
-            Ok(manage_native!(XSequence::array(out), rt.clone()))
+            Ok(manage_native!(XSequence::array(out), rt))
         }),
     )
 }
