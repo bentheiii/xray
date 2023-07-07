@@ -136,7 +136,8 @@
   * [ ] compression/encryption/hashing
   * [X] generatoe/seq count(i, eq)
   * [ ] threading??
-  * [ ] json of option
+  * [X] json of option
+  * [ ] base64
 * [ ] tests for:
   * [X] is_error
   * [X] if error (inc. tail recursion)

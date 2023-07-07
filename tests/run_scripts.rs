@@ -2200,3 +2200,8 @@ fn test_script_403() {
 fn test_script_404() {
     run_script_from_name(function_name!())
 }
+
+#[test]
+fn test_script_405() {
+    run_script_from_name(function_name!())
+}

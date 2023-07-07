@@ -22,6 +22,14 @@ use serde_json::Serializer;
 
 use super::core::{get_func_with_type, unpack_dyn_types, unpack_native};
 use super::mapping::{XMappingType, XMapping};
+use super::optional::XOptional;
+
+const JSON_TAG_NUM: usize = 0;
+const JSON_TAG_STR: usize = 1;
+const JSON_TAG_BOOL: usize = 2;
+const JSON_TAG_NULL: usize = 3;
+const JSON_TAG_ARR: usize = 4;
+const JSON_TAG_OBJ: usize = 5;
 
 pub(crate) fn add_json_type<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
@@ -62,17 +70,17 @@ fn json_type<W, R, T>(
 
 fn value_to_json<W: 'static,R: 'static,T: 'static>(v: serde_json::Value, ns: &RuntimeScope<'_, W, R, T>, rt: RTCell<W, R, T>, str_hash: &Rc<ManagedXValue<W, R,T>>, str_eq: &Rc<ManagedXValue<W, R,T>>)->XResult<Rc<ManagedXValue<W,R,T>>, W,R,T>{
     let (tag, inner) = match v {
-        serde_json::Value::Number(n) => (0, XValue::Float(n.as_f64().unwrap())),
-        serde_json::Value::String(s) => (1, XValue::String(Box::new(FencedString::from_string(s)))),
-        serde_json::Value::Bool(b) => (2, XValue::Bool(b)),
-        serde_json::Value::Null => (3, XValue::StructInstance(vec![])),
+        serde_json::Value::Number(n) => (JSON_TAG_NUM, XValue::Float(n.as_f64().unwrap())),
+        serde_json::Value::String(s) => (JSON_TAG_STR, XValue::String(Box::new(FencedString::from_string(s)))),
+        serde_json::Value::Bool(b) => (JSON_TAG_BOOL, XValue::Bool(b)),
+        serde_json::Value::Null => (JSON_TAG_NULL, XValue::StructInstance(vec![])),
         serde_json::Value::Array(a) => {
             let mut seq = Vec::with_capacity(a.len());
             for v in a {
                 seq.push(forward_err!(value_to_json(v, ns, rt.clone(), str_hash, str_eq)?));
             }
             let seq = XSequence::array(seq);
-            (4, XValue::Native(Box::new(seq)))
+            (JSON_TAG_ARR, XValue::Native(Box::new(seq)))
         }
         serde_json::Value::Object(ob) => {
             let mut fields = XMapping::new(str_hash.clone(), str_eq.clone(), Default::default(), 0);
@@ -81,7 +89,7 @@ fn value_to_json<W: 'static,R: 'static,T: 'static>(v: serde_json::Value, ns: &Ru
                 let value = forward_err!(value_to_json(value, ns, rt.clone(), str_hash, str_eq)?);
                 forward_err!(fields.put(&key, || value, |_| unreachable!(), ns, rt.clone())?);
             }
-            (5, XValue::Native(Box::new(fields)))
+            (JSON_TAG_OBJ, XValue::Native(Box::new(fields)))
         }
     };
     let outer = ManagedXValue::new(inner, rt.clone())?;
@@ -155,7 +163,7 @@ pub(crate) fn add_json_dyn_json_array<W, R, T>(
                         let s = manage_native!(XSequence::array(v), rt.clone());
 
                         Ok(
-                            ManagedXValue::new(XValue::UnionInstance((4, s)), rt)?.into()
+                            ManagedXValue::new(XValue::UnionInstance((JSON_TAG_ARR, s)), rt)?.into()
                         )
                     }
                 ))
@@ -224,8 +232,46 @@ pub(crate) fn add_json_dyn_json_object<W, R, T>(
                         let m = xraise!(ns.eval_func_with_values(map_values_f, vec![Ok(a0), Ok(inner_f.clone())], rt.clone(), false)?.unwrap_value());
 
                         Ok(
-                            ManagedXValue::new(XValue::UnionInstance((5, m)), rt)?.into()
+                            ManagedXValue::new(XValue::UnionInstance((JSON_TAG_OBJ, m)), rt)?.into()
                         )
+                    }
+                ))
+            }
+        ))
+    })
+}
+
+pub(crate) fn add_json_dyn_json_optional<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    let inner_symbol = scope.identifier("json");
+    let j_type = json_type(scope)?;
+
+    scope.add_dyn_func("json", "optional", move |_params, types, ns, bind| {
+        if bind.is_some() {
+            return Err("this dyn func has no bind".to_string());
+        }
+
+        let [a0] = unpack_dyn_types(types)?;
+        let [t0] = unpack_native(a0, "Optional")? else { unreachable!() };
+
+        let (inner_f, _f_t) = get_func_with_type(ns, inner_symbol, &[t0.clone()], Some(&j_type))?;
+
+        Ok(XFunctionFactoryOutput::from_delayed_native(
+            XFuncSpec::new(&[a0], j_type.clone()),
+            move |ns, rt|{
+                let inner_f = forward_err!(ns.eval(&inner_f, rt, false)?.unwrap_value());
+                Ok(Ok(
+                    move |args: &[XExpr<W, R, T>], ns: &RuntimeScope<'_, W, R, T>, _tca, rt: RTCell<_, _, _>| {
+                        let a0 = xraise!(eval(&args[0], ns, &rt)?);
+                        let opt0 = to_native!(a0, XOptional<W,R,T>);
+                        if opt0.value.is_none() {
+                            let inner = ManagedXValue::new(XValue::StructInstance(vec![]), rt.clone())?;
+                            return Ok(ManagedXValue::new(XValue::UnionInstance((JSON_TAG_NULL, inner)), rt)?.into());
+                        }
+                        let value = opt0.value.clone().unwrap();
+                        let XValue::Function(inner_f) = &inner_f.clone().value else { unreachable!() };
+                        ns.eval_func_with_values(inner_f, vec![Ok(value)], rt, true)
                     }
                 ))
             }

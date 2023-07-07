@@ -232,6 +232,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_json_type(scope).unwrap();
     add_json_dyn_json_array(scope).unwrap();
     add_json_dyn_json_object(scope).unwrap();
+    add_json_dyn_json_optional(scope).unwrap();
     add_json_priv_json_deserialzie(scope).unwrap();
     add_json_priv_str_ser(scope).unwrap();
 
