@@ -62,13 +62,12 @@ where
     })
 }
 
-// todo we should avoid cloning the RT here
 #[macro_export]
 macro_rules! ufunc {
     ($operand_variant:ident, $func:expr) => {{
         $crate::builtin::core::ufunc_ref(
             |a: Rc<ManagedXValue<W, R, T>>, rt: $crate::runtime::RTCell<W, R, T>| {
-                let result = $func(to_primitive!(a, $operand_variant), rt.clone())?;
+                let result = $func(to_primitive!(a, $operand_variant), &rt)?;
                 Ok(ManagedXValue::from_result(result, rt)?.into())
             },
         )

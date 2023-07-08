@@ -46,9 +46,9 @@ pub(crate) fn add_generic_error<W, R, T>(
     scope.add_func(
         "error",
         XFuncSpec::new(&[&X_STRING], X_UNKNOWN.clone()),
-        ufunc!(String, |a: &FencedString, rt: RTCell<W, R, T>| {
+        ufunc!(String, |a: &FencedString, rt: &RTCell<W, R, T>| {
             rt.can_allocate(a.bytes())?;
-            Ok(Err(ManagedXError::new(a.to_string(), rt)?))
+            Ok(Err(ManagedXError::new(a.to_string(), rt.clone())?))
         }),
     )
 }

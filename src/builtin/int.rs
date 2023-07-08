@@ -195,7 +195,7 @@ pub(crate) fn add_int_neg<W, R, T>(
     scope.add_func(
         "neg",
         XFuncSpec::new(&[&X_INT], X_INT.clone()),
-        ufunc!(Int, |a: &LazyBigint, rt: RTCell<W, R, T>| {
+        ufunc!(Int, |a: &LazyBigint, rt: &RTCell<W, R, T>| {
             rt.can_afford(a)?;
             Ok(Ok(XValue::Int(a.clone().neg())))
         }),
@@ -208,7 +208,7 @@ pub(crate) fn add_int_to_str<W, R, T>(
     scope.add_func(
         "to_str",
         XFuncSpec::new(&[&X_INT], X_STRING.clone()),
-        ufunc!(Int, |a: &LazyBigint, rt: RTCell<W, R, T>| {
+        ufunc!(Int, |a: &LazyBigint, rt: &RTCell<W, R, T>| {
             rt.can_allocate_by(|| ((a.bits() / 8) as f64 * LOG10_2).ceil().to_usize())?;
             Ok(Ok(XValue::String(Box::new(FencedString::from_string(
                 a.to_string(),
@@ -223,7 +223,7 @@ pub(crate) fn add_int_to_float<W, R, T>(
     scope.add_func(
         "to_float",
         XFuncSpec::new(&[&X_INT], X_FLOAT.clone()),
-        ufunc!(Int, |a: &LazyBigint, rt: RTCell<W, R, T>| {
+        ufunc!(Int, |a: &LazyBigint, rt: &RTCell<W, R, T>| {
             let Some(ret) = a.to_f64() else {return Ok(Err(ManagedXError::new("Integer too large to convert to float", rt.clone())?))};
             Ok(Ok(XValue::Float(
                 ret
