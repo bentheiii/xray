@@ -1,9 +1,9 @@
 use crate::builtin::core::{eval, xerr};
 use crate::native_types::{NativeType, XNativeValue};
 use crate::xtype::{XFuncSpec, X_FLOAT, X_INT};
-use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
+use crate::xvalue::{ManagedXError, ManagedXValue, XResult, XValue};
 use crate::{
-    manage_native, to_native, to_primitive, xraise, xraise_opt, CompilationError,
+    forward_err, manage_native, to_native, to_primitive, xraise, xraise_opt, CompilationError,
     RootCompilationScope, XStaticFunction, XType,
 };
 use num_traits::{Float, ToPrimitive};
@@ -463,7 +463,8 @@ pub(crate) fn add_contdist_cdf<W, R, T>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let d0 = to_native!(a0, XContinuousDistribution);
             let f1 = to_primitive!(a1, Float);
-            Ok(ManagedXValue::new(XValue::Float(d0.cdf(*f1)), rt)?.into())
+            let ret = xraise!(XValue::float(d0.cdf(*f1), &rt)?);
+            Ok(ManagedXValue::new(ret, rt)?.into())
         }),
     )
 }
@@ -479,7 +480,8 @@ pub(crate) fn add_contdist_pdf<W, R, T>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let d0 = to_native!(a0, XContinuousDistribution);
             let f1 = to_primitive!(a1, Float);
-            Ok(ManagedXValue::new(XValue::Float(d0.pdf(*f1)), rt)?.into())
+            let ret = xraise!(XValue::float(d0.pdf(*f1), &rt)?);
+            Ok(ManagedXValue::new(ret, rt)?.into())
         }),
     )
 }
@@ -502,7 +504,8 @@ pub(crate) fn add_contdist_quantile<W, R, T>(
             if !ret.is_finite() {
                 return xerr(ManagedXError::new("value out of bounds", rt)?);
             }
-            Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into())
+            let ret = xraise!(XValue::float(ret, &rt)?);
+            Ok(ManagedXValue::new(ret, rt)?.into())
         }),
     )
 }
@@ -519,7 +522,10 @@ pub(crate) fn add_contdist_skewness<W, R, T>(
             let ret = d0.skewness();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no skew", rt)?),
-                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into()),
+                Some(ret) => {
+                    let ret = xraise!(XValue::float(ret, &rt)?);
+                    Ok(ManagedXValue::new(ret, rt)?.into())
+                }
             }
         }),
     )
@@ -537,7 +543,10 @@ pub(crate) fn add_contdist_mean<W, R, T>(
             let ret = d0.mean();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no mean", rt)?),
-                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into()),
+                Some(ret) => {
+                    let ret = xraise!(XValue::float(ret, &rt)?);
+                    Ok(ManagedXValue::new(ret, rt)?.into())
+                }
             }
         }),
     )
@@ -555,7 +564,10 @@ pub(crate) fn add_contdist_variance<W, R, T>(
             let ret = d0.variance();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no variance", rt)?),
-                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into()),
+                Some(ret) => {
+                    let ret = xraise!(XValue::float(ret, &rt)?);
+                    Ok(ManagedXValue::new(ret, rt)?.into())
+                }
             }
         }),
     )
@@ -575,7 +587,10 @@ pub(crate) fn add_contdist_sample<W, R: SeedableRng + RngCore, T>(
             rt.limits.check_permission(&builtin_permissions::RANDOM)?;
             rt.can_allocate(i1*size_of::<usize>())?;
             let nums = d0.sample(i1, rt.stats.borrow_mut().get_rng());
-            let nums = nums.into_iter().map(|v| ManagedXValue::new(XValue::Float(v), rt.clone())).collect::<Result<Vec<_>, _>>()?;
+            let nums = xraise!(nums.into_iter().map(|v| {
+                let v = forward_err!(XValue::float(v, &rt)?);
+                Ok(Ok(ManagedXValue::new(v, rt.clone())?))
+            }).collect::<XResult<Vec<_>, _, _, _>>()?);
             let ret = XSequence::array(nums);
             Ok(manage_native!(ret, rt))
         }),

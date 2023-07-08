@@ -43,11 +43,7 @@ macro_rules! add_binfunc {
                     let a1 = $crate::xraise!(eval(&args[1], ns, &rt)?);
                     let v0 = to_primitive!(a0, $operand_variant);
                     let v1 = to_primitive!(a1, $operand_variant);
-                    let result: Result<_, String> = $func(v0, v1, &rt)?;
-                    let result = match result {
-                        Ok(v) => Ok(v),
-                        Err(s) => Err($crate::xvalue::ManagedXError::new(s, rt.clone())?),
-                    };
+                    let result = $func(v0, v1, &rt)?;
                     Ok(ManagedXValue::from_result(result, rt)?.into())
                 }),
             )
@@ -66,17 +62,13 @@ where
     })
 }
 
+// todo we should avoid cloning the RT here
 #[macro_export]
 macro_rules! ufunc {
     ($operand_variant:ident, $func:expr) => {{
         $crate::builtin::core::ufunc_ref(
             |a: Rc<ManagedXValue<W, R, T>>, rt: $crate::runtime::RTCell<W, R, T>| {
-                let result: Result<_, String> =
-                    $func(to_primitive!(a, $operand_variant), rt.clone())?;
-                let result = match result {
-                    Ok(v) => Ok(v),
-                    Err(s) => Err($crate::xvalue::ManagedXError::new(s, rt.clone())?),
-                };
+                let result = $func(to_primitive!(a, $operand_variant), rt.clone())?;
                 Ok(ManagedXValue::from_result(result, rt)?.into())
             },
         )

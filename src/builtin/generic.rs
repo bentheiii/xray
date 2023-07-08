@@ -48,7 +48,7 @@ pub(crate) fn add_generic_error<W, R, T>(
         XFuncSpec::new(&[&X_STRING], X_UNKNOWN.clone()),
         ufunc!(String, |a: &FencedString, rt: RTCell<W, R, T>| {
             rt.can_allocate(a.bytes())?;
-            Ok(Err(a.to_string()))
+            Ok(Err(ManagedXError::new(a.to_string(), rt)?))
         }),
     )
 }

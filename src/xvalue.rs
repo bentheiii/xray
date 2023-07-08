@@ -137,6 +137,17 @@ impl<W, R, T> XValue<W, R, T> {
             _ => 0,
         }
     }
+
+    pub(crate) fn float(x: f64, rt: &RTCell<W, R, T>) -> XResult<Self, W, R, T> {
+        if x.is_finite() {
+            Ok(Ok(Self::Float(x)))
+        } else {
+            Ok(Err(ManagedXError::new(
+                "floating-point operation resulted in infinite value",
+                rt.clone(),
+            )?))
+        }
+    }
 }
 
 pub struct ManagedXValue<W, R, T> {

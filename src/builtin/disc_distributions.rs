@@ -462,7 +462,8 @@ pub(crate) fn add_discdist_cdf<W, R, T>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let d0 = to_native!(a0, XDiscreteDistribution);
             let i1 = to_primitive!(a1, Int);
-            Ok(ManagedXValue::new(XValue::Float(d0.cdf(i1)), rt)?.into())
+            let ret = xraise!(XValue::float(d0.cdf(i1), &rt)?);
+            Ok(ManagedXValue::new(ret, rt)?.into())
         }),
     )
 }
@@ -478,7 +479,8 @@ pub(crate) fn add_discdist_pmf<W, R, T>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let d0 = to_native!(a0, XDiscreteDistribution);
             let f1 = to_primitive!(a1, Int);
-            Ok(ManagedXValue::new(XValue::Float(d0.pmf(f1)), rt)?.into())
+            let ret = xraise!(XValue::float(d0.pmf(f1), &rt)?);
+            Ok(ManagedXValue::new(ret, rt)?.into())
         }),
     )
 }
@@ -514,7 +516,10 @@ pub(crate) fn add_discdist_skewness<W, R, T>(
             let ret = d0.skewness();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no skew", rt)?),
-                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into()),
+                Some(ret) => {
+                    let ret = xraise!(XValue::float(ret, &rt)?);
+                    Ok(ManagedXValue::new(ret, rt)?.into())
+                }
             }
         }),
     )
@@ -532,7 +537,10 @@ pub(crate) fn add_discdist_mean<W, R, T>(
             let ret = d0.mean();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no mean", rt)?),
-                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into()),
+                Some(ret) => {
+                    let ret = xraise!(XValue::float(ret, &rt)?);
+                    Ok(ManagedXValue::new(ret, rt)?.into())
+                }
             }
         }),
     )
@@ -550,7 +558,10 @@ pub(crate) fn add_discdist_variance<W, R, T>(
             let ret = d0.variance();
             match ret {
                 None => xerr(ManagedXError::new("distribution has no variance", rt)?),
-                Some(ret) => Ok(ManagedXValue::new(XValue::Float(ret), rt)?.into()),
+                Some(ret) => {
+                    let ret = xraise!(XValue::float(ret, &rt)?);
+                    Ok(ManagedXValue::new(ret, rt)?.into())
+                }
             }
         }),
     )

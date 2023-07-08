@@ -67,7 +67,7 @@ add_int_binop!(
     mod,
     |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W, R, T>| {
         Ok(if b.is_zero() {
-            Err(String::from("Modulo by zero"))
+            Err(ManagedXError::new("Modulo by zero", rt.clone())?)
         } else {
             rt.can_afford(b)?;
             Ok(XValue::Int(a.clone() % b.clone()))
@@ -106,10 +106,10 @@ add_binfunc!(add_int_div, div, X_INT, Int, X_FLOAT, |a: &LazyBigint,
     T,
 >| {
     Ok(if b.is_zero() {
-        Err(String::from("Division by zero"))
+        Err(ManagedXError::new("Division by zero", rt.clone())?)
     } else {
         rt.can_allocate(a.prospective_size() - b.prospective_size())?;
-        Ok(XValue::Float(a.clone().true_div(b.clone())))
+        XValue::float(a.clone().true_div(b.clone()), rt)?
     })
 });
 add_binfunc!(
@@ -120,7 +120,7 @@ add_binfunc!(
     X_INT,
     |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W, R, T>| {
         Ok(if b.is_zero() {
-            Err(String::from("Division by zero"))
+            Err(ManagedXError::new("Division by zero", rt.clone())?)
         } else {
             rt.can_allocate(a.prospective_size() - b.prospective_size())?;
             Ok(XValue::Int(a.clone().div_floor(b.clone())))
@@ -136,7 +136,7 @@ add_binfunc!(
     X_INT,
     |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W, R, T>| {
         Ok(if b.is_zero() {
-            Err(String::from("Division by zero"))
+            Err(ManagedXError::new("Division by zero", rt.clone())?)
         } else {
             rt.can_allocate(a.prospective_size() - b.prospective_size())?;
             Ok(XValue::Int(a.clone().div_ceil(b.clone())))
@@ -152,9 +152,15 @@ add_binfunc!(add_int_pow, pow, X_INT, Int, X_INT, |a: &LazyBigint,
     T,
 >| Ok(
     if b.is_negative() {
-        Err(String::from("cannot raise integer to a negative power"))
+        Err(ManagedXError::new(
+            "cannot raise integer to a negative power",
+            rt.clone(),
+        )?)
     } else if b.is_zero() && a.is_zero() {
-        Err(String::from("cannot raise zero to a zero power"))
+        Err(ManagedXError::new(
+            "cannot raise zero to a zero power",
+            rt.clone(),
+        )?)
     } else {
         rt.can_allocate_by(|| {
             b.to_usize()
@@ -217,8 +223,8 @@ pub(crate) fn add_int_to_float<W, R, T>(
     scope.add_func(
         "to_float",
         XFuncSpec::new(&[&X_INT], X_FLOAT.clone()),
-        ufunc!(Int, |a: &LazyBigint, _rt: RTCell<W, R, T>| {
-            let Some(ret) = a.to_f64() else {return Ok(Err("value is too large to fit in a float".to_string()))};
+        ufunc!(Int, |a: &LazyBigint, rt: RTCell<W, R, T>| {
+            let Some(ret) = a.to_f64() else {return Ok(Err(ManagedXError::new("Integer too large to convert to float", rt.clone())?))};
             Ok(Ok(XValue::Float(
                 ret
             )))
@@ -304,10 +310,16 @@ add_int_binop!(
     binom,
     |a: &LazyBigint, b: &LazyBigint, rt: &RTCell<W, R, T>| {
         if b > a {
-            return Ok(Err("argument 2 must be less than argument 1".to_string()));
+            return Ok(Err(ManagedXError::new(
+                "argument 2 must be less than argument 1",
+                rt.clone(),
+            )?));
         }
         if b.is_negative() {
-            return Ok(Err("argument 2 must be non-negative".to_string()));
+            return Ok(Err(ManagedXError::new(
+                "argument 2 must be non-negative",
+                rt.clone(),
+            )?));
         }
         let mut num = LazyBigint::one();
         let mut denum = LazyBigint::one();

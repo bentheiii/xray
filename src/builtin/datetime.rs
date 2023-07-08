@@ -4,6 +4,7 @@ use crate::root_compilation_scope::RootCompilationScope;
 use crate::runtime::RTCell;
 use crate::time_provider::TimeProvider;
 use crate::xexpr::XStaticFunction;
+use crate::xraise;
 use crate::xtype::{XFuncSpec, X_FLOAT};
 use crate::xvalue::{ManagedXValue, XValue};
 
@@ -16,7 +17,8 @@ pub(crate) fn add_datetime_now<W, R, T: TimeProvider>(
         XStaticFunction::from_native(|_args, _ns, _tca, rt: RTCell<_, _, T>| {
             rt.limits.check_permission(&builtin_permissions::NOW)?;
             let utc = rt.time_provider.unix_now();
-            Ok(ManagedXValue::new(XValue::Float(utc), rt)?.into())
+            let utc = xraise!(XValue::float(utc, &rt)?);
+            Ok(ManagedXValue::new(utc, rt)?.into())
         }),
     )
 }

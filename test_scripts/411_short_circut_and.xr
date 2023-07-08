@@ -1,0 +1,12 @@
+fn is_even(x: int)->bool{
+    x % 2 == 0
+}
+
+let x = is_even(5) && is_even(floor(1/0));
+/* the second call to is_even will not be evaluated, because the first call
+   returned false, and the && function is short-circuiting */
+
+
+fn main()->bool{
+    assert(x == false)
+}

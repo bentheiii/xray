@@ -1,0 +1,11 @@
+fn triple_minus_y(x: int, y: int ?= uniform_distribution(1,6).random())->int{
+    // the default value of y will be the same for all calls to this function
+    let triple = x*3;
+    x - y  // this value will be returned to the caller
+}
+
+fn main()->bool{
+    assert(triple_minus_y(5) == triple_minus_y(5))
+    && assert(triple_minus_y(5) == triple_minus_y(5))
+    && assert(triple_minus_y(5) == triple_minus_y(5))
+}

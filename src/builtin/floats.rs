@@ -5,8 +5,8 @@ use crate::util::xformatter::{group_string, XFormatting};
 use crate::xtype::{XFuncSpec, XType, X_BOOL, X_FLOAT, X_INT, X_STRING};
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use crate::{
-    add_binfunc, to_primitive, ufunc, xraise, xraise_opt, CompilationError, RootCompilationScope,
-    XStaticFunction,
+    add_binfunc, forward_err, to_primitive, ufunc, xraise, xraise_opt, CompilationError,
+    RootCompilationScope, XStaticFunction,
 };
 
 use crate::util::lazy_bigint::LazyBigint;
@@ -35,9 +35,9 @@ macro_rules! add_float_binop {
     };
 }
 
-add_float_binop!(add_float_add, add, |a, b, _| Ok(Ok(XValue::Float(a + b))));
-add_float_binop!(add_float_sub, sub, |a, b, _| Ok(Ok(XValue::Float(a - b))));
-add_float_binop!(add_float_mul, mul, |a, b, _| Ok(Ok(XValue::Float(a * b))));
+add_float_binop!(add_float_add, add, |a, b, rt| XValue::float(a + b, rt));
+add_float_binop!(add_float_sub, sub, |a, b, rt| XValue::float(a - b, rt));
+add_float_binop!(add_float_mul, mul, |a, b, rt| XValue::float(a * b, rt));
 pub(crate) fn add_float_mod<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
@@ -52,7 +52,8 @@ pub(crate) fn add_float_mod<W, R, T>(
             if b.is_zero() {
                 xerr(ManagedXError::new("modulo by zero", rt)?)
             } else {
-                Ok(ManagedXValue::new(XValue::Float(((a % b) + b) % b), rt)?.into())
+                let ret = xraise!(XValue::float(((a % b) + b) % b, &rt)?);
+                Ok(ManagedXValue::new(ret, rt)?.into())
             }
         }),
     )
@@ -72,7 +73,8 @@ pub(crate) fn add_float_div<W, R, T>(
             if b.is_zero() {
                 xerr(ManagedXError::new("division by zero", rt)?)
             } else {
-                Ok(ManagedXValue::new(XValue::Float(a / b), rt)?.into())
+                let ret = xraise!(XValue::float(a / b, &rt)?);
+                Ok(ManagedXValue::new(ret, rt)?.into())
             }
         }),
     )
@@ -92,7 +94,8 @@ pub(crate) fn add_float_pow<W, R, T>(
             if (*a <= 0.0 && *b <= 0.0) || (*a < 0.0 && *b < 1.0) {
                 xerr(ManagedXError::new("undefined exponenitial", rt)?)
             } else {
-                Ok(ManagedXValue::new(XValue::Float(a.powf(*b)), rt)?.into())
+                let ret = xraise!(XValue::float(a.powf(*b), &rt)?);
+                Ok(ManagedXValue::new(ret, rt)?.into())
             }
         }),
     )
@@ -183,10 +186,13 @@ pub(crate) fn add_float_sqrt<W, R, T>(
     scope.add_func(
         "sqrt",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(if *a < 0.0 {
-            Err("cannot find square root of negative number".to_string())
+        ufunc!(Float, |a: &f64, rt| Ok(if *a < 0.0 {
+            Err(ManagedXError::new(
+                "cannot find square root of negative number",
+                rt,
+            )?)
         } else {
-            Ok(XValue::Float(a.sqrt()))
+            Ok(forward_err!(XValue::float(a.sqrt(), &rt)?))
         })),
     )
 }
@@ -197,7 +203,7 @@ pub(crate) fn add_float_cbrt<W, R, T>(
     scope.add_func(
         "cbrt",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.cbrt())))),
+        ufunc!(Float, |a: &f64, rt| XValue::float(a.cbrt(), &rt)),
     )
 }
 
@@ -207,10 +213,13 @@ pub(crate) fn add_float_acos<W, R, T>(
     scope.add_func(
         "acos",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(if *a > 1.0 || *a < -1.0 {
-            Err("acos argument must be within -1 and 1".to_string())
+        ufunc!(Float, |a: &f64, rt| Ok(if *a > 1.0 || *a < -1.0 {
+            Err(ManagedXError::new(
+                "acos argument must be within -1 and 1",
+                rt,
+            )?)
         } else {
-            Ok(XValue::Float(a.acos()))
+            Ok(forward_err!(XValue::float(a.acos(), &rt)?))
         })),
     )
 }
@@ -221,10 +230,10 @@ pub(crate) fn add_float_acosh<W, R, T>(
     scope.add_func(
         "acosh",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(if *a < 1.0 {
-            Err("acosh argument must be above 1".to_string())
+        ufunc!(Float, |a: &f64, rt| Ok(if *a < 1.0 {
+            Err(ManagedXError::new("acosh argument must be above 1", rt)?)
         } else {
-            Ok(XValue::Float(a.acosh()))
+            Ok(forward_err!(XValue::float(a.acosh(), &rt)?))
         })),
     )
 }
@@ -235,11 +244,14 @@ pub(crate) fn add_float_asin<W, R, T>(
     scope.add_func(
         "asin",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(if *a > 1.0 || *a < -1.0 {
-            Err("asin argument must be within -1 and 1".to_string())
+        ufunc!(Float, |a: &f64, rt| if *a > 1.0 || *a < -1.0 {
+            Ok(Err(ManagedXError::new(
+                "asin argument must be within -1 and 1",
+                rt,
+            )?))
         } else {
-            Ok(XValue::Float(a.asin()))
-        })),
+            XValue::float(a.asin(), &rt)
+        }),
     )
 }
 
@@ -249,7 +261,7 @@ pub(crate) fn add_float_asinh<W, R, T>(
     scope.add_func(
         "asinh",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.asinh())))),
+        ufunc!(Float, |a: &f64, rt| XValue::float(a.asinh(), &rt)),
     )
 }
 
@@ -259,7 +271,7 @@ pub(crate) fn add_float_atan<W, R, T>(
     scope.add_func(
         "atan",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.atan())))),
+        ufunc!(Float, |a: &f64, rt| XValue::float(a.atan(), &rt)),
     )
 }
 
@@ -274,7 +286,8 @@ pub(crate) fn add_float_atan2<W, R, T>(
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let a = to_primitive!(a0, Float);
             let b = to_primitive!(a1, Float);
-            Ok(ManagedXValue::new(XValue::Float(a.atan2(*b)), rt)?.into())
+            let ret = xraise!(XValue::float(a.atan2(*b), &rt)?);
+            Ok(ManagedXValue::new(ret, rt)?.into())
         }),
     )
 }
@@ -285,11 +298,14 @@ pub(crate) fn add_float_atanh<W, R, T>(
     scope.add_func(
         "atanh",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(if *a >= 1.0 || *a <= -1.0 {
-            Err("atanh argument must be within -1 and 1".to_string())
+        ufunc!(Float, |a: &f64, rt| if *a >= 1.0 || *a <= -1.0 {
+            Ok(Err(ManagedXError::new(
+                "atanh argument must be within -1 and 1",
+                rt,
+            )?))
         } else {
-            Ok(XValue::Float(a.atanh()))
-        })),
+            XValue::float(a.atanh(), &rt)
+        }),
     )
 }
 
@@ -299,7 +315,7 @@ pub(crate) fn add_float_cos<W, R, T>(
     scope.add_func(
         "cos",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.cos())))),
+        ufunc!(Float, |a: &f64, rt| XValue::float(a.cos(), &rt)),
     )
 }
 
@@ -309,7 +325,7 @@ pub(crate) fn add_float_cosh<W, R, T>(
     scope.add_func(
         "cosh",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.cosh())))),
+        ufunc!(Float, |a: &f64, rt| XValue::float(a.cosh(), &rt)),
     )
 }
 
@@ -319,7 +335,7 @@ pub(crate) fn add_float_sin<W, R, T>(
     scope.add_func(
         "sin",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.sin())))),
+        ufunc!(Float, |a: &f64, rt| XValue::float(a.sin(), &rt)),
     )
 }
 
@@ -329,7 +345,7 @@ pub(crate) fn add_float_ln<W, R, T>(
     scope.add_func(
         "ln",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.ln())))),
+        ufunc!(Float, |a: &f64, rt| XValue::float(a.ln(), &rt)),
     )
 }
 
@@ -339,7 +355,7 @@ pub(crate) fn add_float_erf<W, R, T>(
     scope.add_func(
         "erf",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(erf(*a))))),
+        ufunc!(Float, |a: &f64, rt| XValue::float(erf(*a), &rt)),
     )
 }
 
@@ -349,7 +365,7 @@ pub(crate) fn add_float_erfc<W, R, T>(
     scope.add_func(
         "erfc",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(erfc(*a))))),
+        ufunc!(Float, |a: &f64, rt| XValue::float(erfc(*a), &rt)),
     )
 }
 
@@ -359,11 +375,15 @@ pub(crate) fn add_float_gamma<W, R, T>(
     scope.add_func(
         "gamma",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| {
+        ufunc!(Float, |a: &f64, rt| {
             Ok(if a <= &0.0 && *a % 1.0 == 0.0 {
-                Err("cannot get gamma of non-positive whole".to_string())
+                Err(ManagedXError::new(
+                    "gamma argument must be positive or non-whole",
+                    rt,
+                )?)
             } else {
-                Ok(XValue::Float(gamma(*a)))
+                let ret = forward_err!(XValue::float(gamma(*a), &rt)?);
+                Ok(ret)
             })
         }),
     )
@@ -375,7 +395,7 @@ pub(crate) fn add_float_tan<W, R, T>(
     scope.add_func(
         "tan",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.tan())))),
+        ufunc!(Float, |a: &f64, rt| XValue::float(a.tan(), &rt)),
     )
 }
 
@@ -385,7 +405,7 @@ pub(crate) fn add_float_tanh<W, R, T>(
     scope.add_func(
         "tanh",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| Ok(Ok(XValue::Float(a.tanh())))),
+        ufunc!(Float, |a: &f64, rt| XValue::float(a.tanh(), &rt)),
     )
 }
 
@@ -395,12 +415,12 @@ pub(crate) fn add_float_gammaln<W, R, T>(
     scope.add_func(
         "gammaln",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| {
-            Ok(if a <= &0.0 && *a % 2.0 >= 1.0 {
-                Err("invalid value".to_string())
+        ufunc!(Float, |a: &f64, rt| {
+            if a <= &0.0 && *a % 2.0 >= 1.0 {
+                Ok(Err(ManagedXError::new("invalid value", rt)?))
             } else {
-                Ok(XValue::Float(ln_gamma(*a)))
-            })
+                XValue::float(ln_gamma(*a), &rt)
+            }
         }),
     )
 }
@@ -411,7 +431,7 @@ pub(crate) fn add_float_expm1<W, R, T>(
     scope.add_func(
         "expm1",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| { Ok(Ok(XValue::Float(expm1(*a)))) }),
+        ufunc!(Float, |a: &f64, rt| { XValue::float(expm1(*a), &rt) }),
     )
 }
 
@@ -421,12 +441,12 @@ pub(crate) fn add_float_log1p<W, R, T>(
     scope.add_func(
         "log1p",
         XFuncSpec::new(&[&X_FLOAT], X_FLOAT.clone()),
-        ufunc!(Float, |a: &f64, _rt| {
-            Ok(if a <= &-1.0 {
-                Err("invalid value".to_string())
+        ufunc!(Float, |a: &f64, rt| {
+            if a <= &-1.0 {
+                Ok(Err(ManagedXError::new("invalid value", rt)?))
             } else {
-                Ok(XValue::Float(log1p(*a)))
-            })
+                XValue::float(log1p(*a), &rt)
+            }
         }),
     )
 }
