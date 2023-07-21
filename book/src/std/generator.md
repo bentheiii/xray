@@ -32,6 +32,10 @@ Returns true if the given predicate `pred` returns true for all elements of `x`.
 
 Returns true if the given predicate `pred` returns true for any element of `x`.
 
+## fn `chunks<T>(x: Generator<T>, chunk_size: int) -> Generator<Sequence<T>>`
+
+Returns a generator that yields slices of size `chunk_size` over the elements of `x`, possibly including a final slice of size less than `chunk_size`.
+
 ## fn `contains<T, U>(x: Generator<T>, needle: U, eq_: (T, U)->bool) -> bool`  {#contains3}
 
 Returns true if `needle` is contained in `x`, according to the given equality function `eq_`.

@@ -162,6 +162,27 @@ fn any<T>(a: Generator<T>, f: (T)->(bool))->bool{
     a.nth(0, f).has_value()
 }
 
+fn chunks<T>(g: Generator<T>, n: int)->Generator<Sequence<T>>{
+    struct Agg<T>(s: Stack<T>, disp: Optional<bool>)
+
+    g.map(some).add([none()].to_generator()).aggregate(Agg(stack(), some(false)),
+        (agg: Agg<T>, next: Optional<T>)->{
+            next.map_or(
+                (next: T)->{
+                    let next_tail = if(
+                        agg::s.len() < n,
+                        agg::s,
+                        stack()
+                    );
+                    Agg(next_tail.push(next), none())
+                },
+                Agg(agg::s, some((agg::s.len() > 0) && (agg::s.len() < n)))
+            )
+            
+        }
+    ).filter((agg: Agg<T>)->{agg::disp || (agg::s.len() == n)}).map((agg: Agg<T>)->{agg::s.to_array()})
+}
+
 fn contains<T, U>(s: Generator<T>, i: U, eq_: (T,U)->(bool))->bool{
     s.any((t: U)->{eq_(i, t)})
 }
