@@ -1,4 +1,5 @@
 fn main()->bool{
     let original = [6,2,1,8,10,-5,33];
     assert(original.sort() == [-5,1,2,6,8,10,33])
+    && assert(original.sort_reverse() == [33, 10, 8, 6, 2, 1, -5])
 }

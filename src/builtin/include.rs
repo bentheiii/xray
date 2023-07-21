@@ -560,6 +560,10 @@ fn shuffle<T>(a: Sequence<T>)->Sequence<T>{
     a.sample(a.len())
 }
 
+fn sort_reverse<T>(a: Sequence<T>, cmp_: (T, T)->(int))->Sequence<T>{
+    a.sort((a: T, b: T)->{-cmp_(a,b)})
+}
+
 fn sum(g: Sequence<int>)->int{
     g.sum(0)
 }

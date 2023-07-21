@@ -312,6 +312,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_sequence_dyn_rank_sorted_avg(scope).unwrap();
     add_sequence_dyn_rank_sorted_eq(scope).unwrap();
     add_sequence_dyn_sort(scope).unwrap();
+    add_sequence_dyn_sort_reverse(scope).unwrap();
     add_sequence_dyn_to_str(scope).unwrap();
     add_sequence_dyn_unzip(scope).unwrap();
     add_sequence_dyn_zip(scope).unwrap();

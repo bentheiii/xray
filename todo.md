@@ -260,3 +260,4 @@
 * [ ] time provider?
 * [ ] managedXError should be a cow
 * [ ] upgrade pest
+* [ ] WASM

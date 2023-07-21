@@ -1481,35 +1481,6 @@ pub(crate) fn add_sequence_dyn_eq<W, R, T>(
     })
 }
 
-pub(crate) fn add_sequence_dyn_sort<W, R, T>(
-    scope: &mut RootCompilationScope<W, R, T>,
-) -> Result<(), CompilationError> {
-    let cmp_symbol = scope.identifier("cmp");
-    let cb_symbol = scope.identifier("sort");
-
-    scope.add_dyn_func("sort", "sequences", move |_params, types, ns, bind| {
-        if bind.is_some() {
-            return Err("this dyn func has no bind".to_string());
-        }
-
-        let [a0] = unpack_dyn_types(types)?;
-        let [t0] = unpack_native(a0, "Sequence")? else { unreachable!() };
-
-        let (inner_cmp, cmp_t) =
-            get_func_with_type(ns, cmp_symbol, &[t0.clone(), t0.clone()], Some(&X_INT))?;
-        let (cb, cb_t) = get_func_with_type(ns, cb_symbol, &[a0.clone(), cmp_t.xtype()], None)?;
-
-        Ok(XFunctionFactoryOutput::from_delayed_native(
-            XFuncSpec::new(&[a0], cb_t.rtype()),
-            delegate!(
-                with [inner_cmp, cb],
-                args [0->a0],
-                cb(a0, inner_cmp)
-            ),
-        ))
-    })
-}
-
 fn add_delegate_cmp<W, R, T>(
     name: &'static str,
     scope: &mut RootCompilationScope<W, R, T>,
@@ -1608,6 +1579,18 @@ fn add_delegate_1arg_partial_cmp<W, R, T>(
             ),
         ))
     })
+}
+
+pub(crate) fn add_sequence_dyn_sort<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    add_delegate_cmp("sort", scope)
+}
+
+pub(crate) fn add_sequence_dyn_sort_reverse<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    add_delegate_cmp("sort_reverse", scope)
 }
 
 pub(crate) fn add_sequence_dyn_n_largest<W, R, T>(

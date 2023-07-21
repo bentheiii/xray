@@ -403,6 +403,15 @@ Where `cmp(T, T)->int`, `sort(Sequence<T>, (T, T)->(int))->r`
 
 A dynamic variant of [`sort`](#sort2), using the inferred comparison operator.
 
+## fn `sort_reverse<T>(x: Sequence<T>, cmp: (T,T)->(int)) -> Sequence<T>`  {#sort_reverse2}
+
+Returns a sequence containing all items in `x`, sorted in reverse to `cmp`.
+
+## dyn fn `sort_reverse<T>(x: Sequence<T>)->R`
+Where `cmp(T, T)->int`, `sort(Sequence<T>, (T, T)->(int))->r`
+
+A dynamic variant of [`sort`](#sort_reverse2), using the inferred comparison operator.
+
 ## dyn fn `sum<T, U>(x: Sequence<T>, initial: U)->R`
 Where `add(U, T)->U`, `reduce(Sequence<T>, U, (U, T)->U)->R`
 
