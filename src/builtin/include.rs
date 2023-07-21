@@ -1124,6 +1124,10 @@ fn columns<T>(self: Matrix<T>)->int{
     self::_cols
 }
 
+fn full<T>(rows: int, cols: int, value: T)->Matrix<T>{
+    Matrix(cols, range(rows*cols).map((i: int)->{value}))
+}
+
 fn get<T>(self: Matrix<T>, i: int, j: int)->T{
     self::_data[i*self::_cols + j]
 }
@@ -1133,7 +1137,7 @@ fn get<T>(self: Matrix<T>, c: (int, int))->T{
 }
 
 fn manifest<T>(self: Matrix<T>)->Matrix<T>{
-    matrix(self::_cols, self::_date.to_array())
+    Matrix(self::_cols, self::_data.to_array())
 }
 
 fn matrix<T>(rows: int, cols: int, data: Sequence<T>)->Matrix<T>{
@@ -1473,6 +1477,14 @@ fn add<T0, T1, U>(a: Matrix<T0>, b: Matrix<T1>, add_: (T0, T1)->(U))->Matrix<U>{
         error("matrix dimensions must match"), 
         matrix(a.rows(), a.columns(), (c: (int, int))->{add_(a[c], b[c])})
     )
+}
+
+fn eye<T>(n: int, one: T, zero: T)->Matrix<T>{
+    matrix(n, n, (i: int, j: int)->{if(i==j, one, zero)})
+}
+
+fn eye(n: int)->Matrix<float>{
+    eye(n, 1.0, 0.0)
 }
 
 //// gen 3

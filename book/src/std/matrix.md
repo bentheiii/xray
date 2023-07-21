@@ -21,6 +21,18 @@ A dynamic variant of [`add`](#add3) that infers the add function.
 
 Returns the number of columns in the matrix `m`.
 
+## fn `eye<T>(n: int, one: T, zero: T) -> Matrix<T>`
+
+Creates an `n` by `n` identity matrix, with `one` on the diagonal and `zero` elsewhere.
+
+## fn `eye(n: int) -> Matrix<float>`
+
+Creates an `n` by `n` identity matrix of floats.
+
+## fn `full<T>(rows: int, cols: int, value: T) -> Matrix<T>`
+
+Creates a matrix with `rows` rows and `cols` columns, with all elements set to `value`.
+
 ## fn `get<T>(m: Matrix<T>, row: int, col: int) -> T`
 
 Gets the element of `m` at row `row` and column `col`.

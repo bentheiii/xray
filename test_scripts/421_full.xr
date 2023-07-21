@@ -1,0 +1,5 @@
+fn main()->bool{
+    let m0 = full(3, 2, 1.2);
+
+    assert(m0.to_sequence() == [[1.2,1.2],[1.2,1.2],[1.2,1.2]])
+}

@@ -119,7 +119,7 @@
   * [X] sort reverse (dyn)
   * [ ] matrices
     * [ ] eye
-    * [ ] zeros
+    * [ ] full
     * [ ] diag
     * [ ] determinant
     * [ ] inverse
