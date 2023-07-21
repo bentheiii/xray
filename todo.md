@@ -78,7 +78,7 @@
   * [X] str multiplication
   * [X] str split
   * [X] str chars
-  * [ ] regex?
+  * [X] regex?
   * [X] binary search/insort
   * [X] partial
   * [X] nth
@@ -137,6 +137,26 @@
   * [ ] threading??
   * [X] json of option
   * [ ] base64
+  * [ ] bit_or and bit_and for bools?
+  * [ ] sinh
+  * [ ] fix the mean/geo-mean implementations to be better and clearer
+  * [ ] counter_mode generic
+  * [ ] xray version const
+  * [ ] to_hash key adapter
+  * [ ] optional::map_or should have 2 generic params
+  * [ ] most dyn functions should have non-dyn versions
+  * [ ] a lot of the sequence/stack functions can be removed
+  * [ ] generator::all/any (bools)
+  * [ ] delete sequence::group
+  * [ ] sequence::is_infinite
+  * [ ] improve rank_avg and rank_eq to be more efficient and generic
+  * [ ] stack::to_array and to_array_reversed should be flipped
+  * [ ] sub{date, dur}
+  * [ ] make sample_variance/sample_standard_deviation generic
+  * [ ] duration cmp/eq/format?
+  * [ ] fraction constructor uses float div and there's no reason for it
+  * [ ] int trunc_div
+  * [ ] split debug to a function that gets the internal rep, and one that prints it
 * [ ] tests for:
   * [X] is_error
   * [X] if error (inc. tail recursion)
@@ -201,6 +221,11 @@
   * [ ] map_values
   * [ ] mapping::clear
   * [ ] str::contains
+  * [ ] int::digits
+  * [ ] windows that are wider than the original generator
+  * [ ] to_stack
+  * [ ] add{date, duration}
+  * [ ] negative durations
 * [X] reduce macros in builtin/core
 * [ ] better errors
   * [X] compilation error tracing
@@ -238,6 +263,7 @@
 * [ ] warnings (like when assigning variable to magic method?)
 * [ ] make [str].sum use join
 * [ ] custom seeding for hash
-* [ ] make sure nan inf and negzero are impossible
+* [X] make sure nan inf and negzero are impossible
 * [ ] time provider?
 * [ ] managedXError should be a cow
+* [ ] upgrade pest

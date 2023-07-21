@@ -299,7 +299,7 @@ pub(crate) fn add_set_remove<W, R, T>(
                 return xerr(ManagedXError::new("item not found", rt)?);
             }
             let KeyLocation::Found((hash_key, idx)) = xraise!(set.locate(&a1, ns, rt.clone())?) else {
-                return xerr(ManagedXError::new("key not found", rt)?);
+                return xerr(ManagedXError::new("item not found", rt)?);
             };
             rt.can_allocate((set.len - 1)* size_of::<usize>())?;
             let mut new_dict = HashMap::from_iter(set.inner.iter().filter(|(k, _)| k != &&hash_key).map(|(k, b)| (*k, b.clone())));

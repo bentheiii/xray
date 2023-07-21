@@ -355,6 +355,22 @@ impl Rem for LazyBigint {
     }
 }
 
+impl Rem for &LazyBigint {
+    type Output = LazyBigint;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (_, LazyBigint::Short(0)) => panic!("modulo by 0"),
+            (LazyBigint::Short(0), _) => LazyBigint::zero(),
+            (_, LazyBigint::Short(-1 | 1)) => LazyBigint::zero(),
+            (LazyBigint::Short(s1), LazyBigint::Short(s2)) => LazyBigint::Short(s1 % s2),
+            (LazyBigint::Long(b), LazyBigint::Short(s)) => LazyBigint::from(b % s),
+            (LazyBigint::Short(s), LazyBigint::Long(b)) => LazyBigint::from(s % b),
+            (LazyBigint::Long(b0), LazyBigint::Long(b1)) => LazyBigint::from(b0 % b1),
+        }
+    }
+}
+
 impl Div for LazyBigint {
     type Output = Self;
 

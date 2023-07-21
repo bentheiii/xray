@@ -133,17 +133,17 @@ impl<'a> XFormatting<'a> {
         lazy_static! {
             static ref RE: Regex = Regex::new(
                 r"(?x)
-            ^
-            ((?P<fill>.)?(?P<align>[<>=^]))?
-            (?P<sign>[-+\ ])?
-            (?P<alt>\#)?
-            (?P<zero_pad>0)?
-            (?P<width>[1-9][0-9]*)?
-            (?P<grouping>[,_])?
-            (?:\.(?P<precision>[0-9]*))?
-            (?P<type>.)?
-            $
-            "
+                ^
+                ((?P<fill>.)?(?P<align>[<>=^]))?
+                (?P<sign>[-+\ ])?
+                (?P<alt>\#)?
+                (?P<zero_pad>0)?
+                (?P<width>[1-9][0-9]*)?
+                (?P<grouping>[,_])?
+                (?:\.(?P<precision>[0-9]*))?
+                (?P<type>.)?
+                $
+                "
             )
             .unwrap();
         }

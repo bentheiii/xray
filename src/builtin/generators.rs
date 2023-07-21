@@ -1116,10 +1116,10 @@ pub(crate) fn add_generator_dyn_with_count<W, R, T>(
     add_delegate_hash_eq("with_count", scope)
 }
 
-pub(crate) fn add_generator_dyn_unique<W, R, T>(
+pub(crate) fn add_generator_dyn_distinct<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {
-    add_delegate_hash_eq("unique", scope)
+    add_delegate_hash_eq("distinct", scope)
 }
 
 pub(crate) fn add_generator_dyn_mean<W, R, T>(

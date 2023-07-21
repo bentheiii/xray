@@ -4,5 +4,5 @@ fn main()->bool{
 
     assert(set<int>().update(sh) < set<int>().update(s))
     && assert(len(sh) == 1000)
-    && assert(sh.to_generator().unique().len() == 1000)
+    && assert(sh.to_generator().distinct().len() == 1000)
 }

@@ -43,6 +43,8 @@ use crate::util::try_extend::TryExtend;
 use crate::util::try_heap::TryHeap;
 use crate::xexpr::XExpr;
 
+use super::builtin_permissions::RANDOM;
+
 #[derive(Debug, Clone)]
 pub(crate) struct XSequenceType;
 
@@ -1386,6 +1388,8 @@ pub(crate) fn add_sequence_sample<W, R: RngCore + SeedableRng, T>(
         "sample",
         XFuncSpec::new(&[&t_arr, &X_INT], t_arr.clone()).generic(params),
         XStaticFunction::from_native(|args, ns, _tca, rt| {
+            rt.limits.check_permission(&RANDOM)?;
+
             let a0 = xraise!(eval(&args[0], ns, &rt)?);
             let a1 = xraise!(eval(&args[1], ns, &rt)?);
             let s0 = to_native!(a0, XSequence<W, R, T>);

@@ -1,0 +1,4 @@
+fn main()->bool{
+    let x = "👋";
+    assert(x.len() == 1)
+}

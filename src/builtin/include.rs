@@ -2,7 +2,7 @@ pub const INCLUDE: &str = r#"
 //// gen 1
 
 /// meta 1
-let xray_version = (0,1,0);
+let xray_std_version = (0,1,0);
 
 /// generic 1
 fn max<T>(a: T, b: T, lt: (T,T)->(bool))->T{
@@ -10,7 +10,7 @@ fn max<T>(a: T, b: T, lt: (T,T)->(bool))->T{
 }
 
 fn min<T>(a: T, b: T, lt: (T,T)->(bool))->T{
-    if(lt(a,b), a, b)
+    if(lt(b,a), b, a)
 }
 
 fn to_cmp<T, U>(key: (T)->(U), cmp_: (U,U)->(int))->(T,T)->(int){
@@ -36,8 +36,8 @@ fn indicator(a: bool)->int{
 }
 
 /// float 1
-let pi = 3.1415926535897932384626433832795028841971693;
 let e = 2.7182818284590452353602874713526624977572;
+let pi = 3.1415926535897932384626433832795028841971693;
 
 fn abs(f: float)->float{
     if(f < 0.0, -f, f)
@@ -85,6 +85,14 @@ fn pow(b: float, a: int)->float{
 
 fn sign(a: float)->float{
     if(a>0.0, 1.0, if(a<0.0, -1.0, 0.0))
+}
+
+fn sub(f: float, i: int)->float{
+    f-i.to_float()
+}
+
+fn sub(a: int, b: float)->float{
+    a.to_float()-b
 }
 
 /// int 1
@@ -166,6 +174,10 @@ fn count<T, U>(s: Generator<T>, i: U, eq_: (T,U)->(bool))->int{
     s.filter((t: U)->{eq_(i, t)}).len()
 }
 
+fn distinct<T>(g: Generator<T>, h: (T)->(int), e: (T,T)->(bool))->Generator<T>{
+    g.with_count(h,e).filter((i: (T, int))->{i::item1==1}).map((i: (T, int))->{i::item0})
+}
+
 fn enumerate<T>(a: Generator<T>, start: int ?= 0, offset: int ?= 1)->Generator<(int, T)>{
     count(start, offset).zip(a)
 }
@@ -207,9 +219,6 @@ fn sum(g: Generator<float>)->float{
     g.sum(0.0)
 }
 
-fn unique<T>(g: Generator<T>, h: (T)->(int), e: (T,T)->(bool))->Generator<T>{
-    g.with_count(h,e).filter((i: (T, int))->{i::item1==1}).map((i: (T, int))->{i::item0})
-}
 
 /// Mapping 1
 fn contains<K,V>(m: Mapping<K,V>, k: K)->bool{
@@ -257,30 +266,30 @@ fn values<K, V>(m: Mapping<K,V>)->Generator<V>{
 
 /// Regex 1
 struct Match(
-    haystak: str,
-    named_groups: Mapping<str, int>,
-    groups: Sequence<Optional<(int,int)>>,
+    _haystak: str,
+    _named_groups: Mapping<str, int>,
+    _groups: Sequence<Optional<(int,int)>>,
 )
 
+fn _named_groups(r: Regex)->Mapping<str, int>{
+    let inner = __std_group_names(r);
+    mapping<str>().update(inner.to_generator().enumerate().filter((t: (int, Optional<str>))->{t::item1.has_value()}).map((t: (int, Optional<str>))->{(t::item1.value(), t::item0)}))
+}
+
 fn get(m: Match, i: int)->Optional<str>{
-    m::groups[i].map((g: (int,int))->{
-        m::haystak.substring(g::item0,g::item1)
+    m::_groups[i].map((g: (int,int))->{
+        m::_haystak.substring(g::item0,g::item1)
     })
 }
 
 fn get(m: Match, n: str)->Optional<str>{
-    m[m::named_groups[n]]
-}
-
-fn named_groups(r: Regex)->Mapping<str, int>{
-    let inner = __std_group_names(r);
-    mapping<str>().update(inner.to_generator().enumerate().filter((t: (int, Optional<str>))->{t::item1.has_value()}).map((t: (int, Optional<str>))->{(t::item1.value(), t::item0)}))
+    m[m::_named_groups[n]]
 }
 
 fn search(r: Regex, s: str, i: int ?= 0, j: Optional<int> ?= none())->Optional<Match>{
     let groups = r.__std_match(s, i, j || s.len());
     groups.map((g: Sequence<Optional<(int,int)>>)->{
-        Match(s, r.named_groups(), g)
+        Match(s, r._named_groups(), g)
     })
 }
 
@@ -466,15 +475,15 @@ fn random_choices<T>(a: Sequence<T>, n: int, weights: Sequence<float>)->Sequence
     )
 }
 
-fn rank_sorted_eq<T0, T1>(seq: Sequence<T0>, t: T1, cmp: (T0, T1)->(int))->int{
-    let idx = seq.bisect((x: T0) -> {cmp(x, t)<0});
-    if(cmp(seq[idx], t) == 0, idx+1, error("item not in sequence"))
-}
-
 fn rank_sorted_avg<T0, T1>(seq: Sequence<T0>, t: T1, cmp: (T0, T1)->(int))->float{
     let bottom = seq.bisect((x: T0) -> {cmp(x, t)<0});
     let top = seq.bisect((x: T0) -> {cmp(x, t)<=0});
     if(cmp(seq[bottom], t) == 0, (bottom+top+1)/2, error("item not in sequence"))
+}
+
+fn rank_sorted_eq<T0, T1>(seq: Sequence<T0>, t: T1, cmp: (T0, T1)->(int))->int{
+    let idx = seq.bisect((x: T0) -> {cmp(x, t)<0});
+    if(cmp(seq[idx], t) == 0, idx+1, error("item not in sequence"))
 }
 
 fn reduce<T0, T1>(g: Sequence<T0>, initial_state: T1, func: (T1, T0)->(T1)) -> T1{
@@ -691,7 +700,7 @@ fn random(d: ContinuousDistribution)->float{
     d.sample(1)[0]
 }
 
-fn standard_distribution()->ContinuousDistribution{
+fn standard_uniform_distribution()->ContinuousDistribution{
     rectangular_distribution(0.0, 1.0)
 }
 
@@ -1325,19 +1334,19 @@ fn rank_eq<T0>(seq: Sequence<T0>, t: T0, cmp: (T0, T0)->(int))->int{
 }
 
 /// Complex 2
-fn is_close(a: Complex, b: Complex, rel_tol: float ?= 1e-9, abs_tol: float ?= 1e-9)->bool{
+fn is_close(a: Complex, b: Complex, rel_tol: float ?= 1e-6, abs_tol: float ?= 1e-6)->bool{
     let diff = a-b;
-    diff.abs().is_close(0.0, rel_tol, abs_tol)
+    diff.abs() <= max(max(a.abs(), b.abs())*rel_tol, abs_tol)
 }
 
 /// ContinuousDistribution 2
 fn random()->float{
-    standard_distribution().random()
+    standard_uniform_distribution().random()
 }
 
 /// Date 2
 fn add(d0: Date, dur: Duration)->Date{
-    date(d0.julian_day() + dur.seconds().trunc())
+    date(d0.julian_day() + dur.days().trunc())
 }
 
 fn format(self: Date, fmt: str)->str{

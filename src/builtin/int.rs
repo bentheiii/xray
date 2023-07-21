@@ -247,7 +247,7 @@ pub(crate) fn add_int_digits<W, R, T>(
             let mut total_bits = 0;
             let mut n = n.clone();
             while !n.is_zero() {
-                let next_digit = n.clone() % b.clone().into_owned();
+                let next_digit = &n % b.as_ref();
                 total_bits += next_digit.bits();
                 rt.can_allocate_by(|| (total_bits / 8).to_usize())?;
                 digits.push(next_digit);

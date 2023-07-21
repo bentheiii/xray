@@ -27,6 +27,9 @@ impl FencedString {
             }
             char_starts.push(start_ind);
         }
+        if char_starts.last().map_or(false, |last| last + 1 < s.len()) {
+            is_not_ascii = true;
+        }
         Self {
             buffer: s,
             char_starts: if is_not_ascii {
@@ -271,6 +274,12 @@ mod tests {
         let f = test_str("y̆es");
         assert_eq!(f.len(), 4);
         assert_eq!(f.substr(1, Some(4)), "\u{0306}es")
+    }
+
+    #[test]
+    fn test_complex2() {
+        let f = test_str("🧡");
+        assert_eq!(f.len(), 1);
     }
 
     #[test]
