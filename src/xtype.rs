@@ -71,7 +71,7 @@ impl Bind {
         Some(self)
     }
 
-    fn get(&self, id: &Identifier) -> Option<&Arc<XType>> {
+    pub(crate) fn get(&self, id: &Identifier) -> Option<&Arc<XType>> {
         self.bound_generics.get(id)
     }
 
@@ -509,7 +509,16 @@ impl XType {
                 }
                 Self::Tuple(new_types).into()
             }
-            Self::Compound(ct, spec, _) => Self::Compound(*ct, spec.clone(), bind.clone()).into(),
+            Self::Compound(ct, spec, original_bind) => {
+                let mut new_bind = Bind::default();
+                for gen_name in spec.generic_names.iter(){
+                    new_bind.bound_generics.insert(*gen_name, 
+                        original_bind.get(gen_name)
+                        .unwrap() // todo is this safe?
+                        .resolve_bind(bind, tail));
+                }
+                Self::Compound(*ct, spec.clone(), new_bind).into()
+            },
             _ => self.clone(),
         }
     }

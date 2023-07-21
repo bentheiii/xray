@@ -1115,6 +1115,61 @@ fn predict(self: LinearRegression, x: float)->float{
     self::slope*x + self::intercept
 }
 
+/// Matrix 1
+/*
+struct Matrix<T>(_cols: int, _data: Sequence<T>)
+*/
+
+fn columns<T>(self: Matrix<T>)->int{
+    self::_cols
+}
+
+fn get<T>(self: Matrix<T>, i: int, j: int)->T{
+    self::_data[i*self::_cols + j]
+}
+
+fn get<T>(self: Matrix<T>, c: (int, int))->T{
+    self::_data[c::item0*self::_cols + c::item1]
+}
+
+fn manifest<T>(self: Matrix<T>)->Matrix<T>{
+    matrix(self::_cols, self::_date.to_array())
+}
+
+fn matrix<T>(rows: int, cols: int, data: Sequence<T>)->Matrix<T>{
+    if(rows*cols != data.len(), error("matrix: rows*cols must equal data.len()"), Matrix(cols, data))
+}
+
+fn matrix<T>(rows: int, cols: int, f: (int, int)->(T))->Matrix<T>{
+    matrix(rows, cols, range(rows*cols).map((i: int)->{f(i.div_floor(cols), i%cols)}))
+}
+
+fn matrix<T>(rows: int, cols: int, f: ((int, int))->(T))->Matrix<T>{
+    matrix(rows, cols, range(rows*cols).map((i: int)->{f((i.div_floor(cols), i%cols))}))
+}
+
+fn matrix<T>(data: Sequence<Sequence<T>>)->Matrix<T>{
+    fn main1()->Matrix<T>{
+        let cols = data[0].len();
+        if(data.any((row: Sequence<T>)->{row.len() != cols}),
+            error("matrix: all rows must have the same length"),
+            matrix(data.len(), cols, (i: int, j:int)->{data[i][j]})
+        )
+    }
+
+    if(data.len() == 0, error("data must be non-empty"),
+        main1()
+    )
+}
+
+fn rows<T>(self: Matrix<T>)->int{
+    self::_data.len().div_floor(self::_cols)
+}
+
+fn to_sequence<T>(self: Matrix<T>)->Sequence<Sequence<T>>{
+    range(self.rows()).map((i: int)->{range(self.columns()).map((j: int)->{self[i,j]})})
+}
+
 //// gen 2
 /// int 2
 fn factorial(n: int, step: int ?= 1)->int{
@@ -1410,6 +1465,14 @@ fn sub(d0: Datetime, d1: Datetime)->Duration{
 /// DiscreteDistribution 2
 fn sample_standard_deviation(s: Sequence<int>)->float{
     sample_variance(s).sqrt()
+}
+
+/// Matrix 2
+fn add<T0, T1, U>(a: Matrix<T0>, b: Matrix<T1>, add_: (T0, T1)->(U))->Matrix<U>{
+    if(a.columns() != b.columns() || a.rows() != b.rows(),
+        error("matrix dimensions must match"), 
+        matrix(a.rows(), a.columns(), (c: (int, int))->{add_(a[c], b[c])})
+    )
 }
 
 //// gen 3

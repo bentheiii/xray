@@ -30,6 +30,7 @@
 - [Collections](./std/collections.md)
     - [Generator](./std/generator.md)
     - [Mapping](./std/mapping.md)
+    - [Matrix](./std/matrix.md)
     - [Optional](./std/optional.md)
     - [Set](./std/set.md)
     - [Sequence](./std/sequence.md)

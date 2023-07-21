@@ -24,6 +24,7 @@ use crate::builtin::set::*;
 use crate::builtin::structs::*;
 use crate::builtin::tuple::*;
 use crate::builtin::unions::*;
+use crate::builtin::matrix::*;
 use crate::root_compilation_scope::RootCompilationScope;
 
 pub mod bool;
@@ -39,6 +40,7 @@ pub mod include;
 pub mod int;
 pub mod json;
 pub mod mapping;
+pub mod matrix;
 pub mod optional;
 pub mod regex;
 pub mod sequence;
@@ -252,6 +254,9 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_mapping_dyn_eq(scope).unwrap();
     add_mapping_dyn_hash(scope).unwrap();
     add_mapping_dyn_new(scope).unwrap();
+
+    add_matrix_type(scope).unwrap();
+    add_matrix_dyn_add(scope).unwrap();
 
     add_optional_type(scope).unwrap();
     add_optional_and(scope).unwrap();

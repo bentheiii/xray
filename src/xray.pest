@@ -28,7 +28,7 @@ expression2 = {
   member_value = {"!:" ~ CNAME}
   member_opt_value = {"?:" ~ CNAME}
   call = {call_args}
-  index = {"[" ~ expression ~ "]"}
+  index = {"[" ~ container_elements ~ "]"}
 expression3 = _{
     STRING
     | RAW_STRING

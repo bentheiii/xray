@@ -116,8 +116,17 @@
   * [X] random
   * [X] is_infinite
   * [X] mean/std for distributions
-  * [ ] sort reverse (dyn)
+  * [X] sort reverse (dyn)
   * [ ] matrices
+    * [ ] eye
+    * [ ] zeros
+    * [ ] diag
+    * [ ] determinant
+    * [ ] inverse
+    * [ ] transpose
+    * [ ] multiply
+    * [ ] map
+  * [ ] complex numbers
   * [ ] time of day?
   * [ ] list shuffle
   * [X] numerically safe addition

@@ -1,3 +1,4 @@
+use crate::root_compilation_scope::RootCompilationScope;
 use crate::xvalue::{ManagedXError, ManagedXValue, XValue};
 use num_traits::{One, Zero};
 
@@ -216,6 +217,24 @@ pub(crate) fn unpack_natives<'a>(
 ) -> Result<&'a [Arc<XType>], String> {
     match t.as_ref() {
         XType::XNative(nt0, bind) if names.iter().any(|n| *n == nt0.name()) => Ok(&bind[..]),
+        _ => Err(format!("Expected one of {names:?} type, got {t:?}")),
+    }
+}
+
+pub(crate) fn unpack_compound<'a, const M: usize>(
+    t: &'a Arc<XType>,
+    name: Identifier,
+) -> Result<[&'a Arc<XType>; M], String> {
+    unpack_compounds(t, &[name])
+}
+
+pub(crate) fn unpack_compounds<'a, const M: usize>(
+    t: &'a Arc<XType>,
+    names: &[Identifier],
+) -> Result<[&'a Arc<XType>; M], String> {
+    match t.as_ref() {
+        XType::Compound(_, spec, bind) if names.iter().any(|n| *n == spec.name) => 
+            Ok(spec.generic_names.iter().map(|i| bind.get(i).unwrap()).collect::<Vec<_>>().try_into().unwrap()),
         _ => Err(format!("Expected one of {names:?} type, got {t:?}")),
     }
 }

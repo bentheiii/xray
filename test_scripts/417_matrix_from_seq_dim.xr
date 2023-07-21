@@ -1,0 +1,9 @@
+fn main()->bool{
+    let m0 = matrix([[1,2,3],[4,5,6]]);
+
+    assert(m0.rows() == 2)
+    && assert(m0.columns() == 3)
+    && assert(m0[0,0] == 1)
+    && assert(m0[0,1] == 2)
+    && assert(m0[1,2] == 6)
+}

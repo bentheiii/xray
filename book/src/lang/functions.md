@@ -130,7 +130,7 @@ XRay supports the following unary operators:
 * `-`: `neg`
 * `+`: `pos`
 
-XRay also supports the indexing operator (`[]`) as an alias for the `get` function. For example, `a[b]` is equivalent to `get(a, b)`. This allows users to override the indexing operator for new or existing types simply by defining the corresponding function.
+XRay also supports the indexing operator (`[]`) as an alias for the `get` function. For example, `a[b]` is equivalent to `get(a, b)`, and `a[b,c]` is equivalent to `a.get(b,c)`. This allows users to override the indexing operator for new or existing types simply by defining the corresponding function.
 
 ## Short-Circuiting Functions
 User functions, as well as most built-in functions, as not short circuiting. This means that all parameters are evaluated before the function is called, and if any of the parameters produce an error, the function being called will also produce an error. For example:

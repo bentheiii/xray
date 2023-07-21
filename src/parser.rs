@@ -618,9 +618,14 @@ impl<W, R, T> CompilationScope<'_, W, R, T> {
                             ret = XStaticExpr::Call(Box::new(ret), args);
                         }
                         Rule::index => {
-                            let idx =
-                                self.parse_expr(accessor.into_inner().next().unwrap(), interner)?;
-                            ret = XStaticExpr::new_call("get", vec![ret, idx], interner)
+                            let idxs_pair = accessor.into_inner().next().unwrap();
+                            let args = iter::once(Ok(ret))
+                            .chain(
+                                idxs_pair
+                                    .into_inner()
+                                    .map(|p| self.parse_expr(p, interner)),
+                            ).collect::<Result<_,_>>()?;
+                            ret = XStaticExpr::new_call("get", args, interner)
                         }
                         _ => {
                             unreachable!()
