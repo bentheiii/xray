@@ -1,0 +1,2 @@
+# Evaluation
+A [compilation scope](compilation.md) can evaluation by transforming it into an evaluation scope. An evaluation scope also needs a runtime object, with which we can [inject some side effects](./injectable_dependencies.md). An evaluation scope can succeed or fail, in which case it returns an [runtime violation](./limits.md#violations). If it has succeeded, it then be interacted with by exporting objects from it and evaluating its functions.

@@ -1,0 +1,2 @@
+# The Standard Library
+The XRay standard library is designed to serve all the needs of a general purpose programming language. It is designed to be as simple as possible, while still being powerful enough to be useful. It is divided into sections, each of which pertains primarily to a specific type. Within each section, type definitions are first, followed by constant values, followed by functions. Dynamic functions, as well as functions that require special permissions, are documented in their specific entries.
