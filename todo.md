@@ -112,17 +112,10 @@
   * [X] set xor
   * [X] xors
   * [X] sleep
-  * [ ] chunks
+  * [X] chunks
   * [X] random
-  * [ ] is_infinite
-  * [ ] fold?
-  * [ ] str len
-  * [ ] array to generator
-  * [ ] generator to array
-  * [ ] filter should return a generator
-  * [ ] generator takewhile/skipuntil
-  * [ ] sequence reverse
-  * [ ] mean/std for distributions
+  * [X] is_infinite
+  * [X] mean/std for distributions
   * [ ] sort reverse (dyn)
   * [ ] matrices
   * [ ] time of day?

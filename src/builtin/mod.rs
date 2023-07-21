@@ -274,6 +274,7 @@ pub(crate) fn load_builtin<W: Write, R: RngCore + SeedableRng, T: TimeProvider>(
     add_sequence_count(scope).unwrap();
     add_sequence_get(scope).unwrap();
     add_sequence_insert(scope).unwrap();
+    add_sequence_is_infinite(scope).unwrap();
     add_sequence_len(scope).unwrap();
     add_sequence_map(scope).unwrap();
     add_sequence_n_largest(scope).unwrap();

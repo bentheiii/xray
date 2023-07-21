@@ -605,6 +605,23 @@ pub(crate) fn add_sequence_len<W, R, T>(
     )
 }
 
+pub(crate) fn add_sequence_is_infinite<W, R, T>(
+    scope: &mut RootCompilationScope<W, R, T>,
+) -> Result<(), CompilationError> {
+    let ([t], params) = scope.generics_from_names(["T"]);
+
+    scope.add_func(
+        "is_infinite",
+        XFuncSpec::new(&[&XSequenceType::xtype(t)], X_BOOL.clone()).generic(params),
+        XStaticFunction::from_native(|args, ns, _tca, rt| {
+            let a0 = xraise!(eval(&args[0], ns, &rt)?);
+            let arr = &to_native!(a0, XSequence<W, R, T>);
+            let ret = arr.len().is_none();
+            Ok(ManagedXValue::new(XValue::Bool(ret), rt)?.into())
+        }),
+    )
+}
+
 pub(crate) fn add_sequence_add<W, R, T>(
     scope: &mut RootCompilationScope<W, R, T>,
 ) -> Result<(), CompilationError> {

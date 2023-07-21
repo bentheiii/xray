@@ -175,6 +175,10 @@ Where `hash(T)->int`
 
 Returns a hash of `x`.
 
+## fn `is_infinite<T>(x: Sequence<T>) -> bool`
+
+Returns whether `x` is an infinite sequence.
+
 ## fn `insert<T>(x: Sequence<T>, idx: int, item: T) -> Sequence<T>` {#insert}
 
 Returns a copy of `x` with `item` inserted at index `idx`.
